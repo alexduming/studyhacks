@@ -21,11 +21,7 @@ export default async function ShowcasesPage({
 
   return (
     <>
-      <Showcases
-        showcases={t.raw("showcases")}
-        srOnlyTitle={tt.raw("title")}
-        className="md:py-36"
-      />
+      <Showcases showcases={t.raw("showcases")} srOnlyTitle={tt.raw("title")} />
 
       <CTA cta={t.raw("cta")} className="bg-muted" />
     </>

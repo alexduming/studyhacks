@@ -1,13 +1,34 @@
-import { Posts } from "@/blocks/landing/posts";
+import { Blog } from "@/blocks/landing";
+import { getMetadata } from "@/lib/seo";
+import { Blog as BlogType } from "@/types/blocks/blog";
 import { getPosts, PostStatus, PostType } from "@/services/post";
 import {
+  findTaxonomy,
   getTaxonomies,
   TaxonomyStatus,
   TaxonomyType,
 } from "@/services/taxonomy";
-import { setRequestLocale } from "next-intl/server";
-import { Posts as PostsType } from "@/types/blocks/post";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import moment from "moment";
+import { envConfigs } from "@/config";
+import { Empty } from "@/blocks/common";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+
+  return {
+    title: "Blog",
+    description:
+      "Read about our latest product features, solutions, and updates.",
+    alternates: {
+      canonical: `${envConfigs.app_url}/blog`,
+    },
+  };
+}
 
 export default async function BlogPage({
   params,
@@ -18,6 +39,8 @@ export default async function BlogPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
+
+  const t = await getTranslations("blog");
 
   const { page: pageNum, pageSize } = await searchParams;
   const page = pageNum || 1;
@@ -35,26 +58,52 @@ export default async function BlogPage({
     status: TaxonomyStatus.PUBLISHED,
   });
 
-  const postsData: PostsType = {
-    title: "Blog",
-    description: "Latest blog posts",
-    categories: categories.map((category) => ({
-      title: category.title,
-      url: `/blog/category/${category.slug}`,
-    })),
-    items: posts.map((post) => ({
-      id: post.id,
-      title: post.title || "",
-      description: post.description || "",
-      author_name: post.authorName || "idoubi",
-      author_image:
-        post.authorImage ||
-        "https://lh3.googleusercontent.com/a/ACg8ocK-lqyZmxqH5I264sp_LimejzP8EfzZ4d-jr--cA5lzXailmJg=s96-c",
-      created_at: moment(post.createdAt).format("MMM D, YYYY") || "",
-      image: post.image || "https://img.youphoto.ai/web%20img/cover1.png",
-      url: `/blog/${post.slug}`,
-    })),
+  // current category data
+  const currentCategory = {
+    id: "all",
+    slug: "all",
+    title: t("all"),
+    url: `/blog`,
   };
 
-  return <Posts posts={postsData} />;
+  // category data
+  const categoryData = categories.map((category) => ({
+    id: category.id,
+    slug: category.slug,
+    title: category.title,
+    url: `/blog/category/${category.slug}`,
+  }));
+  categoryData.unshift({
+    id: "all",
+    slug: "all",
+    title: t("all"),
+    url: `/blog`,
+  });
+
+  // post data
+  const postData = posts.map((post) => ({
+    id: post.id,
+    title: post.title || "",
+    description: post.description || "",
+    author_name: post.authorName || "",
+    author_image: post.authorImage || "",
+    created_at: moment(post.createdAt).format("MMM D, YYYY") || "",
+    image: post.image || "",
+    url: `/blog/${post.slug}`,
+  }));
+
+  const blog: BlogType = {
+    title: t("title"),
+    description: t("description"),
+    categories: categoryData,
+    posts: postData,
+  };
+
+  return (
+    <Blog
+      blog={blog}
+      currentCategory={currentCategory}
+      srOnlyTitle={t("page_title")}
+    />
+  );
 }

@@ -21,5 +21,5 @@ export * from "./faq";
 export * from "./cta";
 export * from "./pricing";
 
-export * from "./posts";
-export * from "./post-detail";
+export * from "./blog";
+export * from "./blog-detail";

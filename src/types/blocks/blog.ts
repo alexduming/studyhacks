@@ -1,25 +1,31 @@
-export interface PostItem {
+export interface Blog {
   id?: string;
   title?: string;
   description?: string;
+  categories?: Category[];
+  posts: Post[];
+  className?: string;
+}
+
+export interface Post {
+  id?: string;
+  slug?: string;
+  title?: string;
+  description?: string;
   image?: string;
-  content?: string | ReactNode;
+  content?: string;
   created_at?: string;
   author_name?: string;
+  author_role?: string;
   author_image?: string;
   url?: string;
   target?: string;
-}
-
-export interface Posts {
-  title?: string;
-  description?: string;
   categories?: Category[];
-  items: PostItem[];
 }
 
 export interface Category {
   id?: string;
+  slug?: string;
   title?: string;
   description?: string;
   image?: string;

@@ -15,7 +15,10 @@ export function Showcases({
   srOnlyTitle?: string;
 }) {
   return (
-    <section className={cn("py-16 md:py-24", showcases.className, className)}>
+    <section
+      id={showcases.id}
+      className={cn("py-16 md:py-36", showcases.className, className)}
+    >
       <div className="mx-auto mb-12 text-center">
         {srOnlyTitle && <h1 className="sr-only">{srOnlyTitle}</h1>}
         <h2 className="mb-6 text-pretty text-3xl font-bold lg:text-4xl">
