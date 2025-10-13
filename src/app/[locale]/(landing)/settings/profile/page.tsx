@@ -17,14 +17,14 @@ export default async function ProfilePage() {
     fields: [
       {
         name: "email",
-        title: t("form.email"),
+        title: t("fields.email"),
         type: "email",
         attributes: { disabled: true },
       },
-      { name: "name", title: t("form.name"), type: "text" },
+      { name: "name", title: t("fields.name"), type: "text" },
       {
         name: "image",
-        title: t("form.avatar"),
+        title: t("fields.avatar"),
         type: "upload_image",
         metadata: {
           max: 1,
@@ -66,14 +66,18 @@ export default async function ProfilePage() {
         };
       },
       button: {
-        title: t("form.button_title"),
+        title: t("edit.buttons.submit"),
       },
     },
   };
 
   return (
     <div className="space-y-8">
-      <FormCard title={t("title")} description={t("description")} form={form} />
+      <FormCard
+        title={t("edit.title")}
+        description={t("edit.description")}
+        form={form}
+      />
     </div>
   );
 }

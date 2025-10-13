@@ -9,7 +9,7 @@ export default async function SettingsLayout({
 }: {
   children: ReactNode;
 }) {
-  const t = await getTranslations("settings");
+  const t = await getTranslations("settings.sidebar");
 
   // settings title
   const title = t("title");
@@ -25,11 +25,11 @@ export default async function SettingsLayout({
         url: "/settings/profile",
         icon: "User",
       },
-      {
-        title: t("nav.security"),
-        url: "/settings/security",
-        icon: "Lock",
-      },
+      // {
+      //   title: t("nav.security"),
+      //   url: "/settings/security",
+      //   icon: "Lock",
+      // },
       {
         title: t("nav.billing"),
         url: "/settings/billing",
@@ -46,8 +46,8 @@ export default async function SettingsLayout({
         icon: "Coins",
       },
       {
-        title: t("nav.api-keys"),
-        url: "/settings/api-keys",
+        title: t("nav.apikeys"),
+        url: "/settings/apikeys",
         icon: "RiKeyLine",
       },
     ],

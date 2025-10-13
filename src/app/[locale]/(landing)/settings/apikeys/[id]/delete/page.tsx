@@ -7,11 +7,11 @@ import {
   updateApikey,
   UpdateApikey,
 } from "@/shared/services/apikey";
-import { getNonceStr } from "@/shared/lib/hash";
+import { ApikeyStatus } from "@/shared/services/apikey";
 import { Crumb } from "@/shared/types/blocks/common";
 import { getTranslations } from "next-intl/server";
 
-export default async function EditApiKeyPage({
+export default async function DeleteApiKeyPage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -31,17 +31,30 @@ export default async function EditApiKeyPage({
     return <Empty message="no permission" />;
   }
 
-  const t = await getTranslations("settings.api-keys.edit");
+  const t = await getTranslations("settings.apikeys");
 
   const form: FormType = {
-    title: t("title"),
+    title: t("delete.title"),
     fields: [
       {
         name: "title",
-        title: t("form.title"),
+        title: t("fields.title"),
         type: "text",
         placeholder: "",
         validation: { required: true },
+        attributes: {
+          disabled: true,
+        },
+      },
+      {
+        name: "key",
+        title: t("fields.key"),
+        type: "text",
+        placeholder: "",
+        validation: { required: true },
+        attributes: {
+          disabled: true,
+        },
       },
     ],
     passby: {
@@ -72,40 +85,41 @@ export default async function EditApiKeyPage({
           throw new Error("title is required");
         }
 
-        const key = `sk-${getNonceStr(32)}`;
-
         const updatedApikey: UpdateApikey = {
-          title: title.trim(),
+          status: ApikeyStatus.DELETED,
+          deletedAt: new Date(),
         };
 
         await updateApikey(apikey.id, updatedApikey);
 
         return {
           status: "success",
-          message: "API Key updated",
-          redirect_url: "/settings/api-keys",
+          message: "API Key deleted",
+          redirect_url: "/settings/apikeys",
         };
       },
       button: {
-        title: t("button_title"),
+        title: t("delete.buttons.submit"),
+        variant: "destructive",
+        icon: "RiDeleteBinLine",
       },
     },
   };
 
   const crumbs: Crumb[] = [
     {
-      title: t("crumb.api-keys"),
-      url: "/settings/api-keys",
+      title: t("delete.crumbs.apikeys"),
+      url: "/settings/apikeys",
     },
     {
-      title: t("crumb.edit"),
+      title: t("delete.crumbs.delete"),
       is_active: true,
     },
   ];
 
   return (
     <div className="space-y-8">
-      <FormCard title={t("title")} crumbs={crumbs} form={form} />
+      <FormCard title={t("delete.crumbs.delete")} crumbs={crumbs} form={form} />
     </div>
   );
 }

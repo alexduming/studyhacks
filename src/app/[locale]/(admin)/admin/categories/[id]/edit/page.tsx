@@ -10,6 +10,7 @@ import {
 import { getUserInfo } from "@/shared/services/user";
 import { Empty } from "@/shared/blocks/common";
 import { Crumb } from "@/shared/types/blocks/common";
+import { getTranslations } from "next-intl/server";
 
 export default async function CategoryEditPage({
   params,
@@ -28,14 +29,16 @@ export default async function CategoryEditPage({
     return <Empty message="no auth" />;
   }
 
+  const t = await getTranslations("admin.categories");
+
   if (!user || category.userId !== user.id) {
     return <Empty message="access denied" />;
   }
 
   const crumbs: Crumb[] = [
-    { title: "Admin", url: "/admin" },
-    { title: "Categories", url: "/admin/categories" },
-    { title: "Edit Category", is_active: true },
+    { title: t("edit.crumbs.admin"), url: "/admin" },
+    { title: t("edit.crumbs.categories"), url: "/admin/categories" },
+    { title: t("edit.crumbs.edit"), is_active: true },
   ];
 
   const form: Form = {
@@ -43,20 +46,20 @@ export default async function CategoryEditPage({
       {
         name: "slug",
         type: "text",
-        title: "Slug",
+        title: t("fields.slug"),
         tip: "unique slug for the category",
         validation: { required: true },
       },
       {
         name: "title",
         type: "text",
-        title: "Category Name",
+        title: t("fields.title"),
         validation: { required: true },
       },
       {
         name: "description",
         type: "textarea",
-        title: "Description",
+        title: t("fields.description"),
       },
     ],
     passby: {
@@ -67,7 +70,7 @@ export default async function CategoryEditPage({
     data: category,
     submit: {
       button: {
-        title: "Edit Category",
+        title: t("edit.buttons.submit"),
       },
       handler: async (data, passby) => {
         "use server";
@@ -114,7 +117,7 @@ export default async function CategoryEditPage({
     <>
       <Header crumbs={crumbs} />
       <Main>
-        <MainHeader title="Edit Category" />
+        <MainHeader title={t("edit.title")} />
         <FormCard form={form} className="md:max-w-xl" />
       </Main>
     </>

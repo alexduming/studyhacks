@@ -1,0 +1,40 @@
+{
+  "groups": {
+    "email_auth": "Email Auth",
+    "google_auth": "Google Auth",
+    "github_auth": "Github Auth",
+    "basic_payment": "Basic Payment",
+    "stripe": "Stripe",
+    "creem": "Creem",
+    "paypal": "Paypal",
+    "resend": "Resend",
+    "r2": "Cloudflare R2",
+    "s3": "AWS S3",
+    "openrouter": "OpenRouter",
+    "replicate": "Replicate",
+    "fal": "Fal",
+    "google_analytics": "Google Analytics",
+    "plausible": "Plausible",
+    "openpanel": "OpenPanel",
+    "adsense": "Adsense"
+  },
+  "edit": {
+    "title": "Settings",
+    "crumbs": {
+      "admin": "Admin",
+      "settings": "Settings"
+    },
+    "tabs": {
+      "auth": "Auth",
+      "payment": "Payment",
+      "email": "Email",
+      "storage": "Storage",
+      "ai": "AI",
+      "analytics": "Analytics",
+      "ads": "Ads"
+    },
+    "buttons": {
+      "submit": "Save"
+    }
+  }
+}

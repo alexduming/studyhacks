@@ -16,6 +16,7 @@ import {
 } from "@/shared/services/taxonomy";
 import { Empty } from "@/shared/blocks/common";
 import { Crumb } from "@/shared/types/blocks/common";
+import { getTranslations } from "next-intl/server";
 
 export default async function PostEditPage({
   params,
@@ -34,10 +35,12 @@ export default async function PostEditPage({
     return <Empty message="no auth" />;
   }
 
+  const t = await getTranslations("admin.posts");
+
   const crumbs: Crumb[] = [
-    { title: "Admin", url: "/admin" },
-    { title: "Posts", url: "/admin/posts" },
-    { title: "Edit Post", is_active: true },
+    { title: t("edit.crumbs.admin"), url: "/admin" },
+    { title: t("edit.crumbs.posts"), url: "/admin/posts" },
+    { title: t("edit.crumbs.edit"), is_active: true },
   ];
 
   const categories = await getTaxonomies({
@@ -56,31 +59,31 @@ export default async function PostEditPage({
       {
         name: "slug",
         type: "text",
-        title: "Slug",
+        title: t("fields.slug"),
         tip: "unique slug for the post",
         validation: { required: true },
       },
       {
         name: "title",
         type: "text",
-        title: "Post Title",
+        title: t("fields.title"),
         validation: { required: true },
       },
       {
         name: "description",
         type: "textarea",
-        title: "Description",
+        title: t("fields.description"),
       },
       {
         name: "categories",
         type: "select",
-        title: "Categories",
+        title: t("fields.categories"),
         options: categoriesOptions,
       },
       {
         name: "content",
         type: "markdown_editor",
-        title: "Content",
+        title: t("fields.content"),
       },
     ],
     passby: {
@@ -91,7 +94,7 @@ export default async function PostEditPage({
     data: post,
     submit: {
       button: {
-        title: "Edit Post",
+        title: t("edit.buttons.submit"),
       },
       handler: async (data, passby) => {
         "use server";
@@ -145,7 +148,7 @@ export default async function PostEditPage({
     <>
       <Header crumbs={crumbs} />
       <Main>
-        <MainHeader title="Edit Post" />
+        <MainHeader title={t("edit.title")} />
         <FormCard form={form} className="md:max-w-xl" />
       </Main>
     </>

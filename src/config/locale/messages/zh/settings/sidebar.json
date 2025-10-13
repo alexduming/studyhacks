@@ -1,0 +1,11 @@
+{
+  "title": "设置",
+  "nav": {
+    "profile": "个人资料",
+    "billing": "账单",
+    "payments": "支付",
+    "security": "安全设置",
+    "credits": "积分",
+    "apikeys": "API 密钥"
+  }
+}

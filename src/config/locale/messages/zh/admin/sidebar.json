@@ -12,25 +12,25 @@
   },
   "main_navs": [
     {
-      "title": "权限控制",
+      "title": "用户与权限",
       "items": [
         {
-          "title": "用户管理",
+          "title": "用户",
           "url": "/admin/users",
           "icon": "User"
         }
       ]
     },
     {
-      "title": "内容管理",
+      "title": "页面与内容",
       "items": [
         {
-          "title": "分类管理",
+          "title": "分类",
           "icon": "Folder",
           "url": "/admin/categories"
         },
         {
-          "title": "文章管理",
+          "title": "文章",
           "icon": "FileText",
           "url": "/admin/posts"
         }
@@ -40,17 +40,17 @@
       "title": "支付与积分",
       "items": [
         {
-          "title": "支付管理",
+          "title": "支付",
           "url": "/admin/payments",
           "icon": "DollarSign"
         },
         {
-          "title": "订阅管理",
+          "title": "订阅",
           "url": "/admin/subscriptions",
           "icon": "CreditCard"
         },
         {
-          "title": "积分管理",
+          "title": "积分",
           "url": "/admin/credits",
           "icon": "Coins"
         }
@@ -65,8 +65,8 @@
         "icon": "Settings"
       },
       {
-        "title": "API 密钥",
-        "url": "/admin/api-keys",
+        "title": "API密钥",
+        "url": "/admin/apikeys",
         "icon": "Key"
       }
     ]
@@ -78,12 +78,6 @@
           "title": "个人资料",
           "url": "/settings/profile",
           "icon": "User",
-          "target": "_blank"
-        },
-        {
-          "title": "安全设置",
-          "url": "/settings/security",
-          "icon": "Lock",
           "target": "_blank"
         }
       ]
@@ -114,7 +108,7 @@
           "target": "_blank"
         },
         {
-          "title": "Discord 社区",
+          "title": "Discord",
           "url": "https://discord.gg/x9usYqTaaj",
           "icon": "RiDiscordFill",
           "target": "_blank"

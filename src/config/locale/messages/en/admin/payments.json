@@ -1,0 +1,26 @@
+{
+  "fields": {
+    "order_no": "Order No",
+    "user": "User",
+    "amount": "Amount",
+    "product": "Product",
+    "description": "Description",
+    "type": "Type",
+    "provider": "Provider",
+    "created_at": "Created At",
+    "status": "Status",
+    "action": "Action"
+  },
+  "list": {
+    "title": "Payments",
+    "crumbs": {
+      "admin": "Admin",
+      "payments": "Payments"
+    },
+    "tabs": {
+      "all": "All",
+      "subscription": "Subscription",
+      "one-time": "One-Time"
+    }
+  }
+}

@@ -27,37 +27,6 @@
           "icon": "DollarSign"
         },
         {
-          "title": "AI",
-          "icon": "Bot",
-          "children": [
-            {
-              "title": "AI Chatbot",
-              "url": "/ai-chatbot",
-              "icon": "Bot"
-            },
-            {
-              "title": "AI Image Generator",
-              "url": "/ai-image-generator",
-              "icon": "Image"
-            },
-            {
-              "title": "AI Music Generator",
-              "url": "/ai-music-generator",
-              "icon": "Music"
-            },
-            {
-              "title": "AI Video Generator",
-              "url": "/ai-video-generator",
-              "icon": "Video"
-            },
-            {
-              "title": "AI Audio Generator",
-              "url": "/ai-audio-generator",
-              "icon": "AudioLines"
-            }
-          ]
-        },
-        {
           "title": "Blog",
           "url": "/blog",
           "icon": "Newspaper"

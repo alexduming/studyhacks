@@ -1,0 +1,17 @@
+{
+  "fields": {
+    "id": "ID",
+    "name": "名称",
+    "avatar": "头像",
+    "email": "邮箱",
+    "email_verified": "邮箱已验证",
+    "created_at": "创建时间"
+  },
+  "list": {
+    "title": "用户",
+    "crumbs": {
+      "admin": "管理后台",
+      "users": "用户"
+    }
+  }
+}

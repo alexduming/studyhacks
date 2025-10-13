@@ -2,14 +2,7 @@ import { Header, Main, MainHeader } from "@/shared/blocks/dashboard";
 import { TableCard } from "@/shared/blocks/table";
 import { type Table } from "@/shared/types/blocks/table";
 import { getUserInfo } from "@/shared/services/user";
-import {
-  getCredits,
-  getCreditsCount,
-  Credit,
-  CreditStatus,
-  CreditTransactionType,
-} from "@/shared/services/credit";
-
+import { getTranslations } from "next-intl/server";
 import { Crumb, Tab } from "@/shared/types/blocks/common";
 import { Empty } from "@/shared/blocks/common";
 import {
@@ -31,31 +24,33 @@ export default async function SubscriptionsPage({
     return <Empty message="no auth" />;
   }
 
+  const t = await getTranslations("admin.subscriptions");
+
   const { page: pageNum, pageSize, interval } = await searchParams;
   const page = pageNum || 1;
   const limit = pageSize || 30;
 
   const crumbs: Crumb[] = [
-    { title: "Admin", url: "/admin" },
-    { title: "Subscriptions", is_active: true },
+    { title: t("list.crumbs.admin"), url: "/admin" },
+    { title: t("list.crumbs.subscriptions"), is_active: true },
   ];
 
   const tabs: Tab[] = [
     {
       name: "all",
-      title: "All",
+      title: t("list.tabs.all"),
       url: "/admin/subscriptions",
       is_active: !interval || interval === "all",
     },
     {
       name: "month",
-      title: "Month",
+      title: t("list.tabs.month"),
       url: "/admin/subscriptions?interval=month",
       is_active: interval === "month",
     },
     {
       name: "year",
-      title: "Year",
+      title: t("list.tabs.year"),
       url: "/admin/subscriptions?interval=year",
       is_active: interval === "year",
     },
@@ -74,10 +69,14 @@ export default async function SubscriptionsPage({
 
   const table: Table = {
     columns: [
-      { name: "subscriptionNo", title: "Subscription No", type: "copy" },
-      { name: "user", title: "User", type: "user" },
       {
-        title: "Price",
+        name: "subscriptionNo",
+        title: t("fields.subscription_no"),
+        type: "copy",
+      },
+      { name: "user", title: t("fields.user"), type: "user" },
+      {
+        title: t("fields.amount"),
         callback: (item) => {
           return (
             <div className="text-primary">{`${item.amount / 100} ${
@@ -89,37 +88,30 @@ export default async function SubscriptionsPage({
       },
       {
         name: "interval",
-        title: "Interval",
+        title: t("fields.interval"),
         type: "label",
         placeholder: "-",
       },
       {
         name: "paymentProvider",
-        title: "Provider",
+        title: t("fields.provider"),
         type: "label",
       },
-      { name: "createdAt", title: "Created At", type: "time" },
+      { name: "createdAt", title: t("fields.created_at"), type: "time" },
       {
         name: "currentPeriodStart",
-        title: "Current Period Start",
+        title: t("fields.current_period_start"),
         type: "time",
         metadata: { format: "YYYY-MM-DD HH:mm:ss" },
       },
       {
         name: "currentPeriodEnd",
-        title: "Current Period End",
+        title: t("fields.current_period_end"),
         type: "time",
         metadata: { format: "YYYY-MM-DD HH:mm:ss" },
       },
-      { name: "status", title: "Status", type: "label" },
-      { name: "description", title: "Description", placeholder: "-" },
-      {
-        name: "action",
-        type: "dropdown",
-        callback: (item: Credit) => {
-          return [];
-        },
-      },
+      { name: "status", title: t("fields.status"), type: "label" },
+      { name: "description", title: t("fields.description"), placeholder: "-" },
     ],
     data: subscriptions,
     pagination: {
@@ -133,7 +125,7 @@ export default async function SubscriptionsPage({
     <>
       <Header crumbs={crumbs} />
       <Main>
-        <MainHeader title="Subscriptions" tabs={tabs} />
+        <MainHeader title={t("list.title")} tabs={tabs} />
         <TableCard table={table} />
       </Main>
     </>

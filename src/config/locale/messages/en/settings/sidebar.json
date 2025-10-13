@@ -1,0 +1,11 @@
+{
+  "title": "Settings",
+  "nav": {
+    "profile": "Profile",
+    "billing": "Billing",
+    "payments": "Payments",
+    "security": "Security",
+    "credits": "Credits",
+    "apikeys": "API Keys"
+  }
+}

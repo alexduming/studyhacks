@@ -1,0 +1,28 @@
+{
+  "fields": {
+    "subscription_no": "订阅号",
+    "interval": "周期",
+    "provider": "提供商",
+    "current_period": "当前周期",
+    "plan": "计划",
+    "status": "状态",
+    "amount": "金额",
+    "created_at": "创建时间",
+    "action": "操作"
+  },
+  "view": {
+    "title": "当前计划",
+    "tip": "你的订阅将在 {date} 自动续费",
+    "buttons": {
+      "adjust": "调整计划"
+    }
+  },
+  "list": {
+    "title": "订阅记录",
+    "tabs": {
+      "all": "全部",
+      "active": "活跃",
+      "canceled": "已取消"
+    }
+  }
+}

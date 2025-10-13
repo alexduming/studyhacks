@@ -1,0 +1,28 @@
+{
+  "fields": {
+    "subscription_no": "Subscription No",
+    "interval": "Interval",
+    "provider": "Provider",
+    "current_period": "Current Period",
+    "plan": "Plan",
+    "status": "Status",
+    "amount": "Amount",
+    "created_at": "Created At",
+    "action": "Action"
+  },
+  "view": {
+    "title": "Current Plan",
+    "tip": "Your subscription will auto renew on {date}",
+    "buttons": {
+      "adjust": "Adjust Plan"
+    }
+  },
+  "list": {
+    "title": "Subscriptions History",
+    "tabs": {
+      "all": "All",
+      "active": "Active",
+      "canceled": "Canceled"
+    }
+  }
+}

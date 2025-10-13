@@ -66,7 +66,7 @@
       },
       {
         "title": "API Keys",
-        "url": "/admin/api-keys",
+        "url": "/admin/apikeys",
         "icon": "Key"
       }
     ]
@@ -78,12 +78,6 @@
           "title": "Profile",
           "url": "/settings/profile",
           "icon": "User",
-          "target": "_blank"
-        },
-        {
-          "title": "Security",
-          "url": "/settings/security",
-          "icon": "Lock",
           "target": "_blank"
         }
       ]

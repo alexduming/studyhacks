@@ -7,6 +7,7 @@ import { addPost, NewPost, PostType } from "@/shared/services/post";
 import { PostStatus } from "@/shared/services/post";
 import { Empty } from "@/shared/blocks/common";
 import { Crumb } from "@/shared/types/blocks/common";
+import { getTranslations } from "next-intl/server";
 
 export default async function PostAddPage() {
   const user = await getUserInfo();
@@ -14,10 +15,12 @@ export default async function PostAddPage() {
     return <Empty message="no auth" />;
   }
 
+  const t = await getTranslations("admin.posts");
+
   const crumbs: Crumb[] = [
-    { title: "Admin", url: "/admin" },
-    { title: "Posts", url: "/admin/posts" },
-    { title: "Add Post", is_active: true },
+    { title: t("add.crumbs.admin"), url: "/admin" },
+    { title: t("add.crumbs.posts"), url: "/admin/posts" },
+    { title: t("add.crumbs.add"), is_active: true },
   ];
 
   const form: Form = {
@@ -25,25 +28,25 @@ export default async function PostAddPage() {
       {
         name: "slug",
         type: "text",
-        title: "Slug",
+        title: t("fields.slug"),
         tip: "unique slug for the post",
         validation: { required: true },
       },
       {
         name: "title",
         type: "text",
-        title: "Post Title",
+        title: t("fields.title"),
         validation: { required: true },
       },
       {
         name: "description",
         type: "textarea",
-        title: "Description",
+        title: t("fields.description"),
       },
       {
         name: "content",
         type: "markdown_editor",
-        title: "Content",
+        title: t("fields.content"),
       },
     ],
     passby: {
@@ -53,7 +56,7 @@ export default async function PostAddPage() {
     data: {},
     submit: {
       button: {
-        title: "Add Post",
+        title: t("add.buttons.submit"),
       },
       handler: async (data, passby) => {
         "use server";
@@ -108,7 +111,7 @@ export default async function PostAddPage() {
     <>
       <Header crumbs={crumbs} />
       <Main>
-        <MainHeader title="Add Post" />
+        <MainHeader title={t("add.title")} />
         <FormCard form={form} className="md:max-w-xl" />
       </Main>
     </>

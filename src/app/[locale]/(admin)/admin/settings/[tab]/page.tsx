@@ -4,8 +4,9 @@ import { Crumb, Tab } from "@/shared/types/blocks/common";
 import { Form as FormType } from "@/shared/types/blocks/form";
 import { saveConfigs } from "@/shared/services/config";
 import { getConfigs } from "@/shared/services/config";
-import { settingGroups, settings } from "@/shared/services/settings";
+import { getSettingGroups, getSettings } from "@/shared/services/settings";
 import { getUserInfo } from "@/shared/services/user";
+import { getTranslations } from "next-intl/server";
 
 export default async function SettingsPage({
   params,
@@ -15,52 +16,57 @@ export default async function SettingsPage({
   const configs = await getConfigs();
   const { tab } = await params;
 
+  const settingGroups = await getSettingGroups();
+  const settings = await getSettings();
+
+  const t = await getTranslations("admin.settings");
+
   const crumbs: Crumb[] = [
-    { title: "Admin", url: "/admin" },
-    { title: "Settings", is_active: true },
+    { title: t("edit.crumbs.admin"), url: "/admin" },
+    { title: t("edit.crumbs.settings"), is_active: true },
   ];
 
   const tabs: Tab[] = [
     {
       name: "auth",
-      title: "Auth",
+      title: t("edit.tabs.auth"),
       url: "/admin/settings/auth",
       is_active: tab === "auth",
     },
     {
       name: "payment",
-      title: "Payment",
+      title: t("edit.tabs.payment"),
       url: "/admin/settings/payment",
       is_active: tab === "payment",
     },
     {
       name: "email",
-      title: "Email",
+      title: t("edit.tabs.email"),
       url: "/admin/settings/email",
       is_active: tab === "email",
     },
     {
       name: "storage",
-      title: "Storage",
+      title: t("edit.tabs.storage"),
       url: "/admin/settings/storage",
       is_active: tab === "storage",
     },
 
     {
       name: "ai",
-      title: "AI",
+      title: t("edit.tabs.ai"),
       url: "/admin/settings/ai",
       is_active: tab === "ai",
     },
     {
       name: "analytics",
-      title: "Analytics",
+      title: t("edit.tabs.analytics"),
       url: "/admin/settings/analytics",
       is_active: tab === "analytics",
     },
     {
       name: "ads",
-      title: "Ads",
+      title: t("edit.tabs.ads"),
       url: "/admin/settings/ads",
       is_active: tab === "ads",
     },
@@ -116,7 +122,7 @@ export default async function SettingsPage({
       data: configs,
       submit: {
         button: {
-          title: "Save",
+          title: t("edit.buttons.submit"),
         },
         handler: handleSubmit as any,
       },
@@ -127,7 +133,7 @@ export default async function SettingsPage({
     <>
       <Header crumbs={crumbs} />
       <Main>
-        <MainHeader title="Settings" tabs={tabs} />
+        <MainHeader title={t("edit.title")} tabs={tabs} />
         {forms.map((form) => (
           <FormCard
             key={form.title}

@@ -16,10 +16,11 @@ import {
   PaymentType,
   PaymentPrice,
 } from "@/extensions/payment";
+import { getAllConfigs } from "@/shared/services/config";
 
 export async function POST(req: Request) {
   try {
-    const { product_id, currency } = await req.json();
+    const { product_id, currency, locale } = await req.json();
 
     const t = await getTranslations("pricing");
     const pricing = t.raw("pricing");
@@ -46,9 +47,12 @@ export async function POST(req: Request) {
     let checkoutCurrency = currency || pricingItem.currency || "";
     checkoutCurrency = checkoutCurrency.toLowerCase();
 
+    const configs = await getAllConfigs();
+    const defaultPaymentProvider = configs.payment_provider;
+
     // get default payment provider
-    const paymentProvider = paymentService.getDefaultProvider();
-    if (!paymentProvider) {
+    const paymentProvider = paymentService.getProvider(defaultPaymentProvider);
+    if (!paymentProvider || !paymentProvider.name) {
       return respErr("no payment provider configured");
     }
 
@@ -93,7 +97,10 @@ export async function POST(req: Request) {
         user_id: user.id,
       },
       successUrl: `${envConfigs.app_url}/api/payment/callback?order_no=${orderNo}`,
-      cancelUrl: `${envConfigs.app_url}/pricing`,
+      cancelUrl:
+        locale && locale !== configs.default_locale
+          ? `${envConfigs.app_url}/${locale}/pricing`
+          : `${envConfigs.app_url}/pricing`,
     };
 
     if (paymentProductId) {

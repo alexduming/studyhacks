@@ -45,9 +45,7 @@ export function Header({
                     {crumb.is_active ? (
                       <BreadcrumbPage>{crumb.title}</BreadcrumbPage>
                     ) : (
-                      <BreadcrumbLink href={crumb.url || ""}>
-                        {crumb.title}
-                      </BreadcrumbLink>
+                      <Link href={crumb.url || ""}>{crumb.title}</Link>
                     )}
                   </BreadcrumbItem>
                   {index < crumbs.length - 1 && (

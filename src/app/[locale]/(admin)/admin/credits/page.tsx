@@ -12,6 +12,7 @@ import {
 
 import { Crumb, Tab } from "@/shared/types/blocks/common";
 import { Empty } from "@/shared/blocks/common";
+import { getTranslations } from "next-intl/server";
 
 export default async function CreditsPage({
   searchParams,
@@ -23,31 +24,33 @@ export default async function CreditsPage({
     return <Empty message="no auth" />;
   }
 
+  const t = await getTranslations("admin.credits");
+
   const { page: pageNum, pageSize, type } = await searchParams;
   const page = pageNum || 1;
   const limit = pageSize || 30;
 
   const crumbs: Crumb[] = [
-    { title: "Admin", url: "/admin" },
-    { title: "Credits", is_active: true },
+    { title: t("list.crumbs.admin"), url: "/admin" },
+    { title: t("list.crumbs.credits"), is_active: true },
   ];
 
   const tabs: Tab[] = [
     {
       name: "all",
-      title: "All",
+      title: t("list.tabs.all"),
       url: "/admin/credits",
       is_active: !type || type === "all",
     },
     {
       name: "grant",
-      title: "Grant",
+      title: t("list.tabs.grant"),
       url: "/admin/credits?type=grant",
       is_active: type === "grant",
     },
     {
       name: "consume",
-      title: "Consume",
+      title: t("list.tabs.consume"),
       url: "/admin/credits?type=consume",
       is_active: type === "consume",
     },
@@ -68,11 +71,15 @@ export default async function CreditsPage({
 
   const table: Table = {
     columns: [
-      { name: "transactionNo", title: "Transaction No", type: "copy" },
-      { name: "user", title: "User", type: "user" },
+      {
+        name: "transactionNo",
+        title: t("fields.transaction_no"),
+        type: "copy",
+      },
+      { name: "user", title: t("fields.user"), type: "user" },
       {
         name: "credits",
-        title: "Amount",
+        title: t("fields.amount"),
         callback: (item) => {
           if (item.credits > 0) {
             return <div className="text-green-500">+{item.credits}</div>;
@@ -83,26 +90,20 @@ export default async function CreditsPage({
       },
       {
         name: "remainingCredits",
-        title: "Remaining",
+        title: t("fields.remaining"),
         type: "label",
         placeholder: "-",
       },
-      { name: "transactionType", title: "Type" },
-      { name: "transactionScene", title: "Scene", placeholder: "-" },
-      { name: "description", title: "Description", placeholder: "-" },
-      { name: "createdAt", title: "Created At", type: "time" },
+      { name: "transactionType", title: t("fields.type") },
+      { name: "transactionScene", title: t("fields.scene"), placeholder: "-" },
+      { name: "description", title: t("fields.description"), placeholder: "-" },
+      { name: "createdAt", title: t("fields.created_at"), type: "time" },
       {
         name: "expiresAt",
-        title: "Expires At",
+        title: t("fields.expires_at"),
         type: "time",
+        placeholder: "-",
         metadata: { format: "YYYY-MM-DD HH:mm:ss" },
-      },
-      {
-        name: "action",
-        type: "dropdown",
-        callback: (item: Credit) => {
-          return [];
-        },
       },
     ],
     data: credits,
@@ -117,7 +118,7 @@ export default async function CreditsPage({
     <>
       <Header crumbs={crumbs} />
       <Main>
-        <MainHeader title="Credits" tabs={tabs} />
+        <MainHeader title={t("list.title")} tabs={tabs} />
         <TableCard table={table} />
       </Main>
     </>

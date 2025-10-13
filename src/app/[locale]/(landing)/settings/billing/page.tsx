@@ -44,32 +44,26 @@ export default async function BillingPage({
   });
 
   const table: Table = {
-    title: t("subscriptions.title"),
+    title: t("list.title"),
     columns: [
       {
         name: "subscriptionNo",
-        title: t("subscriptions.table.subscription_no"),
+        title: t("fields.subscription_no"),
         type: "copy",
       },
       {
         name: "interval",
-        title: t("subscriptions.table.interval"),
+        title: t("fields.interval"),
         type: "label",
       },
       {
         name: "status",
-        title: t("subscriptions.table.status"),
+        title: t("fields.status"),
         type: "label",
         metadata: { variant: "outline" },
       },
       {
-        name: "paymentProvider",
-        title: t("subscriptions.table.provider"),
-        type: "label",
-        metadata: { variant: "outline" },
-      },
-      {
-        title: t("subscriptions.table.amount"),
+        title: t("fields.amount"),
         callback: function (item) {
           return (
             <div className="text-primary">{`${item.amount / 100} ${
@@ -81,11 +75,11 @@ export default async function BillingPage({
       },
       {
         name: "createdAt",
-        title: t("subscriptions.table.created_at"),
+        title: t("fields.created_at"),
         type: "time",
       },
       {
-        title: t("subscriptions.table.current_period"),
+        title: t("fields.current_period"),
         callback: function (item) {
           return (
             <div>
@@ -107,19 +101,19 @@ export default async function BillingPage({
 
   const tabs: Tab[] = [
     {
-      title: t("subscriptions.tabs.all"),
+      title: t("list.tabs.all"),
       name: "all",
       url: "/settings/billing",
       is_active: !status || status === "all",
     },
     {
-      title: t("subscriptions.tabs.active"),
+      title: t("list.tabs.active"),
       name: "active",
       url: "/settings/billing?status=active",
       is_active: status === "active",
     },
     {
-      title: t("subscriptions.tabs.canceled"),
+      title: t("list.tabs.canceled"),
       name: "canceled",
       url: "/settings/billing?status=canceled",
       is_active: status === "canceled",
@@ -129,10 +123,10 @@ export default async function BillingPage({
   return (
     <div className="space-y-8">
       <PanelCard
-        title={t("plan.title")}
+        title={t("view.title")}
         buttons={[
           {
-            title: t("plan.button_title"),
+            title: t("view.buttons.adjust"),
             url: "/pricing",
             target: "_blank",
             icon: "Pencil",
@@ -145,14 +139,14 @@ export default async function BillingPage({
           {currentSubscription?.planName}
         </div>
         <div className="text-sm font-normal text-muted-foreground mt-4">
-          {t("plan.renew_tip", {
+          {t("view.tip", {
             date: moment(currentSubscription?.currentPeriodEnd).format(
               "YYYY-MM-DD"
             ),
           })}
         </div>
       </PanelCard>
-      <TableCard title={t("subscriptions.title")} tabs={tabs} table={table} />
+      <TableCard title={t("list.title")} tabs={tabs} table={table} />
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { Crumb, Tab } from "@/shared/types/blocks/common";
 import { Empty } from "@/shared/blocks/common";
 import { getOrders, getOrdersCount, Order } from "@/shared/services/order";
 import { PaymentType } from "@/extensions/payment";
-
+import { getTranslations } from "next-intl/server";
 export default async function PaymentsPage({
   searchParams,
 }: {
@@ -22,31 +22,33 @@ export default async function PaymentsPage({
     return <Empty message="no auth" />;
   }
 
+  const t = await getTranslations("admin.payments");
+
   const { page: pageNum, pageSize, type } = await searchParams;
   const page = pageNum || 1;
   const limit = pageSize || 30;
 
   const crumbs: Crumb[] = [
-    { title: "Admin", url: "/admin" },
-    { title: "Payments", is_active: true },
+    { title: t("list.crumbs.admin"), url: "/admin" },
+    { title: t("list.crumbs.payments"), is_active: true },
   ];
 
   const tabs: Tab[] = [
     {
       name: "all",
-      title: "All",
+      title: t("list.tabs.all"),
       url: "/admin/payments",
       is_active: !type || type === "all",
     },
     {
       name: "subscription",
-      title: "Subscription",
+      title: t("list.tabs.subscription"),
       url: "/admin/payments?type=subscription",
       is_active: type === "subscription",
     },
     {
       name: "one-time",
-      title: "One-Time",
+      title: t("list.tabs.one-time"),
       url: "/admin/payments?type=one-time",
       is_active: type === "one-time",
     },
@@ -65,10 +67,10 @@ export default async function PaymentsPage({
 
   const table: Table = {
     columns: [
-      { name: "orderNo", title: "Order No", type: "copy" },
-      { name: "user", title: "User", type: "user" },
+      { name: "orderNo", title: t("fields.order_no"), type: "copy" },
+      { name: "user", title: t("fields.user"), type: "user" },
       {
-        title: "Price",
+        title: t("fields.amount"),
         callback: (item) => {
           return (
             <div className="text-primary">{`${item.amount / 100} ${
@@ -78,33 +80,26 @@ export default async function PaymentsPage({
         },
         type: "copy",
       },
-      {
-        name: "productId",
-        title: "Product",
-        type: "label",
-        placeholder: "-",
-      },
-      { name: "description", title: "Description", placeholder: "-" },
+      { name: "status", title: t("fields.status"), type: "label" },
       {
         name: "paymentType",
-        title: "Type",
+        title: t("fields.type"),
         type: "label",
         placeholder: "-",
       },
       {
+        name: "productId",
+        title: t("fields.product"),
+        type: "label",
+        placeholder: "-",
+      },
+      { name: "description", title: t("fields.description"), placeholder: "-" },
+      {
         name: "paymentProvider",
-        title: "Provider",
+        title: t("fields.provider"),
         type: "label",
       },
-      { name: "createdAt", title: "Created At", type: "time" },
-      { name: "status", title: "Status", type: "label" },
-      {
-        name: "action",
-        type: "dropdown",
-        callback: (item: Order) => {
-          return [];
-        },
-      },
+      { name: "createdAt", title: t("fields.created_at"), type: "time" },
     ],
     data: payments,
     pagination: {
@@ -118,7 +113,7 @@ export default async function PaymentsPage({
     <>
       <Header crumbs={crumbs} />
       <Main>
-        <MainHeader title="Payments" tabs={tabs} />
+        <MainHeader title={t("list.title")} tabs={tabs} />
         <TableCard table={table} />
       </Main>
     </>

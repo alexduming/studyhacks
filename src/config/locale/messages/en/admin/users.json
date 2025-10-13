@@ -1,0 +1,17 @@
+{
+  "fields": {
+    "id": "ID",
+    "name": "Name",
+    "avatar": "Avatar",
+    "email": "Email",
+    "email_verified": "Email Verified",
+    "created_at": "Created At"
+  },
+  "list": {
+    "title": "Users",
+    "crumbs": {
+      "admin": "Admin",
+      "users": "Users"
+    }
+  }
+}

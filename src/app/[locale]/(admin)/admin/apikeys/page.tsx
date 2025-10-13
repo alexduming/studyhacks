@@ -2,12 +2,10 @@ import { Header, Main, MainHeader } from "@/shared/blocks/dashboard";
 import { TableCard } from "@/shared/blocks/table";
 import { type Table } from "@/shared/types/blocks/table";
 import { getUserInfo } from "@/shared/services/user";
-import { getPosts, getPostsCount, Post } from "@/shared/services/post";
-import { PostType } from "@/shared/services/post";
 import { Button, Crumb } from "@/shared/types/blocks/common";
-import { getTaxonomies, TaxonomyType } from "@/shared/services/taxonomy";
 import { Empty } from "@/shared/blocks/common";
-import { Apikey, getApikeys, getApikeysCount } from "@/shared/services/apikey";
+import { getApikeys, getApikeysCount } from "@/shared/services/apikey";
+import { getTranslations } from "next-intl/server";
 
 export default async function ApiKeysPage({
   searchParams,
@@ -23,9 +21,11 @@ export default async function ApiKeysPage({
     return <Empty message="no auth" />;
   }
 
+  const t = await getTranslations("admin.apikeys");
+
   const crumbs: Crumb[] = [
-    { title: "Admin", url: "/admin" },
-    { title: "API Keys", is_active: true },
+    { title: t("list.crumbs.admin"), url: "/admin" },
+    { title: t("list.crumbs.apikeys"), is_active: true },
   ];
 
   const total = await getApikeysCount({});
@@ -38,18 +38,11 @@ export default async function ApiKeysPage({
 
   const table: Table = {
     columns: [
-      { name: "title", title: "Title" },
-      { name: "key", title: "API Key", type: "copy" },
-      { name: "user", title: "User", type: "user" },
-      { name: "createdAt", title: "Created At", type: "time" },
-      {
-        name: "action",
-        title: "",
-        type: "dropdown",
-        callback: (item: Post) => {
-          return [];
-        },
-      },
+      { name: "title", title: t("fields.title") },
+      { name: "key", title: t("fields.key"), type: "copy" },
+      { name: "user", title: t("fields.user"), type: "user" },
+      { name: "status", title: t("fields.status"), type: "label" },
+      { name: "createdAt", title: t("fields.created_at"), type: "time" },
     ],
     data: apiKeys,
     pagination: {
@@ -65,7 +58,7 @@ export default async function ApiKeysPage({
     <>
       <Header crumbs={crumbs} />
       <Main>
-        <MainHeader title="API Keys" actions={actions} />
+        <MainHeader title={t("list.title")} actions={actions} />
         <TableCard table={table} />
       </Main>
     </>

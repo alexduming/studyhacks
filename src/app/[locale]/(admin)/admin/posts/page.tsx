@@ -7,6 +7,7 @@ import { PostType } from "@/shared/services/post";
 import { Button, Crumb } from "@/shared/types/blocks/common";
 import { getTaxonomies, TaxonomyType } from "@/shared/services/taxonomy";
 import { Empty } from "@/shared/blocks/common";
+import { getTranslations } from "next-intl/server";
 
 export default async function PostsPage({
   searchParams,
@@ -22,9 +23,11 @@ export default async function PostsPage({
     return <Empty message="no auth" />;
   }
 
+  const t = await getTranslations("admin.posts");
+
   const crumbs: Crumb[] = [
-    { title: "Admin", url: "/admin" },
-    { title: "Posts", is_active: true },
+    { title: t("list.crumbs.admin"), url: "/admin" },
+    { title: t("list.crumbs.posts"), is_active: true },
   ];
 
   const total = await getPostsCount({
@@ -39,10 +42,10 @@ export default async function PostsPage({
 
   const table: Table = {
     columns: [
-      { name: "title", title: "Title" },
+      { name: "title", title: t("fields.title") },
       {
         name: "categories",
-        title: "Categories",
+        title: t("fields.categories"),
         callback: async (item: Post) => {
           if (!item.categories) {
             return "-";
@@ -62,7 +65,7 @@ export default async function PostsPage({
           return categoriesNames.join(", ");
         },
       },
-      { name: "createdAt", title: "Created At", type: "time" },
+      { name: "createdAt", title: t("fields.created_at"), type: "time" },
       {
         name: "action",
         title: "",
@@ -71,13 +74,13 @@ export default async function PostsPage({
           return [
             {
               name: "edit",
-              title: "Edit",
+              title: t("list.buttons.edit"),
               icon: "RiEditLine",
               url: `/admin/posts/${item.id}/edit`,
             },
             {
               name: "view",
-              title: "View",
+              title: t("list.buttons.view"),
               icon: "RiEyeLine",
               url: `/blog/${item.slug}`,
               target: "_blank",
@@ -97,7 +100,7 @@ export default async function PostsPage({
   const actions: Button[] = [
     {
       id: "add",
-      title: "Add Post",
+      title: t("list.buttons.add"),
       icon: "RiAddLine",
       url: "/admin/posts/add",
     },
@@ -107,7 +110,7 @@ export default async function PostsPage({
     <>
       <Header crumbs={crumbs} />
       <Main>
-        <MainHeader title="Posts" actions={actions} />
+        <MainHeader title={t("list.title")} actions={actions} />
         <TableCard table={table} />
       </Main>
     </>

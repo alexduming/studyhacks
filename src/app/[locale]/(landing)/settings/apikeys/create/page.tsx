@@ -14,14 +14,14 @@ export default async function CreateApiKeyPage() {
     return <Empty message="no auth" />;
   }
 
-  const t = await getTranslations("settings.api-keys.create");
+  const t = await getTranslations("settings.apikeys");
 
   const form: FormType = {
-    title: t("title"),
+    title: t("add.title"),
     fields: [
       {
         name: "title",
-        title: t("form.title"),
+        title: t("fields.title"),
         type: "text",
         placeholder: "",
         validation: { required: true },
@@ -59,29 +59,29 @@ export default async function CreateApiKeyPage() {
         return {
           status: "success",
           message: "API Key created",
-          redirect_url: "/settings/api-keys",
+          redirect_url: "/settings/apikeys",
         };
       },
       button: {
-        title: t("button_title"),
+        title: t("add.buttons.submit"),
       },
     },
   };
 
   const crumbs: Crumb[] = [
     {
-      title: t("crumb.api-keys"),
-      url: "/settings/api-keys",
+      title: t("add.crumbs.apikeys"),
+      url: "/settings/apikeys",
     },
     {
-      title: t("crumb.create"),
+      title: t("add.crumbs.add"),
       is_active: true,
     },
   ];
 
   return (
     <div className="space-y-8">
-      <FormCard title={t("title")} crumbs={crumbs} form={form} />
+      <FormCard title={t("add.title")} crumbs={crumbs} form={form} />
     </div>
   );
 }

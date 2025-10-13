@@ -43,30 +43,24 @@ export default async function PaymentsPage({
   });
 
   const table: Table = {
-    title: t("title"),
+    title: t("list.title"),
     columns: [
-      { name: "orderNo", title: t("table.order_no"), type: "copy" },
-      { name: "productName", title: t("table.product_name") },
+      { name: "orderNo", title: t("fields.order_no"), type: "copy" },
+      { name: "productName", title: t("fields.product_name") },
       {
         name: "status",
-        title: t("table.status"),
-        type: "label",
-        metadata: { variant: "outline" },
-      },
-      {
-        name: "paymentProvider",
-        title: t("table.provider"),
+        title: t("fields.status"),
         type: "label",
         metadata: { variant: "outline" },
       },
       {
         name: "paymentType",
-        title: t("table.type"),
+        title: t("fields.type"),
         type: "label",
         metadata: { variant: "outline" },
       },
       {
-        title: t("table.paid_amount"),
+        title: t("fields.paid_amount"),
         callback: function (item) {
           return (
             <div className="text-primary">{`${item.paymentAmount / 100} ${
@@ -78,7 +72,7 @@ export default async function PaymentsPage({
       },
       {
         name: "createdAt",
-        title: t("table.created_at"),
+        title: t("fields.created_at"),
         type: "time",
       },
     ],
@@ -92,25 +86,25 @@ export default async function PaymentsPage({
 
   const tabs: Tab[] = [
     {
-      title: t("tabs.all"),
+      title: t("list.tabs.all"),
       name: "all",
       url: "/settings/payments",
       is_active: !type || type === "all",
     },
     {
-      title: t("tabs.one-time"),
+      title: t("list.tabs.one-time"),
       name: "one-time",
       url: "/settings/payments?type=one-time",
       is_active: type === "one-time",
     },
     {
-      title: t("tabs.subscription"),
+      title: t("list.tabs.subscription"),
       name: "subscription",
       url: "/settings/payments?type=subscription",
       is_active: type === "subscription",
     },
     {
-      title: t("tabs.renew"),
+      title: t("list.tabs.renew"),
       name: "renew",
       url: "/settings/payments?type=renew",
       is_active: type === "renew",
@@ -120,8 +114,8 @@ export default async function PaymentsPage({
   return (
     <div className="space-y-8">
       <TableCard
-        title={t("history")}
-        description={t("description")}
+        title={t("list.title")}
+        description={t("list.description")}
         tabs={tabs}
         table={table}
       />

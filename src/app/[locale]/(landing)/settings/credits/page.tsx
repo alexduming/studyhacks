@@ -45,39 +45,43 @@ export default async function CreditsPage({
   });
 
   const table: Table = {
-    title: t("title"),
+    title: t("list.title"),
     columns: [
-      { name: "transactionNo", title: t("table.transaction_no"), type: "copy" },
-      { name: "description", title: t("table.description") },
+      {
+        name: "transactionNo",
+        title: t("fields.transaction_no"),
+        type: "copy",
+      },
+      { name: "description", title: t("fields.description") },
       {
         name: "transactionType",
-        title: t("table.type"),
+        title: t("fields.type"),
         type: "label",
         metadata: { variant: "outline" },
       },
       {
         name: "transactionScene",
-        title: t("table.scene"),
+        title: t("fields.scene"),
         type: "label",
         placeholder: "-",
         metadata: { variant: "outline" },
       },
       {
         name: "credits",
-        title: t("table.credits"),
+        title: t("fields.credits"),
         type: "label",
         metadata: { variant: "outline" },
       },
       {
         name: "expiresAt",
-        title: t("table.expires_at"),
+        title: t("fields.expires_at"),
         type: "time",
         placeholder: "-",
         metadata: { format: "YYYY-MM-DD HH:mm:ss" },
       },
       {
         name: "createdAt",
-        title: t("table.created_at"),
+        title: t("fields.created_at"),
         type: "time",
       },
     ],
@@ -93,19 +97,19 @@ export default async function CreditsPage({
 
   const tabs: Tab[] = [
     {
-      title: t("tabs.all"),
+      title: t("list.tabs.all"),
       name: "all",
       url: "/settings/credits",
       is_active: !type || type === "all",
     },
     {
-      title: t("tabs.grant"),
+      title: t("list.tabs.grant"),
       name: "grant",
       url: "/settings/credits?type=grant",
       is_active: type === "grant",
     },
     {
-      title: t("tabs.consume"),
+      title: t("list.tabs.consume"),
       name: "consume",
       url: "/settings/credits?type=consume",
       is_active: type === "consume",
@@ -115,10 +119,10 @@ export default async function CreditsPage({
   return (
     <div className="space-y-8">
       <PanelCard
-        title={t("remaining_credits")}
+        title={t("view.title")}
         buttons={[
           {
-            title: t("button_title"),
+            title: t("view.buttons.purchase"),
             url: "/pricing",
             target: "_blank",
             icon: "Coins",
@@ -130,7 +134,7 @@ export default async function CreditsPage({
           {remainingCredits}
         </div>
       </PanelCard>
-      <TableCard title={t("history")} tabs={tabs} table={table} />
+      <TableCard title={t("list.title")} tabs={tabs} table={table} />
     </div>
   );
 }

@@ -25,7 +25,7 @@ export default async function ApiKeysPage({
     return <Empty message="no auth" />;
   }
 
-  const t = await getTranslations("settings.api-keys");
+  const t = await getTranslations("settings.apikeys");
 
   const total = await getApikeysCount({
     userId: user.id,
@@ -40,32 +40,32 @@ export default async function ApiKeysPage({
   });
 
   const table: Table = {
-    title: t("title"),
+    title: t("list.title"),
     columns: [
       {
         name: "title",
-        title: t("table.title"),
+        title: t("fields.title"),
       },
-      { name: "key", title: t("table.key"), type: "copy" },
+      { name: "key", title: t("fields.key"), type: "copy" },
       {
         name: "createdAt",
-        title: t("table.created_at"),
+        title: t("fields.created_at"),
         type: "time",
       },
       {
         name: "action",
-        title: t("table.action"),
+        title: t("fields.action"),
         type: "dropdown",
         callback: (item: Apikey) => {
           return [
             {
-              title: t("table.action_items.edit"),
-              url: `/settings/api-keys/${item.id}/edit`,
+              title: t("list.buttons.edit"),
+              url: `/settings/apikeys/${item.id}/edit`,
               icon: "RiEditLine",
             },
             {
-              title: t("table.action_items.delete"),
-              url: `/settings/api-keys/${item.id}/delete`,
+              title: t("list.buttons.delete"),
+              url: `/settings/apikeys/${item.id}/delete`,
               icon: "RiDeleteBinLine",
             },
           ];
@@ -73,7 +73,7 @@ export default async function ApiKeysPage({
       },
     ],
     data: apikeys,
-    emptyMessage: t("empty_message"),
+    emptyMessage: t("list.empty_message"),
     pagination: {
       total,
       page,
@@ -83,15 +83,15 @@ export default async function ApiKeysPage({
 
   const buttons: Button[] = [
     {
-      title: t("button_title"),
-      url: "/settings/api-keys/create",
+      title: t("list.buttons.add"),
+      url: "/settings/apikeys/create",
       icon: "Plus",
     },
   ];
 
   return (
     <div className="space-y-8">
-      <TableCard title={t("title")} buttons={buttons} table={table} />
+      <TableCard title={t("list.title")} buttons={buttons} table={table} />
     </div>
   );
 }

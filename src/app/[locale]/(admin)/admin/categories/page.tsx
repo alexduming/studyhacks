@@ -9,19 +9,22 @@ import {
   TaxonomyType,
   type Taxonomy,
 } from "@/shared/services/taxonomy";
+import { getTranslations } from "next-intl/server";
 
 export default async function CategoriesPage({
   searchParams,
 }: {
   searchParams: Promise<{ page?: number; pageSize?: number }>;
 }) {
+  const t = await getTranslations("admin.categories");
+
   const { page: pageNum, pageSize } = await searchParams;
   const page = pageNum || 1;
   const limit = pageSize || 30;
 
   const crumbs: Crumb[] = [
-    { title: "Admin", url: "/admin" },
-    { title: "Categories", is_active: true },
+    { title: t("list.crumbs.admin"), url: "/admin" },
+    { title: t("list.crumbs.categories"), is_active: true },
   ];
 
   const total = await getTaxonomiesCount({
@@ -37,19 +40,19 @@ export default async function CategoriesPage({
     columns: [
       {
         name: "slug",
-        title: "Slug",
+        title: t("fields.slug"),
         type: "copy",
         metadata: { message: "Copied" },
       },
-      { name: "title", title: "Title" },
+      { name: "title", title: t("fields.title") },
       {
         name: "status",
-        title: "Status",
+        title: t("fields.status"),
         type: "label",
         metadata: { variant: "outline" },
       },
-      { name: "createdAt", title: "Created At", type: "time" },
-      { name: "updatedAt", title: "Updated At", type: "time" },
+      { name: "createdAt", title: t("fields.created_at"), type: "time" },
+      { name: "updatedAt", title: t("fields.updated_at"), type: "time" },
       {
         name: "action",
         title: "",
@@ -58,7 +61,7 @@ export default async function CategoriesPage({
           return [
             {
               id: "edit",
-              title: "Edit",
+              title: t("list.buttons.edit"),
               icon: "RiEditLine",
               url: `/admin/categories/${item.id}/edit`,
             },
@@ -69,7 +72,7 @@ export default async function CategoriesPage({
     actions: [
       {
         id: "edit",
-        title: "Edit",
+        title: t("list.buttons.edit"),
         icon: "RiEditLine",
         url: "/admin/categories/[id]/edit",
       },
@@ -85,7 +88,7 @@ export default async function CategoriesPage({
   const actions: Button[] = [
     {
       id: "add",
-      title: "Add Category",
+      title: t("list.buttons.add"),
       icon: "RiAddLine",
       url: "/admin/categories/add",
     },
@@ -95,7 +98,7 @@ export default async function CategoriesPage({
     <>
       <Header crumbs={crumbs} />
       <Main>
-        <MainHeader title="Categories" actions={actions} />
+        <MainHeader title={t("list.title")} actions={actions} />
         <TableCard table={table} />
       </Main>
     </>

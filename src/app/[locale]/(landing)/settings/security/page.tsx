@@ -18,26 +18,26 @@ export default async function SecurityPage() {
     fields: [
       {
         name: "email",
-        title: t("reset_password.form.email"),
+        title: t("fields.email"),
         type: "email",
         attributes: { disabled: true },
       },
       {
         name: "password",
-        title: t("reset_password.form.password"),
+        title: t("fields.password"),
         type: "password",
         attributes: { type: "password" },
         validation: { required: true },
       },
       {
         name: "new_password",
-        title: t("reset_password.form.new_password"),
+        title: t("fields.new_password"),
         type: "password",
         validation: { required: true },
       },
       {
         name: "confirm_password",
-        title: t("reset_password.form.confirm_password"),
+        title: t("fields.confirm_password"),
         type: "password",
         validation: { required: true },
       },
@@ -75,7 +75,7 @@ export default async function SecurityPage() {
         };
       },
       button: {
-        title: t("reset_password.button_title"),
+        title: t("reset_password.buttons.submit"),
       },
     },
   };
@@ -83,12 +83,12 @@ export default async function SecurityPage() {
   return (
     <div className="space-y-8">
       <PanelCard
-        title={t("reset_password.button_title")}
+        title={t("reset_password.title")}
         description={t("reset_password.description")}
         content={t("reset_password.tip")}
         buttons={[
           {
-            title: t("reset_password.button_title"),
+            title: t("reset_password.buttons.submit"),
             url: "/settings/security",
             target: "_self",
             variant: "default",
@@ -99,12 +99,12 @@ export default async function SecurityPage() {
         className="max-w-md"
       />
       <PanelCard
-        title={t("delete_account.button_title")}
+        title={t("delete_account.title")}
         description={t("delete_account.description")}
-        content={t("delete_account.content")}
+        content={t("delete_account.tip")}
         buttons={[
           {
-            title: t("delete_account.button_title"),
+            title: t("delete_account.buttons.submit"),
             url: "/settings/security",
             target: "_self",
             variant: "destructive",
