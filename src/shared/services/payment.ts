@@ -23,6 +23,7 @@ import {
   Subscription,
   SubscriptionStatus,
   UpdateSubscription,
+  updateSubscriptionBySubscriptionNo,
 } from "./subscription";
 import { getSnowId, getUuid } from "../lib/hash";
 import {
@@ -136,6 +137,7 @@ export async function handleCheckoutSuccess({
       subscriptionNo: "",
       transactionId: session.paymentInfo?.transactionId,
       paymentUserName: session.paymentInfo?.paymentUserName,
+      paymentUserId: session.paymentInfo?.paymentUserId,
     };
 
     // new subscription
@@ -169,6 +171,7 @@ export async function handleCheckoutSuccess({
         creditsAmount: order.creditsAmount,
         creditsValidDays: order.creditsValidDays,
         paymentProductId: order.paymentProductId,
+        paymentUserId: session.paymentInfo?.paymentUserId,
       };
 
       updateOrder.subscriptionNo = newSubscription.subscriptionNo;
@@ -218,7 +221,7 @@ export async function handleCheckoutSuccess({
     });
   } else if (
     session.paymentStatus === PaymentStatus.FAILED ||
-    session.paymentStatus === PaymentStatus.CANCELLED
+    session.paymentStatus === PaymentStatus.CANCELED
   ) {
     // update order status to be failed
     await updateOrderByOrderNo(orderNo, {
@@ -266,6 +269,7 @@ export async function handlePaymentSuccess({
       paymentCurrency: session.paymentInfo?.paymentCurrency,
       paymentEmail: session.paymentInfo?.paymentEmail,
       paymentUserName: session.paymentInfo?.paymentUserName,
+      paymentUserId: session.paymentInfo?.paymentUserId,
       paidAt: session.paymentInfo?.paidAt,
       invoiceId: session.paymentInfo?.invoiceId,
       invoiceUrl: session.paymentInfo?.invoiceUrl,
@@ -302,6 +306,7 @@ export async function handlePaymentSuccess({
         creditsAmount: order.creditsAmount,
         creditsValidDays: order.creditsValidDays,
         paymentProductId: order.paymentProductId,
+        paymentUserId: session.paymentInfo?.paymentUserId,
       };
 
       updateOrder.subscriptionId = session.subscriptionId;
@@ -418,6 +423,7 @@ export async function handleSubscriptionRenewal({
       paymentAmount: session.paymentInfo?.paymentAmount,
       paymentCurrency: session.paymentInfo?.paymentCurrency,
       paymentEmail: session.paymentInfo?.paymentEmail,
+      paymentUserId: session.paymentInfo?.paymentUserId,
       paidAt: session.paymentInfo?.paidAt,
       invoiceId: session.paymentInfo?.invoiceId,
       invoiceUrl: session.paymentInfo?.invoiceUrl,
@@ -469,4 +475,73 @@ export async function handleSubscriptionRenewal({
   } else {
     throw new Error("unknown payment status");
   }
+}
+
+export async function handleSubscriptionUpdated({
+  subscription,
+  session,
+}: {
+  subscription: Subscription; // subscription
+  session: PaymentSession; // payment session
+}) {
+  const subscriptionNo = subscription.subscriptionNo;
+  if (!subscriptionNo || !subscription.amount || !subscription.currency) {
+    throw new Error("invalid subscription");
+  }
+
+  const subscriptionInfo = session.subscriptionInfo;
+  if (!subscriptionInfo || !subscriptionInfo.status) {
+    throw new Error("invalid subscription info");
+  }
+
+  let updateSubscriptionStatus: SubscriptionStatus = SubscriptionStatus.ACTIVE;
+  if (subscriptionInfo.status === "pending_cancel") {
+    updateSubscriptionStatus = SubscriptionStatus.PENDING_CANCEL;
+  } else if (subscriptionInfo.status === "canceled") {
+    updateSubscriptionStatus = SubscriptionStatus.CANCELED;
+  }
+
+  await updateSubscriptionBySubscriptionNo(subscriptionNo, {
+    status: updateSubscriptionStatus,
+    currentPeriodStart: subscriptionInfo.currentPeriodStart,
+    currentPeriodEnd: subscriptionInfo.currentPeriodEnd,
+    canceledAt: subscriptionInfo.canceledAt || null,
+    canceledEndAt: subscriptionInfo.canceledEndAt || null,
+    canceledReason: subscriptionInfo.canceledReason || "",
+    canceledReasonType: subscriptionInfo.canceledReasonType || "",
+  });
+
+  console.log("handle subscription updated", subscriptionInfo);
+}
+
+export async function handleSubscriptionCanceled({
+  subscription,
+  session,
+}: {
+  subscription: Subscription; // subscription
+  session: PaymentSession; // payment session
+}) {
+  const subscriptionNo = subscription.subscriptionNo;
+  if (!subscriptionNo || !subscription.amount || !subscription.currency) {
+    throw new Error("invalid subscription");
+  }
+
+  const subscriptionInfo = session.subscriptionInfo;
+  if (
+    !subscriptionInfo ||
+    !subscriptionInfo.status ||
+    !subscriptionInfo.canceledAt
+  ) {
+    throw new Error("invalid subscription info");
+  }
+
+  await updateSubscriptionBySubscriptionNo(subscriptionNo, {
+    status: SubscriptionStatus.CANCELED,
+    canceledAt: subscriptionInfo.canceledAt,
+    canceledEndAt: subscriptionInfo.canceledEndAt,
+    canceledReason: subscriptionInfo.canceledReason,
+    canceledReasonType: subscriptionInfo.canceledReasonType,
+  });
+
+  console.log("handle subscription canceled", subscriptionInfo);
 }

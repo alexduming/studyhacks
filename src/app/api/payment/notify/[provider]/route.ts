@@ -4,6 +4,8 @@ import {
   getPaymentService,
   handleCheckoutSuccess,
   handleSubscriptionRenewal,
+  handleSubscriptionUpdated,
+  handleSubscriptionCanceled,
 } from "@/shared/services/payment";
 import { findSubscriptionByProviderSubscriptionId } from "@/shared/services/subscription";
 
@@ -62,7 +64,7 @@ export async function POST(
       // only handle subscription payment
       if (session.subscriptionId && session.subscriptionInfo) {
         if (
-          session.paymentInfo.subscriptionCycleType ===
+          session.paymentInfo?.subscriptionCycleType ===
           SubscriptionCycleType.RENEWAL
         ) {
           // only handle subscription renewal payment
@@ -86,6 +88,44 @@ export async function POST(
       } else {
         console.log("not handle one-time payment");
       }
+    } else if (eventType === PaymentEventType.SUBSCRIBE_UPDATED) {
+      // only handle subscription update
+      if (!session.subscriptionId || !session.subscriptionInfo) {
+        throw new Error("subscription id or subscription info not found");
+      }
+
+      const existingSubscription =
+        await findSubscriptionByProviderSubscriptionId({
+          provider: provider,
+          subscriptionId: session.subscriptionId,
+        });
+      if (!existingSubscription) {
+        throw new Error("subscription not found");
+      }
+
+      await handleSubscriptionUpdated({
+        subscription: existingSubscription,
+        session,
+      });
+    } else if (eventType === PaymentEventType.SUBSCRIBE_CANCELED) {
+      // only handle subscription cancellation
+      if (!session.subscriptionId || !session.subscriptionInfo) {
+        throw new Error("subscription id or subscription info not found");
+      }
+
+      const existingSubscription =
+        await findSubscriptionByProviderSubscriptionId({
+          provider: provider,
+          subscriptionId: session.subscriptionId,
+        });
+      if (!existingSubscription) {
+        throw new Error("subscription not found");
+      }
+
+      await handleSubscriptionCanceled({
+        subscription: existingSubscription,
+        session,
+      });
     } else {
       console.log("not handle other event type: " + eventType);
     }

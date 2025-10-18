@@ -13,9 +13,11 @@ import { Button as ButtonType } from "@/shared/types/blocks/common";
 import { Button } from "@/shared/components/ui/button";
 import { Link } from "@/core/i18n/navigation";
 import { SmartIcon } from "../common/smart-icon";
+import { Badge } from "@/shared/components/ui/badge";
 
 export function PanelCard({
   title,
+  label,
   description,
   content,
   buttons,
@@ -23,6 +25,7 @@ export function PanelCard({
   className,
 }: {
   title?: string;
+  label?: string;
   description?: string;
   content?: string;
   buttons?: ButtonType[];
@@ -33,7 +36,17 @@ export function PanelCard({
     <CardComponent className={cn("pb-0 overflow-hidden", className)}>
       {(title || description) && (
         <CardHeader>
-          <CardTitle>{title}</CardTitle>
+          <CardTitle>
+            {title}
+            {label && (
+              <Badge
+                variant="outline"
+                className="rounded-md px-2 py-1 text-xs float-right"
+              >
+                {label}
+              </Badge>
+            )}
+          </CardTitle>
           {description && <CardDescription>{description}</CardDescription>}
         </CardHeader>
       )}

@@ -281,9 +281,9 @@ export class CreemProvider implements PaymentProvider {
         return PaymentStatus.SUCCESS;
       case "failed":
         return PaymentStatus.FAILED;
-      case "cancelled":
+      case "canceled":
       case "expired":
-        return PaymentStatus.CANCELLED;
+        return PaymentStatus.CANCELED;
       default:
         throw new Error(`Unknown Creem status: ${status}`);
     }

@@ -443,9 +443,9 @@ export class PayPalProvider implements PaymentProvider {
       case "COMPLETED":
       case "ACTIVE":
         return PaymentStatus.SUCCESS;
-      case "CANCELLED":
+      case "CANCELED":
       case "EXPIRED":
-        return PaymentStatus.CANCELLED;
+        return PaymentStatus.CANCELED;
       case "SUSPENDED":
         return PaymentStatus.FAILED;
       default:

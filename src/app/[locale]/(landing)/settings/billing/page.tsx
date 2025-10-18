@@ -7,10 +7,11 @@ import {
   getSubscriptionsCount,
   Subscription,
   getCurrentSubscription,
+  SubscriptionStatus,
 } from "@/shared/services/subscription";
 import moment from "moment";
 import { PanelCard } from "@/shared/blocks/panel";
-import { Tab } from "@/shared/types/blocks/common";
+import { Button as ButtonType, Tab } from "@/shared/types/blocks/common";
 import { getTranslations } from "next-intl/server";
 
 export default async function BillingPage({
@@ -65,13 +66,21 @@ export default async function BillingPage({
       {
         title: t("fields.amount"),
         callback: function (item) {
+          const currency = (item.currency || "USD").toUpperCase();
+
+          let prefix = "";
+          if (currency === "USD") {
+            prefix = `$`;
+          } else if (currency === "CNY") {
+            prefix = `¥`;
+          } else {
+            prefix = `${currency} `;
+          }
+
           return (
-            <div className="text-primary">{`${item.amount / 100} ${
-              item.currency
-            }`}</div>
+            <div className="text-primary">{`${prefix}${item.amount / 100}`}</div>
           );
         },
-        type: "copy",
       },
       {
         name: "createdAt",
@@ -81,13 +90,24 @@ export default async function BillingPage({
       {
         title: t("fields.current_period"),
         callback: function (item) {
-          return (
+          let period = (
             <div>
               {`${moment(item.currentPeriodStart).format("YYYY-MM-DD")}`} ~
               <br />
               {`${moment(item.currentPeriodEnd).format("YYYY-MM-DD")}`}
             </div>
           );
+
+          return period;
+        },
+      },
+      {
+        title: t("fields.end_time"),
+        callback: function (item) {
+          if (item.canceledEndAt) {
+            return <div>{moment(item.canceledEndAt).format("YYYY-MM-DD")}</div>;
+          }
+          return "-";
         },
       },
     ],
@@ -113,6 +133,12 @@ export default async function BillingPage({
       is_active: status === "active",
     },
     {
+      title: t("list.tabs.pending_cancel"),
+      name: "pending_cancel",
+      url: "/settings/billing?status=pending_cancel",
+      is_active: status === "pending_cancel",
+    },
+    {
       title: t("list.tabs.canceled"),
       name: "canceled",
       url: "/settings/billing?status=canceled",
@@ -120,44 +146,70 @@ export default async function BillingPage({
     },
   ];
 
+  let buttons: ButtonType[] = [];
+  if (currentSubscription) {
+    buttons = [
+      {
+        title: t("view.buttons.adjust"),
+        url: "/pricing",
+        target: "_blank",
+        icon: "Pencil",
+        size: "sm",
+      },
+    ];
+    if (currentSubscription.paymentUserId) {
+      buttons.push({
+        title: t("view.buttons.manage"),
+        url: `/settings/billing/retrieve?subscription_no=${currentSubscription.subscriptionNo}`,
+        target: "_blank",
+        icon: "Settings",
+        size: "sm",
+        variant: "outline",
+      });
+    }
+  } else {
+    buttons = [
+      {
+        title: t("view.buttons.subscribe"),
+        url: "/pricing",
+        target: "_blank",
+        icon: "ArrowUpRight",
+        size: "sm",
+      },
+    ];
+  }
+
   return (
     <div className="space-y-8">
       <PanelCard
+        label={currentSubscription?.status}
         title={t("view.title")}
-        buttons={
-          currentSubscription
-            ? [
-                {
-                  title: t("view.buttons.adjust"),
-                  url: "/pricing",
-                  target: "_blank",
-                  icon: "Pencil",
-                  size: "sm",
-                },
-              ]
-            : [
-                {
-                  title: t("view.buttons.subscribe"),
-                  url: "/pricing",
-                  target: "_blank",
-                  icon: "ArrowUpRight",
-                  size: "sm",
-                },
-              ]
-        }
+        buttons={buttons}
         className="max-w-md"
       >
         <div className="text-3xl font-bold text-primary">
           {currentSubscription?.planName || t("view.no_subscription")}
         </div>
         {currentSubscription ? (
-          <div className="text-sm font-normal text-muted-foreground mt-4">
-            {t("view.tip", {
-              date: moment(currentSubscription?.currentPeriodEnd).format(
-                "YYYY-MM-DD"
-              ),
-            })}
-          </div>
+          <>
+            {currentSubscription?.status === SubscriptionStatus.ACTIVE ? (
+              <div className="text-sm font-normal text-muted-foreground mt-4">
+                {t("view.tip", {
+                  date: moment(currentSubscription?.currentPeriodEnd).format(
+                    "YYYY-MM-DD"
+                  ),
+                })}
+              </div>
+            ) : (
+              <div className="text-sm font-normal text-destructive mt-4">
+                {t("view.end_tip", {
+                  date: moment(currentSubscription?.canceledEndAt).format(
+                    "YYYY-MM-DD"
+                  ),
+                })}
+              </div>
+            )}
+          </>
         ) : null}
       </PanelCard>
       <TableCard title={t("list.title")} tabs={tabs} table={table} />

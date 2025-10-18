@@ -13,6 +13,8 @@ import {
   CheckoutSession,
   SubscriptionCycleType,
   PaymentInvoice,
+  PaymentBilling,
+  SubscriptionStatus,
 } from ".";
 
 /**
@@ -212,6 +214,14 @@ export class StripeProvider implements PaymentProvider {
         paymentSession = await this.buildPaymentSessionFromInvoice(
           event.data.object as Stripe.Response<Stripe.Invoice>
         );
+      } else if (eventType === PaymentEventType.SUBSCRIBE_UPDATED) {
+        paymentSession = await this.buildPaymentSessionFromSubscription(
+          event.data.object as Stripe.Response<Stripe.Subscription>
+        );
+      } else if (eventType === PaymentEventType.SUBSCRIBE_CANCELED) {
+        paymentSession = await this.buildPaymentSessionFromSubscription(
+          event.data.object as Stripe.Response<Stripe.Subscription>
+        );
       }
 
       if (!paymentSession) {
@@ -250,6 +260,31 @@ export class StripeProvider implements PaymentProvider {
     }
   }
 
+  async getPaymentBilling({
+    customerId,
+    returnUrl,
+  }: {
+    customerId: string;
+    returnUrl?: string;
+  }): Promise<PaymentBilling> {
+    try {
+      const billing = await this.client.billingPortal.sessions.create({
+        customer: customerId,
+        return_url: returnUrl,
+      });
+
+      if (!billing.url) {
+        throw new Error("get billing url failed");
+      }
+
+      return {
+        billingUrl: billing.url,
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
   private mapStripeEventType(eventType: string): PaymentEventType {
     switch (eventType) {
       case "checkout.session.completed":
@@ -258,10 +293,10 @@ export class StripeProvider implements PaymentProvider {
         return PaymentEventType.PAYMENT_SUCCESS;
       case "invoice.payment_failed":
         return PaymentEventType.PAYMENT_FAILED;
-      case "subscription.updated":
+      case "customer.subscription.updated":
         return PaymentEventType.SUBSCRIBE_UPDATED;
-      case "subscription.deleted":
-        return PaymentEventType.SUBSCRIBE_CANCELLED;
+      case "customer.subscription.deleted":
+        return PaymentEventType.SUBSCRIBE_CANCELED;
       default:
         throw new Error(`Unknown Stripe event type: ${eventType}`);
     }
@@ -289,8 +324,8 @@ export class StripeProvider implements PaymentProvider {
             );
         }
       case "expired":
-        // payment cancelled
-        return PaymentStatus.CANCELLED;
+        // payment canceled
+        return PaymentStatus.CANCELED;
       case "open":
         return PaymentStatus.PROCESSING;
       default:
@@ -327,6 +362,9 @@ export class StripeProvider implements PaymentProvider {
           session.customer_details?.email ||
           undefined,
         paymentUserName: session.customer_details?.name || "",
+        paymentUserId: session.customer
+          ? (session.customer as string)
+          : undefined,
         paidAt: session.created ? new Date(session.created * 1000) : undefined,
         invoiceId: session.invoice ? (session.invoice as string) : undefined,
         invoiceUrl: "",
@@ -371,6 +409,9 @@ export class StripeProvider implements PaymentProvider {
         paymentCurrency: invoice.currency,
         paymentEmail: invoice.customer_email || "",
         paymentUserName: invoice.customer_name || "",
+        paymentUserId: invoice.customer
+          ? (invoice.customer as string)
+          : undefined,
         paidAt: invoice.created ? new Date(invoice.created * 1000) : undefined,
         invoiceId: invoice.id,
         invoiceUrl: invoice.hosted_invoice_url || "",
@@ -394,6 +435,23 @@ export class StripeProvider implements PaymentProvider {
     return result;
   }
 
+  // build payment session from invoice
+  private async buildPaymentSessionFromSubscription(
+    subscription: Stripe.Response<Stripe.Subscription>
+  ): Promise<PaymentSession> {
+    const result: PaymentSession = {
+      provider: this.name,
+    };
+
+    if (subscription) {
+      result.subscriptionId = subscription.id;
+      result.subscriptionInfo = await this.buildSubscriptionInfo(subscription);
+      result.subscriptionResult = subscription;
+    }
+
+    return result;
+  }
+
   // build subscription info from subscription
   private async buildSubscriptionInfo(
     subscription: Stripe.Response<Stripe.Subscription>
@@ -401,7 +459,7 @@ export class StripeProvider implements PaymentProvider {
     // subscription data
     const data = subscription.items.data[0];
 
-    return {
+    const subscriptionInfo: SubscriptionInfo = {
       subscriptionId: subscription.id,
       productId: data.price.product as string,
       planId: data.price.id,
@@ -414,6 +472,42 @@ export class StripeProvider implements PaymentProvider {
       intervalCount: data.plan.interval_count || 1,
       metadata: subscription.metadata,
     };
+
+    if (subscription.status === "active") {
+      if (subscription.cancel_at) {
+        subscriptionInfo.status = SubscriptionStatus.PENDING_CANCEL;
+        // cancel apply at
+        subscriptionInfo.canceledAt = new Date(
+          (subscription.canceled_at || 0) * 1000
+        );
+        // cancel end date
+        subscriptionInfo.canceledEndAt = new Date(
+          subscription.cancel_at * 1000
+        );
+        subscriptionInfo.canceledReason =
+          subscription.cancellation_details?.comment || "";
+        subscriptionInfo.canceledReasonType =
+          subscription.cancellation_details?.feedback || "";
+      } else {
+        subscriptionInfo.status = SubscriptionStatus.ACTIVE;
+      }
+    } else if (subscription.status === "canceled") {
+      // subscription canceled
+      subscriptionInfo.status = SubscriptionStatus.CANCELED;
+      subscriptionInfo.canceledAt = new Date(
+        (subscription.canceled_at || 0) * 1000
+      );
+      subscriptionInfo.canceledReason =
+        subscription.cancellation_details?.comment || "";
+      subscriptionInfo.canceledReasonType =
+        subscription.cancellation_details?.feedback || "";
+    } else {
+      throw new Error(
+        `Unknown Stripe subscription status: ${subscription.status}`
+      );
+    }
+
+    return subscriptionInfo;
   }
 }
 

@@ -61,7 +61,7 @@ export enum PaymentStatus {
   // final status
   SUCCESS = "paid", // paid means payment success
   FAILED = "failed", // failed means payment failed
-  CANCELLED = "cancelled", // cancelled means payment cancelled
+  CANCELED = "canceled", // canceled means payment canceled
 }
 
 /**
@@ -122,10 +122,17 @@ export interface PaymentInfo {
   paymentCurrency: string;
   paymentEmail?: string;
   paymentUserName?: string;
+  paymentUserId?: string;
   paidAt?: Date;
   invoiceId?: string;
   invoiceUrl?: string;
   subscriptionCycleType?: SubscriptionCycleType;
+}
+
+export enum SubscriptionStatus {
+  ACTIVE = "active",
+  PENDING_CANCEL = "pending_cancel",
+  CANCELED = "canceled",
 }
 
 export interface SubscriptionInfo {
@@ -142,6 +149,11 @@ export interface SubscriptionInfo {
   currentPeriodEnd: Date;
   billingUrl?: string;
   metadata?: Record<string, any>;
+  status?: SubscriptionStatus;
+  canceledAt?: Date; // cancel apply at
+  canceledReason?: string; // cancel reason
+  canceledReasonType?: string; // cancel reason type
+  canceledEndAt?: Date; // cancel end at
 }
 
 /**
@@ -164,16 +176,16 @@ export interface PaymentSession {
   provider: string;
 
   // payment info
-  paymentStatus: PaymentStatus; // payment status
-  paymentInfo: PaymentInfo; // payment info after payment success
-  paymentResult: any; // provider payment result
+  paymentStatus?: PaymentStatus; // payment status
+  paymentInfo?: PaymentInfo; // payment info after payment success
+  paymentResult?: any; // provider payment result
 
   // subscription info
   subscriptionId?: string;
   subscriptionInfo?: SubscriptionInfo; // subscription info after subscription success
   subscriptionResult?: any; // provider subscription result
 
-  metadata: any;
+  metadata?: any;
 }
 
 export enum PaymentEventType {
@@ -182,7 +194,7 @@ export enum PaymentEventType {
   PAYMENT_FAILED = "payment.failed", // payment failed
   PAYMENT_REFUNDED = "payment.refunded", // payment refunded
   SUBSCRIBE_UPDATED = "subscribe.updated", // subscription updated
-  SUBSCRIBE_CANCELLED = "subscribe.cancelled", // subscription cancelled
+  SUBSCRIBE_CANCELED = "subscribe.canceled", // subscription canceled
 }
 
 export interface EventInfo {}
@@ -202,6 +214,10 @@ export interface PaymentInvoice {
   invoiceUrl?: string;
   amount?: number;
   currency?: string;
+}
+
+export interface PaymentBilling {
+  billingUrl?: string;
 }
 
 /**
@@ -240,6 +256,15 @@ export interface PaymentProvider {
   }: {
     invoiceId: string;
   }): Promise<PaymentInvoice>;
+
+  // get payment billing
+  getPaymentBilling?({
+    customerId,
+    returnUrl,
+  }: {
+    customerId: string;
+    returnUrl?: string;
+  }): Promise<PaymentBilling>;
 }
 
 /**

@@ -1,6 +1,6 @@
 import { subscription } from "@/config/db/schema";
 import { db } from "@/core/db";
-import { and, count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, inArray } from "drizzle-orm";
 import { appendUserToResult, User } from "./user";
 
 export type Subscription = typeof subscription.$inferSelect & {
@@ -14,7 +14,8 @@ export type UpdateSubscription = Partial<
 export enum SubscriptionStatus {
   PENDING = "pending",
   ACTIVE = "active",
-  CANCELLED = "cancelled",
+  CANCELED = "canceled",
+  PENDING_CANCEL = "pending_cancel",
 }
 
 /**
@@ -149,7 +150,10 @@ export async function getCurrentSubscription(userId: string) {
     .where(
       and(
         eq(subscription.userId, userId),
-        eq(subscription.status, SubscriptionStatus.ACTIVE)
+        inArray(subscription.status, [
+          SubscriptionStatus.ACTIVE,
+          SubscriptionStatus.PENDING_CANCEL,
+        ])
       )
     )
     .orderBy(desc(subscription.createdAt))
