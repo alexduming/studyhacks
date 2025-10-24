@@ -1,9 +1,21 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 
+import { postsSource } from '@/core/docs/source';
 import { getThemePage } from '@/core/theme';
 import { envConfigs } from '@/config';
 import { Empty } from '@/shared/blocks/common';
 import { getPost } from '@/shared/services/post';
+
+// Use ISR (Incremental Static Regeneration) to support both:
+// 1. Static MDX files (pre-rendered at build time)
+// 2. Dynamic database posts (rendered on-demand and cached)
+export const revalidate = 60; // Revalidate every 1 minute
+export const dynamicParams = true; // Allow dynamic routes not in generateStaticParams
+
+export async function generateStaticParams() {
+  // Pre-render MDX files at build time
+  return postsSource.generateParams();
+}
 
 export async function generateMetadata({
   params,

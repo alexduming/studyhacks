@@ -8,6 +8,9 @@ import { getThemePage } from '@/core/theme';
 import { envConfigs } from '@/config';
 import { Post } from '@/shared/types/blocks/blog';
 
+// Static generation for MDX pages
+export const dynamicParams = false; // Only allow routes from generateStaticParams
+
 export default async function DynamicPage({
   params,
 }: {
