@@ -335,6 +335,9 @@ export function ImageGenerator({
             'Generate image failed';
           toast.error(errorMessage);
           resetTaskState();
+
+          fetchUserCredits();
+
           return true;
         }
 
