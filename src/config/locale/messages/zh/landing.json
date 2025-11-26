@@ -12,53 +12,53 @@
     "nav": {
       "items": [
         {
-          "title": "Features",
+          "title": "功能特色",
           "url": "/#features",
           "icon": "Sparkles"
         },
         {
-          "title": "AI Tools",
+          "title": "AI 工具",
           "icon": "Brain",
           "children": [
             {
-              "title": "AI Note Taker",
-              "description": "Transform lectures, videos & documents into intelligent notes",
+              "title": "AI 笔记助手",
+              "description": "将讲座、视频和文档转换为智能笔记",
               "url": "/ai-note-taker",
               "icon": "FileText"
             },
             {
-              "title": "Smart Flashcards",
-              "description": "AI-powered flashcards with spaced repetition",
+              "title": "智能闪卡",
+              "description": "AI 驱动的闪卡，支持间隔重复学习",
               "url": "/flashcards",
               "icon": "Brain"
             },
             {
-              "title": "Interactive Quiz",
-              "description": "Test your knowledge with adaptive AI quizzes",
+              "title": "互动测验",
+              "description": "通过自适应 AI 测验测试您的知识",
               "url": "/quiz",
               "icon": "Target"
             },
             {
-              "title": "Study Podcasts",
-              "description": "Convert notes to audio podcasts for learning on the go",
+              "title": "学习播客",
+              "description": "将笔记转换为音频播客，随时随地学习",
               "url": "/podcast",
               "icon": "Headphones"
             },
             {
-              "title": "Infographic Generator",
-              "description": "Create infographics from your notes and documents",
+              "title": "信息图生成器",
+              "description": "从您的笔记和文档创建信息图",
               "url": "/infographic",
               "icon": "Image"
             }
           ]
         },
         {
-          "title": "For Students",
+          "title": "学生专区",
           "url": "/for-students",
           "icon": "Users"
         },
         {
-          "title": "Pricing",
+          "title": "价格方案",
           "url": "/pricing",
           "icon": "DollarSign"
         }
@@ -71,12 +71,12 @@
       "show_sign_out": true,
       "items": [
         {
-          "title": "Billing",
+          "title": "账单",
           "url": "/settings/billing",
           "icon": "CreditCard"
         },
         {
-          "title": "Activity",
+          "title": "活动记录",
           "url": "/activity",
           "icon": "Activity"
         }
@@ -89,14 +89,14 @@
   "hero": {
     "id": "hero",
     "title": "你唯一需要的AI笔记助手",
-    "highlight_text": "AI笔记",
-    "description": "将您的讲座、视频和文档转换为智能学习笔记。<br/>生成闪卡、测验和播客，加速您的学习进程。",
+    "highlight_text": "AI笔记助手",
+    "description": "将 PDF、视频、讲座和音频转换为智能笔记。<br/>生成闪卡、测验和学习指南，让学习比以往更快。",
     "announcement": {
       "badge": "新功能",
-      "title": "⚡ 已有 500,000+ 学生在学习中提速",
+      "title": "⚡ 已有 50,000+ 学生开始更智能地学习",
       "url": "/pricing"
     },
-    "tip": "🎓 受到全球顶尖大学学生的信赖",
+    "tip": "🎓 受到哈佛、MIT 和顶尖大学学生的信赖",
     "buttons": [
       {
         "title": "免费开始学习",
@@ -114,7 +114,7 @@
       }
     ],
     "show_avatars": true,
-    "avatars_tip": "999+ users are using ShipAny",
+    "avatars_tip": "50,000+ 学生正在使用 Study Hacks",
     "show_award": false,
     "image": {
       "src": "/imgs/features/admin.png",
@@ -126,169 +126,204 @@
     }
   },
   "logos": {
-    "title": "ShipAny is built on the shoulders of giants",
+    "title": "受到全球顶尖大学学生的信赖",
     "items": [
       {
-        "title": "Next.js",
+        "title": "Google",
         "image": {
-          "src": "/imgs/logos/nextjs.svg",
-          "alt": "Next.js"
+          "src": "https://assets.api-turbo.ai/website/logos/google.svg",
+          "alt": "Google"
         }
       },
       {
-        "title": "React",
+        "title": "Harvard University",
         "image": {
-          "src": "/imgs/logos/react.svg",
-          "alt": "React"
+          "src": "https://assets.api-turbo.ai/website/logos/harvard.svg",
+          "alt": "Harvard University"
         }
       },
       {
-        "title": "TailwindCSS",
+        "title": "Goldman Sachs",
         "image": {
-          "src": "/imgs/logos/tailwindcss.svg",
-          "alt": "TailwindCSS"
+          "src": "https://assets.api-turbo.ai/website/logos/goldmansachs.svg",
+          "alt": "Goldman Sachs"
         }
       },
       {
-        "title": "Shadcn/UI",
+        "title": "MIT",
         "image": {
-          "src": "/imgs/logos/shadcn.svg",
-          "alt": "Shadcn/UI"
+          "src": "https://assets.api-turbo.ai/website/logos/mit.svg",
+          "alt": "MIT"
         }
       },
       {
-        "title": "Vercel",
+        "title": "McKinsey",
         "image": {
-          "src": "/imgs/logos/vercel.svg",
-          "alt": "Vercel"
+          "src": "https://assets.api-turbo.ai/website/logos/mckinsey.svg",
+          "alt": "McKinsey"
+        }
+      },
+      {
+        "title": "Yale University",
+        "image": {
+          "src": "https://assets.api-turbo.ai/website/logos/yale.svg",
+          "alt": "Yale University"
+        }
+      },
+      {
+        "title": "Deloitte",
+        "image": {
+          "src": "https://assets.api-turbo.ai/website/logos/deloitte.svg",
+          "alt": "Deloitte"
+        }
+      },
+      {
+        "title": "Duke University",
+        "image": {
+          "src": "https://assets.api-turbo.ai/website/logos/duke.svg",
+          "alt": "Duke University"
+        }
+      },
+      {
+        "title": "Northwestern University",
+        "image": {
+          "src": "https://assets.api-turbo.ai/website/logos/northwestern.svg",
+          "alt": "Northwestern University"
+        }
+      },
+      {
+        "title": "UT Austin",
+        "image": {
+          "src": "https://assets.api-turbo.ai/website/logos/utaustin.svg",
+          "alt": "UT Austin"
         }
       }
     ]
   },
   "introduce": {
     "id": "introduce",
-    "title": "What is ShipAny",
-    "label": "Introduce",
-    "description": "ShipAny is a NextJS boilerplate for building AI SaaS startups, including templates, components, and documentation.",
+    "title": "什么是 Study Hacks",
+    "label": "关于",
+    "description": "Study Hacks 是一个 AI 驱动的学习平台，可将任何学习材料转换为互动式、个性化的学习体验。",
     "image": {
-      "src": "/imgs/features/landing-page.png",
-      "alt": "introduce"
+      "src": "/imgs/features/study-dashboard.png",
+      "alt": "Study Hacks Dashboard"
     },
     "items": [
       {
-        "title": "Ready-to-use Templates",
-        "description": "Choose from dozens of production-ready AI SaaS templates to quickly start your project.",
-        "icon": "RiNextjsFill",
+        "title": "上传任何材料",
+        "description": "导入 PDF、视频、录音、讲座笔记和任何格式的文档。",
+        "icon": "Upload",
         "image": {
-          "src": "/imgs/features/1.png",
-          "alt": "introduce"
+          "src": "/imgs/features/upload-material.png",
+          "alt": "Upload study materials"
         }
       },
       {
-        "title": "Infrastructure Setup",
-        "description": "Get instant access to scalable infrastructure with best practices built-in.",
-        "icon": "RiDatabase2Line",
+        "title": "AI 智能处理",
+        "description": "我们的 AI 分析并整理您的内容，生成结构化、易于理解的笔记。",
+        "icon": "Brain",
         "image": {
-          "src": "/imgs/features/2.png",
-          "alt": "introduce"
+          "src": "/imgs/features/ai-processing.png",
+          "alt": "AI processing"
         }
       },
       {
-        "title": "Quick Deployment",
-        "description": "Deploy your AI SaaS application to production in hours, not days.",
-        "icon": "RiCloudyFill",
+        "title": "智能学习工具",
+        "description": "根据您的学习风格生成闪卡、测验和摘要。",
+        "icon": "Zap",
         "image": {
-          "src": "/imgs/features/3.png",
-          "alt": "introduce"
+          "src": "/imgs/features/study-tools.png",
+          "alt": "Smart study tools"
         }
       },
       {
-        "title": "AI Integration",
-        "description": "Integrate AI into your project with ease using our built-in AI SDK.",
-        "icon": "RiRobot2Line",
+        "title": "跟踪进度",
+        "description": "通过高级分析监控您的学习进度并识别知识盲点。",
+        "icon": "Target",
         "image": {
-          "src": "/imgs/features/4.png",
-          "alt": "introduce"
+          "src": "/imgs/features/progress-tracking.png",
+          "alt": "Progress tracking"
         }
       }
     ]
   },
   "benefits": {
     "id": "benefits",
-    "title": "Why Choose ShipAny",
-    "label": "Benefits",
-    "description": "Get everything you need to launch your AI startup - from ready-to-use templates to technical support.",
+    "title": "为什么选择 Study Hacks",
+    "label": "优势",
+    "description": "用专为现代学生设计的 AI 驱动工具，彻底改变您的学习体验。",
     "items": [
       {
-        "title": "Complete Framework",
-        "description": "Built on Next.js with authentication, payments, and AI integration - everything works out of the box.",
-        "icon": "RiNextjsFill",
+        "title": "节省时间，学得更多",
+        "description": "通过我们的智能笔记和摘要功能，将学习时间减少 70%，同时提高记忆保持率。",
+        "icon": "Clock",
         "image": {
-          "src": "/imgs/features/user-billing.png",
-          "alt": "benefits"
+          "src": "/imgs/features/time-saving.png",
+          "alt": "Save time"
         }
       },
       {
-        "title": "Rich Templates Library",
-        "description": "Choose from various AI SaaS templates to kickstart your project - chatbots, image generation, and more.",
-        "icon": "RiClapperboardAiLine",
+        "title": "个性化学习",
+        "description": "我们的 AI 适应您的学习风格和节奏，为您创建定制学习计划和材料。",
+        "icon": "User",
         "image": {
-          "src": "/imgs/features/admin-settings.png",
-          "alt": "benefits"
+          "src": "/imgs/features/personalized-learning.png",
+          "alt": "Personalized learning"
         }
       },
       {
-        "title": "Technical Guidance",
-        "description": "Get dedicated support and join our developer community to ensure your successful launch.",
-        "icon": "RiCodeFill",
+        "title": "协作学习",
+        "description": "通过共享笔记、小组测验和实时协作功能与同学一起学习。",
+        "icon": "Users",
         "image": {
-          "src": "/imgs/features/landing-page.png",
-          "alt": "benefits"
+          "src": "/imgs/features/collaboration.png",
+          "alt": "Collaborative study"
         }
       }
     ]
   },
   "usage": {
     "id": "usage",
-    "title": "How to Launch with ShipAny",
-    "description": "Get your AI SaaS startup running in three simple steps:",
+    "title": "如何使用 Study Hacks 改变您的学习",
+    "description": "只需四个简单步骤即可开始更智能的学习：",
     "image": {
-      "src": "/imgs/features/1.png",
-      "alt": "usage"
+      "src": "/imgs/features/study-workflow.png",
+      "alt": "Study workflow"
     },
     "image_position": "left",
     "text_align": "center",
     "items": [
       {
-        "title": "Get ShipAny",
-        "description": "Buy ShipAny with a one-time payment. Check your email for the code and documentation.",
+        "title": "上传您的材料",
+        "description": "将 PDF、讲座录音、视频或任何学习材料添加到您的仪表板。",
         "image": {
-          "src": "/imgs/features/5.png",
-          "alt": "usage"
+          "src": "/imgs/features/step-upload.png",
+          "alt": "Upload materials"
         }
       },
       {
-        "title": "Start Your Project",
-        "description": "Read the documentation and clone the code of ShipAny. Start building your AI SaaS startup.",
+        "title": "AI 处理",
+        "description": "我们的 AI 分析您的内容，自动生成全面的笔记和摘要。",
         "image": {
-          "src": "/imgs/features/6.png",
-          "alt": "usage"
+          "src": "/imgs/features/step-ai-process.png",
+          "alt": "AI processing"
         }
       },
       {
-        "title": "Customize Your Project",
-        "description": "Modify the template with your data and contents. Specific AI functionality needs.",
+        "title": "创建学习工具",
+        "description": "根据您的材料生成个性化闪卡、测验和学习指南。",
         "image": {
-          "src": "/imgs/features/7.png",
-          "alt": "usage"
+          "src": "/imgs/features/step-study-tools.png",
+          "alt": "Create study tools"
         }
       },
       {
-        "title": "Deploy to Production",
-        "description": "Deploy your project to production with a few steps and start serving customers immediately.",
+        "title": "开始学习",
+        "description": "在 AI 驱动的指导和进度跟踪下开始您的优化学习会话。",
         "image": {
-          "src": "/imgs/features/8.png",
-          "alt": "usage"
+          "src": "/imgs/features/step-start-learning.png",
+          "alt": "Start learning"
         }
       }
     ]
@@ -332,143 +367,143 @@
   },
   "stats": {
     "id": "stats",
-    "title": "学生们都喜欢 Turbo AI",
-    "description": "因为它易于使用且学习效果显著。",
+    "title": "学生们都喜欢 Study Hacks",
+    "description": "因为它让学习更快、更智能、更有效。",
     "items": [
       {
-        "title": "500,000+",
+        "title": "50,000+",
         "description": "活跃学生"
       },
       {
-        "title": "1,000+",
-        "description": "合作院校"
+        "title": "1M+",
+        "description": "已处理的学习材料"
       },
       {
-        "title": "10M+",
-        "description": "生成笔记"
+        "title": "95%",
+        "description": "成绩提升率"
       }
     ]
   },
   "testimonials": {
     "id": "testimonials",
-    "title": "学生用户对 Turbo AI 的评价",
-    "description": "听听来自世界各地学生使用 Turbo AI 提升学习效果的真实体验。",
+    "title": "学生们对 Study Hacks 的评价",
+    "description": "听听使用我们的 AI 驱动工具改变学习体验的学生们怎么说。",
     "items": [
       {
-        "name": "李明",
-        "role": "北京大学计算机系学生",
-        "quote": "Turbo AI 完全改变了我的学习方式。我现在可以在讲座结束后几分钟内就得到完整的笔记，这让我有更多时间专注于理解概念而不是匆忙记录。",
+        "name": "Sarah Johnson",
+        "role": "哈佛医学院学生",
+        "quote": "Study Hacks 将我的学习时间减少了 60%，同时提高了我的成绩。AI 生成的闪卡对于复杂的医学术语来说绝对太棒了！",
         "image": {
-          "src": "/imgs/avatars/1.png",
-          "alt": "liming"
+          "src": "/imgs/avatars/student1.png",
+          "alt": "sarah"
         }
       },
       {
-        "name": "王芳",
-        "role": "复旦大学医学院学生",
-        "quote": "闪卡功能太棒了！间隔重复算法帮助我记住了大量复杂的医学术语。相比传统学习方法，我的记忆效率提升了至少 50%。",
+        "name": "Michael Chen",
+        "role": "MIT 计算机科学",
+        "quote": "我以前要花几个小时整理讲座笔记。现在我只需上传录音就能得到完美的摘要。就像有一个私人学习助手！",
         "image": {
-          "src": "/imgs/avatars/2.png",
-          "alt": "wangfang"
+          "src": "/imgs/avatars/student2.png",
+          "alt": "michael"
         }
       },
       {
-        "name": "张伟",
-        "role": "清华大学工程学系研究生",
-        "quote": "AI 生成的测验非常精准，总能找到我知识薄弱的地方。通过反复练习，我的成绩从班级中游提升到了前 10%。",
+        "name": "Emily Rodriguez",
+        "role": "斯坦福法学院学生",
+        "quote": "协作功能太棒了！我的学习小组和我共享笔记并互相测验。我们的小组 GPA 显著提高了。",
         "image": {
-          "src": "/imgs/avatars/3.png",
-          "alt": "zhangwei"
+          "src": "/imgs/avatars/student3.png",
+          "alt": "emily"
         }
       },
       {
-        "name": "刘静",
-        "role": "上海外国语大学学生",
-        "quote": "学习播客功能是我的最爱！我把课堂笔记转换为音频，在通勤和运动时都能学习。时间利用率大大提高了。",
+        "name": "James Kim",
+        "role": "耶鲁大学本科生",
+        "quote": "作为一个有 ADHD 的人，传统学习总是很有挑战性。Study Hacks 适应我的学习风格并让我保持专注。改变人生！",
         "image": {
-          "src": "/imgs/avatars/4.png",
-          "alt": "liujing"
+          "src": "/imgs/avatars/student4.png",
+          "alt": "james"
         }
       },
       {
-        "name": "陈浩",
-        "role": "浙江大学商科学生",
-        "quote": "实时协作功能让小组作业变得如此简单。我们可以共享笔记和想法，每个人都能贡献自己的优势。团队效率提升了好几个档次。",
+        "name": "Lisa Thompson",
+        "role": "普林斯顿研究生",
+        "quote": "进度跟踪帮助我在考试前识别知识盲点。我感到比以往任何时候都更有信心和准备。",
         "image": {
-          "src": "/imgs/avatars/5.png",
-          "alt": "chenhao"
+          "src": "/imgs/avatars/student5.png",
+          "alt": "lisa"
         }
       },
       {
-        "name": "赵雪",
-        "role": "南京大学文科生",
-        "quote": "跨平台同步让我可以在手机、平板和电脑间无缝切换学习。不管在哪里，我的学习材料都随时可用。这太方便了！",
+        "name": "David Park",
+        "role": "加州大学伯克利分校学生",
+        "quote": "从挣扎到保持 4.0 GPA！Study Hacks 完全改变了我对学习的方法。物超所值。",
         "image": {
-          "src": "/imgs/avatars/6.png",
-          "alt": "zhaoxue"
+          "src": "/imgs/avatars/student6.png",
+          "alt": "david"
         }
       }
     ]
   },
   "faq": {
     "id": "faq",
-    "title": "关于 Turbo AI 的常见问题",
-    "description": "还有其他问题？通过 Discord 或邮件联系我们。",
-    "tip": "找不到您要的答案？联系我们的 <a href='https://discord.gg/HQNnrzjZQS' target='_blank' class='text-primary font-medium hover:underline'>客服团队</a>",
+    "title": "关于 Study Hacks 的常见问题",
+    "description": "还有其他问题？联系我们的支持团队 - 我们随时为您提供帮助！",
+    "tip": "找不到您要的答案？联系我们的 <a href='mailto:support@studyhacks.com' class='text-primary font-medium hover:underline'>支持团队</a>",
     "items": [
       {
-        "question": "Turbo AI 是什么，它如何工作？",
-        "answer": "Turbo AI 是一个专为学习设计的智能笔记平台。它使用先进的 AI 技术，可以将您的讲座录音、视频、PDF 和文档转换为结构化的学习笔记，并生成闪卡、测验和播客来帮助您更有效地学习。"
+        "question": "Study Hacks 到底是什么，它是如何工作的？",
+        "answer": "Study Hacks 是一个 AI 驱动的学习平台，可将您的学习材料转换为互动式、个性化的学习体验。上传 PDF、视频、讲座或任何内容，我们的 AI 会生成全面的笔记、闪卡、测验和学习指南，根据您的学习风格量身定制。"
       },
       {
-        "question": "Turbo AI 支持哪些文件格式？",
-        "answer": "Turbo AI 支持多种文件格式，包括音频文件（MP3、WAV、M4A）、视频文件（MP4、MOV、AVI）、PDF 文档、以及文本文档（DOC、TXT、MD）。我们的 AI 可以处理各种类型的学习材料。"
+        "question": "我可以向 Study Hacks 上传哪些类型的文件？",
+        "answer": "Study Hacks 支持多种文件格式，包括 PDF、Word 文档、PowerPoint 演示文稿、视频文件（MP4、AVI）、录音（MP3、WAV）、讲座录音、YouTube 链接，甚至您可以扫描的手写笔记。"
       },
       {
-        "question": "AI 生成的笔记质量如何？",
-        "answer": "我们使用最先进的 AI 模型来确保高质量的笔记生成。AI 能够识别关键概念、提取重要信息、组织内容结构，并提供准确的总结。大多数用户反馈 AI 生成的笔记质量甚至超过手动记录。"
+        "question": "Study Hacks 如何改善我的学习和成绩？",
+        "answer": "Study Hacks 使用经过验证的学习科学技巧，如间隔重复、主动回忆和个性化学习路径。我们的 AI 识别您的知识盲点，创建定制学习计划，并适应您的学习风格，这有助于提高记忆保持率，平均提升成绩 30%。"
       },
       {
-        "question": "我的数据是否安全？",
-        "answer": "绝对安全！我们使用银行级的加密技术保护您的数据，所有文件都通过安全的连接传输。我们严格遵守隐私保护法规，绝不会分享您的个人学习材料。"
+        "question": "Study Hacks 适合我的特定学科或领域吗？",
+        "answer": "绝对适合！Study Hacks 适用于所有学科和学术水平 - 从高中到研究生院。无论您学习医学、法律、工程、人文学科还是任何其他领域，我们的 AI 都会适应您的特定学科内容和学习需求。"
       },
       {
-        "question": "可以和同学一起使用吗？",
-        "answer": "当然可以！Turbo AI 提供强大的协作功能，您可以与同学共享笔记、创建集体闪卡集、一起进行测验。我们还提供实时协作编辑功能，让小组学习更加高效。"
+        "question": "我可以使用 Study Hacks 与同学协作吗？",
+        "answer": "可以！Study Hacks 包含强大的协作功能，您可以共享笔记、创建小组学习会话、构建协作闪卡集，甚至在学习测验中竞争。非常适合学习小组和团队学习项目。"
       },
       {
-        "question": "是否支持移动设备？",
-        "answer": "是的！Turbo AI 完全支持跨平台使用。您可以在手机、平板和电脑上访问您的所有学习材料，所有内容都会自动同步，让您随时随地都能学习。"
+        "question": "Study Hacks 的费用是多少，有免费试用吗？",
+        "answer": "Study Hacks 提供具有基本功能的免费版本，您可以免费试用。高级计划起价为每月 9.99 美元，包含无限上传、高级 AI 功能和协作工具。我们还为学生和教育机构提供折扣和特殊价格。"
       }
     ]
   },
   "cta": {
     "id": "cta",
-    "title": "开始您的智能学习之旅",
-    "description": "从这里开始，用 Turbo AI 改变您的学习方式。",
+    "title": "今天就开始改变您的学习之旅",
+    "description": "加入数千名已经在更智能地学习的学生。",
     "buttons": [
       {
-        "title": "免费开始学习",
+        "title": "免费试用",
         "url": "/pricing",
         "target": "_self",
         "icon": "Zap"
       },
       {
-        "title": "了解更多",
-        "url": "/docs",
-        "target": "_blank",
+        "title": "观看演示",
+        "url": "/demo",
+        "target": "_self",
         "variant": "outline",
-        "icon": "BookOpenText"
+        "icon": "PlayCircle"
       }
     ]
   },
   "subscribe": {
     "id": "subscribe",
-    "title": "订阅我们的新闻通讯",
-    "description": "获取 Turbo AI 的最新消息和更新。",
+    "title": "获取学习技巧和独家优惠",
+    "description": "订阅我们的新闻通讯，获取最新的学习策略和 Study Hacks 更新。",
     "submit": {
       "input": {
-        "placeholder": "输入您的邮箱"
+        "placeholder": "输入您的邮箱地址"
       },
       "button": {
         "title": "订阅"
@@ -479,18 +514,18 @@
   "footer": {
     "id": "footer",
     "brand": {
-      "title": "Turbo AI",
-      "description": "Turbo AI 是专为学习设计的智能笔记平台，通过 AI 技术帮助学生更高效地学习和记忆。",
+      "title": "Study Hacks",
+      "description": "AI 驱动的学习平台，将学习材料转换为个性化、互动的学习体验。",
       "logo": {
         "src": "/logo.png",
-        "alt": "Turbo AI"
+        "alt": "Study Hacks"
       },
       "url": "/"
     },
     "nav": {
       "items": [
         {
-          "title": "关于",
+          "title": "产品",
           "children": [
             {
               "title": "功能特色",
@@ -498,13 +533,13 @@
               "target": "_self"
             },
             {
-              "title": "用户案例",
-              "url": "/showcases",
+              "title": "价格方案",
+              "url": "/pricing",
               "target": "_self"
             },
             {
-              "title": "价格方案",
-              "url": "/pricing",
+              "title": "成功案例",
+              "url": "/success-stories",
               "target": "_self"
             }
           ]
@@ -513,39 +548,39 @@
           "title": "资源",
           "children": [
             {
-              "title": "帮助文档",
-              "url": "/docs",
-              "target": "_self"
-            },
-            {
-              "title": "博客",
+              "title": "学习博客",
               "url": "/blog",
               "target": "_self"
             },
             {
-              "title": "聊天支持",
-              "url": "/chat",
+              "title": "学习中心",
+              "url": "/learning-center",
+              "target": "_self"
+            },
+            {
+              "title": "帮助中心",
+              "url": "/help",
               "target": "_self"
             }
           ]
         },
         {
-          "title": "合作伙伴",
+          "title": "公司",
           "children": [
             {
-              "title": "Turbo AI",
-              "url": "https://turbo.ai",
-              "target": "_blank"
+              "title": "关于我们",
+              "url": "/about",
+              "target": "_self"
             },
             {
-              "title": "教育合作",
-              "url": "https://edu.turbo.ai",
-              "target": "_blank"
+              "title": "招聘",
+              "url": "/careers",
+              "target": "_self"
             },
             {
-              "title": "开发者",
-              "url": "https://dev.turbo.ai",
-              "target": "_blank"
+              "title": "联系我们",
+              "url": "/contact",
+              "target": "_self"
             }
           ]
         }
@@ -556,25 +591,25 @@
         {
           "title": "X",
           "icon": "RiTwitterXFill",
-          "url": "https://x.com/your-app-name",
+          "url": "https://x.com/studyhacks",
           "target": "_blank"
         },
         {
-          "title": "Github",
-          "icon": "Github",
-          "url": "https://github.com/your-app-name",
+          "title": "Instagram",
+          "icon": "Instagram",
+          "url": "https://instagram.com/studyhacks",
           "target": "_blank"
         },
         {
-          "title": "Discord",
-          "icon": "RiDiscordFill",
-          "url": "https://discord.gg/your-app-name",
+          "title": "LinkedIn",
+          "icon": "Linkedin",
+          "url": "https://linkedin.com/company/studyhacks",
           "target": "_blank"
         },
         {
           "title": "Email",
           "icon": "Mail",
-          "url": "mailto:support@your-domain.com",
+          "url": "mailto:hello@studyhacks.com",
           "target": "_self"
         }
       ]
