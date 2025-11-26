@@ -8,6 +8,7 @@ import { LazyImage, SmartIcon } from '@/shared/blocks/common';
 import { AnimatedGridPattern } from '@/shared/components/ui/animated-grid-pattern';
 import { Button } from '@/shared/components/ui/button';
 import { Highlighter } from '@/shared/components/ui/highlighter';
+import { PdfDemo } from '@/shared/components/ui/pdf-demo';
 import { cn } from '@/shared/lib/utils';
 import { Hero as HeroType } from '@/shared/types/blocks/landing';
 
@@ -149,27 +150,13 @@ export function Hero({
             duration: 0.7,
             ease: [0.22, 1, 0.36, 1] as const,
           }}
-        >
-          <div className="relative z-10 mx-auto max-w-6xl border-x px-3">
-            <div className="border-x">
-              <div
-                aria-hidden
-                className="h-3 w-full bg-[repeating-linear-gradient(-45deg,var(--color-foreground),var(--color-foreground)_1px,transparent_1px,transparent_4px)] opacity-5"
-              />
-              <LazyImage
-                className="border-border/25 relative z-2 hidden border dark:block"
-                src={hero.image_invert?.src || hero.image?.src || ''}
-                alt={hero.image_invert?.alt || hero.image?.alt || ''}
-              />
-              <LazyImage
-                className="border-border/25 relative z-2 border dark:hidden"
-                src={hero.image?.src || hero.image_invert?.src || ''}
-                alt={hero.image?.alt || hero.image_invert?.alt || ''}
-              />
-            </div>
-          </div>
-        </motion.section>
+        ></motion.section>
       )}
+
+      {/* Dynamic PDF Processing Demo */}
+      <div className="ml-8 hidden lg:block">
+        <PdfDemo />
+      </div>
 
       <AnimatedGridPattern
         numSquares={30}

@@ -22,6 +22,8 @@ export const localeMessagesPaths = [
   'landing',
   // Landing 子工具页：AI 笔记 / 闪卡 / 测验 / 播客
   'ai-note-taker',
+  // AI 信息图
+  'infographic',
   'flashcards',
   'quiz',
   'podcast',

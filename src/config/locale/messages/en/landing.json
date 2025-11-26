@@ -43,6 +43,12 @@
               "description": "Convert notes to audio podcasts for learning on the go",
               "url": "/podcast",
               "icon": "Headphones"
+            },
+            {
+              "title": "Infographic Generator",
+              "description": "Create infographics from your notes and documents",
+              "url": "/infographic",
+              "icon": "Image"
             }
           ]
         },
@@ -123,38 +129,73 @@
     "title": "Trusted by students at leading universities worldwide",
     "items": [
       {
-        "title": "Harvard",
+        "title": "Google",
         "image": {
-          "src": "/imgs/logos/harvard.svg",
-          "alt": "Harvard"
+          "src": "https://assets.api-turbo.ai/website/logos/google.svg",
+          "alt": "Google"
+        }
+      },
+      {
+        "title": "Harvard University",
+        "image": {
+          "src": "https://assets.api-turbo.ai/website/logos/harvard.svg",
+          "alt": "Harvard University"
+        }
+      },
+      {
+        "title": "Goldman Sachs",
+        "image": {
+          "src": "https://assets.api-turbo.ai/website/logos/goldmansachs.svg",
+          "alt": "Goldman Sachs"
         }
       },
       {
         "title": "MIT",
         "image": {
-          "src": "/imgs/logos/mit.svg",
+          "src": "https://assets.api-turbo.ai/website/logos/mit.svg",
           "alt": "MIT"
         }
       },
       {
-        "title": "Stanford",
+        "title": "McKinsey",
         "image": {
-          "src": "/imgs/logos/stanford.svg",
-          "alt": "Stanford"
+          "src": "https://assets.api-turbo.ai/website/logos/mckinsey.svg",
+          "alt": "McKinsey"
         }
       },
       {
-        "title": "Yale",
+        "title": "Yale University",
         "image": {
-          "src": "/imgs/logos/yale.svg",
-          "alt": "Yale"
+          "src": "https://assets.api-turbo.ai/website/logos/yale.svg",
+          "alt": "Yale University"
         }
       },
       {
-        "title": "Princeton",
+        "title": "Deloitte",
         "image": {
-          "src": "/imgs/logos/princeton.svg",
-          "alt": "Princeton"
+          "src": "https://assets.api-turbo.ai/website/logos/deloitte.svg",
+          "alt": "Deloitte"
+        }
+      },
+      {
+        "title": "Duke University",
+        "image": {
+          "src": "https://assets.api-turbo.ai/website/logos/duke.svg",
+          "alt": "Duke University"
+        }
+      },
+      {
+        "title": "Northwestern University",
+        "image": {
+          "src": "https://assets.api-turbo.ai/website/logos/northwestern.svg",
+          "alt": "Northwestern University"
+        }
+      },
+      {
+        "title": "UT Austin",
+        "image": {
+          "src": "https://assets.api-turbo.ai/website/logos/utaustin.svg",
+          "alt": "UT Austin"
         }
       }
     ]

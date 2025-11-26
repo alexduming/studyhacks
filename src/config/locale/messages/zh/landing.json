@@ -45,16 +45,10 @@
               "icon": "Headphones"
             },
             {
-              "title": "Real-time Collaboration",
-              "description": "Study together with classmates through shared notes and collaborative features",
-              "url": "/collaboration",
-              "icon": "Users"
-            },
-            {
-              "title": "Cross-Platform Sync",
-              "description": "Access your study materials anywhere, on any device, with automatic synchronization",
-              "url": "/sync",
-              "icon": "Cloud"
+              "title": "Infographic Generator",
+              "description": "Create infographics from your notes and documents",
+              "url": "/infographic",
+              "icon": "Image"
             }
           ]
         },

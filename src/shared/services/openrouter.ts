@@ -34,6 +34,9 @@ export interface QuizQuestion {
   options?: string[];
   correctAnswer: string | number;
   explanation: string;
+  // 为了在兜底题目里标记“难度”，这里补充一个可选 difficulty 字段
+  // 不影响现有使用方，只有我们在 createFallbackQuiz 里会用到
+  difficulty?: 'easy' | 'medium' | 'hard';
 }
 
 export interface AIResponse<T> {
@@ -48,6 +51,11 @@ export class OpenRouterService {
   private baseURL = 'https://openrouter.ai/api/v1';
 
   private constructor() {
+    // 非程序员解释：
+    // 1. 这里从前端可用的环境变量中读取 OpenRouter 的密钥
+    // 2. 变量名必须以 NEXT_PUBLIC_ 开头，Next.js 才会把它注入到浏览器里
+    // 3. 请在 .env.local 中新增（或确认已有）这一行：
+    //    NEXT_PUBLIC_OPENROUTER_API_KEY=你的 OpenRouter API Key
     this.apiKey = process.env.NEXT_PUBLIC_OPENROUTER_API_KEY || '';
   }
 
@@ -60,19 +68,32 @@ export class OpenRouterService {
 
   private async callAI(prompt: string, systemPrompt?: string): Promise<string> {
     try {
+      // 防御性检查：如果没有配置密钥，直接给出清晰错误，方便排查
+      if (!this.apiKey) {
+        // 这一条信息只会出现在浏览器控制台，真实页面仍然只会显示“生成失败”之类的文案
+        throw new Error(
+          'OpenRouter API 密钥未配置：请在 .env.local 中设置 NEXT_PUBLIC_OPENROUTER_API_KEY=你的密钥'
+        );
+      }
+
       const response = await fetch(`${this.baseURL}/chat/completions`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
+          Authorization: `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json',
           'HTTP-Referer': 'http://localhost:3000',
           'X-Title': 'Turbo AI Study Platform',
         },
         body: JSON.stringify({
-          model: 'deepseek/deepseek-chat',
+          // 使用 DeepSeek V3.2 Exp 模型
+          // 对应你给出的文档：https://openrouter.ai/deepseek/deepseek-v3.2-exp
+          // 如果未来要换模型，只需要改这一行（或做成可配置）
+          model: 'deepseek/deepseek-v3.2-exp',
           messages: [
-            ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
-            { role: 'user', content: prompt }
+            ...(systemPrompt
+              ? [{ role: 'system', content: systemPrompt }]
+              : []),
+            { role: 'user', content: prompt },
           ],
           temperature: 0.7,
           max_tokens: 4000,
@@ -80,7 +101,19 @@ export class OpenRouterService {
       });
 
       if (!response.ok) {
-        throw new Error(`API request failed: ${response.statusText}`);
+        // 为了更精准地找到问题，这里把 HTTP 状态码和返回文本尽量带出来
+        let errorText = '';
+        try {
+          errorText = await response.text();
+        } catch {
+          // 如果读取 body 失败，也不影响后续抛错
+        }
+
+        throw new Error(
+          `API request failed (HTTP ${response.status}): ${
+            response.statusText || errorText || 'Unknown error'
+          }`
+        );
       }
 
       const data = await response.json();
@@ -127,11 +160,19 @@ Make it educational and easy to understand for students.`;
           generatedAt: new Date().toISOString(),
         },
       };
-    } catch (error) {
+    } catch (error: any) {
+      // 非程序员解释：
+      // - 这里捕获的是“调用 OpenRouter 失败”的所有情况
+      // - 比如：没配密钥、密钥无效、模型名称写错、网络被墙/CORS 拒绝等
+      // - 之前我们只返回一句“生成失败”，看不到真正原因，现在把具体错误信息透传出去，方便你排查
       console.error('Error generating notes:', error);
       return {
         success: false,
-        error: 'Failed to generate notes. Please try again.',
+        // 如果是 Error 对象，就把 message 传给前端 UI；否则用一个兜底文案
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to generate notes. Please check OpenRouter configuration.',
         notes: '',
       };
     }
@@ -189,7 +230,10 @@ Return ONLY valid JSON.`;
       } catch (parseError) {
         console.error('Error parsing flashcard JSON:', parseError);
         // Fallback: create simple flashcards from the text
-        const fallbackFlashcards = this.createFallbackFlashcards(content, count);
+        const fallbackFlashcards = this.createFallbackFlashcards(
+          content,
+          count
+        );
         return {
           success: true,
           flashcards: fallbackFlashcards,
@@ -287,11 +331,17 @@ Return ONLY valid JSON.`;
   /**
    * Generate podcast script from notes
    */
-  async generatePodcastScript(content: string, voiceStyle: 'professional' | 'friendly' | 'academic' = 'professional') {
+  async generatePodcastScript(
+    content: string,
+    voiceStyle: 'professional' | 'friendly' | 'academic' = 'professional'
+  ) {
     const styleInstructions = {
-      professional: "Use formal, clear language suitable for educational content. Maintain a professional tone while being engaging.",
-      friendly: "Use conversational, approachable language. Include friendly transitions and a warm, encouraging tone.",
-      academic: "Use precise, scholarly language. Maintain academic rigor while ensuring clarity and accessibility."
+      professional:
+        'Use formal, clear language suitable for educational content. Maintain a professional tone while being engaging.',
+      friendly:
+        'Use conversational, approachable language. Include friendly transitions and a warm, encouraging tone.',
+      academic:
+        'Use precise, scholarly language. Maintain academic rigor while ensuring clarity and accessibility.',
     };
 
     const prompt = `Convert the following content into an engaging educational podcast script for Turbo AI. ${styleInstructions[voiceStyle]}
@@ -338,8 +388,11 @@ Format as a complete script with speaker notes and timing cues where appropriate
   /**
    * Fallback method to create simple flashcards
    */
-  private createFallbackFlashcards(content: string, count: number): Flashcard[] {
-    const sentences = content.split('.').filter(s => s.trim().length > 20);
+  private createFallbackFlashcards(
+    content: string,
+    count: number
+  ): Flashcard[] {
+    const sentences = content.split('.').filter((s) => s.trim().length > 20);
     const flashcards: Flashcard[] = [];
 
     for (let i = 0; i < Math.min(count, sentences.length); i++) {
@@ -348,7 +401,7 @@ Format as a complete script with speaker notes and timing cues where appropriate
         flashcards.push({
           front: `What is described in the following: "${sentence.substring(0, 100)}..."`,
           back: sentence,
-          difficulty: 'medium'
+          difficulty: 'medium',
         });
       }
     }
@@ -361,18 +414,21 @@ Format as a complete script with speaker notes and timing cues where appropriate
    */
   private createFallbackQuiz(content: string, count: number): QuizQuestion[] {
     const questions: QuizQuestion[] = [];
-    const sentences = content.split('.').filter(s => s.trim().length > 20);
+    const sentences = content.split('.').filter((s) => s.trim().length > 20);
 
     for (let i = 0; i < Math.min(count, sentences.length); i++) {
       const sentence = sentences[i].trim();
       if (sentence) {
-        questions.push({
+        // 这里的 QuizQuestion 类型在上面已经包含 difficulty 字段
+        // 为了消除 TS 报错，显式断言为 QuizQuestion
+        const question: QuizQuestion = {
           type: 'true-false',
           question: `True or False: ${sentence}`,
           correctAnswer: 0, // True
           explanation: 'Based on the provided content.',
-          difficulty: 'medium'
-        });
+          difficulty: 'medium',
+        };
+        questions.push(question);
       }
     }
 
