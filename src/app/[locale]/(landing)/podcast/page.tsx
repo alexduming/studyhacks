@@ -132,11 +132,11 @@ const PodcastApp = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-950 via-purple-950/10 to-gray-950">
-      {/* 背景装饰 */}
+    <div className="min-h-screen bg-gradient-to-b from-gray-950 via-primary/5 to-gray-950">
+      {/* 背景装饰：统一使用 primary 深浅光晕，去掉独立的蓝色大光斑 */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 h-96 w-96 rounded-full bg-purple-600/10 blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 h-96 w-96 rounded-full bg-blue-600/10 blur-3xl" />
+        <div className="absolute top-1/4 left-1/4 h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 h-96 w-96 rounded-full bg-primary/5 blur-3xl" />
       </div>
 
       <div className="relative z-10 container mx-auto px-4 py-24">
@@ -147,7 +147,8 @@ const PodcastApp = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
             >
-              <h1 className="bg-gradient-to-r from-white via-purple-200 to-blue-200 bg-clip-text text-4xl font-bold text-transparent md:text-5xl mb-6">
+              {/* 标题渐变：从白色到 primary，一致于 Hero 主色 */}
+              <h1 className="bg-gradient-to-r from-white via-primary/80 to-primary/60 bg-clip-text text-4xl font-bold text-transparent md:text-5xl mb-6">
                 {t('title')}
               </h1>
               <p className="text-gray-300 text-lg md:text-xl max-w-3xl mx-auto">
@@ -160,7 +161,7 @@ const PodcastApp = () => {
         {/* 播客生成器 */}
         <ScrollAnimation delay={0.2}>
           <div className="max-w-4xl mx-auto mb-12">
-            <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-purple-500/20 p-8">
+            <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-primary/20 p-8">
               <h2 className="text-2xl font-bold text-white mb-6">{t('generate.title')}</h2>
 
               {/* 文本输入区域 */}
@@ -170,7 +171,7 @@ const PodcastApp = () => {
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   placeholder={t('upload.drag_text')}
-                  className="w-full h-32 p-4 bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-purple-500 focus:outline-none resize-none"
+                  className="w-full h-32 p-4 bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-primary focus:outline-none resize-none"
                 />
               </div>
 
@@ -188,12 +189,12 @@ const PodcastApp = () => {
                       onClick={() => setSelectedVoice(voice.type as any)}
                       className={`p-4 rounded-lg border transition-all duration-300 text-left ${
                         selectedVoice === voice.type
-                          ? 'border-purple-500 bg-purple-500/10'
-                          : 'border-gray-600 bg-gray-800/50 hover:border-purple-500/50'
+                          ? 'border-primary bg-primary/10'
+                          : 'border-gray-600 bg-gray-800/50 hover:border-primary/50'
                       }`}
                     >
                       <div className="flex items-center gap-2 mb-2">
-                        <Mic className="h-4 w-4 text-purple-400" />
+                        <Mic className="h-4 w-4 text-primary" />
                         <span className="text-white font-medium">{voice.label}</span>
                       </div>
                       <p className="text-gray-400 text-sm">{voice.desc}</p>
@@ -206,7 +207,7 @@ const PodcastApp = () => {
               <Button
                 onClick={handleGeneratePodcast}
                 disabled={!inputText.trim() || isGenerating}
-                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white py-4"
+                className="w-full bg-gradient-to-r from-primary to-primary/70 hover:from-primary/90 hover:to-primary/80 text-white py-4"
               >
                 {isGenerating ? (
                   <>
@@ -228,18 +229,19 @@ const PodcastApp = () => {
         {currentPodcast && (
           <ScrollAnimation delay={0.3}>
             <div className="max-w-4xl mx-auto mb-12">
-              <div className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 rounded-2xl border border-purple-500/30 p-8">
+              {/* 播放器整体背景：primary 深浅渐变，去掉蓝色终点，统一主色 */}
+              <div className="bg-gradient-to-r from-primary/20 to-primary/5 rounded-2xl border border-primary/30 p-8">
                 <div className="flex items-center justify-between mb-6">
                   <div>
                     <h3 className="text-2xl font-bold text-white mb-2">{currentPodcast.title}</h3>
                     <p className="text-gray-300">{currentPodcast.description}</p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Button variant="outline" size="sm" className="border-purple-500/30 text-purple-300">
+                    <Button variant="outline" size="sm" className="border-primary/30 text-primary/80">
                       <Download className="h-4 w-4 mr-2" />
                       下载
                     </Button>
-                    <Button variant="outline" size="sm" className="border-purple-500/30 text-purple-300">
+                    <Button variant="outline" size="sm" className="border-primary/30 text-primary/80">
                       <Share2 className="h-4 w-4 mr-2" />
                       分享
                     </Button>
@@ -279,7 +281,7 @@ const PodcastApp = () => {
                       </Button>
                       <Button
                         onClick={() => handlePlayPause()}
-                        className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white w-12 h-12 rounded-full"
+                        className="bg-gradient-to-r from-primary to-primary/70 hover:from-primary/90 hover:to-primary/80 text-white w-12 h-12 rounded-full"
                       >
                         {isPlaying ? (
                           <Pause className="h-5 w-5" />
@@ -308,7 +310,8 @@ const PodcastApp = () => {
                         onChange={handleVolumeChange}
                         className="w-24 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
                         style={{
-                          background: `linear-gradient(to right, #8b5cf6 0%, #8b5cf6 ${volume * 100}%, #4b5563 ${volume * 100}%, #4b5563 100%)`
+                          // 使用 theme 主色对应的 oklch 紫（约等于 Tailwind 的 purple-500）来渲染已调节音量区
+                          background: `linear-gradient(to right, rgb(139,92,246) 0%, rgb(139,92,246) ${volume * 100}%, #4b5563 ${volume * 100}%, #4b5563 100%)`
                         }}
                       />
                     </div>
@@ -331,7 +334,7 @@ const PodcastApp = () => {
         <ScrollAnimation delay={0.4}>
           <div className="max-w-4xl mx-auto">
             <h2 className="text-2xl font-bold text-white mb-6">我的播客库</h2>
-            <div className="space-y-4">
+                    <div className="space-y-4">
               {podcasts.length > 0 ? (
                 podcasts.map((podcast) => (
                   <motion.div
@@ -341,15 +344,15 @@ const PodcastApp = () => {
                     transition={{ duration: 0.5 }}
                     className={`bg-gray-900/50 backdrop-blur-sm rounded-xl border transition-all duration-300 cursor-pointer ${
                       currentPodcast?.id === podcast.id
-                        ? 'border-purple-500 bg-purple-500/10'
-                        : 'border-gray-600 hover:border-purple-500/50'
+                        ? 'border-primary bg-primary/10'
+                        : 'border-gray-600 hover:border-primary/50'
                     }`}
                     onClick={() => handlePlayPause(podcast)}
                   >
                     <div className="p-6">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
+                          <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary/70 rounded-lg flex items-center justify-center">
                             <Headphones className="h-6 w-6 text-white" />
                           </div>
                           <div>
@@ -371,7 +374,7 @@ const PodcastApp = () => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-purple-400 hover:text-purple-300"
+                          className="text-primary hover:text-primary/80"
                         >
                           {currentPodcast?.id === podcast.id && isPlaying ? (
                             <Pause className="h-5 w-5" />
@@ -397,21 +400,21 @@ const PodcastApp = () => {
         {/* 使用提示 */}
         <ScrollAnimation delay={0.5}>
           <div className="max-w-4xl mx-auto mt-12">
-            <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-purple-500/20 p-6">
+            <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-primary/20 p-6">
               <h3 className="text-lg font-semibold text-white mb-4">使用提示</h3>
               <div className="grid md:grid-cols-3 gap-4">
                 <div className="text-center">
-                  <Upload className="h-8 w-8 text-purple-400 mx-auto mb-2" />
+                  <Upload className="h-8 w-8 text-primary mx-auto mb-2" />
                   <p className="text-white font-medium mb-1">支持多种内容</p>
                   <p className="text-gray-400 text-sm">课程笔记、教材内容、文章等</p>
                 </div>
                 <div className="text-center">
-                  <Sparkles className="h-8 w-8 text-purple-400 mx-auto mb-2" />
+                  <Sparkles className="h-8 w-8 text-primary mx-auto mb-2" />
                   <p className="text-white font-medium mb-1">AI智能优化</p>
                   <p className="text-gray-400 text-sm">自动优化语言和语调</p>
                 </div>
                 <div className="text-center">
-                  <Headphones className="h-8 w-8 text-purple-400 mx-auto mb-2" />
+                  <Headphones className="h-8 w-8 text-primary mx-auto mb-2" />
                   <p className="text-white font-medium mb-1">随时随地学习</p>
                   <p className="text-gray-400 text-sm">支持下载和离线收听</p>
                 </div>

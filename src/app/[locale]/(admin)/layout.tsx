@@ -20,8 +20,10 @@ export default async function AdminLayout({
   setRequestLocale(locale);
 
   // Check if user has admin access permission
+  // 检查用户是否有管理员访问权限
+  // 如果没有权限，会重定向到无权限页面
   await requireAdminAccess({
-    redirectUrl: `/no-permission`,
+    redirectUrl: `/${locale}/no-permission`, // 修复：使用完整的本地化路径
     locale: locale || '',
   });
 

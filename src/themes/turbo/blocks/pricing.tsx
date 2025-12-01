@@ -23,7 +23,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/components/ui/select';
-import { Tabs, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
 import { useAppContext } from '@/shared/contexts/app';
 import { getCookie } from '@/shared/lib/cookie';
 import { cn } from '@/shared/lib/utils';
@@ -95,19 +94,8 @@ export function Pricing({
     configs,
   } = useAppContext();
 
-  const [group, setGroup] = useState(() => {
-    // find current pricing item
-    const currentItem = pricing.items?.find(
-      (i) => i.product_id === currentSubscription?.productId
-    );
-
-    // First look for a group with is_featured set to true
-    const featuredGroup = pricing.groups?.find((g) => g.is_featured);
-    // If no featured group exists, fall back to the first group
-    return (
-      currentItem?.group || featuredGroup?.name || pricing.groups?.[0]?.name
-    );
-  });
+  // We only show three plans horizontally: Free, Annual, Monthly
+  const visibleItems = pricing.items ? pricing.items.slice(0, 3) : [];
 
   // current pricing item
   const [pricingItem, setPricingItem] = useState<PricingItem | null>(null);
@@ -341,36 +329,8 @@ export function Pricing({
       </div>
 
       <div className="container">
-        {pricing.groups && pricing.groups.length > 0 && (
-          <div className="mx-auto mt-8 mb-16 flex w-full justify-center md:max-w-lg">
-            <Tabs value={group} onValueChange={setGroup} className="">
-              <TabsList>
-                {pricing.groups.map((item, i) => {
-                  return (
-                    <TabsTrigger key={i} value={item.name || ''}>
-                      {item.title}
-                      {item.label && (
-                        <Badge className="ml-2">{item.label}</Badge>
-                      )}
-                    </TabsTrigger>
-                  );
-                })}
-              </TabsList>
-            </Tabs>
-          </div>
-        )}
-
-        <div
-          className={`mt-0 grid w-full gap-6 md:grid-cols-${
-            pricing.items?.filter((item) => !item.group || item.group === group)
-              ?.length
-          }`}
-        >
-          {pricing.items?.map((item: PricingItem, idx) => {
-            if (item.group && item.group !== group) {
-              return null;
-            }
-
+        <div className="mt-0 grid w-full gap-6 md:grid-cols-3">
+          {visibleItems.map((item: PricingItem, idx) => {
             let isCurrentPlan = false;
             if (
               currentSubscription &&
@@ -389,14 +349,35 @@ export function Pricing({
             return (
               <Card key={idx} className="relative">
                 {item.label && (
-                  <span className="absolute inset-x-0 -top-3 mx-auto flex h-6 w-fit items-center rounded-full bg-linear-to-br/increasing from-purple-400 to-amber-300 px-3 py-1 text-xs font-medium text-amber-950 ring-1 ring-white/20 ring-offset-1 ring-offset-gray-950/5 ring-inset">
+                  <span className="from-primary/80 absolute inset-x-0 -top-3 mx-auto flex h-6 w-fit items-center rounded-full bg-linear-to-br/increasing to-amber-300 px-3 py-1 text-xs font-medium text-amber-950 ring-1 ring-white/20 ring-offset-1 ring-offset-gray-950/5 ring-inset">
                     {item.label}
                   </span>
                 )}
 
                 <CardHeader>
+                  {/* 付款方式标签：在卡片最显眼位置区分 Pay monthly / Pay annually */}
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <span
+                      className={cn(
+                        'rounded-full px-3 py-1 text-xs font-semibold',
+                        item.interval === 'year'
+                          ? 'border border-emerald-400/40 bg-emerald-500/15 text-emerald-200'
+                          : 'bg-muted text-foreground/80 border-border/60 border'
+                      )}
+                    >
+                      {item.interval === 'year'
+                        ? 'Pay annually'
+                        : 'Pay monthly'}
+                    </span>
+                    {item.interval === 'year' && (
+                      <span className="rounded-full bg-emerald-400 px-2 py-0.5 text-[11px] font-bold text-emerald-950">
+                        Save 50%
+                      </span>
+                    )}
+                  </div>
+
                   <CardTitle className="font-medium">
-                    <h3 className="text-sm font-medium">{item.title}</h3>
+                    <h3 className="text-base font-semibold">{item.title}</h3>
                   </CardTitle>
 
                   <div className="my-3 flex items-baseline gap-2">

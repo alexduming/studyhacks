@@ -2,7 +2,7 @@ import {
   CTA as CTAType,
   Showcases as ShowcasesType,
 } from '@/shared/types/blocks/landing';
-import { CTA, Showcases } from '@/themes/default/blocks';
+import { CTA, Showcases } from '@/themes/turbo/blocks';
 
 export default async function ShowcasesPage({
   locale,

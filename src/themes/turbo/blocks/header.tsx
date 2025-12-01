@@ -98,7 +98,7 @@ export function Header({ header }: { header: HeaderType }) {
             <NavigationMenuItem key={idx} value={item.title || ''}>
               {item.children && item.children.length > 0 ? (
                 <>
-                  <NavigationMenuTrigger className="flex flex-row items-center gap-2 text-sm text-gray-300 hover:text-white transition-colors">
+                  <NavigationMenuTrigger className="flex flex-row items-center gap-2 text-sm text-gray-300 transition-colors hover:text-white">
                     {item.icon && (
                       <SmartIcon
                         name={item.icon as string}
@@ -137,9 +137,9 @@ export function Header({ header }: { header: HeaderType }) {
                     href={item.url || ''}
                     target={item.target || '_self'}
                     className={cn(
-                      "flex flex-row items-center gap-2 text-sm transition-colors",
+                      'flex flex-row items-center gap-2 text-sm transition-colors',
                       item.is_active || pathname.endsWith(item.url as string)
-                        ? 'text-purple-400'
+                        ? 'text-primary'
                         : 'text-gray-300 hover:text-white'
                     )}
                   >
@@ -176,7 +176,7 @@ export function Header({ header }: { header: HeaderType }) {
               >
                 {item.children && item.children.length > 0 ? (
                   <>
-                    <AccordionTrigger className="data-[state=open]:bg-muted flex items-center justify-between px-4 py-3 text-lg **:!font-normal text-gray-300">
+                    <AccordionTrigger className="data-[state=open]:bg-muted flex items-center justify-between px-4 py-3 text-lg text-gray-300 **:!font-normal">
                       {item.title}
                     </AccordionTrigger>
                     <AccordionContent className="pb-5">
@@ -186,7 +186,7 @@ export function Header({ header }: { header: HeaderType }) {
                             <Link
                               href={subItem.url || ''}
                               onClick={closeMenu}
-                              className="grid grid-cols-[auto_1fr] items-center gap-2.5 px-4 py-2 text-gray-300 hover:text-white transition-colors"
+                              className="grid grid-cols-[auto_1fr] items-center gap-2.5 px-4 py-2 text-gray-300 transition-colors hover:text-white"
                             >
                               <div
                                 aria-hidden
@@ -207,7 +207,7 @@ export function Header({ header }: { header: HeaderType }) {
                   <Link
                     href={item.url || ''}
                     onClick={closeMenu}
-                    className="data-[state=open]:bg-muted flex items-center justify-between px-4 py-3 text-lg **:!font-normal text-gray-300 hover:text-white transition-colors"
+                    className="data-[state=open]:bg-muted flex items-center justify-between px-4 py-3 text-lg text-gray-300 transition-colors **:!font-normal hover:text-white"
                   >
                     {item.title}
                   </Link>
@@ -261,14 +261,14 @@ export function Header({ header }: { header: HeaderType }) {
         <div
           className={cn(
             'absolute inset-x-0 top-0 z-50 h-18 border-transparent ring-1 ring-transparent transition-all duration-300',
-            'in-data-scrolled:border-purple-500/20 in-data-scrolled:bg-gray-950/90 in-data-scrolled:border-b in-data-scrolled:backdrop-blur-md',
-            'has-data-[state=open]:ring-purple-500/20 has-data-[state=open]:bg-gray-950/95 has-data-[state=open]:h-[calc(var(--navigation-menu-viewport-height)+3.4rem)] has-data-[state=open]:border-b has-data-[state=open]:shadow-lg has-data-[state=open]:shadow-black/20 has-data-[state=open]:backdrop-blur-md',
-            'max-lg:in-data-[state=active]:bg-gray-950/90 max-lg:h-14 max-lg:overflow-hidden max-lg:border-b max-lg:in-data-[state=active]:h-screen max-lg:in-data-[state=active]:backdrop-blur-md'
+            'in-data-scrolled:border-primary/20 in-data-scrolled:border-b in-data-scrolled:bg-gray-950/90 in-data-scrolled:backdrop-blur-md',
+            'has-data-[state=open]:ring-primary/20 has-data-[state=open]:h-[calc(var(--navigation-menu-viewport-height)+3.4rem)] has-data-[state=open]:border-b has-data-[state=open]:bg-gray-950/95 has-data-[state=open]:shadow-lg has-data-[state=open]:shadow-black/20 has-data-[state=open]:backdrop-blur-md',
+            'max-lg:h-14 max-lg:overflow-hidden max-lg:border-b max-lg:in-data-[state=active]:h-screen max-lg:in-data-[state=active]:bg-gray-950/90 max-lg:in-data-[state=active]:backdrop-blur-md'
           )}
         >
           <div className="container">
             <div className="relative flex flex-wrap items-center justify-between lg:py-5">
-              <div className="flex justify-between gap-8 max-lg:h-14 max-lg:w-full max-lg:border-b max-lg:border-purple-500/20">
+              <div className="max-lg:border-primary/20 flex justify-between gap-8 max-lg:h-14 max-lg:w-full max-lg:border-b">
                 {/* Brand Logo */}
                 {header.brand && <BrandLogo brand={header.brand} />}
 
@@ -280,7 +280,7 @@ export function Header({ header }: { header: HeaderType }) {
                   aria-label={
                     isMobileMenuOpen == true ? 'Close Menu' : 'Open Menu'
                   }
-                  className="relative z-20 -m-2.5 -mr-3 block cursor-pointer p-2.5 lg:hidden text-gray-300 hover:text-white transition-colors"
+                  className="relative z-20 -m-2.5 -mr-3 block cursor-pointer p-2.5 text-gray-300 transition-colors hover:text-white lg:hidden"
                 >
                   <Menu className="m-auto size-5 duration-200 in-data-[state=active]:scale-0 in-data-[state=active]:rotate-180 in-data-[state=active]:opacity-0" />
                   <X className="absolute inset-0 m-auto size-5 scale-0 -rotate-180 opacity-0 duration-200 in-data-[state=active]:scale-100 in-data-[state=active]:rotate-0 in-data-[state=active]:opacity-100" />
@@ -309,11 +309,11 @@ export function Header({ header }: { header: HeaderType }) {
                         href={button.url || ''}
                         target={button.target || '_self'}
                         className={cn(
-                          'focus-visible:ring-purple-400 inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all focus-visible:ring-1 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
+                          'focus-visible:ring-primary inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all focus-visible:ring-1 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
                           'h-7 px-3 ring-0',
                           button.variant === 'outline'
-                            ? 'border border-purple-500/30 text-purple-300 hover:border-purple-500/50 hover:bg-purple-500/10 transition-all duration-300'
-                            : 'bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 border-[0.5px] border-purple-500/50 shadow-md ring-1 shadow-black/20 ring-purple-500/25 transition-all duration-300'
+                            ? 'border-primary/30 text-primary/80 hover:border-primary/50 hover:bg-primary/10 border transition-all duration-300'
+                            : 'bg-primary hover:bg-primary/90 border-primary/50 ring-primary/25 border-[0.5px] text-white shadow-md ring-1 shadow-black/20 transition-all duration-300'
                         )}
                       >
                         {button.icon && (

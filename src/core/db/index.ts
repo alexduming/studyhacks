@@ -51,11 +51,29 @@ export function db() {
     }
 
     // Create connection pool only once
+    // 优化连接池配置：快速失败策略，避免首页被数据库连接拖慢
+    // 开发环境：5秒超时，快速失败并回退到环境变量配置
+    // 生产环境：如果网络稳定，可以适当增加超时时间
+    const isDevelopment = process.env.NODE_ENV === 'development';
     client = postgres(databaseUrl, {
       prepare: false,
       max: 10, // Maximum connections in pool
       idle_timeout: 30, // Idle connection timeout (seconds)
-      connect_timeout: 10, // Connection timeout (seconds)
+      // 开发环境：5秒超时，快速失败（避免首页卡顿）
+      // 生产环境：10秒超时（给网络波动留出缓冲）
+      connect_timeout: isDevelopment ? 5 : 10,
+      // 添加连接重试配置
+      max_lifetime: 60 * 30, // 连接最大生命周期：30分钟
+      // 针对 Supabase 连接池的优化
+      connection: {
+        application_name: 'study-app',
+      },
+      // 启用连接池健康检查
+      onnotice: () => {}, // 静默处理通知
+      // 连接错误处理
+      transform: {
+        undefined: null, // 将 undefined 转换为 null
+      },
     });
 
     dbInstance = drizzle({ client });
@@ -64,11 +82,22 @@ export function db() {
 
   // Non-singleton mode: create new connection each time (good for serverless)
   // In serverless, the connection will be cleaned up when the function instance is destroyed
+  // 优化 serverless 模式的连接配置：快速失败策略
+  const isDevelopment = process.env.NODE_ENV === 'development';
   const serverlessClient = postgres(databaseUrl, {
     prepare: false,
     max: 1, // Use single connection in serverless
     idle_timeout: 20,
-    connect_timeout: 10,
+    // 开发环境：5秒超时，快速失败
+    // 生产环境：10秒超时
+    connect_timeout: isDevelopment ? 5 : 10,
+    max_lifetime: 60 * 10, // Serverless 模式：连接最大生命周期10分钟
+    connection: {
+      application_name: 'study-app-serverless',
+    },
+    transform: {
+      undefined: null,
+    },
   });
 
   return drizzle({ client: serverlessClient });

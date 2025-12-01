@@ -162,7 +162,7 @@ export function PdfDemo() {
                       <div className="space-y-2 text-left pb-2">
                         <motion.div {...createFadeInVariant(0.1)}>
                           <div className="flex items-center gap-2 mb-2">
-                            <BookOpen className="w-4 h-4 text-purple-400" />
+                            <BookOpen className="w-4 h-4 text-primary" />
                             <span className="text-lg font-bold text-white">{mockAnalysisData.title}</span>
                           </div>
                         </motion.div>
@@ -177,7 +177,7 @@ export function PdfDemo() {
                             {...createFadeInVariant(0.3 + index * 0.1)}
                           >
                             <div className="text-xs text-gray-200 pl-3 flex items-start gap-2">
-                              <span className="text-purple-400 mt-0.5 flex-shrink-0">•</span>
+                              <span className="text-primary mt-0.5 flex-shrink-0">•</span>
                               <span>{point}</span>
                             </div>
                           </motion.div>
@@ -208,10 +208,10 @@ export function PdfDemo() {
                           <div className="my-3 rounded-lg border border-white/10 overflow-hidden">
                             <table className="w-full text-xs">
                               <thead>
-                                <tr className="bg-purple-500/10">
-                                  <th className="px-3 py-2 text-left text-purple-300 font-medium border-r border-white/10">Feature</th>
-                                  <th className="px-3 py-2 text-left text-purple-300 font-medium border-r border-white/10">Prokaryotic</th>
-                                  <th className="px-3 py-2 text-left text-purple-300 font-medium">Eukaryotic</th>
+                                <tr className="bg-primary/10">
+                                  <th className="px-3 py-2 text-left text-primary/80 font-medium border-r border-white/10">Feature</th>
+                                  <th className="px-3 py-2 text-left text-primary/80 font-medium border-r border-white/10">Prokaryotic</th>
+                                  <th className="px-3 py-2 text-left text-primary/80 font-medium">Eukaryotic</th>
                                 </tr>
                               </thead>
                               <tbody className="text-gray-300">
@@ -236,13 +236,13 @@ export function PdfDemo() {
 
                         <motion.div {...createFadeInVariant(1.1)}>
                           <div className="flex items-center gap-2 mt-3 mb-1">
-                            <Lightbulb className="w-3 h-3 text-purple-400" />
+                            <Lightbulb className="w-3 h-3 text-primary" />
                             <span className="text-base font-semibold text-white">💡 Key Insight</span>
                           </div>
                         </motion.div>
 
                         <motion.div {...createFadeInVariant(1.2)}>
-                          <span className="text-xs bg-purple-500/10 border-l-2 border-purple-400 pl-2 py-1 text-purple-200 font-medium block">
+                          <span className="text-xs bg-primary/10 border-l-2 border-primary pl-2 py-1 text-primary/80 font-medium block">
                             AI Analysis: This document contains important biological concepts about cellular structure and function.
                           </span>
                         </motion.div>
@@ -293,7 +293,7 @@ export function PdfDemo() {
                 <div
                   className={cn(
                     'w-full max-w-md relative border-2 border-dashed rounded-lg p-8 text-center transition-all cursor-pointer',
-                    isDragging ? 'border-purple-400 bg-purple-50/10' : 'border-gray-300 hover:border-gray-400',
+                    isDragging ? 'border-primary bg-primary/10' : 'border-gray-300 hover:border-gray-400',
                     demoState !== 'idle' && 'pointer-events-none opacity-50'
                   )}
                   onDragOver={handleDragOver}
@@ -331,12 +331,12 @@ export function PdfDemo() {
                         className="space-y-4"
                       >
                         <div className="flex items-center justify-center">
-                          <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
+                          <Loader2 className="w-8 h-8 text-primary animate-spin" />
                         </div>
                         <p className="text-sm font-medium text-white">{message}</p>
                         <div className="w-full bg-gray-700 rounded-full h-2 overflow-hidden">
                           <motion.div
-                            className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"
+                            className="h-full bg-gradient-to-r from-primary to-blue-500 rounded-full"
                             style={{ width: `${progress}%` }}
                             initial={{ width: '0%' }}
                             animate={{ width: `${progress}%` }}

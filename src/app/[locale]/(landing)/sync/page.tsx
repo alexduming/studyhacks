@@ -93,12 +93,21 @@ const SyncApp = () => {
     }
   };
 
+  /**
+   * 非程序员解释：
+   * - 这个函数只是负责“给不同状态贴不同颜色的小标签”，不影响业务逻辑。
+   * - 为了和全站 turbo 主题统一，我们用 primary 表示“同步中”，不用单独的蓝色主色。
+   */
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'online': return 'text-green-400 bg-green-400/10';
-      case 'syncing': return 'text-blue-400 bg-blue-400/10';
-      case 'offline': return 'text-gray-400 bg-gray-400/10';
-      default: return 'text-gray-400 bg-gray-400/10';
+      case 'online':
+        return 'text-green-400 bg-green-400/10';
+      case 'syncing':
+        return 'text-primary/80 bg-primary/10';
+      case 'offline':
+        return 'text-gray-400 bg-gray-400/10';
+      default:
+        return 'text-gray-400 bg-gray-400/10';
     }
   };
 
@@ -173,11 +182,11 @@ const SyncApp = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-950 via-purple-950/10 to-gray-950">
-      {/* 背景装饰 */}
+    <div className="min-h-screen bg-gradient-to-b from-gray-950 via-primary/5 to-gray-950">
+      {/* 背景装饰：统一为 primary 色系的柔和光晕，避免单独蓝色光斑抢主色 */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 h-96 w-96 rounded-full bg-purple-600/10 blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 h-96 w-96 rounded-full bg-blue-600/10 blur-3xl" />
+        <div className="absolute top-1/4 left-1/4 h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 h-96 w-96 rounded-full bg-primary/5 blur-3xl" />
       </div>
 
       <div className="relative z-10 container mx-auto px-4 py-12">
@@ -188,7 +197,8 @@ const SyncApp = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
             >
-              <h1 className="bg-gradient-to-r from-white via-purple-200 to-blue-200 bg-clip-text text-4xl font-bold text-transparent md:text-5xl mb-6">
+              {/* 标题渐变：从白色平滑过渡到 primary，和首页 Hero 的主色气质一致 */}
+              <h1 className="bg-gradient-to-r from-white via-primary/80 to-primary/60 bg-clip-text text-4xl font-bold text-transparent md:text-5xl mb-6">
                 跨平台同步
               </h1>
               <p className="text-gray-300 text-lg md:text-xl max-w-3xl mx-auto">
@@ -202,7 +212,7 @@ const SyncApp = () => {
         <ScrollAnimation delay={0.2}>
           <div className="max-w-4xl mx-auto mb-8">
             <div className="flex justify-center">
-              <div className="inline-flex rounded-lg border border-purple-500/20 bg-gray-900/50 backdrop-blur-sm p-1">
+              <div className="inline-flex rounded-lg border border-primary/20 bg-gray-900/50 backdrop-blur-sm p-1">
                 {[
                   { id: 'devices', label: '设备管理', icon: Smartphone },
                   { id: 'data', label: '同步数据', icon: Cloud },
@@ -215,8 +225,8 @@ const SyncApp = () => {
                       onClick={() => setActiveTab(tab.id as any)}
                       className={`flex items-center gap-2 px-6 py-3 rounded-md transition-all duration-300 ${
                         activeTab === tab.id
-                          ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg'
-                          : 'text-gray-400 hover:text-white hover:bg-purple-500/10'
+                          ? 'bg-gradient-to-r from-primary to-primary/70 text-white shadow-lg'
+                          : 'text-gray-400 hover:text-white hover:bg-primary/10'
                       }`}
                     >
                       <Icon className="h-4 w-4" />
@@ -233,7 +243,7 @@ const SyncApp = () => {
         {activeTab === 'devices' && (
           <ScrollAnimation delay={0.3}>
             <div className="max-w-6xl mx-auto">
-              <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-purple-500/20 p-8">
+              <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-primary/20 p-8">
                 <div className="flex items-center justify-between mb-8">
                   <div>
                     <h3 className="text-2xl font-bold text-white mb-2">已连接设备</h3>
@@ -242,7 +252,7 @@ const SyncApp = () => {
                   <Button
                     onClick={handleManualSync}
                     disabled={isSyncing}
-                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:opacity-50"
+                    className="bg-gradient-to-r from-primary to-primary/70 hover:from-primary/90 hover:to-primary/80 disabled:opacity-50"
                   >
                     {isSyncing ? (
                       <>
@@ -266,7 +276,7 @@ const SyncApp = () => {
                     </div>
                     <div className="w-full bg-gray-700 rounded-full h-2">
                       <motion.div
-                        className="bg-gradient-to-r from-purple-600 to-blue-600 h-2 rounded-full"
+                        className="bg-gradient-to-r from-primary to-primary/70 h-2 rounded-full"
                         initial={{ width: 0 }}
                         animate={{ width: `${syncProgress}%` }}
                         transition={{ duration: 0.3 }}
@@ -288,7 +298,7 @@ const SyncApp = () => {
                       >
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl flex items-center justify-center">
+                            <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary/70 rounded-xl flex items-center justify-center">
                               <Icon className="h-6 w-6 text-white" />
                             </div>
                             <div>
@@ -314,7 +324,7 @@ const SyncApp = () => {
                             </div>
                             <div className="w-full bg-gray-700 rounded-full h-2">
                               <div
-                                className="bg-gradient-to-r from-purple-600 to-blue-600 h-2 rounded-full"
+                                className="bg-gradient-to-r from-primary to-primary/70 h-2 rounded-full"
                                 style={{ width: `${(device.storage.used / device.storage.total) * 100}%` }}
                               />
                             </div>
@@ -325,7 +335,7 @@ const SyncApp = () => {
                           <Button
                             variant="outline"
                             size="sm"
-                            className="flex-1 border-purple-500/30 text-purple-300 hover:border-purple-500/50"
+                            className="flex-1 border-primary/30 text-primary/80 hover:border-primary/50"
                           >
                             <Download className="h-4 w-4 mr-2" />
                             拉取
@@ -333,7 +343,7 @@ const SyncApp = () => {
                           <Button
                             variant="outline"
                             size="sm"
-                            className="flex-1 border-purple-500/30 text-purple-300 hover:border-purple-500/50"
+                            className="flex-1 border-primary/30 text-primary/80 hover:border-primary/50"
                           >
                             <Upload className="h-4 w-4 mr-2" />
                             推送
@@ -345,7 +355,7 @@ const SyncApp = () => {
                 </div>
 
                 <div className="mt-8 flex justify-center">
-                  <Button variant="outline" className="border-purple-500/30 text-purple-300 hover:border-purple-500/50">
+                  <Button variant="outline" className="border-primary/30 text-primary/80 hover:border-primary/50">
                     <Plus className="h-4 w-4 mr-2" />
                     添加新设备
                   </Button>
@@ -361,13 +371,14 @@ const SyncApp = () => {
             <div className="max-w-4xl mx-auto">
               <div className="grid md:grid-cols-2 gap-6">
                 {/* 数据统计 */}
-                <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-purple-500/20 p-8">
+                <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-primary/20 p-8">
                   <h3 className="text-xl font-bold text-white mb-6">数据概览</h3>
 
                   <div className="space-y-4">
                     {[
-                      { label: '笔记', count: syncData.notes, icon: '📝', color: 'text-purple-400' },
-                      { label: '闪卡', count: syncData.flashcards, icon: '🗂️', color: 'text-blue-400' },
+                      { label: '笔记', count: syncData.notes, icon: '📝', color: 'text-primary' },
+                      // 闪卡数量同样使用 primary，避免“部分蓝、部分紫”的割裂感
+                      { label: '闪卡', count: syncData.flashcards, icon: '🗂️', color: 'text-primary' },
                       { label: '测验', count: syncData.quizzes, icon: '📋', color: 'text-green-400' },
                       { label: '播客', count: syncData.podcasts, icon: '🎧', color: 'text-yellow-400' }
                     ].map((item, idx) => (
@@ -383,13 +394,13 @@ const SyncApp = () => {
                 </div>
 
                 {/* 备份信息 */}
-                <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-purple-500/20 p-8">
+                <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-primary/20 p-8">
                   <h3 className="text-xl font-bold text-white mb-6">备份与恢复</h3>
 
                   <div className="space-y-6">
                     <div className="flex items-center justify-between p-4 bg-gray-800/50 rounded-lg">
                       <div className="flex items-center gap-3">
-                        <Cloud className="h-5 w-5 text-purple-400" />
+                        <Cloud className="h-5 w-5 text-primary" />
                         <div>
                           <p className="text-white font-medium">自动备份</p>
                           <p className="text-gray-400 text-sm">上次备份: {syncData.lastBackup ? formatTimeAgo(syncData.lastBackup) : '从未备份'}</p>
@@ -400,7 +411,7 @@ const SyncApp = () => {
 
                     <div className="p-4 bg-gray-800/50 rounded-lg">
                       <div className="flex items-center gap-3 mb-3">
-                        <Server className="h-5 w-5 text-blue-400" />
+                        <Server className="h-5 w-5 text-primary" />
                         <p className="text-white font-medium">云存储状态</p>
                       </div>
                       <div className="space-y-2">
@@ -409,7 +420,7 @@ const SyncApp = () => {
                           <span className="text-white">2.3 GB / 10 GB</span>
                         </div>
                         <div className="w-full bg-gray-700 rounded-full h-2">
-                          <div className="bg-gradient-to-r from-blue-600 to-purple-600 h-2 rounded-full" style={{ width: '23%' }} />
+                          <div className="bg-gradient-to-r from-primary to-primary/70 h-2 rounded-full" style={{ width: '23%' }} />
                         </div>
                       </div>
                     </div>
@@ -417,14 +428,14 @@ const SyncApp = () => {
                     <div className="flex gap-3">
                       <Button
                         onClick={handleBackup}
-                        className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                        className="flex-1 bg-gradient-to-r from-primary to-primary/70 hover:from-primary/90 hover:to-primary/80"
                       >
                         <Upload className="h-4 w-4 mr-2" />
                         立即备份
                       </Button>
                       <Button
                         variant="outline"
-                        className="flex-1 border-purple-500/30 text-purple-300 hover:border-purple-500/50"
+                        className="flex-1 border-primary/30 text-primary/80 hover:border-primary/50"
                       >
                         <Download className="h-4 w-4 mr-2" />
                         恢复数据
@@ -435,7 +446,7 @@ const SyncApp = () => {
               </div>
 
               {/* 同步历史 */}
-              <div className="mt-8 bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-purple-500/20 p-8">
+              <div className="mt-8 bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-primary/20 p-8">
                 <h3 className="text-xl font-bold text-white mb-6">同步历史</h3>
 
                 <div className="space-y-3">
@@ -475,13 +486,13 @@ const SyncApp = () => {
         {activeTab === 'settings' && (
           <ScrollAnimation delay={0.3}>
             <div className="max-w-4xl mx-auto">
-              <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-purple-500/20 p-8">
+              <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-primary/20 p-8">
                 <h3 className="text-2xl font-bold text-white mb-6">同步设置</h3>
 
                 <div className="space-y-6">
                   <div className="flex items-center justify-between p-4 bg-gray-800/50 rounded-lg">
                     <div className="flex items-center gap-3">
-                      <RefreshCw className="h-5 w-5 text-purple-400" />
+                      <RefreshCw className="h-5 w-5 text-primary" />
                       <div>
                         <p className="text-white font-medium">自动同步</p>
                         <p className="text-gray-400 text-sm">在有网络连接时自动同步数据</p>
@@ -490,7 +501,7 @@ const SyncApp = () => {
                     <button
                       onClick={() => setAutoSyncEnabled(!autoSyncEnabled)}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        autoSyncEnabled ? 'bg-purple-600' : 'bg-gray-600'
+                        autoSyncEnabled ? 'bg-primary' : 'bg-gray-600'
                       }`}
                     >
                       <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -501,7 +512,7 @@ const SyncApp = () => {
 
                   <div className="flex items-center justify-between p-4 bg-gray-800/50 rounded-lg">
                     <div className="flex items-center gap-3">
-                      <Wifi className="h-5 w-5 text-blue-400" />
+                      <Wifi className="h-5 w-5 text-primary" />
                       <div>
                         <p className="text-white font-medium">仅在 Wi-Fi 下同步</p>
                         <p className="text-gray-400 text-sm">避免使用移动数据进行同步</p>
@@ -510,7 +521,7 @@ const SyncApp = () => {
                     <button
                       onClick={() => setWifiOnly(!wifiOnly)}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        wifiOnly ? 'bg-blue-600' : 'bg-gray-600'
+                        wifiOnly ? 'bg-primary' : 'bg-gray-600'
                       }`}
                     >
                       <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -535,7 +546,7 @@ const SyncApp = () => {
                       <Clock className="h-5 w-5 text-yellow-400" />
                       <p className="text-white font-medium">同步频率</p>
                     </div>
-                    <select className="w-full p-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none">
+                    <select className="w-full p-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:border-primary focus:outline-none">
                       <option>实时同步</option>
                       <option>每 5 分钟</option>
                       <option>每 15 分钟</option>
@@ -547,7 +558,7 @@ const SyncApp = () => {
                 </div>
 
                 <div className="mt-8 flex justify-center">
-                  <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
+                  <Button className="bg-gradient-to-r from-primary to-primary/70 hover:from-primary/90 hover:to-primary/80">
                     保存设置
                   </Button>
                 </div>
@@ -559,7 +570,7 @@ const SyncApp = () => {
         {/* 功能特色 */}
         <ScrollAnimation delay={0.5}>
           <div className="max-w-6xl mx-auto mt-16">
-            <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-purple-500/20 p-8">
+            <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-primary/20 p-8">
               <h3 className="text-2xl font-bold text-white mb-6 text-center">同步功能特色</h3>
               <div className="grid md:grid-cols-3 gap-6">
                 {[
@@ -603,7 +614,7 @@ const SyncApp = () => {
                       transition={{ duration: 0.5, delay: idx * 0.1 }}
                       className="text-center"
                     >
-                      <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                      <div className="w-16 h-16 bg-gradient-to-br from-primary to-primary/70 rounded-2xl flex items-center justify-center mx-auto mb-4">
                         <Icon className="h-8 w-8 text-white" />
                       </div>
                       <h4 className="text-lg font-semibold text-white mb-2">{feature.title}</h4>
@@ -624,7 +635,7 @@ const SyncApp = () => {
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 50 }}
-            className="fixed bottom-8 right-8 bg-gray-900/90 backdrop-blur-sm border border-purple-500/30 rounded-lg p-4 flex items-center gap-3 z-50"
+            className="fixed bottom-8 right-8 bg-gray-900/90 backdrop-blur-sm border border-primary/30 rounded-lg p-4 flex items-center gap-3 z-50"
           >
             <CheckCircle className="h-5 w-5 text-green-400" />
             <span className="text-white">{notificationMessage}</span>

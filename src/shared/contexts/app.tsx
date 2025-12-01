@@ -50,9 +50,17 @@ export const AppContextProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchConfigs = async function () {
     try {
+      // 添加超时控制：如果5秒内没有响应，直接放弃（避免页面卡死）
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
       const resp = await fetch('/api/config/get-configs', {
         method: 'POST',
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
+
       if (!resp.ok) {
         throw new Error(`fetch failed with status: ${resp.status}`);
       }
@@ -63,7 +71,13 @@ export const AppContextProvider = ({ children }: { children: ReactNode }) => {
 
       setConfigs(data);
     } catch (e) {
-      console.log('fetch configs failed:', e);
+      // 静默处理错误：配置获取失败不影响页面正常显示
+      // 页面会使用环境变量中的默认配置
+      if ((e as Error).name !== 'AbortError') {
+        console.warn('[AppContext] 获取配置失败，使用默认配置:', e);
+      }
+      // 即使失败也设置空对象，避免后续逻辑出错
+      setConfigs({});
     }
   };
 

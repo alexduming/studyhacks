@@ -6,6 +6,23 @@
 @plugin 'tailwindcss-animate';
 
 @layer base {
+  /* 全局字号稍微放大，提升可读性（参考 turbo.ai） */
+  html {
+    font-size: 16px;
+  }
+
+  @media (min-width: 768px) {
+    html {
+      font-size: 17px;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    html {
+      font-size: 18px;
+    }
+  }
+
   * {
     @apply border-border outline-ring/50;
   }

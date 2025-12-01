@@ -133,12 +133,24 @@ const CollaborationApp = () => {
     }
   };
 
+  /**
+   * 非程序员解释：
+   * - 这里为「拥有者 / 编辑者 / 只读查看者」加上不同的颜色标签。
+   * - 为了和 turbo 主站的配色统一，我们只用 primary + 灰色系来区分，
+   *   不再单独引入一整套蓝色主色，避免出现“两个品牌色”的感觉。
+   */
   const getRoleColor = (role: string) => {
     switch (role) {
-      case 'owner': return 'text-purple-400 bg-purple-400/10';
-      case 'editor': return 'text-blue-400 bg-blue-400/10';
-      case 'viewer': return 'text-gray-400 bg-gray-400/10';
-      default: return 'text-gray-400 bg-gray-400/10';
+      case 'owner':
+        // 产品主色，用 primary 表示“拥有者/管理员”
+        return 'text-primary bg-primary/10';
+      case 'editor':
+        // 编辑者：用更亮一些的 primary 变体，而不是蓝色
+        return 'text-primary/80 bg-primary/5';
+      case 'viewer':
+        return 'text-gray-400 bg-gray-400/10';
+      default:
+        return 'text-gray-400 bg-gray-400/10';
     }
   };
 
@@ -180,11 +192,11 @@ const CollaborationApp = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-950 via-purple-950/10 to-gray-950">
-      {/* 背景装饰 */}
+    <div className="min-h-screen bg-gradient-to-b from-gray-950 via-primary/5 to-gray-950">
+      {/* 背景装饰：统一为 primary 色系的柔和光晕，避免单独的蓝色大光斑 */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 h-96 w-96 rounded-full bg-purple-600/10 blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 h-96 w-96 rounded-full bg-blue-600/10 blur-3xl" />
+        <div className="absolute top-1/4 left-1/4 h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 h-96 w-96 rounded-full bg-primary/5 blur-3xl" />
       </div>
 
       <div className="relative z-10 container mx-auto px-4 py-12">
@@ -195,7 +207,8 @@ const CollaborationApp = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
             >
-              <h1 className="bg-gradient-to-r from-white via-purple-200 to-blue-200 bg-clip-text text-4xl font-bold text-transparent md:text-5xl mb-6">
+              {/* 标题渐变从白色过渡到 primary，整体与 Hero 主题保持一致 */}
+              <h1 className="bg-gradient-to-r from-white via-primary/80 to-primary/60 bg-clip-text text-4xl font-bold text-transparent md:text-5xl mb-6">
                 实时协作学习
               </h1>
               <p className="text-gray-300 text-lg md:text-xl max-w-3xl mx-auto">
@@ -209,7 +222,7 @@ const CollaborationApp = () => {
         <ScrollAnimation delay={0.2}>
           <div className="max-w-6xl mx-auto mb-8">
             <div className="flex justify-center">
-              <div className="inline-flex rounded-lg border border-purple-500/20 bg-gray-900/50 backdrop-blur-sm p-1">
+              <div className="inline-flex rounded-lg border border-primary/20 bg-gray-900/50 backdrop-blur-sm p-1">
                 {[
                   { id: 'notes', label: '共享笔记', icon: Edit3 },
                   { id: 'sessions', label: '活跃会话', icon: Users },
@@ -222,8 +235,9 @@ const CollaborationApp = () => {
                       onClick={() => setActiveTab(tab.id as any)}
                       className={`flex items-center gap-2 px-6 py-3 rounded-md transition-all duration-300 ${
                         activeTab === tab.id
-                          ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg'
-                          : 'text-gray-400 hover:text-white hover:bg-purple-500/10'
+                          ? // 选中标签统一使用 primary 深浅渐变，不再混用蓝色终点
+                            'bg-gradient-to-r from-primary to-primary/70 text-white shadow-lg'
+                          : 'text-gray-400 hover:text-white hover:bg-primary/10'
                       }`}
                     >
                       <Icon className="h-4 w-4" />
@@ -247,7 +261,7 @@ const CollaborationApp = () => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5 }}
-                    className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-purple-500/20 p-6 hover:border-purple-500/40 transition-all duration-300"
+                    className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-primary/20 p-6 hover:border-primary/40 transition-all duration-300"
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
@@ -274,7 +288,8 @@ const CollaborationApp = () => {
                             key={collaborator.id}
                             className="relative"
                           >
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white text-xs font-medium">
+                            {/* 协作者头像底色：使用 primary 深浅渐变，移除额外蓝色主色 */}
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white text-xs font-medium">
                               {collaborator.name.charAt(0)}
                             </div>
                             <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full ${getStatusColor(collaborator.status)}`} />
@@ -296,7 +311,7 @@ const CollaborationApp = () => {
                         onClick={() => setSelectedNote(note)}
                         variant="outline"
                         size="sm"
-                        className="flex-1 border-purple-500/30 text-purple-300 hover:border-purple-500/50"
+                        className="flex-1 border-primary/30 text-primary/80 hover:border-primary/50"
                       >
                         <Eye className="h-4 w-4 mr-2" />
                         查看详情
@@ -305,7 +320,8 @@ const CollaborationApp = () => {
                         onClick={() => handleCopyShareLink(note.id)}
                         variant="outline"
                         size="sm"
-                        className="border-purple-500/30 text-purple-300 hover:border-purple-500/50"
+                        // 分享按钮也改为 primary 语义色，避免另一套 “purple-500” 直写色板
+                        className="border-primary/30 text-primary/80 hover:border-primary/50"
                       >
                         <Share2 className="h-4 w-4" />
                       </Button>
@@ -326,7 +342,7 @@ const CollaborationApp = () => {
                   <Edit3 className="h-20 w-20 text-gray-600 mx-auto mb-6" />
                   <h3 className="text-xl font-semibold text-white mb-4">还没有共享笔记</h3>
                   <p className="text-gray-400 mb-6">创建您的第一个共享笔记，邀请同学一起协作学习</p>
-                  <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
+                  <Button className="bg-gradient-to-r from-primary to-primary/70 hover:from-primary/90 hover:to-primary/80">
                     <Plus className="h-4 w-4 mr-2" />
                     创建共享笔记
                   </Button>
@@ -349,7 +365,7 @@ const CollaborationApp = () => {
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.5 }}
-                      className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-purple-500/20 p-6"
+                      className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-primary/20 p-6"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
@@ -372,7 +388,7 @@ const CollaborationApp = () => {
                                 key={participant.id}
                                 className="relative"
                               >
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white text-sm font-medium">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white text-sm font-medium">
                                   {participant.name.charAt(0)}
                                 </div>
                                 <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full ${getStatusColor(participant.status)}`} />
@@ -381,7 +397,7 @@ const CollaborationApp = () => {
                           </div>
                           <Button
                             onClick={() => handleJoinSession(session.id)}
-                            className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                            className="bg-gradient-to-r from-primary to-primary/70 hover:from-primary/90 hover:to-primary/80"
                           >
                             加入会话
                           </Button>
@@ -407,9 +423,9 @@ const CollaborationApp = () => {
         {activeTab === 'invite' && (
           <ScrollAnimation delay={0.3}>
             <div className="max-w-2xl mx-auto">
-              <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-purple-500/20 p-8">
+              <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-primary/20 p-8">
                 <div className="text-center mb-8">
-                  <UserPlus className="h-16 w-16 text-purple-400 mx-auto mb-4" />
+                  <UserPlus className="h-16 w-16 text-primary mx-auto mb-4" />
                   <h3 className="text-2xl font-bold text-white mb-2">邀请协作者</h3>
                   <p className="text-gray-400">邀请同学一起编辑和学习笔记</p>
                 </div>
@@ -420,7 +436,7 @@ const CollaborationApp = () => {
                     <select
                       value={selectedNote?.id || ''}
                       onChange={(e) => setSelectedNote(sharedNotes.find(n => n.id === e.target.value) || null)}
-                      className="w-full p-3 bg-gray-800/50 border border-gray-600 rounded-lg text-white focus:border-purple-500 focus:outline-none"
+                      className="w-full p-3 bg-gray-800/50 border border-gray-600 rounded-lg text-white focus:border-primary focus:outline-none"
                     >
                       <option value="">请选择笔记</option>
                       {sharedNotes.map((note) => (
@@ -438,7 +454,7 @@ const CollaborationApp = () => {
                       value={inviteEmail}
                       onChange={(e) => setInviteEmail(e.target.value)}
                       placeholder="输入协作者的邮箱地址"
-                      className="w-full p-3 bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-purple-500 focus:outline-none"
+                      className="w-full p-3 bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-primary focus:outline-none"
                     />
                   </div>
 
@@ -446,7 +462,7 @@ const CollaborationApp = () => {
                     <Button
                       onClick={handleInviteCollaborator}
                       disabled={!selectedNote || !inviteEmail.trim()}
-                      className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex-1 bg-gradient-to-r from-primary to-primary/70 hover:from-primary/90 hover:to-primary/80 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <UserPlus className="h-4 w-4 mr-2" />
                       发送邀请
@@ -459,7 +475,7 @@ const CollaborationApp = () => {
                         }
                       }}
                       disabled={!selectedNote}
-                      className="border-purple-500/30 text-purple-300 hover:border-purple-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="border-primary/30 text-primary/80 hover:border-primary/50 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Copy className="h-4 w-4 mr-2" />
                       复制链接
@@ -475,7 +491,7 @@ const CollaborationApp = () => {
                         <div key={collaborator.id} className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className="relative">
-                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white text-xs font-medium">
+                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white text-xs font-medium">
                                 {collaborator.name.charAt(0)}
                               </div>
                               <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full ${getStatusColor(collaborator.status)}`} />
@@ -501,7 +517,7 @@ const CollaborationApp = () => {
         {/* 功能介绍 */}
         <ScrollAnimation delay={0.5}>
           <div className="max-w-6xl mx-auto mt-16">
-            <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-purple-500/20 p-8">
+            <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-primary/20 p-8">
               <h3 className="text-2xl font-bold text-white mb-6 text-center">协作功能特色</h3>
               <div className="grid md:grid-cols-3 gap-6">
                 {[
@@ -545,7 +561,7 @@ const CollaborationApp = () => {
                       transition={{ duration: 0.5, delay: idx * 0.1 }}
                       className="text-center"
                     >
-                      <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                      <div className="w-16 h-16 bg-gradient-to-br from-primary to-primary/70 rounded-2xl flex items-center justify-center mx-auto mb-4">
                         <Icon className="h-8 w-8 text-white" />
                       </div>
                       <h4 className="text-lg font-semibold text-white mb-2">{feature.title}</h4>

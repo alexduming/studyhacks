@@ -8,7 +8,7 @@
     "drag_text": "Drop your study files here or click to browse",
     "supported_formats": "All formats supported: MP3, WAV, MP4, MOV, PDF, DOC, TXT, YouTube links",
     "file_selected": "Selected: ",
-    "processing": "AI is creating your smart notes...",
+    "processing": "Creating",
     "upload_button": "Choose Study Files",
     "audio_files": "Lecture Recordings",
     "video_files": "Video Lectures",
@@ -106,7 +106,7 @@
     "failed": "Failed"
   },
   "languages": {
-    "auto": "Auto (Match source language)",
+    "auto": "Auto",
     "zh": "中文",
     "en": "English",
     "es": "Español",

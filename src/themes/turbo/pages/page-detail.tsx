@@ -1,5 +1,5 @@
 import { Post as PostType } from '@/shared/types/blocks/blog';
-import { PageDetail } from '@/themes/default/blocks';
+import { PageDetail } from '@/themes/turbo/blocks';
 
 export default async function PageDetailPage({
   locale,

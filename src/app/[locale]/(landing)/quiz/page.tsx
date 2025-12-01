@@ -342,7 +342,7 @@ const QuizApp = () => {
 
   if (!quizStarted) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-gray-950 via-purple-950/10 to-gray-950">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-gray-950 via-primary/5 to-gray-950">
         <div className="relative z-10 container mx-auto px-4">
           <ScrollAnimation>
             <motion.div
@@ -351,16 +351,18 @@ const QuizApp = () => {
               transition={{ duration: 0.8 }}
               className="mx-auto max-w-2xl text-center"
             >
-              <div className="mx-auto mb-8 flex h-24 w-24 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-600 to-blue-600">
+              {/* 顶部图标区域：统一为 primary 深浅渐变，贴合 turbo 主色 */}
+              <div className="mx-auto mb-8 flex h-24 w-24 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary/70">
                 <Brain className="h-12 w-12 text-white" />
               </div>
 
-              <h1 className="mb-6 bg-gradient-to-r from-white via-purple-200 to-blue-200 bg-clip-text text-4xl font-bold text-transparent md:text-5xl">
+              {/* 标题渐变调整为白色 → primary，整体色调与 Hero 保持一致 */}
+              <h1 className="mb-6 bg-gradient-to-r from-white via-primary/80 to-primary/60 bg-clip-text text-4xl font-bold text-transparent md:text-5xl">
                 {t('title')}
               </h1>
               <p className="mb-8 text-lg text-gray-300">{t('subtitle')}</p>
 
-              <div className="mb-8 rounded-2xl border border-purple-500/20 bg-gray-900/50 p-8 backdrop-blur-sm">
+              <div className="mb-8 rounded-2xl border border-primary/20 bg-gray-900/50 p-8 backdrop-blur-sm">
                 <h3 className="mb-6 text-xl font-semibold text-white">
                   测验信息
                 </h3>
@@ -401,14 +403,14 @@ const QuizApp = () => {
                 <Button
                   onClick={() => setShowGenerateForm(true)}
                   variant="outline"
-                  className="border-purple-500/30 px-8 py-4 text-lg text-purple-300 hover:border-purple-500/50"
+                  className="border-primary/30 px-8 py-4 text-lg text-primary/80 hover:border-primary/50"
                 >
                   <Brain className="mr-2 h-5 w-5" />
                   {t('create.generate')}
                 </Button>
                 <Button
                   onClick={handleStartQuiz}
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 px-8 py-4 text-lg text-white hover:from-purple-700 hover:to-blue-700"
+                  className="bg-gradient-to-r from-primary to-primary/70 px-8 py-4 text-lg text-white hover:from-primary/90 hover:to-primary/80"
                 >
                   {t('actions.start_quiz')}
                 </Button>
@@ -424,7 +426,7 @@ const QuizApp = () => {
     const score = calculateScore();
 
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-gray-950 via-purple-950/10 to-gray-950">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-gray-950 via-primary/5 to-gray-950">
         <div className="relative z-10 container mx-auto px-4">
           <ScrollAnimation>
             <motion.div
@@ -433,15 +435,15 @@ const QuizApp = () => {
               transition={{ duration: 0.8 }}
               className="mx-auto max-w-2xl text-center"
             >
-              <div className="mx-auto mb-8 flex h-24 w-24 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-600 to-blue-600">
+              <div className="mx-auto mb-8 flex h-24 w-24 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary/70">
                 <Trophy className="h-12 w-12 text-white" />
               </div>
 
-              <h1 className="mb-6 bg-gradient-to-r from-white via-purple-200 to-blue-200 bg-clip-text text-4xl font-bold text-transparent md:text-5xl">
+              <h1 className="mb-6 bg-gradient-to-r from-white via-primary/80 to-primary/60 bg-clip-text text-4xl font-bold text-transparent md:text-5xl">
                 {t('results.title')}
               </h1>
 
-              <div className="mb-8 rounded-2xl border border-purple-500/20 bg-gray-900/50 p-8 backdrop-blur-sm">
+              <div className="mb-8 rounded-2xl border border-primary/20 bg-gray-900/50 p-8 backdrop-blur-sm">
                 <div className="mb-8 text-center">
                   <div className="mb-2 text-6xl font-bold text-white">
                     {score.percentage}%
@@ -458,7 +460,7 @@ const QuizApp = () => {
                   </div>
                   <div>
                     <p className="mb-2 text-gray-400">平均用时</p>
-                    <p className="text-xl font-medium text-blue-400">
+                    <p className="text-xl font-medium text-primary">
                       {score.averageTime}秒
                     </p>
                   </div>
@@ -512,13 +514,13 @@ const QuizApp = () => {
               <div className="flex justify-center gap-4">
                 <Button
                   onClick={() => window.location.reload()}
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700"
+                  className="bg-gradient-to-r from-primary to-primary/70 text-white hover:from-primary/90 hover:to-primary/80"
                 >
                   重新测验
                 </Button>
                 <Button
                   variant="outline"
-                  className="border-purple-500/30 text-purple-300 hover:border-purple-500/50"
+                  className="border-primary/30 text-primary/80 hover:border-primary/50"
                 >
                   返回主页
                 </Button>
@@ -531,11 +533,11 @@ const QuizApp = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-950 via-purple-950/10 to-gray-950">
-      {/* 背景装饰 */}
+    <div className="min-h-screen bg-gradient-to-b from-gray-950 via-primary/5 to-gray-950">
+      {/* 背景装饰：统一为 primary 色系的柔和光晕，避免额外蓝色块破坏整体主题 */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 h-96 w-96 rounded-full bg-purple-600/10 blur-3xl" />
-        <div className="absolute right-1/4 bottom-1/4 h-96 w-96 rounded-full bg-blue-600/10 blur-3xl" />
+        <div className="absolute top-1/4 left-1/4 h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
+        <div className="absolute right-1/4 bottom-1/4 h-96 w-96 rounded-full bg-primary/5 blur-3xl" />
       </div>
 
       <div className="relative z-10 container mx-auto px-4 py-24">
@@ -557,7 +559,7 @@ const QuizApp = () => {
           </div>
           <div className="h-2 w-full rounded-full bg-gray-700">
             <div
-              className="h-2 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 transition-all duration-300"
+              className="h-2 rounded-full bg-gradient-to-r from-primary to-primary/70 transition-all duration-300"
               style={{
                 width: `${((currentQuestionIndex + 1) / questions.length) * 100}%`,
               }}
@@ -572,13 +574,13 @@ const QuizApp = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="rounded-2xl border border-purple-500/20 bg-gray-900/50 p-8 backdrop-blur-sm"
+              className="rounded-2xl border border-primary/20 bg-gray-900/50 p-8 backdrop-blur-sm"
             >
               {/* 题目 */}
               <div className="mb-8">
                 <div className="mb-4 flex items-center gap-2">
-                  <BookOpen className="h-5 w-5 text-purple-400" />
-                  <span className="text-sm text-purple-400">
+                  <BookOpen className="h-5 w-5 text-primary" />
+                  <span className="text-sm text-primary">
                     {currentQuestion.topic}
                   </span>
                 </div>
@@ -604,8 +606,8 @@ const QuizApp = () => {
                               ? 'border-red-500 bg-red-500/10'
                               : 'border-gray-600 bg-gray-800/50'
                           : selectedAnswer === idx
-                            ? 'border-purple-500 bg-purple-500/10'
-                            : 'border-gray-600 bg-gray-800/50 hover:border-purple-500/50 hover:bg-purple-500/5'
+                            ? 'border-primary bg-primary/10'
+                            : 'border-gray-600 bg-gray-800/50 hover:border-primary/50 hover:bg-primary/5'
                       }`}
                     >
                       <div className="flex items-center gap-3">
@@ -620,7 +622,7 @@ const QuizApp = () => {
                                   ? 'border-red-500 bg-red-500'
                                   : 'border-gray-500'
                               : selectedAnswer === idx
-                                ? 'border-purple-500 bg-purple-500'
+                                ? 'border-primary bg-primary'
                                 : 'border-gray-500'
                           }`}
                         >
@@ -668,8 +670,8 @@ const QuizApp = () => {
                                 ? 'border-red-500 bg-red-500/10'
                                 : 'border-gray-600 bg-gray-800/50'
                             : selectedAnswer === idx
-                              ? 'border-purple-500 bg-purple-500/10'
-                              : 'border-gray-600 bg-gray-800/50 hover:border-purple-500/50 hover:bg-purple-500/5'
+                              ? 'border-primary bg-primary/10'
+                              : 'border-gray-600 bg-gray-800/50 hover:border-primary/50 hover:bg-primary/5'
                         }`}
                       >
                         <span
@@ -698,7 +700,7 @@ const QuizApp = () => {
                         ? selectedAnswer === currentQuestion.correctAnswer
                           ? 'border-green-500'
                           : 'border-red-500'
-                        : 'border-gray-600 focus:border-purple-500'
+                        : 'border-gray-600 focus:border-primary'
                     } text-white`}
                   />
                 )}
@@ -733,9 +735,9 @@ const QuizApp = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3 }}
-                  className="mb-6 rounded-lg border border-blue-500/30 bg-blue-500/10 p-4"
+                  className="mb-6 rounded-lg border border-primary/30 bg-primary/10 p-4"
                 >
-                  <p className="text-blue-200">
+                  <p className="text-primary">
                     📚 解析: {currentQuestion.explanation}
                   </p>
                 </motion.div>
@@ -747,14 +749,14 @@ const QuizApp = () => {
                   <Button
                     onClick={handleSubmitAnswer}
                     disabled={selectedAnswer === ''}
-                    className="bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700"
+                    className="bg-gradient-to-r from-primary to-primary/70 text-white hover:from-primary/90 hover:to-primary/80"
                   >
                     提交答案
                   </Button>
                 ) : (
                   <Button
                     onClick={handleNextQuestion}
-                    className="bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700"
+                    className="bg-gradient-to-r from-primary to-primary/70 text-white hover:from-primary/90 hover:to-primary/80"
                   >
                     {currentQuestionIndex < questions.length - 1
                       ? '下一题'
@@ -766,7 +768,7 @@ const QuizApp = () => {
                   <Button
                     onClick={() => setShowExplanation(true)}
                     variant="outline"
-                    className="border-purple-500/30 text-purple-300 hover:border-purple-500/50"
+                    className="border-primary/30 text-primary/80 hover:border-primary/50"
                   >
                     跳过此题
                   </Button>
@@ -788,7 +790,7 @@ const QuizApp = () => {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               onClick={(e) => e.stopPropagation()}
-              className="max-h-[80vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-purple-500/20 bg-gray-900 p-8"
+              className="max-h-[80vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-primary/20 bg-gray-900 p-8"
             >
               <h3 className="mb-6 text-2xl font-bold text-white">
                 生成 AI 测验
@@ -807,7 +809,7 @@ const QuizApp = () => {
                   asChild
                   variant="outline"
                   size="sm"
-                  className="border-purple-500/40 text-purple-300 hover:border-purple-500/70"
+                  className="border-primary/40 text-primary/80 hover:border-primary/70"
                   disabled={isFileLoading || isGenerating}
                 >
                   <label
@@ -833,7 +835,7 @@ const QuizApp = () => {
               </div>
 
               {fileInfo && (
-                <div className="mb-3 flex items-start gap-2 rounded-lg border border-purple-500/30 bg-purple-500/5 p-2 text-xs text-purple-200">
+                <div className="mb-3 flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-2 text-xs text-primary/80">
                   <FileText className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
                   <span>{fileInfo}</span>
                 </div>
@@ -847,7 +849,7 @@ const QuizApp = () => {
                   <select
                     value={questionCount}
                     onChange={(e) => setQuestionCount(Number(e.target.value))}
-                    className="w-full rounded-lg border border-gray-600 bg-gray-800/50 p-3 text-white focus:border-purple-500 focus:outline-none"
+                    className="w-full rounded-lg border border-gray-600 bg-gray-800/50 p-3 text-white focus:border-primary focus:outline-none"
                   >
                     <option value={3}>3 题</option>
                     <option value={5}>5 题</option>
@@ -871,7 +873,7 @@ const QuizApp = () => {
                           : Number(e.target.value)
                       )
                     }
-                    className="w-full rounded-lg border border-gray-600 bg-gray-800/50 p-3 text-white focus:border-purple-500 focus:outline-none"
+                    className="w-full rounded-lg border border-gray-600 bg-gray-800/50 p-3 text-white focus:border-primary focus:outline-none"
                   />
                 </div>
               </div>
@@ -879,7 +881,7 @@ const QuizApp = () => {
                 value={quizContent}
                 onChange={(e) => setQuizContent(e.target.value)}
                 placeholder="粘贴您的学习笔记、课程内容或任何想要转换为测验的文本..."
-                className="mb-4 h-48 w-full resize-none rounded-lg border border-gray-600 bg-gray-800/50 p-4 text-white placeholder-gray-400 focus:border-purple-500 focus:outline-none"
+                className="mb-4 h-48 w-full resize-none rounded-lg border border-gray-600 bg-gray-800/50 p-4 text-white placeholder-gray-400 focus:border-primary focus:outline-none"
               />
               {generationError && (
                 <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3">
@@ -901,7 +903,7 @@ const QuizApp = () => {
                 <Button
                   onClick={handleGenerateQuiz}
                   disabled={isGenerating}
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700"
+                  className="bg-gradient-to-r from-primary to-primary/70 text-white hover:from-primary/90 hover:to-primary/80"
                 >
                   {isGenerating ? (
                     <>

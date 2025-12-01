@@ -365,11 +365,12 @@ const FlashcardsApp = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-950 via-purple-950/10 to-gray-950">
+    <div className="min-h-screen bg-gradient-to-b from-gray-950 via-primary/5 to-gray-950">
       {/* 背景装饰 */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 h-96 w-96 rounded-full bg-purple-600/10 blur-3xl" />
-        <div className="absolute right-1/4 bottom-1/4 h-96 w-96 rounded-full bg-blue-600/10 blur-3xl" />
+        <div className="absolute top-1/4 left-1/4 h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
+        {/* 统一使用 primary 色系的柔和光晕，避免单独的蓝色块破坏整体主题 */}
+        <div className="absolute right-1/4 bottom-1/4 h-96 w-96 rounded-full bg-primary/5 blur-3xl" />
       </div>
 
       <div className="relative z-10 container mx-auto px-4 py-24">
@@ -380,7 +381,8 @@ const FlashcardsApp = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
             >
-              <h1 className="mb-6 bg-gradient-to-r from-white via-purple-200 to-blue-200 bg-clip-text text-4xl font-bold text-transparent md:text-5xl">
+              {/* 标题渐变调整为白色 → primary，和 Hero 保持同一主色倾向 */}
+              <h1 className="mb-6 bg-gradient-to-r from-white via-primary/80 to-primary/60 bg-clip-text text-4xl font-bold text-transparent md:text-5xl">
                 {t('title')}
               </h1>
               <p className="mx-auto max-w-3xl text-lg text-gray-300 md:text-xl">
@@ -399,7 +401,7 @@ const FlashcardsApp = () => {
                   icon: Brain,
                   label: t('stats.total_cards'),
                   value: stats.total,
-                  color: 'text-purple-400',
+                  color: 'text-primary',
                 },
                 {
                   icon: Clock,
@@ -417,7 +419,8 @@ const FlashcardsApp = () => {
                   icon: BarChart3,
                   label: t('stats.learning_cards'),
                   value: stats.learning,
-                  color: 'text-blue-400',
+                  // 学习中数量改用 primary 颜色，统一视觉重心
+                  color: 'text-primary',
                 },
               ].map((stat, idx) => {
                 const Icon = stat.icon;
@@ -427,7 +430,7 @@ const FlashcardsApp = () => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: idx * 0.1 }}
-                    className="rounded-xl border border-purple-500/20 bg-gray-900/50 p-4 backdrop-blur-sm"
+                    className="rounded-xl border border-primary/20 bg-gray-900/50 p-4 backdrop-blur-sm"
                   >
                     <div className="flex items-center gap-3">
                       <Icon className={`h-6 w-6 ${stat.color}`} />
@@ -473,13 +476,14 @@ const FlashcardsApp = () => {
                   variant={studyMode === mode.id ? 'default' : 'outline'}
                   className={
                     studyMode === mode.id
-                      ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white'
-                      : 'border-purple-500/30 text-purple-300 hover:border-purple-500/50'
+                      ? // 选中模式按钮：使用 primary 自身的深浅渐变，而不是 primary + 纯蓝
+                        'bg-gradient-to-r from-primary to-primary/70 text-white'
+                      : 'border-primary/30 text-primary/80 hover:border-primary/50'
                   }
                 >
                   {mode.label}
                   {mode.count > 0 && (
-                    <span className="ml-2 rounded-full bg-purple-500/20 px-2 py-1 text-xs">
+                    <span className="ml-2 rounded-full bg-primary/20 px-2 py-1 text-xs">
                       {mode.count}
                     </span>
                   )}
@@ -501,7 +505,8 @@ const FlashcardsApp = () => {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-purple-600/20 to-blue-600/20 blur-xl" />
+                  {/* 闪卡背后的光晕统一用 primary 的深浅变化，减少额外色彩干扰 */}
+                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 blur-xl" />
 
                   <AnimatePresence mode="wait">
                     <motion.div
@@ -510,7 +515,7 @@ const FlashcardsApp = () => {
                       animate={{ rotateY: 0, opacity: 1 }}
                       exit={{ rotateY: -180, opacity: 0 }}
                       transition={{ duration: 0.6 }}
-                      className="relative flex h-full flex-col items-center justify-center rounded-2xl border border-purple-500/30 bg-gray-900/80 p-8 text-center backdrop-blur-sm"
+                      className="relative flex h-full flex-col items-center justify-center rounded-2xl border border-primary/30 bg-gray-900/80 p-8 text-center backdrop-blur-sm"
                     >
                       {!isFlipped ? (
                         <div>
@@ -552,7 +557,7 @@ const FlashcardsApp = () => {
                       key={idx}
                       className={`h-2 w-2 rounded-full transition-all duration-300 ${
                         idx === currentCardIndex
-                          ? 'w-8 bg-purple-400'
+                          ? 'w-8 bg-primary'
                           : 'bg-gray-600'
                       }`}
                     />
@@ -618,7 +623,7 @@ const FlashcardsApp = () => {
                     ? t('empty_state.no_due_cards_desc')
                     : t('empty_state.no_cards_desc')}
                 </p>
-                <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
+                <Button className="bg-gradient-to-r from-primary to-primary/70 hover:from-primary/90 hover:to-primary/80">
                   <Plus className="mr-2 h-4 w-4" />
                   {t('empty_state.create_cards')}
                 </Button>
@@ -630,12 +635,12 @@ const FlashcardsApp = () => {
         {/* 快捷操作 */}
         <ScrollAnimation delay={0.5}>
           <div className="mx-auto mt-12 max-w-4xl">
-            <div className="rounded-2xl border border-purple-500/20 bg-gray-900/50 p-6 backdrop-blur-sm">
+            <div className="rounded-2xl border border-primary/20 bg-gray-900/50 p-6 backdrop-blur-sm">
               <div className="grid gap-4 md:grid-cols-3">
                 <Button
                   onClick={() => setShowCreateForm(true)}
                   variant="outline"
-                  className="justify-start border-purple-500/30 text-purple-300 hover:border-purple-500/50"
+                  className="justify-start border-primary/30 text-primary/80 hover:border-primary/50"
                 >
                   <Plus className="mr-2 h-4 w-4" />
                   {t('quick_actions.ai_generate')}
@@ -643,14 +648,14 @@ const FlashcardsApp = () => {
                 <Button
                   onClick={handleResetProgress}
                   variant="outline"
-                  className="justify-start border-purple-500/30 text-purple-300 hover:border-purple-500/50"
+                  className="justify-start border-primary/30 text-primary/80 hover:border-primary/50"
                 >
                   <RotateCw className="mr-2 h-4 w-4" />
                   {t('quick_actions.reset_progress')}
                 </Button>
                 <Button
                   variant="outline"
-                  className="justify-start border-purple-500/30 text-purple-300 hover:border-purple-500/50"
+                  className="justify-start border-primary/30 text-primary/80 hover:border-primary/50"
                   // 非程序员解释：
                   // - 点击这个按钮，会在页面下方展开一个「详细统计」面板
                   // - 再次点击会收起，相当于开关
@@ -676,7 +681,7 @@ const FlashcardsApp = () => {
         {showStats && (
           <ScrollAnimation delay={0.6}>
             <div className="mx-auto mt-6 max-w-4xl">
-              <div className="rounded-2xl border border-purple-500/20 bg-gray-900/70 p-6 backdrop-blur-sm">
+              <div className="rounded-2xl border border-primary/20 bg-gray-900/70 p-6 backdrop-blur-sm">
                 <h3 className="mb-4 text-lg font-semibold text-white">
                   学习统计概览
                 </h3>
@@ -685,7 +690,7 @@ const FlashcardsApp = () => {
                 </p>
 
                 <div className="grid gap-4 md:grid-cols-3">
-                  <div className="rounded-lg border border-purple-500/20 bg-gray-900/60 p-4">
+                  <div className="rounded-lg border border-primary/20 bg-gray-900/60 p-4">
                     <p className="text-xs text-gray-400">按难度分类</p>
                     <ul className="mt-2 space-y-1 text-sm text-gray-200">
                       <li>简单卡片：{difficultyStats.easy}</li>
@@ -694,7 +699,7 @@ const FlashcardsApp = () => {
                     </ul>
                   </div>
 
-                  <div className="rounded-lg border border-purple-500/20 bg-gray-900/60 p-4">
+                  <div className="rounded-lg border border-primary/20 bg-gray-900/60 p-4">
                     <p className="text-xs text-gray-400">按学习进度分类</p>
                     <ul className="mt-2 space-y-1 text-sm text-gray-200">
                       <li>新卡片（未复习过）：{difficultyStats.newCards}</li>
@@ -703,7 +708,7 @@ const FlashcardsApp = () => {
                     </ul>
                   </div>
 
-                  <div className="rounded-lg border border-purple-500/20 bg-gray-900/60 p-4">
+                  <div className="rounded-lg border border-primary/20 bg-gray-900/60 p-4">
                     <p className="text-xs text-gray-400">整体进度</p>
                     <ul className="mt-2 space-y-1 text-sm text-gray-200">
                       <li>总卡片数：{stats.total}</li>
@@ -729,7 +734,7 @@ const FlashcardsApp = () => {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               onClick={(e) => e.stopPropagation()}
-              className="max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-purple-500/20 bg-gray-900 p-8"
+              className="max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-primary/20 bg-gray-900 p-8"
             >
               <h3 className="mb-6 text-2xl font-bold text-white">
                 {t('create.title')}
@@ -749,7 +754,7 @@ const FlashcardsApp = () => {
                   asChild
                   variant="outline"
                   size="sm"
-                  className="border-purple-500/40 text-purple-300 hover:border-purple-500/70"
+                  className="border-primary/40 text-primary/80 hover:border-primary/70"
                   disabled={isFileLoading || isGenerating}
                 >
                   <label
@@ -775,7 +780,7 @@ const FlashcardsApp = () => {
               </div>
 
               {fileInfo && (
-                <div className="mb-3 flex items-start gap-2 rounded-lg border border-purple-500/30 bg-purple-500/5 p-2 text-xs text-purple-200">
+                <div className="mb-3 flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-2 text-xs text-primary/80">
                   <FileText className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
                   <span>{fileInfo}</span>
                 </div>
@@ -816,7 +821,7 @@ const FlashcardsApp = () => {
                 value={newCardContent}
                 onChange={(e) => setNewCardContent(e.target.value)}
                 placeholder={t('create.placeholder')}
-                className="mb-4 h-48 w-full resize-none rounded-lg border border-gray-600 bg-gray-800/50 p-4 text-white placeholder-gray-400 focus:border-purple-500 focus:outline-none"
+                className="mb-4 h-48 w-full resize-none rounded-lg border border-gray-600 bg-gray-800/50 p-4 text-white placeholder-gray-400 focus:border-primary focus:outline-none"
               />
               {generationError && (
                 <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3">
@@ -838,7 +843,7 @@ const FlashcardsApp = () => {
                 <Button
                   onClick={handleGenerateFlashcards}
                   disabled={isGenerating || !newCardContent.trim()}
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700"
+                  className="bg-gradient-to-r from-primary to-primary/70 text-white hover:from-primary/90 hover:to-primary/80"
                 >
                   {isGenerating ? (
                     <>

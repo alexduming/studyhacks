@@ -200,11 +200,11 @@ const InfographicPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-950 via-purple-950/10 to-gray-950">
-      {/* 背景装饰 */}
+    <div className="via-primary/5 min-h-screen bg-gradient-to-b from-gray-950 to-gray-950">
+      {/* 背景装饰：改为统一的 primary 光晕，移除额外的蓝色主色块 */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 h-96 w-96 rounded-full bg-purple-600/10 blur-3xl" />
-        <div className="absolute right-1/4 bottom-1/4 h-96 w-96 rounded-full bg-blue-600/10 blur-3xl" />
+        <div className="bg-primary/10 absolute top-1/4 left-1/4 h-96 w-96 rounded-full blur-3xl" />
+        <div className="bg-primary/5 absolute right-1/4 bottom-1/4 h-96 w-96 rounded-full blur-3xl" />
       </div>
 
       <div className="relative z-10 container mx-auto px-4 py-24">
@@ -215,7 +215,8 @@ const InfographicPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
             >
-              <h1 className="mb-6 bg-gradient-to-r from-white via-purple-200 to-blue-200 bg-clip-text text-4xl font-bold text-transparent md:text-5xl">
+              {/* 标题渐变：白色 → primary，而不是白色 → 蓝色 */}
+              <h1 className="via-primary/80 mb-6 bg-gradient-to-r from-white to-primary/60 bg-clip-text text-4xl font-bold text-transparent md:text-5xl">
                 {t('title', { defaultMessage: 'AI 学习信息图生成器' })}
               </h1>
               <p className="mx-auto max-w-3xl text-lg text-gray-300 md:text-xl">
@@ -235,7 +236,7 @@ const InfographicPage = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="rounded-2xl border border-purple-500/20 bg-gray-900/60 p-6 backdrop-blur-sm"
+              className="border-primary/20 rounded-2xl border bg-gray-900/60 p-6 backdrop-blur-sm"
             >
               <h2 className="mb-4 text-xl font-semibold text-white">
                 输入知识内容
@@ -256,7 +257,7 @@ const InfographicPage = () => {
                   variant="outline"
                   size="sm"
                   disabled={isFileLoading || isGenerating}
-                  className="border-purple-500/40 text-purple-300 hover:border-purple-500/70"
+                  className="border-primary/40 text-primary/80 hover:border-primary/70"
                 >
                   <label
                     htmlFor="infographic-file-input"
@@ -281,7 +282,7 @@ const InfographicPage = () => {
               </div>
 
               {fileInfo && (
-                <div className="mb-3 flex items-start gap-2 rounded-lg border border-purple-500/30 bg-purple-500/5 p-2 text-xs text-purple-200">
+                <div className="border-primary/30 bg-primary/5 text-primary/80 mb-3 flex items-start gap-2 rounded-lg border p-2 text-xs">
                   <FileText className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
                   <span>{fileInfo}</span>
                 </div>
@@ -292,7 +293,7 @@ const InfographicPage = () => {
                 value={sourceContent}
                 onChange={(e) => setSourceContent(e.target.value)}
                 placeholder="粘贴你的学习笔记、知识点列表或课程内容，AI 会根据这些内容生成一张信息图。"
-                className="mb-4 h-60 w-full resize-none rounded-lg border border-gray-600 bg-gray-800/60 p-4 text-sm text-white placeholder-gray-400 focus:border-purple-500 focus:outline-none"
+                className="focus:border-primary mb-4 h-60 w-full resize-none rounded-lg border border-gray-600 bg-gray-800/60 p-4 text-sm text-white placeholder-gray-400 focus:outline-none"
               />
 
               {/* 参数设置：宽高比 / 分辨率 / 格式 */}
@@ -306,7 +307,7 @@ const InfographicPage = () => {
                     onChange={(e) =>
                       setAspectRatio(e.target.value as AspectRatioOption)
                     }
-                    className="w-full rounded-lg border border-gray-600 bg-gray-800/60 p-2 text-xs text-white focus:border-purple-500 focus:outline-none"
+                    className="focus:border-primary w-full rounded-lg border border-gray-600 bg-gray-800/60 p-2 text-xs text-white focus:outline-none"
                   >
                     {ASPECT_RATIO_OPTIONS.map((ratio) => (
                       <option key={ratio} value={ratio}>
@@ -324,7 +325,7 @@ const InfographicPage = () => {
                     onChange={(e) =>
                       setResolution(e.target.value as '1K' | '2K' | '4K')
                     }
-                    className="w-full rounded-lg border border-gray-600 bg-gray-800/60 p-2 text-xs text-white focus:border-purple-500 focus:outline-none"
+                    className="focus:border-primary w-full rounded-lg border border-gray-600 bg-gray-800/60 p-2 text-xs text-white focus:outline-none"
                   >
                     <option value="1K">1K</option>
                     <option value="2K">2K</option>
@@ -340,7 +341,7 @@ const InfographicPage = () => {
                     onChange={(e) =>
                       setOutputFormat(e.target.value as 'png' | 'jpg')
                     }
-                    className="w-full rounded-lg border border-gray-600 bg-gray-800/60 p-2 text-xs text-white focus:border-purple-500 focus:outline-none"
+                    className="focus:border-primary w-full rounded-lg border border-gray-600 bg-gray-800/60 p-2 text-xs text-white focus:outline-none"
                   >
                     <option value="png">PNG</option>
                     <option value="jpg">JPG</option>
@@ -371,7 +372,7 @@ const InfographicPage = () => {
                 <Button
                   onClick={handleGenerate}
                   disabled={isGenerating}
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700"
+                  className="from-primary hover:from-primary/90 bg-gradient-to-r to-primary/70 text-white hover:to-primary/80"
                 >
                   {isGenerating ? (
                     <>
@@ -393,7 +394,7 @@ const InfographicPage = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
-              className="rounded-2xl border border-purple-500/20 bg-gray-900/60 p-6 backdrop-blur-sm"
+              className="border-primary/20 rounded-2xl border bg-gray-900/60 p-6 backdrop-blur-sm"
             >
               <h2 className="mb-4 text-xl font-semibold text-white">
                 生成结果
@@ -401,7 +402,7 @@ const InfographicPage = () => {
 
               {!taskId && imageUrls.length === 0 && !error && (
                 <div className="flex h-full flex-col items-center justify-center gap-4 text-center text-sm text-gray-400">
-                  <FileImage className="h-10 w-10 text-purple-400" />
+                  <FileImage className="text-primary h-10 w-10" />
                   <p>
                     填写左侧内容，并点击「生成信息图」，这里将显示
                     nano-banana-pro 返回的学习信息图。
@@ -414,7 +415,7 @@ const InfographicPage = () => {
 
               {isGenerating && (
                 <div className="flex h-full flex-col items-center justify-center gap-4 text-center text-sm text-gray-400">
-                  <Loader2 className="h-8 w-8 animate-spin text-purple-400" />
+                  <Loader2 className="text-primary h-8 w-8 animate-spin" />
                   <p>AI 正在生成信息图，请稍候...</p>
                 </div>
               )}
@@ -424,16 +425,16 @@ const InfographicPage = () => {
                   {imageUrls.map((url, idx) => (
                     <div
                       key={idx}
-                      className="overflow-hidden rounded-xl border border-purple-500/30 bg-gray-900/80"
+                      className="border-primary/30 overflow-hidden rounded-xl border bg-gray-900/80"
                     >
-                      <div className="flex items-center justify-between border-b border-purple-500/20 bg-purple-500/10 px-4 py-2">
-                        <span className="text-xs text-purple-100">
+                      <div className="border-primary/20 bg-primary/10 flex items-center justify-between border-b px-4 py-2">
+                        <span className="text-primary/90 text-xs">
                           信息图 {idx + 1}
                         </span>
                         <a
                           href={url}
                           download={`infographic-${idx + 1}.png`}
-                          className="inline-flex items-center gap-1 rounded-md border border-purple-500/40 px-2 py-1 text-[11px] text-purple-100 hover:border-purple-500/70"
+                          className="border-primary/40 text-primary/90 hover:border-primary/70 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px]"
                         >
                           <Download className="h-3 w-3" />
                           下载图片
@@ -473,7 +474,7 @@ const InfographicPage = () => {
         }}
       >
         <DialogContent
-          className="max-h-[95vh] max-w-[95vw] border-purple-500/30 bg-gray-900/95 p-0"
+          className="border-primary/30 max-h-[95vh] max-w-[95vw] bg-gray-900/95 p-0"
           showCloseButton={true}
         >
           {enlargedImageUrl && (

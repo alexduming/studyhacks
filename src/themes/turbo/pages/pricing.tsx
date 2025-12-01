@@ -4,7 +4,7 @@ import {
   Testimonials as TestimonialsType,
 } from '@/shared/types/blocks/landing';
 import { Pricing as PricingType } from '@/shared/types/blocks/pricing';
-import { FAQ, Pricing, Testimonials } from '@/themes/default/blocks';
+import { FAQ, Pricing, Testimonials } from '@/themes/turbo/blocks';
 
 export default async function PricingPage({
   locale,

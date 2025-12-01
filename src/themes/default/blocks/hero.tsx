@@ -100,7 +100,7 @@ export function Hero({
             dangerouslySetInnerHTML={{ __html: hero.description ?? '' }}
           />
 
-          {hero.buttons && (
+          {/* {hero.buttons && (
             <motion.div
               {...createFadeInVariant(0.45)}
               className="flex items-center justify-center gap-4"
@@ -131,7 +131,7 @@ export function Hero({
               className="text-muted-foreground mt-6 block text-center text-sm"
               dangerouslySetInnerHTML={{ __html: hero.tip ?? '' }}
             />
-          )}
+          )} */}
 
           {hero.show_avatars && (
             <motion.div {...createFadeInVariant(0.75)}>

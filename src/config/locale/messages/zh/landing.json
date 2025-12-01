@@ -2,10 +2,10 @@
   "header": {
     "id": "header",
     "brand": {
-      "title": "Study Hacks",
+      "title": "StudyHacks",
       "logo": {
         "src": "/logo.png",
-        "alt": "Study Hacks"
+        "alt": "StudyHacks"
       },
       "url": "/"
     },
@@ -53,11 +53,6 @@
           ]
         },
         {
-          "title": "学生专区",
-          "url": "/for-students",
-          "icon": "Users"
-        },
-        {
           "title": "价格方案",
           "url": "/pricing",
           "icon": "DollarSign"
@@ -93,28 +88,12 @@
     "description": "将 PDF、视频、讲座和音频转换为智能笔记。<br/>生成闪卡、测验和学习指南，让学习比以往更快。",
     "announcement": {
       "badge": "新功能",
-      "title": "⚡ 已有 50,000+ 学生开始更智能地学习",
+      "title": "新用户加入优惠50%",
       "url": "/pricing"
     },
-    "tip": "🎓 受到哈佛、MIT 和顶尖大学学生的信赖",
-    "buttons": [
-      {
-        "title": "免费开始学习",
-        "icon": "Zap",
-        "url": "/pricing",
-        "target": "_self",
-        "variant": "default"
-      },
-      {
-        "title": "阅读文档",
-        "icon": "BookOpenText",
-        "url": "/docs",
-        "target": "_blank",
-        "variant": "outline"
-      }
-    ],
+    "tip": "🎓 受到牛津、剑桥和顶尖大学学生的信赖",
     "show_avatars": true,
-    "avatars_tip": "50,000+ 学生正在使用 Study Hacks",
+    "avatars_tip": "50,000+ 学生正在使用 StudyHacks",
     "show_award": false,
     "image": {
       "src": "/imgs/features/admin.png",
@@ -202,12 +181,12 @@
   },
   "introduce": {
     "id": "introduce",
-    "title": "什么是 Study Hacks",
+    "title": "什么是 StudyHacks",
     "label": "关于",
-    "description": "Study Hacks 是一个 AI 驱动的学习平台，可将任何学习材料转换为互动式、个性化的学习体验。",
+    "description": "StudyHacks 是一个 AI 驱动的学习平台，可将任何学习材料转换为互动式、个性化的学习体验。",
     "image": {
       "src": "/imgs/features/study-dashboard.png",
-      "alt": "Study Hacks Dashboard"
+      "alt": "StudyHacks Dashboard"
     },
     "items": [
       {
@@ -250,7 +229,7 @@
   },
   "benefits": {
     "id": "benefits",
-    "title": "为什么选择 Study Hacks",
+    "title": "为什么选择 StudyHacks",
     "label": "优势",
     "description": "用专为现代学生设计的 AI 驱动工具，彻底改变您的学习体验。",
     "items": [
@@ -285,7 +264,7 @@
   },
   "usage": {
     "id": "usage",
-    "title": "如何使用 Study Hacks 改变您的学习",
+    "title": "如何使用 StudyHacks 改变您的学习",
     "description": "只需四个简单步骤即可开始更智能的学习：",
     "image": {
       "src": "/imgs/features/study-workflow.png",
@@ -367,7 +346,7 @@
   },
   "stats": {
     "id": "stats",
-    "title": "学生们都喜欢 Study Hacks",
+    "title": "学生们都喜欢 StudyHacks",
     "description": "因为它让学习更快、更智能、更有效。",
     "items": [
       {
@@ -386,13 +365,13 @@
   },
   "testimonials": {
     "id": "testimonials",
-    "title": "学生们对 Study Hacks 的评价",
+    "title": "学生们对 StudyHacks 的评价",
     "description": "听听使用我们的 AI 驱动工具改变学习体验的学生们怎么说。",
     "items": [
       {
         "name": "Sarah Johnson",
         "role": "哈佛医学院学生",
-        "quote": "Study Hacks 将我的学习时间减少了 60%，同时提高了我的成绩。AI 生成的闪卡对于复杂的医学术语来说绝对太棒了！",
+        "quote": "StudyHacks 将我的学习时间减少了 60%，同时提高了我的成绩。AI 生成的闪卡对于复杂的医学术语来说绝对太棒了！",
         "image": {
           "src": "/imgs/avatars/student1.png",
           "alt": "sarah"
@@ -419,7 +398,7 @@
       {
         "name": "James Kim",
         "role": "耶鲁大学本科生",
-        "quote": "作为一个有 ADHD 的人，传统学习总是很有挑战性。Study Hacks 适应我的学习风格并让我保持专注。改变人生！",
+        "quote": "作为一个有 ADHD 的人，传统学习总是很有挑战性。StudyHacks 适应我的学习风格并让我保持专注。改变人生！",
         "image": {
           "src": "/imgs/avatars/student4.png",
           "alt": "james"
@@ -437,7 +416,7 @@
       {
         "name": "David Park",
         "role": "加州大学伯克利分校学生",
-        "quote": "从挣扎到保持 4.0 GPA！Study Hacks 完全改变了我对学习的方法。物超所值。",
+        "quote": "从挣扎到保持 4.0 GPA！StudyHacks 完全改变了我对学习的方法。物超所值。",
         "image": {
           "src": "/imgs/avatars/student6.png",
           "alt": "david"
@@ -447,33 +426,33 @@
   },
   "faq": {
     "id": "faq",
-    "title": "关于 Study Hacks 的常见问题",
+    "title": "关于 StudyHacks 的常见问题",
     "description": "还有其他问题？联系我们的支持团队 - 我们随时为您提供帮助！",
     "tip": "找不到您要的答案？联系我们的 <a href='mailto:support@studyhacks.com' class='text-primary font-medium hover:underline'>支持团队</a>",
     "items": [
       {
-        "question": "Study Hacks 到底是什么，它是如何工作的？",
-        "answer": "Study Hacks 是一个 AI 驱动的学习平台，可将您的学习材料转换为互动式、个性化的学习体验。上传 PDF、视频、讲座或任何内容，我们的 AI 会生成全面的笔记、闪卡、测验和学习指南，根据您的学习风格量身定制。"
+        "question": "StudyHacks 到底是什么，它是如何工作的？",
+        "answer": "StudyHacks 是一个 AI 驱动的学习平台，可将您的学习材料转换为互动式、个性化的学习体验。上传 PDF、视频、讲座或任何内容，我们的 AI 会生成全面的笔记、闪卡、测验和学习指南，根据您的学习风格量身定制。"
       },
       {
-        "question": "我可以向 Study Hacks 上传哪些类型的文件？",
-        "answer": "Study Hacks 支持多种文件格式，包括 PDF、Word 文档、PowerPoint 演示文稿、视频文件（MP4、AVI）、录音（MP3、WAV）、讲座录音、YouTube 链接，甚至您可以扫描的手写笔记。"
+        "question": "我可以向 StudyHacks 上传哪些类型的文件？",
+        "answer": "StudyHacks 支持多种文件格式，包括 PDF、Word 文档、PowerPoint 演示文稿、视频文件（MP4、AVI）、录音（MP3、WAV）、讲座录音、YouTube 链接，甚至您可以扫描的手写笔记。"
       },
       {
-        "question": "Study Hacks 如何改善我的学习和成绩？",
-        "answer": "Study Hacks 使用经过验证的学习科学技巧，如间隔重复、主动回忆和个性化学习路径。我们的 AI 识别您的知识盲点，创建定制学习计划，并适应您的学习风格，这有助于提高记忆保持率，平均提升成绩 30%。"
+        "question": "StudyHacks 如何改善我的学习和成绩？",
+        "answer": "StudyHacks 使用经过验证的学习科学技巧，如间隔重复、主动回忆和个性化学习路径。我们的 AI 识别您的知识盲点，创建定制学习计划，并适应您的学习风格，这有助于提高记忆保持率，平均提升成绩 30%。"
       },
       {
-        "question": "Study Hacks 适合我的特定学科或领域吗？",
-        "answer": "绝对适合！Study Hacks 适用于所有学科和学术水平 - 从高中到研究生院。无论您学习医学、法律、工程、人文学科还是任何其他领域，我们的 AI 都会适应您的特定学科内容和学习需求。"
+        "question": "StudyHacks 适合我的特定学科或领域吗？",
+        "answer": "绝对适合！StudyHacks 适用于所有学科和学术水平 - 从高中到研究生院。无论您学习医学、法律、工程、人文学科还是任何其他领域，我们的 AI 都会适应您的特定学科内容和学习需求。"
       },
       {
-        "question": "我可以使用 Study Hacks 与同学协作吗？",
-        "answer": "可以！Study Hacks 包含强大的协作功能，您可以共享笔记、创建小组学习会话、构建协作闪卡集，甚至在学习测验中竞争。非常适合学习小组和团队学习项目。"
+        "question": "我可以使用 StudyHacks 与同学协作吗？",
+        "answer": "可以！StudyHacks 包含强大的协作功能，您可以共享笔记、创建小组学习会话、构建协作闪卡集，甚至在学习测验中竞争。非常适合学习小组和团队学习项目。"
       },
       {
-        "question": "Study Hacks 的费用是多少，有免费试用吗？",
-        "answer": "Study Hacks 提供具有基本功能的免费版本，您可以免费试用。高级计划起价为每月 9.99 美元，包含无限上传、高级 AI 功能和协作工具。我们还为学生和教育机构提供折扣和特殊价格。"
+        "question": "StudyHacks 的费用是多少，有免费试用吗？",
+        "answer": "StudyHacks 提供具有基本功能的免费版本，您可以免费试用。高级计划起价为每月 9.99 美元，包含无限上传、高级 AI 功能和协作工具。我们还为学生和教育机构提供折扣和特殊价格。"
       }
     ]
   },
@@ -487,20 +466,13 @@
         "url": "/pricing",
         "target": "_self",
         "icon": "Zap"
-      },
-      {
-        "title": "观看演示",
-        "url": "/demo",
-        "target": "_self",
-        "variant": "outline",
-        "icon": "PlayCircle"
       }
     ]
   },
   "subscribe": {
     "id": "subscribe",
     "title": "获取学习技巧和独家优惠",
-    "description": "订阅我们的新闻通讯，获取最新的学习策略和 Study Hacks 更新。",
+    "description": "订阅我们的新闻通讯，获取最新的学习策略和 StudyHacks 更新。",
     "submit": {
       "input": {
         "placeholder": "输入您的邮箱地址"
@@ -514,11 +486,11 @@
   "footer": {
     "id": "footer",
     "brand": {
-      "title": "Study Hacks",
+      "title": "StudyHacks",
       "description": "AI 驱动的学习平台，将学习材料转换为个性化、互动的学习体验。",
       "logo": {
         "src": "/logo.png",
-        "alt": "Study Hacks"
+        "alt": "StudyHacks"
       },
       "url": "/"
     },

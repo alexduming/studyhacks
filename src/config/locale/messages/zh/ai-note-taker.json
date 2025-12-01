@@ -106,7 +106,7 @@
     "failed": "失败"
   },
   "languages": {
-    "auto": "自动（与上传资料语言一致）",
+    "auto": "自动",
     "zh": "中文",
     "en": "English",
     "es": "Español",

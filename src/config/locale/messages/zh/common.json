@@ -1,8 +1,8 @@
 {
   "metadata": {
-    "title": "Study Hacks - AI智能学习助手",
-    "description": "Study Hacks 是一款AI驱动的学习平台，将PDF、视频、讲义转换为智能笔记、闪卡和测验。用AI让学习更高效。",
-    "keywords": "study hacks, AI学习, 智能学习, 学习助手, 闪卡, 测题生成, AI笔记"
+    "title": "StudyHacks - AI智能学习助手",
+    "description": "StudyHacks 是一款AI驱动的学习平台，将PDF、视频、讲义转换为智能笔记、闪卡和测验。用AI让学习更高效。",
+    "keywords": "StudyHacks, AI学习, 智能学习, 学习助手, 闪卡, 测题生成, AI笔记"
   },
   "sign": {
     "sign_in_title": "登录开始智能学习",

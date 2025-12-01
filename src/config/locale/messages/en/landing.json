@@ -2,10 +2,10 @@
   "header": {
     "id": "header",
     "brand": {
-      "title": "Study Hacks",
+      "title": "StudyHacks",
       "logo": {
         "src": "/logo.png",
-        "alt": "Study Hacks"
+        "alt": "StudyHacks"
       },
       "url": "/"
     },
@@ -53,11 +53,6 @@
           ]
         },
         {
-          "title": "For Students",
-          "url": "/for-students",
-          "icon": "Users"
-        },
-        {
           "title": "Pricing",
           "url": "/pricing",
           "icon": "DollarSign"
@@ -88,33 +83,17 @@
   },
   "hero": {
     "id": "hero",
-    "title": "Turn anything into smart study materials",
-    "highlight_text": "smart study materials",
-    "description": "Transform PDFs, videos, lectures, and audio into intelligent notes.<br/>Generate flashcards, quizzes, and study guides to learn faster than ever.",
+    "title": "Learn Anything Faster than Ever",
+    "highlight_text": "Learn Anything",
+    "description": "Transform PDFs, videos, and audios into smart notes, flashcards, quizzes, and study guides",
     "announcement": {
       "badge": "New",
-      "title": "⚡ Join 50,000+ students already learning smarter",
+      "title": "⚡ 50% off for new users",
       "url": "/pricing"
     },
-    "tip": "🎓 Trusted by students at Harvard, MIT, and top universities",
-    "buttons": [
-      {
-        "title": "Start Learning Free",
-        "icon": "Zap",
-        "url": "/pricing",
-        "target": "_self",
-        "variant": "default"
-      },
-      {
-        "title": "Read Document",
-        "icon": "BookOpenText",
-        "url": "/docs",
-        "target": "_blank",
-        "variant": "outline"
-      }
-    ],
+    "tip": "🎓 Trusted by students at Oxford, Cambridge, and other top universities",
     "show_avatars": true,
-    "avatars_tip": "50,000+ students are using Study Hacks",
+    "avatars_tip": "50,000+ students are using StudyHacks",
     "show_award": false,
     "image": {
       "src": "/imgs/features/admin.png",
@@ -202,12 +181,12 @@
   },
   "introduce": {
     "id": "introduce",
-    "title": "What is Study Hacks",
+    "title": "What is StudyHacks",
     "label": "About",
-    "description": "Study Hacks is an AI-powered learning platform that transforms any study material into interactive, personalized learning experiences.",
+    "description": "StudyHacks is an AI-powered learning platform that transforms any study material into interactive, personalized learning experiences.",
     "image": {
       "src": "/imgs/features/study-dashboard.png",
-      "alt": "Study Hacks Dashboard"
+      "alt": "StudyHacks Dashboard"
     },
     "items": [
       {
@@ -250,7 +229,7 @@
   },
   "benefits": {
     "id": "benefits",
-    "title": "Why Choose Study Hacks",
+    "title": "Why Choose StudyHacks",
     "label": "Benefits",
     "description": "Revolutionize your learning experience with AI-powered tools designed for modern students.",
     "items": [
@@ -285,7 +264,7 @@
   },
   "usage": {
     "id": "usage",
-    "title": "How to Transform Your Learning with Study Hacks",
+    "title": "How to Transform Your Learning with StudyHacks",
     "description": "Get started with smarter studying in just four simple steps:",
     "image": {
       "src": "/imgs/features/study-workflow.png",
@@ -367,7 +346,7 @@
   },
   "stats": {
     "id": "stats",
-    "title": "Students Love Study Hacks",
+    "title": "Students Love StudyHacks",
     "description": "because it makes learning faster, smarter, and more effective.",
     "items": [
       {
@@ -386,13 +365,13 @@
   },
   "testimonials": {
     "id": "testimonials",
-    "title": "What Students Say About Study Hacks",
+    "title": "What Students Say About StudyHacks",
     "description": "Hear from students who have transformed their learning experience with our AI-powered tools.",
     "items": [
       {
         "name": "Sarah Johnson",
         "role": "Harvard Medical Student",
-        "quote": "Study Hacks reduced my study time by 60% while improving my grades. The AI-generated flashcards are absolutely brilliant for complex medical terms!",
+        "quote": "StudyHacks reduced my study time by 60% while improving my grades. The AI-generated flashcards are absolutely brilliant for complex medical terms!",
         "image": {
           "src": "/imgs/avatars/student1.png",
           "alt": "sarah"
@@ -419,7 +398,7 @@
       {
         "name": "James Kim",
         "role": "Yale Undergraduate",
-        "quote": "As someone with ADHD, traditional studying was always challenging. Study Hacks adapts to my learning style and keeps me engaged. Life-changing!",
+        "quote": "As someone with ADHD, traditional studying was always challenging. StudyHacks adapts to my learning style and keeps me engaged. Life-changing!",
         "image": {
           "src": "/imgs/avatars/student4.png",
           "alt": "james"
@@ -437,7 +416,7 @@
       {
         "name": "David Park",
         "role": "UC Berkeley Student",
-        "quote": "From struggling to maintaining a 4.0 GPA! Study Hacks completely transformed how I approach learning. Worth every penny.",
+        "quote": "From struggling to maintaining a 4.0 GPA! StudyHacks completely transformed how I approach learning. Worth every penny.",
         "image": {
           "src": "/imgs/avatars/student6.png",
           "alt": "david"
@@ -447,39 +426,39 @@
   },
   "faq": {
     "id": "faq",
-    "title": "Frequently Asked Questions About Study Hacks",
+    "title": "Frequently Asked Questions About StudyHacks",
     "description": "Have another question? Contact our support team - we're here to help!",
     "tip": "Can't find what you're looking for? Contact our <a href='mailto:support@studyhacks.com' class='text-primary font-medium hover:underline'>support team</a>",
     "items": [
       {
-        "question": "What exactly is Study Hacks and how does it work?",
-        "answer": "Study Hacks is an AI-powered learning platform that transforms your study materials into interactive, personalized learning experiences. Upload PDFs, videos, lectures, or any content, and our AI generates comprehensive notes, flashcards, quizzes, and study guides tailored to your learning style."
+        "question": "What exactly is StudyHacks and how does it work?",
+        "answer": "StudyHacks is an AI-powered learning platform that transforms your study materials into interactive, personalized learning experiences. Upload PDFs, videos, lectures, or any content, and our AI generates comprehensive notes, flashcards, quizzes, and study guides tailored to your learning style."
       },
       {
-        "question": "What types of files can I upload to Study Hacks?",
-        "answer": "Study Hacks supports a wide range of file formats including PDFs, Word documents, PowerPoint presentations, video files (MP4, AVI), audio recordings (MP3, WAV), lecture recordings, YouTube links, and even handwritten notes that you can scan."
+        "question": "What types of files can I upload to StudyHacks?",
+        "answer": "StudyHacks supports a wide range of file formats including PDFs, Word documents, PowerPoint presentations, video files (MP4, AVI), audio recordings (MP3, WAV), lecture recordings, YouTube links, and even handwritten notes that you can scan."
       },
       {
-        "question": "How does Study Hacks improve my learning and grades?",
-        "answer": "Study Hacks uses proven learning science techniques like spaced repetition, active recall, and personalized learning paths. Our AI identifies your knowledge gaps, creates custom study schedules, and adapts to your learning style, which helps improve retention and boost grades by an average of 30%."
+        "question": "How does StudyHacks improve my learning and grades?",
+        "answer": "StudyHacks uses proven learning science techniques like spaced repetition, active recall, and personalized learning paths. Our AI identifies your knowledge gaps, creates custom study schedules, and adapts to your learning style, which helps improve retention and boost grades by an average of 30%."
       },
       {
-        "question": "Is Study Hacks suitable for my specific subject or field?",
-        "answer": "Absolutely! Study Hacks works for all subjects and academic levels - from high school to graduate school. Whether you're studying medicine, law, engineering, humanities, or any other field, our AI adapts to your specific subject matter and learning needs."
+        "question": "Is StudyHacks suitable for my specific subject or field?",
+        "answer": "Absolutely! StudyHacks works for all subjects and academic levels - from high school to graduate school. Whether you're studying medicine, law, engineering, humanities, or any other field, our AI adapts to your specific subject matter and learning needs."
       },
       {
-        "question": "Can I collaborate with classmates using Study Hacks?",
-        "answer": "Yes! Study Hacks includes powerful collaboration features where you can share notes, create group study sessions, build collaborative flashcard sets, and even compete in study quizzes. Perfect for study groups and team learning projects."
+        "question": "Can I collaborate with classmates using StudyHacks?",
+        "answer": "Yes! StudyHacks includes powerful collaboration features where you can share notes, create group study sessions, build collaborative flashcard sets, and even compete in study quizzes. Perfect for study groups and team learning projects."
       },
       {
-        "question": "How much does Study Hacks cost and is there a free trial?",
-        "answer": "Study Hacks offers a free tier with basic features so you can try it risk-free. Premium plans start at $9.99/month with unlimited uploads, advanced AI features, and collaboration tools. We also offer student discounts and special rates for educational institutions."
+        "question": "How much does StudyHacks cost and is there a free trial?",
+        "answer": "StudyHacks offers a free tier with basic features so you can try it risk-free. Premium plans start at $9.99/month with unlimited uploads, advanced AI features, and collaboration tools. We also offer student discounts and special rates for educational institutions."
       }
     ]
   },
   "cta": {
     "id": "cta",
-    "title": "Transform Your Learning Journey Today",
+    "title": "Start Learning Smarter Today",
     "description": "Join thousands of students who are already learning smarter, not harder.",
     "buttons": [
       {
@@ -487,20 +466,13 @@
         "url": "/pricing",
         "target": "_self",
         "icon": "Zap"
-      },
-      {
-        "title": "Watch Demo",
-        "url": "/demo",
-        "target": "_self",
-        "variant": "outline",
-        "icon": "PlayCircle"
       }
     ]
   },
   "subscribe": {
     "id": "subscribe",
     "title": "Get study tips and exclusive offers",
-    "description": "Join our newsletter for the latest learning strategies and Study Hacks updates.",
+    "description": "Join our newsletter for the latest learning strategies and StudyHacks updates.",
     "submit": {
       "input": {
         "placeholder": "Enter your email address"
@@ -514,11 +486,11 @@
   "footer": {
     "id": "footer",
     "brand": {
-      "title": "Study Hacks",
+      "title": "StudyHacks",
       "description": "AI-powered learning platform that transforms study materials into personalized, interactive learning experiences.",
       "logo": {
         "src": "/logo.png",
-        "alt": "Study Hacks"
+        "alt": "StudyHacks"
       },
       "url": "/"
     },

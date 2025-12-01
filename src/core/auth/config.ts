@@ -32,16 +32,39 @@ export const authOptions = {
 // Dynamic auth options - WITH database connection
 // Only used in API routes that actually need database access
 export async function getAuthOptions() {
-  const configs = await getAllConfigs();
+  // 获取配置，即使失败也返回空对象（使用环境变量作为回退）
+  let configs: Record<string, string> = {};
+  try {
+    configs = await getAllConfigs();
+  } catch (error) {
+    // 静默处理：配置获取失败时使用环境变量作为回退
+    // 只在开发环境显示警告
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[Auth] 配置获取失败，使用环境变量配置');
+    }
+  }
+
+  // 尝试连接数据库，如果失败则返回 null（无数据库模式）
+  let databaseAdapter = null;
+  if (envConfigs.database_url) {
+    try {
+      databaseAdapter = drizzleAdapter(db(), {
+        provider: getDatabaseProvider(envConfigs.database_provider),
+        schema: schema,
+      });
+    } catch (error) {
+      // 数据库连接失败时，继续使用无数据库模式
+      // 只在开发环境显示警告
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[Auth] 数据库连接失败，使用无数据库模式');
+      }
+    }
+  }
+
   return {
     ...authOptions,
     // Add database connection only when actually needed (runtime)
-    database: envConfigs.database_url
-      ? drizzleAdapter(db(), {
-          provider: getDatabaseProvider(envConfigs.database_provider),
-          schema: schema,
-        })
-      : null,
+    database: databaseAdapter,
     emailAndPassword: {
       enabled: configs.email_auth_enabled !== 'false',
     },

@@ -1,11 +1,11 @@
 {
   "metadata": {
-    "title": "Study Hacks 定价 - 智能学习",
+    "title": "StudyHacks 定价 - 智能学习",
     "description": "选择您的计划，开始AI智能学习之旅"
   },
   "pricing": {
     "id": "pricing",
-    "sr_only_title": "Study Hacks 价格方案",
+    "sr_only_title": "StudyHacks 价格方案",
     "title": "定价方案",
     "description": "学习更智能，而非更辛苦。选择适合您学习目标的方案。",
     "groups": [
@@ -24,7 +24,7 @@
     "items": [
       {
         "title": "免费版",
-        "description": "完美体验Study Hacks功能。",
+        "description": "完美体验StudyHacks功能。",
         "features_title": "包含",
         "features": [
           "每月10个AI积分",
@@ -48,7 +48,7 @@
           "icon": "RiFlashlightFill"
         },
         "product_id": "free",
-        "product_name": "Study Hacks 免费方案",
+        "product_name": "StudyHacks 免费方案",
         "credits": 10,
         "valid_days": 30,
         "group": "monthly",
@@ -83,7 +83,7 @@
           "icon": "RiFlashlightFill"
         },
         "product_id": "student",
-        "product_name": "Study Hacks 学生方案",
+        "product_name": "StudyHacks 学生方案",
         "credits": 500,
         "valid_days": 30,
         "group": "monthly",
@@ -117,7 +117,7 @@
           "icon": "RiFlashlightFill"
         },
         "product_id": "pro",
-        "product_name": "Study Hacks 专业方案",
+        "product_name": "StudyHacks 专业方案",
         "credits": 9999,
         "valid_days": 30,
         "group": "monthly",
@@ -125,7 +125,7 @@
       },
       {
         "title": "免费版",
-        "description": "完美体验Study Hacks功能。",
+        "description": "完美体验StudyHacks功能。",
         "features_title": "包含",
         "features": [
           "每月10个AI积分",
@@ -149,7 +149,7 @@
           "icon": "RiFlashlightFill"
         },
         "product_id": "free-yearly",
-        "product_name": "Study Hacks 免费方案年度",
+        "product_name": "StudyHacks 免费方案年度",
         "credits": 120,
         "valid_days": 365,
         "group": "yearly",
@@ -184,7 +184,7 @@
           "icon": "RiFlashlightFill"
         },
         "product_id": "student-yearly",
-        "product_name": "Study Hacks 学生方案年度",
+        "product_name": "StudyHacks 学生方案年度",
         "credits": 6000,
         "valid_days": 365,
         "group": "yearly",
@@ -218,7 +218,7 @@
           "icon": "RiFlashlightFill"
         },
         "product_id": "pro-yearly",
-        "product_name": "Study Hacks 专业方案年度",
+        "product_name": "StudyHacks 专业方案年度",
         "credits": 119988,
         "valid_days": 365,
         "group": "yearly",

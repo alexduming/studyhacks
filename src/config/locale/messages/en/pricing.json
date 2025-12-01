@@ -1,30 +1,18 @@
 {
   "metadata": {
-    "title": "Study Hacks Pricing - Study Smarter",
+    "title": "StudyHacks Pricing - Study Smarter",
     "description": "Choose your plan and start studying smarter with AI"
   },
   "pricing": {
     "id": "pricing",
-    "sr_only_title": "Study Hacks Pricing Plans",
+    "sr_only_title": "StudyHacks Pricing Plans",
     "title": "Pricing Plans",
     "description": "Study smarter, not harder. Choose the plan that fits your learning goals.",
-    "groups": [
-      {
-        "name": "monthly",
-        "title": "Monthly",
-        "is_featured": true,
-        "label": "Most Popular"
-      },
-      {
-        "name": "yearly",
-        "title": "Annually",
-        "label": "Save 20%"
-      }
-    ],
+    "groups": [],
     "items": [
       {
         "title": "Free",
-        "description": "Perfect for trying out Study Hacks.",
+        "description": "Perfect for trying out StudyHacks.",
         "features_title": "Includes",
         "features": [
           "10 AI credits per month",
@@ -41,66 +29,31 @@
         "original_price": "",
         "unit": "",
         "is_featured": false,
-        "tip": "Great for getting started with AI-powered studying",
+        "tip": "",
         "button": {
           "title": "Start Free",
           "url": "/#pricing",
           "icon": "RiFlashlightFill"
         },
         "product_id": "free",
-        "product_name": "Study Hacks Free Plan",
+        "product_name": "StudyHacks Free Plan",
         "credits": 10,
         "valid_days": 30,
-        "group": "monthly",
+        "group": null,
         "plan_name": "Free"
       },
       {
-        "title": "Student",
-        "description": "Perfect for serious students who want to excel.",
-        "label": "Most Popular",
+        "title": "Premium",
+        "description": "Unlimited AI credits",
         "features_title": "Everything in Free, plus",
         "features": [
-          "500 AI credits per month",
+          "Unlimited AI credits",
           "Advanced AI note generation",
           "Unlimited flashcards & quizzes",
           "Spaced repetition algorithm",
-          "100MB file upload limit",
+          "Unlimited file upload",
           "Study podcast generation",
           "Progress tracking & analytics",
-          "Priority email support"
-        ],
-        "interval": "month",
-        "amount": 999,
-        "currency": "USD",
-        "price": "$9.99",
-        "original_price": "",
-        "unit": "/ month",
-        "is_featured": true,
-        "tip": "Study smarter with unlimited AI tools",
-        "button": {
-          "title": "Start Free Trial",
-          "url": "/#pricing",
-          "icon": "RiFlashlightFill"
-        },
-        "product_id": "student",
-        "product_name": "Study Hacks Student Plan",
-        "credits": 500,
-        "valid_days": 30,
-        "group": "monthly",
-        "plan_name": "Student"
-      },
-      {
-        "title": "Pro",
-        "description": "Maximum power for students who want the best results.",
-        "features_title": "Everything in Student, plus",
-        "features": [
-          "Unlimited AI credits",
-          "Advanced study analytics",
-          "Custom learning paths",
-          "AI study assistant",
-          "500MB file upload limit",
-          "Collaborative study groups",
-          "Offline study mode",
           "Priority 24/7 support"
         ],
         "interval": "month",
@@ -109,220 +62,56 @@
         "price": "$19.99",
         "original_price": "",
         "unit": "/ month",
-        "is_featured": false,
-        "tip": "Ultimate study experience with unlimited everything",
-        "button": {
-          "title": "Go Pro",
-          "url": "/#pricing",
-          "icon": "RiFlashlightFill"
-        },
-        "product_id": "pro",
-        "product_name": "Study Hacks Pro Plan",
-        "credits": 9999,
-        "valid_days": 30,
-        "group": "monthly",
-        "plan_name": "Pro"
-      },
-      {
-        "title": "Starter",
-        "description": "Get started with your first SaaS startup.",
-        "features_title": "Includes",
-        "features": [
-          "100 credits, valid for 1 month",
-          "NextJS boilerplate",
-          "SEO-friendly structure",
-          "Payment with Stripe",
-          "Data storage with Supabase",
-          "Google Oauth & One-Tap Login",
-          "i18n support"
-        ],
-        "interval": "month",
-        "amount": 8900,
-        "currency": "USD",
-        "price": "$89",
-        "original_price": "$99",
-        "unit": "/ month",
-        "is_featured": false,
-        "tip": "Pay monthly. Build unlimited projects!",
-        "button": {
-          "title": "Get ShipAny",
-          "url": "/#pricing",
-          "icon": "RiFlashlightFill"
-        },
-        "product_id": "starter-monthly",
-        "product_name": "ShipAny Boilerplate Starter Monthly",
-        "credits": 100,
-        "valid_days": 30,
-        "group": "monthly",
-        "plan_name": "Starter"
-      },
-      {
-        "title": "Standard",
-        "description": "Ship Fast with your SaaS Startups.",
-        "label": "Popular",
-        "features_title": "Everything in Starter, plus",
-        "features": [
-          "200 credits, valid for 1 month",
-          "Deploy with Vercel or Cloudflare",
-          "Generation of Privacy & Terms",
-          "Google Analytics Integration",
-          "Google Search Console Integration",
-          "Discord community",
-          "Technical support for your first ship",
-          "Lifetime updates"
-        ],
-        "interval": "month",
-        "amount": 16900,
-        "currency": "USD",
-        "price": "$169",
-        "original_price": "$199",
-        "unit": "/ month",
         "is_featured": true,
-        "tip": "Pay monthly. Ship Fast with your SaaS Startups.",
         "button": {
-          "title": "Get ShipAny",
+          "title": "Upgrade Now",
           "url": "/#pricing",
-          "icon": "RiFlashlightFill"
-        },
-        "product_id": "standard-monthly",
-        "product_name": "ShipAny Boilerplate Standard Monthly",
-        "credits": 200,
-        "valid_days": 30,
-        "group": "monthly",
-        "plan_name": "Standard"
-      },
-      {
-        "title": "Premium",
-        "description": "Ship Any AI SaaS Startups.",
-        "features_title": "Everything in Standard, plus",
-        "features": [
-          "300 credits, valid for 1 month",
-          "Business Functions with AI",
-          "User Center",
-          "Credits System",
-          "API Sales for your SaaS",
-          "Admin System",
-          "Priority Technical Support"
-        ],
-        "interval": "month",
-        "amount": 24900,
-        "currency": "USD",
-        "price": "$249",
-        "original_price": "$299",
-        "unit": "/ month",
-        "is_featured": false,
-        "tip": "Pay monthly. Ship Any AI SaaS Startups.",
-        "button": {
-          "title": "Get ShipAny",
-          "url": "/#pricing",
-          "icon": "RiFlashlightFill"
+          "icon": "Sparkles"
         },
         "product_id": "premium-monthly",
-        "product_name": "ShipAny Boilerplate Premium Monthly",
-        "credits": 300,
+        "product_name": "StudyHacks Premium Monthly",
+        "credits": 9999,
         "valid_days": 30,
-        "group": "monthly",
-        "plan_name": "Premium"
-      },
-      {
-        "title": "Starter",
-        "description": "Get started with your first SaaS startup.",
-        "features_title": "Includes",
-        "features": [
-          "100 credits, valid for 1 year",
-          "NextJS boilerplate",
-          "SEO-friendly structure",
-          "Payment with Stripe",
-          "Data storage with Supabase",
-          "Google Oauth & One-Tap Login",
-          "i18n support"
-        ],
-        "interval": "year",
-        "amount": 82800,
-        "currency": "USD",
-        "price": "$69",
-        "original_price": "$89",
-        "unit": "/ month",
-        "is_featured": false,
-        "tip": "Pay annually. Build unlimited projects!",
-        "button": {
-          "title": "Get ShipAny",
-          "url": "/#pricing",
-          "icon": "RiFlashlightFill"
-        },
-        "product_id": "starter-yearly",
-        "product_name": "ShipAny Boilerplate Starter Annually",
-        "credits": 1200,
-        "valid_days": 365,
-        "group": "yearly",
-        "plan_name": "Starter"
-      },
-      {
-        "title": "Standard",
-        "description": "Ship Fast with your SaaS Startups.",
-        "label": "Popular",
-        "features_title": "Everything in Starter, plus",
-        "features": [
-          "200 credits, valid for 1 year",
-          "Deploy with Vercel or Cloudflare",
-          "Generation of Privacy & Terms",
-          "Google Analytics Integration",
-          "Google Search Console Integration",
-          "Discord community",
-          "Technical support for your first ship",
-          "Lifetime updates"
-        ],
-        "interval": "year",
-        "amount": 154800,
-        "currency": "USD",
-        "price": "$129",
-        "original_price": "$169",
-        "unit": "/ month",
-        "is_featured": true,
-        "tip": "Pay annually. Ship Fast with your SaaS Startups.",
-        "button": {
-          "title": "Get ShipAny",
-          "url": "/#pricing",
-          "icon": "RiFlashlightFill"
-        },
-        "product_id": "standard-yearly",
-        "product_name": "ShipAny Boilerplate Standard Annually",
-        "credits": 2400,
-        "valid_days": 365,
-        "group": "yearly",
-        "plan_name": "Standard"
+        "group": null,
+        "plan_name": "Premium",
+        "annual_product_id": "premium-yearly",
+        "annual_price": "$9.99",
+        "annual_original_price": "$19.99",
+        "annual_amount": 999,
+        "annual_savings": "Save 50%"
       },
       {
         "title": "Premium",
-        "description": "Ship Any AI SaaS Startups.",
-        "features_title": "Everything in Standard, plus",
+        "description": "Unlimited AI credits",
+        "features_title": "Everything in Free, plus",
         "features": [
-          "300 credits, valid for 1 year",
-          "Business Functions with AI",
-          "User Center",
-          "Credits System",
-          "API Sales for your SaaS",
-          "Admin System",
-          "Priority Technical Support"
+          "Unlimited AI credits",
+          "Advanced AI note generation",
+          "Unlimited flashcards & quizzes",
+          "Spaced repetition algorithm",
+          "Unlimited file upload",
+          "Study podcast generation",
+          "Progress tracking & analytics",
+          "Priority 24/7 support"
         ],
         "interval": "year",
-        "amount": 226800,
+        "amount": 799,
         "currency": "USD",
-        "price": "$189",
-        "original_price": "$249",
+        "price": "$9.99",
+        "original_price": "$19.99",
         "unit": "/ month",
-        "is_featured": false,
-        "tip": "Pay annually. Ship Any AI SaaS Startups.",
+        "is_featured": true,
+        "label": "Most popular",
         "button": {
-          "title": "Get ShipAny",
+          "title": "Upgrade Now",
           "url": "/#pricing",
-          "icon": "RiFlashlightFill"
+          "icon": "Sparkles"
         },
         "product_id": "premium-yearly",
-        "product_name": "ShipAny Boilerplate Premium Annually",
-        "credits": 3600,
+        "product_name": "StudyHacks Premium Annually",
+        "credits": 9999,
         "valid_days": 365,
-        "group": "yearly",
+        "group": null,
         "plan_name": "Premium"
       }
     ]

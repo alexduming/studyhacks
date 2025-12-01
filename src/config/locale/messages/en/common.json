@@ -1,8 +1,8 @@
 {
   "metadata": {
-    "title": "Study Hacks - AI Study Smarter",
-    "description": "Study Hacks is an AI-powered study platform that transforms PDFs, videos, lectures into intelligent notes, flashcards, and quizzes. Study smarter with AI.",
-    "keywords": "study hacks, AI study smarter, study notes, flashcards, quiz generator, AI learning, study tools"
+    "title": "StudyHacks - AI Study Smarter",
+    "description": "StudyHacks is an AI-powered study platform that transforms PDFs, videos, lectures into intelligent notes, flashcards, and quizzes. Study smarter with AI.",
+    "keywords": "studyhacks, AI study smarter, study notes, flashcards, quiz generator, AI learning, study tools"
   },
   "sign": {
     "sign_in_title": "Get Started - It's Free",
@@ -16,7 +16,7 @@
     "forgot_password": "Forgot password?",
     "or": "Or",
     "continue": "Continue",
-    "no_account": "New to Study Hacks?",
+    "no_account": "New to StudyHacks?",
     "already_have_account": "Already have an account?",
     "email_sign_in": "Sign in with Email",
     "google_sign_in_title": "Continue with Google",

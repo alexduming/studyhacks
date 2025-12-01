@@ -44,7 +44,30 @@ import {
 } from '@/shared/lib/file-reader';
 import { OpenRouterService } from '@/shared/services/openrouter';
 
-const AINoteTaker = () => {
+/**
+ * 非程序员友好解释：
+ * - 这个组件本来只用在单独的「AI 笔记」页面上，是一整屏的大工具台。
+ * - 现在我们希望在首页 Hero 下面，也放一块「立即试用的核心功能」区域。
+ *
+ * 为了避免复制粘贴同一套逻辑，我们引入一个非常轻量的「模式开关」：
+ * - variant = 'full'   表示作为独立页面使用（原来的样子，保持不变）
+ * - variant = 'embedded' 表示嵌入到首页中使用（去掉多余的整屏背景和外层间距，更紧凑）
+ *
+ * 这样做的好处（对应你说的“精、准、净”）：
+ * 1. 精：核心逻辑只有一份，首页与独立页面共用，后期只需要改一个地方。
+ * 2. 准：只在外层容器加了一个简单的分支，不碰内部上传、AI 调用等复杂逻辑。
+ * 3. 净：不额外新建一大堆组件文件，代码结构依然清晰，没有技术债。
+ */
+const AINoteTaker = ({
+  variant = 'full',
+}: {
+  /**
+   * 非程序员解释：
+   * - 你可以把 variant 理解成「显示风格」的开关。
+   * - 'full' = 单页完整模式；'embedded' = 首页里的小区域模式。
+   */
+  variant?: 'full' | 'embedded';
+}) => {
   const t = useTranslations('ai-note-taker');
   const locale = useLocale();
   const router = useRouter();
@@ -54,6 +77,17 @@ const AINoteTaker = () => {
   const [activeTab, setActiveTab] = useState('upload');
   // 输出语言选择，默认为"自动"
   const [outputLanguage, setOutputLanguage] = useState<string>('auto');
+  // 自定义主题色，默认为空，表示使用系统默认的 purple
+  const [customThemeColor, setCustomThemeColor] = useState<string>('');
+
+  // 预设主题色列表
+  const presetColors = [
+    { name: 'Default Purple', value: '', color: '#6535F6' },
+    { name: 'Tesla Red', value: '#E31937', color: '#E31937' },
+    { name: 'Ocean Blue', value: '#0ea5e9', color: '#0ea5e9' },
+    { name: 'Emerald Green', value: '#10b981', color: '#10b981' },
+    { name: 'Amber Orange', value: '#f59e0b', color: '#f59e0b' },
+  ];
   // PDF/分享等工具的运行状态
   const [isCopying, setIsCopying] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -362,7 +396,7 @@ const AINoteTaker = () => {
     if (dialogLoading) {
       return (
         <div className="flex flex-col items-center justify-center gap-3 py-10 text-center text-gray-300">
-          <Loader2 className="h-6 w-6 animate-spin text-purple-300" />
+          <Loader2 className="text-primary h-6 w-6 animate-spin" />
           <p>{t('notes.dialog.loading')}</p>
         </div>
       );
@@ -374,7 +408,7 @@ const AINoteTaker = () => {
 
     if (dialogType === 'podcast') {
       return (
-        <ScrollArea className="h-80 rounded border border-purple-500/20 bg-gray-900/60 p-4">
+        <ScrollArea className="border-primary/20 h-80 rounded border bg-gray-900/60 p-4">
           <StudyNotesViewer content={podcastResult} />
         </ScrollArea>
       );
@@ -393,15 +427,52 @@ const AINoteTaker = () => {
     { id: 'notes', label: t('tabs.notes'), icon: Brain },
   ];
 
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-950 via-purple-950/10 to-gray-950">
-      {/* 背景装饰 */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 h-96 w-96 rounded-full bg-purple-600/10 blur-3xl" />
-        <div className="absolute right-1/4 bottom-1/4 h-96 w-96 rounded-full bg-blue-600/10 blur-3xl" />
-      </div>
+  /**
+   * 这里我们只在「最外层布局」根据 variant 做一点点区别：
+   * - full 模式：保留原来的整屏渐变背景 + 大间距，适合独立功能页。
+   * - embedded 模式：改成普通 section 区块，跟首页其他模块风格一致，
+   *   不再使用 fixed 的全屏背景，避免叠加多层背景导致页面“太花”。
+   *
+   * 注意：内部上传 / 生成 / 导出 / 分享等逻辑完全不动，只是换了外壳。
+   */
+  const isEmbedded = variant === 'embedded';
 
-      <div className="relative z-10 container mx-auto px-4 py-24">
+  return (
+    <section
+      className={
+        isEmbedded
+          ? // 嵌入首页：保持深色渐变，但不占满整屏，也不使用 fixed 背景
+            'relative bg-gradient-to-b from-gray-950/95 via-gray-950/90 to-gray-950/98 py-16'
+          : // 原有单页模式：整屏高度 + 顶到底渐变
+            'via-primary/5 min-h-screen bg-gradient-to-b from-gray-950 to-gray-950'
+      }
+    >
+      {/* 背景装饰：full 模式用 fixed 光晕，embedded 模式用更轻量的绝对定位光晕，避免影响整页滚动 */}
+      {isEmbedded ? (
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="bg-primary/10 absolute top-0 left-1/3 h-72 w-72 rounded-full blur-3xl" />
+          {/* 
+            为了与 turbo 主题保持统一，这里不再单独使用蓝色光晕，
+            而是统一用 primary 作为主色系，整体观感更一致。
+          */}
+          <div className="bg-primary/5 absolute right-1/4 bottom-0 h-72 w-72 rounded-full blur-3xl" />
+        </div>
+      ) : (
+        <div className="pointer-events-none fixed inset-0 overflow-hidden">
+          <div className="bg-primary/10 absolute top-1/4 left-1/4 h-96 w-96 rounded-full blur-3xl" />
+          {/* 全屏模式同样用 primary 的柔和光晕，避免与 Hero 产生两套颜色体系 */}
+          <div className="bg-primary/5 absolute right-1/4 bottom-1/4 h-96 w-96 rounded-full blur-3xl" />
+        </div>
+      )}
+
+      <div
+        className={
+          isEmbedded
+            ? // 嵌入首页：减少上下 padding，让模块更紧凑；mobile 端左右保持安全边距
+              'relative z-10 container mx-auto px-4 py-8'
+            : 'relative z-10 container mx-auto px-4 py-24'
+        }
+      >
         <ScrollAnimation>
           <div className="mb-12 text-center">
             <motion.div
@@ -409,7 +480,8 @@ const AINoteTaker = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
             >
-              <h1 className="mb-6 bg-gradient-to-r from-white via-purple-200 to-blue-200 bg-clip-text text-4xl font-bold text-transparent md:text-5xl">
+              {/* 文案渐变保持与 Hero 一致：白色 → primary 过渡 */}
+              <h1 className="via-primary/80 to-primary/60 mb-6 bg-gradient-to-r from-white bg-clip-text text-4xl font-bold text-transparent md:text-5xl">
                 {t('title')}
               </h1>
               <p className="mx-auto max-w-3xl text-lg text-gray-300 md:text-xl">
@@ -423,7 +495,7 @@ const AINoteTaker = () => {
         <ScrollAnimation delay={0.2}>
           <div className="mx-auto max-w-4xl">
             <div className="mb-8 flex justify-center">
-              <div className="inline-flex rounded-lg border border-purple-500/20 bg-gray-900/50 p-1 backdrop-blur-sm">
+              <div className="border-primary/20 inline-flex rounded-lg border bg-gray-900/50 p-1 backdrop-blur-sm">
                 {tabs.map((tab) => {
                   const Icon = tab.icon;
                   return (
@@ -432,8 +504,9 @@ const AINoteTaker = () => {
                       onClick={() => setActiveTab(tab.id)}
                       className={`flex items-center gap-2 rounded-md px-6 py-3 transition-all duration-300 ${
                         activeTab === tab.id
-                          ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg'
-                          : 'text-gray-400 hover:bg-purple-500/10 hover:text-white'
+                          ? // 选中标签：统一使用 primary 渐变，而不是 primary + 纯蓝
+                            'from-primary to-primary/70 bg-gradient-to-r text-white shadow-lg'
+                          : 'hover:bg-primary/10 text-gray-400 hover:text-white'
                       }`}
                     >
                       <Icon className="h-4 w-4" />
@@ -450,10 +523,11 @@ const AINoteTaker = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="rounded-2xl border border-purple-500/20 bg-gray-900/50 p-8 backdrop-blur-sm"
+                className="border-primary/20 rounded-2xl border bg-gray-900/50 p-8 backdrop-blur-sm"
               >
                 <div className="text-center">
-                  <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-600 to-blue-600">
+                  {/* 主图标区域：改为 primary 单色渐变，贴合 turbo 主题主色 */}
+                  <div className="from-primary to-primary/70 mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-2xl bg-gradient-to-br">
                     <Upload className="h-12 w-12 text-white" />
                   </div>
 
@@ -463,40 +537,107 @@ const AINoteTaker = () => {
                   <p className="mb-8 text-gray-400">{t('upload.subtitle')}</p>
 
                   {/* 语言选择器 */}
-                  <div className="mb-6 flex items-center justify-center gap-3">
-                    <label
-                      htmlFor="output-language-select"
-                      className="text-sm font-medium text-gray-300"
-                    >
-                      {t('upload.output_language')}:
-                    </label>
-                    <Select
-                      value={outputLanguage}
-                      onValueChange={setOutputLanguage}
-                      disabled={isProcessing}
-                    >
-                      <SelectTrigger
-                        id="output-language-select"
-                        className="w-[280px] border-purple-500/30 bg-gray-800/50 text-white hover:border-purple-500/50"
+                  <div className="mb-6 flex flex-col items-center justify-center gap-4">
+                    <div className="flex items-center gap-3">
+                      <label
+                        htmlFor="output-language-select"
+                        className="text-sm font-medium text-gray-300"
                       >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="border-purple-500/30 bg-gray-900">
-                        <SelectItem value="auto">
-                          {t('languages.auto')}
-                        </SelectItem>
-                        <SelectItem value="zh">{t('languages.zh')}</SelectItem>
-                        <SelectItem value="en">{t('languages.en')}</SelectItem>
-                        <SelectItem value="es">{t('languages.es')}</SelectItem>
-                        <SelectItem value="fr">{t('languages.fr')}</SelectItem>
-                        <SelectItem value="de">{t('languages.de')}</SelectItem>
-                        <SelectItem value="ja">{t('languages.ja')}</SelectItem>
-                        <SelectItem value="ko">{t('languages.ko')}</SelectItem>
-                        <SelectItem value="pt">{t('languages.pt')}</SelectItem>
-                        <SelectItem value="ru">{t('languages.ru')}</SelectItem>
-                        <SelectItem value="ar">{t('languages.ar')}</SelectItem>
-                      </SelectContent>
-                    </Select>
+                        {t('upload.output_language')}:
+                      </label>
+                      <Select
+                        value={outputLanguage}
+                        onValueChange={setOutputLanguage}
+                        disabled={isProcessing}
+                      >
+                        <SelectTrigger
+                          id="output-language-select"
+                          className="border-primary/30 hover:border-primary/50 w-[280px] bg-gray-800/50 text-white"
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="border-primary/30 bg-gray-900">
+                          <SelectItem value="auto">
+                            {t('languages.auto')}
+                          </SelectItem>
+                          <SelectItem value="zh">
+                            {t('languages.zh')}
+                          </SelectItem>
+                          <SelectItem value="en">
+                            {t('languages.en')}
+                          </SelectItem>
+                          <SelectItem value="es">
+                            {t('languages.es')}
+                          </SelectItem>
+                          <SelectItem value="fr">
+                            {t('languages.fr')}
+                          </SelectItem>
+                          <SelectItem value="de">
+                            {t('languages.de')}
+                          </SelectItem>
+                          <SelectItem value="ja">
+                            {t('languages.ja')}
+                          </SelectItem>
+                          <SelectItem value="ko">
+                            {t('languages.ko')}
+                          </SelectItem>
+                          <SelectItem value="pt">
+                            {t('languages.pt')}
+                          </SelectItem>
+                          <SelectItem value="ru">
+                            {t('languages.ru')}
+                          </SelectItem>
+                          <SelectItem value="ar">
+                            {t('languages.ar')}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* 主题色选择器 */}
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-gray-300">
+                        Theme Color:
+                      </span>
+                      <div className="flex gap-2">
+                        {presetColors.map((preset) => (
+                          <button
+                            key={preset.name}
+                            onClick={() => setCustomThemeColor(preset.value)}
+                            className={`h-6 w-6 rounded-full border-2 transition-all ${
+                              customThemeColor === preset.value
+                                ? 'scale-110 border-white ring-2 ring-white/50'
+                                : 'border-transparent hover:scale-110'
+                            }`}
+                            style={{ backgroundColor: preset.color }}
+                            title={preset.name}
+                            disabled={isProcessing}
+                          />
+                        ))}
+                        {/* 自定义颜色输入 */}
+                        <div className="relative flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border border-gray-600 bg-gray-800">
+                          <input
+                            type="color"
+                            value={customThemeColor || '#6535F6'}
+                            onChange={(e) =>
+                              setCustomThemeColor(e.target.value)
+                            }
+                            className="absolute inset-0 h-[150%] w-[150%] -translate-x-1/4 -translate-y-1/4 cursor-pointer opacity-0"
+                            disabled={isProcessing}
+                          />
+                          <div
+                            className="h-full w-full rounded-full"
+                            style={{
+                              backgroundColor:
+                                customThemeColor || 'transparent',
+                              backgroundImage: !customThemeColor
+                                ? 'linear-gradient(to bottom right, #f0f, #0ff)'
+                                : 'none',
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
                   <p className="mb-6 text-xs text-gray-500">
                     {t('upload.output_language_desc')}
@@ -520,7 +661,8 @@ const AINoteTaker = () => {
                   {/* 使用 Button 作为外壳，把 label 当作子元素渲染（asChild） */}
                   <Button
                     asChild
-                    className="bg-gradient-to-r from-purple-600 to-blue-600 px-8 py-4 text-lg text-white hover:from-purple-700 hover:to-blue-700"
+                    // 上传按钮：使用 primary 为主色的渐变，去掉额外的蓝色终点
+                    className="from-primary hover:from-primary/90 to-primary/70 hover:to-primary/80 bg-gradient-to-r px-8 py-4 text-lg text-white"
                     disabled={isProcessing}
                   >
                     <label
@@ -568,8 +710,8 @@ const AINoteTaker = () => {
                       const Icon = type.icon;
                       return (
                         <div key={idx} className="text-center">
-                          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-lg bg-purple-500/10">
-                            <Icon className="h-6 w-6 text-purple-400" />
+                          <div className="bg-primary/10 mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-lg">
+                            <Icon className="text-primary h-6 w-6" />
                           </div>
                           <p className="font-medium text-white">{type.label}</p>
                           <p className="text-sm text-gray-500">{type.desc}</p>
@@ -587,10 +729,10 @@ const AINoteTaker = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="rounded-2xl border border-purple-500/20 bg-gray-900/50 p-8 backdrop-blur-sm"
+                className="border-primary/20 rounded-2xl border bg-gray-900/50 p-8 backdrop-blur-sm"
               >
                 <div className="text-center">
-                  <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-600 to-blue-600">
+                  <div className="from-primary to-primary/70 mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-2xl bg-gradient-to-br">
                     <Mic className="h-12 w-12 text-white" />
                   </div>
 
@@ -599,7 +741,7 @@ const AINoteTaker = () => {
                   </h3>
                   <p className="mb-8 text-gray-400">{t('record.subtitle')}</p>
 
-                  <Button className="bg-gradient-to-r from-purple-600 to-blue-600 px-8 py-4 text-lg text-white hover:from-purple-700 hover:to-blue-700">
+                  <Button className="from-primary hover:from-primary/90 to-primary/70 hover:to-primary/80 bg-gradient-to-r px-8 py-4 text-lg text-white">
                     <Mic className="mr-2 h-5 w-5" />
                     {t('record.start_button')}
                   </Button>
@@ -618,7 +760,7 @@ const AINoteTaker = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="rounded-2xl border border-purple-500/20 bg-gray-900/50 p-8 backdrop-blur-sm"
+                className="border-primary/20 rounded-2xl border bg-gray-900/50 p-8 backdrop-blur-sm"
               >
                 <div className="mb-6 flex items-center justify-between">
                   <h3 className="text-2xl font-bold text-white">
@@ -630,7 +772,7 @@ const AINoteTaker = () => {
                       size="sm"
                       onClick={handleCopyNotes}
                       disabled={isCopying || !generatedNotes}
-                      className="border-purple-500/30 text-purple-300 hover:border-purple-500/50 disabled:opacity-40"
+                      className="border-primary/30 text-primary/80 hover:border-primary/50 disabled:opacity-40"
                     >
                       {isCopying ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -644,7 +786,7 @@ const AINoteTaker = () => {
                       size="sm"
                       onClick={handleDownloadPdf}
                       disabled={isDownloading || !generatedNotes}
-                      className="border-purple-500/30 text-purple-300 hover:border-purple-500/50 disabled:opacity-40"
+                      className="border-primary/30 text-primary/80 hover:border-primary/50 disabled:opacity-40"
                     >
                       {isDownloading ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -660,7 +802,7 @@ const AINoteTaker = () => {
                       size="sm"
                       onClick={handleShareNotes}
                       disabled={isSharing || !generatedNotes}
-                      className="border-purple-500/30 text-purple-300 hover:border-purple-500/50 disabled:opacity-40"
+                      className="border-primary/30 text-primary/80 hover:border-primary/50 disabled:opacity-40"
                     >
                       {isSharing ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -691,7 +833,10 @@ const AINoteTaker = () => {
                     ref={notesContainerRef}
                     className="rounded-lg bg-gray-800/50 p-6 text-base leading-relaxed text-gray-200"
                   >
-                    <StudyNotesViewer content={generatedNotes} />
+                    <StudyNotesViewer
+                      content={generatedNotes}
+                      themeColor={customThemeColor}
+                    />
                   </div>
                 ) : (
                   <div className="py-12 text-center">
@@ -707,7 +852,7 @@ const AINoteTaker = () => {
                     size="sm"
                     onClick={() => handleNavigateWithNotes('flashcards')}
                     disabled={!generatedNotes || dialogLoading}
-                    className="border-purple-500/30 text-purple-300 disabled:opacity-40"
+                    className="border-primary/30 text-primary/80 disabled:opacity-40"
                   >
                     <Zap className="mr-2 h-4 w-4" />
                     {t('toolbar.generate_flashcards')}
@@ -717,7 +862,7 @@ const AINoteTaker = () => {
                     size="sm"
                     onClick={() => handleNavigateWithNotes('quiz')}
                     disabled={!generatedNotes || dialogLoading}
-                    className="border-purple-500/30 text-purple-300 disabled:opacity-40"
+                    className="border-primary/30 text-primary/80 disabled:opacity-40"
                   >
                     <Brain className="mr-2 h-4 w-4" />
                     {t('toolbar.create_quiz')}
@@ -727,7 +872,7 @@ const AINoteTaker = () => {
                     size="sm"
                     onClick={handleGeneratePodcast}
                     disabled={!generatedNotes || dialogLoading}
-                    className="border-purple-500/30 text-purple-300 disabled:opacity-40"
+                    className="border-primary/30 text-primary/80 disabled:opacity-40"
                   >
                     <FileAudio className="mr-2 h-4 w-4" />
                     {t('toolbar.generate_podcast')}
@@ -750,7 +895,7 @@ const AINoteTaker = () => {
           }
         }}
       >
-        <DialogContent className="border-purple-500/30 bg-gray-950/95 text-white">
+        <DialogContent className="border-primary/30 bg-gray-950/95 text-white">
           <DialogHeader>
             <DialogTitle>{getDialogTitles().title}</DialogTitle>
             <DialogDescription className="text-gray-400">
@@ -760,7 +905,7 @@ const AINoteTaker = () => {
           <div className="mt-4">{renderDialogBody()}</div>
         </DialogContent>
       </Dialog>
-    </div>
+    </section>
   );
 };
 
