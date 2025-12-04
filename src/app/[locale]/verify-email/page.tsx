@@ -1,4 +1,4 @@
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
 import { EmailVerificationService } from '@/shared/services/email-verification-service';
@@ -48,14 +48,17 @@ export default async function VerifyEmailPage({ searchParams }: Props) {
       );
     }
 
-    // 验证成功，跳转到注册完成页面
-    const searchParams = new URLSearchParams({
+    // 验证成功，返回注册完成页面组件
+    const searchParamsObj = {
       email,
       verified: 'true',
       token
-    });
+    };
 
-    redirect(`/sign-up/complete?${searchParams.toString()}`);
+    // 动态导入注册完成页面组件
+    const { RegisterCompletePage } = await import('@/shared/components/auth/register-complete-page');
+
+    return <RegisterCompletePage email={email} token={token} />;
 
   } catch (error) {
     console.error('邮箱验证错误:', error);
