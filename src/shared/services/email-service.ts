@@ -1,7 +1,5 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 export interface EmailOptions {
   to: string;
   subject: string;
@@ -13,6 +11,13 @@ export class EmailService {
   private static fromEmail =
     process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
   private static fromName = process.env.RESEND_FROM_NAME || 'Study';
+
+  private static getClient() {
+    const apiKey = process.env.RESEND_API_KEY;
+    // 构建时可能没有环境变量，提供一个占位符以防止构建失败
+    // 在运行时如果没有 key，发送邮件会失败并被 catch 捕获
+    return new Resend(apiKey || 're_missing_api_key');
+  }
 
   /**
    * 发送验证链接邮件
@@ -29,6 +34,7 @@ export class EmailService {
       console.log('- From Name:', process.env.RESEND_FROM_NAME);
       console.log('- Node Env:', process.env.NODE_ENV);
 
+      const resend = this.getClient();
       const html = this.generateVerificationLinkEmailTemplate(
         verificationUrl,
         type
@@ -101,6 +107,7 @@ export class EmailService {
     name?: string
   ): Promise<boolean> {
     try {
+      const resend = this.getClient();
       const html = this.generateWelcomeEmailTemplate(name);
 
       try {
@@ -199,7 +206,7 @@ export class EmailService {
             </p>
 
             <div class="footer">
-              <p>此邮件由 Study 自动发送，请勿回复。</p>
+              <p>此邮件由 StudyHacks 自动发送，请勿回复。</p>
               <p>如有疑问，请联系我们的客服团队。</p>
             </div>
           </div>
@@ -243,7 +250,7 @@ export class EmailService {
             <div class="welcome-box">
               <h2>亲爱的 ${displayName}，</h2>
               <p style="font-size: 18px; margin: 20px 0;">
-                欢迎加入 Study 大家庭！
+                欢迎加入 StudyHacks 大家庭！
               </p>
               <p>您的账户已经成功创建，现在可以开始探索我们的精彩内容了。</p>
               <a href="${process.env.NEXT_PUBLIC_APP_URL}" class="button">
