@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { EmailVerificationService } from '@/shared/services/email-verification-service';
-import { signUp } from '@/core/auth';
+import { signUp } from '@/core/auth/client';
 
 export async function POST(request: NextRequest) {
   try {
