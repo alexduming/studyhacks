@@ -78,7 +78,7 @@
       ]
     },
     "show_sign": true,
-    "show_theme": true,
+    "show_theme": false,
     "show_locale": true
   },
   "hero": {
@@ -88,7 +88,7 @@
     "description": "Transform PDFs, videos, and audios into smart notes, flashcards, quizzes, and study guides",
     "announcement": {
       "badge": "New",
-      "title": "⚡ 50% off for new users",
+      "title": "⚡ 30% off for annual plan",
       "url": "/pricing"
     },
     "tip": "🎓 Trusted by students at Oxford, Cambridge, and other top universities",

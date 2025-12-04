@@ -37,7 +37,7 @@ export function EmailVerificationPage({
 
   const handleResendEmail = async () => {
     if (!resendEmail) {
-      setResendMessage('请输入邮箱地址');
+      setResendMessage(t('email_verification.enter_email'));
       return;
     }
 
@@ -59,19 +59,19 @@ export function EmailVerificationPage({
       const data = await response.json();
 
       if (data.success) {
-        setResendMessage('验证邮件已重新发送，请查收邮件');
+        setResendMessage(t('email_verification.email_sent', { email: resendEmail }));
 
         // 开发环境下显示调试链接
         if (data.debugUrl) {
-          console.log('🔗 开发环境验证链接:', data.debugUrl);
-          setResendMessage(prev => prev + `\n\n开发环境验证链接: ${data.debugUrl}`);
+          console.log('🔗 Development verification link:', data.debugUrl);
+          setResendMessage(prev => prev + `\n\nDevelopment verification link: ${data.debugUrl}`);
         }
       } else {
-        setResendMessage(data.error || '发送失败，请稍后重试');
+        setResendMessage(data.error || t('email_verification.error'));
       }
     } catch (error) {
-      console.error('重新发送验证邮件错误:', error);
-      setResendMessage('发送失败，请稍后重试');
+      console.error('Resend verification email error:', error);
+      setResendMessage(t('email_verification.error'));
     } finally {
       setResendLoading(false);
     }
@@ -111,9 +111,9 @@ export function EmailVerificationPage({
             {getStatusIcon()}
           </div>
           <CardTitle className="text-2xl">
-            {status === 'loading' && '验证邮箱中...'}
-            {status === 'success' && '邮箱验证成功！'}
-            {status === 'error' && '邮箱验证失败'}
+            {status === 'loading' && t('email_verification.loading')}
+            {status === 'success' && t('email_verification.success')}
+            {status === 'error' && t('email_verification.error')}
           </CardTitle>
           <CardDescription className={`text-center ${getStatusColor()}`}>
             {message}
@@ -126,23 +126,23 @@ export function EmailVerificationPage({
               onClick={() => router.push('/sign-in')}
               className="w-full"
             >
-              前往登录
+              {t('email_verification.go_to_login')}
             </Button>
           )}
 
           {showResendButton && (
             <div className="space-y-4 pt-4 border-t">
               <div className="text-center text-sm text-gray-600">
-                需要重新发送验证邮件？
+                {t('email_verification.resend_title')}
               </div>
 
               {!email && (
                 <div className="space-y-2">
-                  <Label htmlFor="resend-email">邮箱地址</Label>
+                  <Label htmlFor="resend-email">{t('email_verification.email_title')}</Label>
                   <Input
                     id="resend-email"
                     type="email"
-                    placeholder="请输入您的邮箱地址"
+                    placeholder={t('email_verification.email_placeholder')}
                     value={resendEmail}
                     onChange={(e) => setResendEmail(e.target.value)}
                   />
@@ -158,16 +158,16 @@ export function EmailVerificationPage({
                 {resendLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    发送中...
+                    {t('email_verification.loading')}
                   </>
                 ) : (
-                  '重新发送验证邮件'
+                  t('email_verification.resend_button')
                 )}
               </Button>
 
               {resendMessage && (
                 <div className={`text-sm text-center ${
-                  resendMessage.includes('成功') ? 'text-green-600' : 'text-red-600'
+                  resendMessage.includes(t('email_verification.email_sent')) ? 'text-green-600' : 'text-red-600'
                 }`}>
                   {resendMessage}
                 </div>
@@ -181,7 +181,7 @@ export function EmailVerificationPage({
               onClick={() => router.push('/sign-up')}
               className="text-sm text-gray-600 hover:text-gray-900"
             >
-              返回注册页面
+              {t('email_verification.back_to_register')}
             </Button>
           </div>
         </CardContent>

@@ -36,17 +36,17 @@ export function RegisterCompletePage({ email, token }: Props) {
 
     // 验证表单
     if (!name.trim()) {
-      toast.error('请输入您的姓名');
+      toast.error(t('email_register.all_fields_required'));
       return;
     }
 
     if (password.length < 6) {
-      toast.error('密码至少需要6个字符');
+      toast.error(t('email_register.password_too_short'));
       return;
     }
 
     if (password !== confirmPassword) {
-      toast.error('两次输入的密码不一致');
+      toast.error(t('email_register.password_mismatch'));
       return;
     }
 
@@ -69,15 +69,15 @@ export function RegisterCompletePage({ email, token }: Props) {
       const data = await response.json();
 
       if (data.success) {
-        toast.success('注册成功！欢迎加入Study！');
+        toast.success(t('email_register.welcome_title'));
         // 跳转到登录页面或用户仪表板
         router.push('/sign-in');
       } else {
-        toast.error(data.error || '注册失败，请稍后重试');
+        toast.error(data.error || t('email_register.registering'));
       }
     } catch (error) {
-      console.error('注册错误:', error);
-      toast.error('注册失败，请稍后重试');
+      console.error('Registration error:', error);
+      toast.error(t('email_register.registering'));
     } finally {
       setLoading(false);
     }
@@ -91,22 +91,22 @@ export function RegisterCompletePage({ email, token }: Props) {
             <CheckCircle className="h-12 w-12 text-green-500" />
           </div>
           <CardTitle className="text-2xl">
-            完成注册
+            {t('email_register.page_title')}
           </CardTitle>
           <CardDescription>
             您的邮箱 <span className="font-medium text-blue-600">{email}</span> 已验证成功
             <br />
-            请设置您的账户信息以完成注册
+            {t('email_register.instruction')}
           </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">姓名</Label>
+            <Label htmlFor="name">{t('email_register.name_title')}</Label>
             <Input
               id="name"
               type="text"
-              placeholder="请输入您的姓名"
+              placeholder={t('email_register.name_placeholder')}
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={loading}
@@ -114,12 +114,12 @@ export function RegisterCompletePage({ email, token }: Props) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">密码</Label>
+            <Label htmlFor="password">{t('email_register.password_title')}</Label>
             <div className="relative">
               <Input
                 id="password"
                 type={showPassword ? 'text' : 'password'}
-                placeholder="请输入密码（至少6个字符）"
+                placeholder={t('email_register.password_placeholder')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading}
@@ -142,12 +142,12 @@ export function RegisterCompletePage({ email, token }: Props) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="confirm-password">确认密码</Label>
+            <Label htmlFor="confirm-password">{t('email_register.confirm_password_title')}</Label>
             <div className="relative">
               <Input
                 id="confirm-password"
                 type={showPassword ? 'text' : 'password'}
-                placeholder="请再次输入密码"
+                placeholder={t('email_register.confirm_password_placeholder')}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 disabled={loading}
@@ -163,10 +163,10 @@ export function RegisterCompletePage({ email, token }: Props) {
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                注册中...
+                {t('email_register.registering')}
               </>
             ) : (
-              '完成注册'
+              t('email_register.register_button')
             )}
           </Button>
 
@@ -176,7 +176,7 @@ export function RegisterCompletePage({ email, token }: Props) {
               onClick={() => router.push('/sign-in')}
               className="text-sm text-gray-600 hover:text-gray-900"
             >
-              已有账户？前往登录
+              {t('email_register.back_to_login')}
             </Button>
           </div>
         </CardContent>

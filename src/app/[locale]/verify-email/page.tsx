@@ -15,19 +15,20 @@ export async function generateMetadata() {
   const t = await getTranslations('common');
 
   return {
-    title: `邮箱验证 - ${t('metadata.title')}`,
+    title: `${t('email_verification.page_title')} - ${t('metadata.title')}`,
   };
 }
 
 export default async function VerifyEmailPage({ searchParams }: Props) {
   const { token, email } = await searchParams;
+  const t = await getTranslations('common');
 
   // 如果没有token或email参数，显示错误页面
   if (!token || !email) {
     return (
       <EmailVerificationPage
         status="error"
-        message="验证链接无效，请重新获取验证邮件"
+        message={t('email_verification.invalid_link')}
         showResendButton={true}
       />
     );
@@ -61,11 +62,11 @@ export default async function VerifyEmailPage({ searchParams }: Props) {
     return <RegisterCompletePage email={email} token={token} />;
 
   } catch (error) {
-    console.error('邮箱验证错误:', error);
+    console.error('Email verification error:', error);
     return (
       <EmailVerificationPage
         status="error"
-        message="验证过程中出现错误，请稍后重试"
+        message={t('email_verification.error')}
         showResendButton={true}
         email={email}
       />

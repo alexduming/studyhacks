@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Mail, ArrowRight } from 'lucide-react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import { Link } from '@/core/i18n/navigation';
@@ -28,6 +28,7 @@ interface Props {
 }
 
 export function EmailVerificationSignUp({ configs, callbackUrl = '/' }: Props) {
+  const t = useTranslations('common');
   const router = useRouter();
   const locale = useLocale();
 
@@ -45,14 +46,14 @@ export function EmailVerificationSignUp({ configs, callbackUrl = '/' }: Props) {
     if (loading) return;
 
     if (!email || !email.trim()) {
-      toast.error('请输入邮箱地址');
+      toast.error(t('email_verification.enter_email'));
       return;
     }
 
     // 验证邮箱格式
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      toast.error('请输入有效的邮箱地址');
+      toast.error(t('email_verification.enter_email'));
       return;
     }
 
@@ -74,19 +75,19 @@ export function EmailVerificationSignUp({ configs, callbackUrl = '/' }: Props) {
 
       if (data.success) {
         setSentEmail(email);
-        toast.success('验证邮件已发送，请查收邮件并点击链接完成注册');
+        toast.success(t('email_verification.click_to_verify'));
 
         // 开发环境下显示调试链接
         if (data.debugUrl) {
-          console.log('🔗 开发环境验证链接:', data.debugUrl);
-          toast.info(`开发环境验证链接: ${data.debugUrl}`);
+          console.log('🔗 Development verification link:', data.debugUrl);
+          toast.info(`Development verification link: ${data.debugUrl}`);
         }
       } else {
-        toast.error(data.error || '发送失败，请稍后重试');
+        toast.error(data.error || t('email_verification.error'));
       }
     } catch (error) {
-      console.error('发送验证邮件错误:', error);
-      toast.error('发送失败，请稍后重试');
+      console.error('Send verification email error:', error);
+      toast.error(t('email_verification.error'));
     } finally {
       setLoading(false);
     }
@@ -117,28 +118,26 @@ export function EmailVerificationSignUp({ configs, callbackUrl = '/' }: Props) {
             <Mail className="h-12 w-12 text-blue-500" />
           </div>
           <CardTitle className="text-lg md:text-xl">
-            验证邮件已发送
+            {t('email_verification.email_sent', { email: sentEmail })}
           </CardTitle>
           <CardDescription className="text-xs md:text-sm">
-            我们已向 <span className="font-medium">{sentEmail}</span> 发送了验证邮件
-            <br />
-            请查收邮件并点击链接完成注册
+            {t('email_verification.click_to_verify')}
           </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-4">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h4 className="font-medium text-blue-900 mb-2">接下来：</h4>
+            <h4 className="font-medium text-blue-900 mb-2">{t('email_register.features_title')}:</h4>
             <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
-              <li>查收您的邮箱</li>
-              <li>点击邮件中的验证链接</li>
-              <li>设置密码完成注册</li>
+              <li>{t('email_register.quality_courses')}</li>
+              <li>{t('email_register.personalized_learning')}</li>
+              <li>{t('email_register.community')}</li>
             </ol>
           </div>
 
           <div className="text-center space-y-2">
             <p className="text-sm text-gray-600">
-              没有收到邮件？请检查垃圾邮件文件夹
+              {t('email_register.achievement_description')}
             </p>
             <Button
               variant="outline"
@@ -146,7 +145,7 @@ export function EmailVerificationSignUp({ configs, callbackUrl = '/' }: Props) {
               onClick={() => setSentEmail('')}
               disabled={loading}
             >
-              使用其他邮箱
+              {t('payment.cancel_title')}
             </Button>
           </div>
         </CardContent>
@@ -154,10 +153,10 @@ export function EmailVerificationSignUp({ configs, callbackUrl = '/' }: Props) {
         <CardFooter>
           <div className="flex w-full justify-center border-t py-4">
             <p className="text-center text-xs text-neutral-500">
-              已有账户？
+              {t('sign.no_account')}
               <Link href="/sign-in" className="underline">
                 <span className="cursor-pointer dark:text-white/70">
-                  立即登录
+                  {t('sign.continue')}
                 </span>
               </Link>
             </p>
@@ -171,10 +170,10 @@ export function EmailVerificationSignUp({ configs, callbackUrl = '/' }: Props) {
     <Card className="mx-auto w-full md:max-w-md">
       <CardHeader>
         <CardTitle className="text-lg md:text-xl">
-          <h1>创建账户</h1>
+          <h1>{t('sign.sign_up_title')}</h1>
         </CardTitle>
         <CardDescription className="text-xs md:text-sm">
-          <h2>开始您的学习之旅</h2>
+          <h2>{t('sign.sign_up_description')}</h2>
         </CardDescription>
       </CardHeader>
 
@@ -183,11 +182,11 @@ export function EmailVerificationSignUp({ configs, callbackUrl = '/' }: Props) {
           {isEmailAuthEnabled && (
             <>
               <div className="grid gap-2">
-                <Label htmlFor="email">邮箱地址</Label>
+                <Label htmlFor="email">{t('sign.email_title')}</Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="请输入您的邮箱地址"
+                  placeholder={t('sign.email_placeholder')}
                   required
                   onChange={(e) => setEmail(e.target.value)}
                   value={email}
@@ -205,7 +204,7 @@ export function EmailVerificationSignUp({ configs, callbackUrl = '/' }: Props) {
                   <Loader2 size={16} className="animate-spin" />
                 ) : (
                   <>
-                    发送验证邮件
+                    {t('email_verification.resend_button')}
                     <ArrowRight size={16} className="ml-2" />
                   </>
                 )}
@@ -217,7 +216,7 @@ export function EmailVerificationSignUp({ configs, callbackUrl = '/' }: Props) {
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
                   <span className="bg-background px-2 text-muted-foreground">
-                    或
+                    {t('sign.or')}
                   </span>
                 </div>
               </div>
@@ -229,7 +228,7 @@ export function EmailVerificationSignUp({ configs, callbackUrl = '/' }: Props) {
             callbackUrl={callbackUrl}
             loading={loading}
             setLoading={setLoading}
-            buttonText="使用社交账户注册"
+            buttonText={t('social_auth.button_text')}
           />
         </div>
       </CardContent>
@@ -237,10 +236,10 @@ export function EmailVerificationSignUp({ configs, callbackUrl = '/' }: Props) {
       <CardFooter>
         <div className="flex w-full justify-center border-t py-4">
           <p className="text-center text-xs text-neutral-500">
-            已有账户？
+            {t('sign.already_have_account')}
             <Link href="/sign-in" className="underline">
               <span className="cursor-pointer dark:text-white/70">
-                立即登录
+                {t('sign.continue')}
               </span>
             </Link>
           </p>
