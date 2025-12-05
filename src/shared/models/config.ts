@@ -178,23 +178,27 @@ export async function getAllConfigs(): Promise<Configs> {
 
   // 关键配置列表：如果环境变量已明确设置，则强制使用环境变量（不被数据库覆盖）
   // 原因：防止本地开发时在数据库中配置的 localhost 地址影响生产环境
-  const criticalEnvVars = [
-    { key: 'app_url', envVar: 'NEXT_PUBLIC_APP_URL' },
-    { key: 'auth_url', envVar: 'AUTH_URL' },
-  ];
-
-  for (const { key, envVar } of criticalEnvVars) {
-    // 如果环境变量明确设置了值，强制使用环境变量（覆盖数据库配置）
-    if (process.env[envVar]) {
-      configs[key] = process.env[envVar];
-      
-      // 警告：如果数据库配置与环境变量不一致，输出警告日志
-      if (dbConfigs[key] && dbConfigs[key] !== process.env[envVar]) {
-        console.warn(
-          `[配置警告] ${key} 环境变量 (${process.env[envVar]}) 覆盖了数据库配置 (${dbConfigs[key]})`
-        );
-      }
+  
+  // app_url: 应用访问 URL（防止 localhost 泄露到生产环境）
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    const envValue = process.env.NEXT_PUBLIC_APP_URL;
+    if (dbConfigs.app_url && dbConfigs.app_url !== envValue) {
+      console.warn(
+        `[配置警告] app_url 环境变量 (${envValue}) 覆盖了数据库配置 (${dbConfigs.app_url})`
+      );
     }
+    configs.app_url = envValue;
+  }
+
+  // auth_url: 认证 URL（防止 localhost 泄露到生产环境）
+  if (process.env.AUTH_URL) {
+    const envValue = process.env.AUTH_URL;
+    if (dbConfigs.auth_url && dbConfigs.auth_url !== envValue) {
+      console.warn(
+        `[配置警告] auth_url 环境变量 (${envValue}) 覆盖了数据库配置 (${dbConfigs.auth_url})`
+      );
+    }
+    configs.auth_url = envValue;
   }
 
   return configs;
