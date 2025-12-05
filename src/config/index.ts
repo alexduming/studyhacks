@@ -27,8 +27,32 @@ export type ConfigMap = Record<string, string>;
  * - 在 Vercel 部署时，如果数据库连接失败，会使用这里的环境变量配置作为备用方案
  * - 支付配置（Stripe）现在可以通过环境变量配置，提高部署可靠性
  */
+/**
+ * 获取应用 URL
+ * 作用：确保生产环境不会使用 localhost
+ *
+ * 非程序员解释：
+ * - 在生产环境（Vercel）上，如果配置了 VERCEL_URL，会自动使用
+ * - 开发环境使用 localhost
+ * - 防止支付回调跳转到 localhost 的问题
+ */
+function getAppUrl(): string {
+  // 优先使用明确设置的 APP_URL
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL;
+  }
+
+  // Vercel 部署时，使用 VERCEL_URL（自动提供）
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+
+  // 开发环境默认值
+  return 'http://localhost:3000';
+}
+
 export const envConfigs = {
-  app_url: process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
+  app_url: getAppUrl(),
   app_name: process.env.NEXT_PUBLIC_APP_NAME ?? 'ShipAny App',
   theme: process.env.NEXT_PUBLIC_THEME ?? 'default',
   // 非程序员解释：
@@ -37,10 +61,11 @@ export const envConfigs = {
   // - 如果用户想改回跟随系统，可以在 .env.development 中设置 NEXT_PUBLIC_APPEARANCE=system
   appearance: process.env.NEXT_PUBLIC_APPEARANCE ?? 'dark',
   locale: process.env.NEXT_PUBLIC_DEFAULT_LOCALE ?? 'en',
+  default_locale: process.env.NEXT_PUBLIC_DEFAULT_LOCALE ?? 'en', // 添加 default_locale 配置（用于支付回调 URL）
   database_url: process.env.DATABASE_URL ?? '',
   database_provider: process.env.DATABASE_PROVIDER ?? 'postgresql',
   db_singleton_enabled: process.env.DB_SINGLETON_ENABLED || 'false',
-  auth_url: process.env.AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || '',
+  auth_url: process.env.AUTH_URL || getAppUrl(), // 使用与 app_url 相同的逻辑
   auth_secret: process.env.AUTH_SECRET ?? '', // openssl rand -base64 32
 
   // ====== 支付配置（Payment Configuration） ======
