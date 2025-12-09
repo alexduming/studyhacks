@@ -57,9 +57,13 @@ const QuizApp = () => {
   const [quizContent, setQuizContent] = useState('');
   const [generationError, setGenerationError] = useState('');
   const [questionCount, setQuestionCount] = useState(5);
-  // 预计用时（分钟），仅用于展示给用户看的“计划用时”
+  // 预计用时（分钟），仅用于展示给用户看的"计划用时"
   const [expectedTime, setExpectedTime] = useState(10);
-  // 文件上传相关状态：用于“从文件生成测验”
+  // 题型选择
+  const [selectedQuestionTypes, setSelectedQuestionTypes] = useState<string[]>([
+    'all',
+  ]);
+  // 文件上传相关状态：用于"从文件生成测验"
   const [isFileLoading, setIsFileLoading] = useState(false);
   const [fileInfo, setFileInfo] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -157,6 +161,9 @@ const QuizApp = () => {
         body: JSON.stringify({
           content: quizContent,
           questionCount,
+          questionTypes: selectedQuestionTypes.includes('all')
+            ? undefined
+            : selectedQuestionTypes,
         }),
       });
 
@@ -263,7 +270,11 @@ const QuizApp = () => {
 
     const timeSpent = Date.now() - questionStartTime;
 
-    // 增强答案比对逻辑
+    /**
+     * 非程序员解释：增强答案比对逻辑
+     * - 填空题：不区分大小写，去除首尾空格
+     * - 选择题和判断题：支持多种格式比对，确保准确判断
+     */
     let isCorrect = false;
 
     if (currentQuestion.type === 'fill-blank') {
@@ -554,6 +565,105 @@ const QuizApp = () => {
                     />
                   </div>
                 </div>
+
+                {/* 题型选择 */}
+                <div className="mb-6">
+                  <label className="mb-3 block font-medium text-white">
+                    题型选择
+                  </label>
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedQuestionTypes(['all'])}
+                      className={`rounded-lg border p-3 transition-all ${
+                        selectedQuestionTypes.includes('all')
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'hover:border-primary/50 border-gray-600 bg-gray-800/50 text-gray-300'
+                      }`}
+                    >
+                      全部题型
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const types = selectedQuestionTypes.filter(
+                          (t) => t !== 'all'
+                        );
+                        if (types.includes('multiple-choice')) {
+                          const newTypes = types.filter(
+                            (t) => t !== 'multiple-choice'
+                          );
+                          setSelectedQuestionTypes(
+                            newTypes.length > 0 ? newTypes : ['all']
+                          );
+                        } else {
+                          setSelectedQuestionTypes([
+                            ...types,
+                            'multiple-choice',
+                          ]);
+                        }
+                      }}
+                      className={`rounded-lg border p-3 transition-all ${
+                        selectedQuestionTypes.includes('multiple-choice')
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'hover:border-primary/50 border-gray-600 bg-gray-800/50 text-gray-300'
+                      }`}
+                    >
+                      选择题
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const types = selectedQuestionTypes.filter(
+                          (t) => t !== 'all'
+                        );
+                        if (types.includes('true-false')) {
+                          const newTypes = types.filter(
+                            (t) => t !== 'true-false'
+                          );
+                          setSelectedQuestionTypes(
+                            newTypes.length > 0 ? newTypes : ['all']
+                          );
+                        } else {
+                          setSelectedQuestionTypes([...types, 'true-false']);
+                        }
+                      }}
+                      className={`rounded-lg border p-3 transition-all ${
+                        selectedQuestionTypes.includes('true-false')
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'hover:border-primary/50 border-gray-600 bg-gray-800/50 text-gray-300'
+                      }`}
+                    >
+                      判断题
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const types = selectedQuestionTypes.filter(
+                          (t) => t !== 'all'
+                        );
+                        if (types.includes('fill-blank')) {
+                          const newTypes = types.filter(
+                            (t) => t !== 'fill-blank'
+                          );
+                          setSelectedQuestionTypes(
+                            newTypes.length > 0 ? newTypes : ['all']
+                          );
+                        } else {
+                          setSelectedQuestionTypes([...types, 'fill-blank']);
+                        }
+                      }}
+                      className={`rounded-lg border p-3 transition-all ${
+                        selectedQuestionTypes.includes('fill-blank')
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'hover:border-primary/50 border-gray-600 bg-gray-800/50 text-gray-300'
+                      }`}
+                    >
+                      填空题
+                    </button>
+                  </div>
+                </div>
+
                 <textarea
                   value={quizContent}
                   onChange={(e) => setQuizContent(e.target.value)}
@@ -773,99 +883,154 @@ const QuizApp = () => {
               {/* 答案选项 */}
               <div className="mb-8 space-y-3">
                 {currentQuestion.type === 'multiple-choice' &&
-                  currentQuestion.options?.map((option, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => handleAnswerSelect(idx)}
-                      disabled={showResult}
-                      className={`w-full rounded-lg border p-4 text-left transition-all duration-300 ${
-                        showResult
-                          ? idx === currentQuestion.correctAnswer
-                            ? 'border-green-500 bg-green-500/10'
-                            : idx === selectedAnswer &&
-                                selectedAnswer !== currentQuestion.correctAnswer
-                              ? 'border-red-500 bg-red-500/10'
-                              : 'border-gray-600 bg-gray-800/50'
-                          : selectedAnswer === idx
-                            ? 'border-primary bg-primary/10'
-                            : 'hover:border-primary/50 hover:bg-primary/5 border-gray-600 bg-gray-800/50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`flex h-6 w-6 items-center justify-center rounded-full border-2 ${
-                            showResult
-                              ? idx === currentQuestion.correctAnswer
-                                ? 'border-green-500 bg-green-500'
-                                : idx === selectedAnswer &&
-                                    selectedAnswer !==
-                                      currentQuestion.correctAnswer
-                                  ? 'border-red-500 bg-red-500'
-                                  : 'border-gray-500'
-                              : selectedAnswer === idx
-                                ? 'border-primary bg-primary'
-                                : 'border-gray-500'
-                          }`}
-                        >
-                          {showResult &&
-                            idx === currentQuestion.correctAnswer && (
-                              <CheckCircle className="h-4 w-4 text-white" />
-                            )}
-                          {showResult &&
-                            idx === selectedAnswer &&
-                            selectedAnswer !==
-                              currentQuestion.correctAnswer && (
-                              <XCircle className="h-4 w-4 text-white" />
-                            )}
-                          {!showResult && selectedAnswer === idx && (
-                            <div className="h-2 w-2 rounded-full bg-white" />
-                          )}
-                        </div>
-                        <span
-                          className={
-                            showResult && idx === currentQuestion.correctAnswer
-                              ? 'text-green-400'
-                              : 'text-white'
-                          }
-                        >
-                          {option}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
+                  currentQuestion.options?.map((option, idx) => {
+                    // 增强判断逻辑：支持索引比较和文本内容比较
+                    const isCorrectAnswer =
+                      String(idx) === String(currentQuestion.correctAnswer) ||
+                      (currentQuestion.options &&
+                        currentQuestion.options[idx] ===
+                          currentQuestion.correctAnswer);
 
-                {currentQuestion.type === 'true-false' && (
-                  <div className="grid grid-cols-2 gap-4">
-                    {['正确', '错误'].map((option, idx) => (
+                    const isUserSelected =
+                      String(idx) === String(selectedAnswer);
+                    const userAnsweredCorrectly =
+                      showResult &&
+                      userAnswers.length > 0 &&
+                      userAnswers[userAnswers.length - 1]?.isCorrect;
+
+                    // 确定显示状态：优先显示正确答案为绿色，即使用户选择了它
+                    const shouldShowCorrect = showResult && isCorrectAnswer;
+                    const shouldShowWrong =
+                      showResult &&
+                      isUserSelected &&
+                      !userAnsweredCorrectly &&
+                      !isCorrectAnswer;
+                    const shouldShowNeutral =
+                      showResult && !isCorrectAnswer && !shouldShowWrong;
+
+                    return (
                       <button
                         key={idx}
                         onClick={() => handleAnswerSelect(idx)}
                         disabled={showResult}
-                        className={`rounded-lg border p-4 transition-all duration-300 ${
-                          showResult
-                            ? idx === currentQuestion.correctAnswer
-                              ? 'border-green-500 bg-green-500/10'
-                              : idx === selectedAnswer &&
-                                  selectedAnswer !==
-                                    currentQuestion.correctAnswer
-                                ? 'border-red-500 bg-red-500/10'
-                                : 'border-gray-600 bg-gray-800/50'
-                            : selectedAnswer === idx
-                              ? 'border-primary bg-primary/10'
-                              : 'hover:border-primary/50 hover:bg-primary/5 border-gray-600 bg-gray-800/50'
+                        className={`w-full rounded-lg border p-4 text-left transition-all duration-300 ${
+                          shouldShowCorrect
+                            ? 'border-green-500 bg-green-500/10'
+                            : shouldShowWrong
+                              ? 'border-red-500 bg-red-500/10'
+                              : shouldShowNeutral
+                                ? 'border-gray-600 bg-gray-800/50'
+                                : selectedAnswer === idx
+                                  ? 'border-primary bg-primary/10'
+                                  : 'hover:border-primary/50 hover:bg-primary/5 border-gray-600 bg-gray-800/50'
                         }`}
                       >
-                        <span
-                          className={
-                            showResult && idx === currentQuestion.correctAnswer
-                              ? 'text-green-400'
-                              : 'text-white'
-                          }
-                        >
-                          {option}
-                        </span>
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`flex h-6 w-6 items-center justify-center rounded-full border-2 ${
+                              shouldShowCorrect
+                                ? 'border-green-500 bg-green-500'
+                                : shouldShowWrong
+                                  ? 'border-red-500 bg-red-500'
+                                  : shouldShowNeutral
+                                    ? 'border-gray-500'
+                                    : selectedAnswer === idx
+                                      ? 'border-primary bg-primary'
+                                      : 'border-gray-500'
+                            }`}
+                          >
+                            {shouldShowCorrect && (
+                              <CheckCircle className="h-4 w-4 text-white" />
+                            )}
+                            {shouldShowWrong && (
+                              <XCircle className="h-4 w-4 text-white" />
+                            )}
+                            {!showResult && selectedAnswer === idx && (
+                              <div className="h-2 w-2 rounded-full bg-white" />
+                            )}
+                          </div>
+                          <span
+                            className={
+                              shouldShowCorrect
+                                ? 'text-green-400'
+                                : shouldShowWrong
+                                  ? 'text-red-400'
+                                  : 'text-white'
+                            }
+                          >
+                            {option}
+                          </span>
+                        </div>
                       </button>
-                    ))}
+                    );
+                  })}
+
+                {currentQuestion.type === 'true-false' && (
+                  <div className="grid grid-cols-2 gap-4">
+                    {['正确', '错误'].map((option, idx) => {
+                      // 增强判断逻辑：支持索引比较、文本内容比较以及 True/False 兼容
+                      const isCorrectAnswer =
+                        String(idx) === String(currentQuestion.correctAnswer) ||
+                        option === currentQuestion.correctAnswer ||
+                        (idx === 0 &&
+                          String(
+                            currentQuestion.correctAnswer
+                          ).toLowerCase() === 'true') ||
+                        (idx === 1 &&
+                          String(
+                            currentQuestion.correctAnswer
+                          ).toLowerCase() === 'false');
+
+                      const isUserSelected =
+                        String(idx) === String(selectedAnswer);
+                      const userAnsweredCorrectly =
+                        showResult &&
+                        userAnswers.length > 0 &&
+                        userAnswers[userAnswers.length - 1]?.isCorrect;
+
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => handleAnswerSelect(idx)}
+                          disabled={showResult}
+                          className={`rounded-lg border p-4 transition-all duration-300 ${
+                            showResult
+                              ? isCorrectAnswer
+                                ? 'border-green-500 bg-green-500/10'
+                                : isUserSelected && !userAnsweredCorrectly
+                                  ? 'border-red-500 bg-red-500/10'
+                                  : 'border-gray-600 bg-gray-800/50'
+                              : selectedAnswer === idx
+                                ? 'border-primary bg-primary/10'
+                                : 'hover:border-primary/50 hover:bg-primary/5 border-gray-600 bg-gray-800/50'
+                          }`}
+                        >
+                          <div className="flex items-center justify-center gap-2">
+                            {showResult && isCorrectAnswer && (
+                              <CheckCircle className="h-5 w-5 text-green-400" />
+                            )}
+                            {showResult &&
+                              isUserSelected &&
+                              !userAnsweredCorrectly && (
+                                <XCircle className="h-5 w-5 text-red-400" />
+                              )}
+                            <span
+                              className={
+                                showResult && isCorrectAnswer
+                                  ? 'text-green-400'
+                                  : showResult &&
+                                      isUserSelected &&
+                                      !userAnsweredCorrectly
+                                    ? 'text-red-400'
+                                    : 'text-white'
+                              }
+                            >
+                              {option}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
 
@@ -916,11 +1081,17 @@ const QuizApp = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3 }}
-                  className="border-primary/30 bg-primary/10 mb-6 rounded-lg border p-4"
+                  className="mb-6 space-y-3"
                 >
-                  <p className="text-primary">
-                    📚 解析: {currentQuestion.explanation}
-                  </p>
+                  {/* 答案解析 */}
+                  <div className="border-primary/30 bg-primary/10 rounded-lg border p-4">
+                    <p className="text-primary mb-1 text-sm font-semibold">
+                      📚 解析
+                    </p>
+                    <p className="text-primary/90">
+                      {currentQuestion.explanation}
+                    </p>
+                  </div>
                 </motion.div>
               )}
 
@@ -1056,6 +1227,101 @@ const QuizApp = () => {
                     }
                     className="focus:border-primary w-full rounded-lg border border-gray-600 bg-gray-800/50 p-3 text-white focus:outline-none"
                   />
+                </div>
+              </div>
+
+              {/* 题型选择 */}
+              <div className="mb-6">
+                <label className="mb-3 block font-medium text-white">
+                  题型选择
+                </label>
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedQuestionTypes(['all'])}
+                    className={`rounded-lg border p-3 transition-all ${
+                      selectedQuestionTypes.includes('all')
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'hover:border-primary/50 border-gray-600 bg-gray-800/50 text-gray-300'
+                    }`}
+                  >
+                    全部题型
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const types = selectedQuestionTypes.filter(
+                        (t) => t !== 'all'
+                      );
+                      if (types.includes('multiple-choice')) {
+                        const newTypes = types.filter(
+                          (t) => t !== 'multiple-choice'
+                        );
+                        setSelectedQuestionTypes(
+                          newTypes.length > 0 ? newTypes : ['all']
+                        );
+                      } else {
+                        setSelectedQuestionTypes([...types, 'multiple-choice']);
+                      }
+                    }}
+                    className={`rounded-lg border p-3 transition-all ${
+                      selectedQuestionTypes.includes('multiple-choice')
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'hover:border-primary/50 border-gray-600 bg-gray-800/50 text-gray-300'
+                    }`}
+                  >
+                    选择题
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const types = selectedQuestionTypes.filter(
+                        (t) => t !== 'all'
+                      );
+                      if (types.includes('true-false')) {
+                        const newTypes = types.filter(
+                          (t) => t !== 'true-false'
+                        );
+                        setSelectedQuestionTypes(
+                          newTypes.length > 0 ? newTypes : ['all']
+                        );
+                      } else {
+                        setSelectedQuestionTypes([...types, 'true-false']);
+                      }
+                    }}
+                    className={`rounded-lg border p-3 transition-all ${
+                      selectedQuestionTypes.includes('true-false')
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'hover:border-primary/50 border-gray-600 bg-gray-800/50 text-gray-300'
+                    }`}
+                  >
+                    判断题
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const types = selectedQuestionTypes.filter(
+                        (t) => t !== 'all'
+                      );
+                      if (types.includes('fill-blank')) {
+                        const newTypes = types.filter(
+                          (t) => t !== 'fill-blank'
+                        );
+                        setSelectedQuestionTypes(
+                          newTypes.length > 0 ? newTypes : ['all']
+                        );
+                      } else {
+                        setSelectedQuestionTypes([...types, 'fill-blank']);
+                      }
+                    }}
+                    className={`rounded-lg border p-3 transition-all ${
+                      selectedQuestionTypes.includes('fill-blank')
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'hover:border-primary/50 border-gray-600 bg-gray-800/50 text-gray-300'
+                    }`}
+                  >
+                    填空题
+                  </button>
                 </div>
               </div>
               <textarea

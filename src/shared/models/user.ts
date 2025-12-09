@@ -75,10 +75,90 @@ export async function getUserByUserIds(userIds: string[]) {
   return result;
 }
 
-export async function getUserInfo() {
-  const signUser = await getSignUser();
+/**
+ * 判断是否为可重试的认证错误
+ * 非程序员解释：
+ * - 有些错误是临时的（比如数据库连接问题），可以重试
+ * - 有些错误是永久的（比如认证失败、会话过期），不应该重试
+ */
+function isRetryableAuthError(error: any): boolean {
+  if (!error) return false;
 
-  return signUser;
+  const errorMessage =
+    error instanceof Error ? error.message : String(error);
+  const errorCode = (error as any)?.code || '';
+  const statusCode = (error as any)?.statusCode || (error as any)?.status;
+
+  // 检查错误代码（数据库连接相关错误）
+  const retryableCodes = [
+    'ECONNRESET',
+    'ETIMEDOUT',
+    'ECONNREFUSED',
+    'ENOTFOUND',
+    'EAI_AGAIN',
+    'EPIPE',
+    'ECONNABORTED',
+    'CONNECT_TIMEOUT',
+  ];
+
+  if (retryableCodes.includes(errorCode)) {
+    return true;
+  }
+
+  // 检查 HTTP 状态码（5xx 错误通常是服务器临时问题）
+  if (statusCode && statusCode >= 500 && statusCode < 600) {
+    return true;
+  }
+
+  // 检查错误消息中的关键词
+  const retryableKeywords = [
+    'failed to get session',
+    'database',
+    'connection',
+    'timeout',
+    'network',
+    'internal server error',
+  ];
+
+  const lowerMessage = errorMessage.toLowerCase();
+  if (retryableKeywords.some((keyword) => lowerMessage.includes(keyword))) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * 获取已登录用户信息
+ * 非程序员解释：
+ * - 这个方法会尝试获取当前登录用户的信息
+ * - 如果遇到临时错误（如数据库连接问题），会自动重试
+ * - 如果用户未登录或认证失败，返回 null
+ */
+export async function getUserInfo() {
+  try {
+    const signUser = await getSignUser();
+    return signUser;
+  } catch (error) {
+    // 如果是可重试的错误，尝试重试一次
+    if (isRetryableAuthError(error)) {
+      try {
+        // 等待 500ms 后重试一次
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        const signUser = await getSignUser();
+        return signUser;
+      } catch (retryError) {
+        // 重试也失败，记录错误但不抛出（返回 null 表示未登录）
+        console.warn('[User] 获取用户信息失败（已重试）:', retryError);
+        return null;
+      }
+    }
+
+    // 不可重试的错误（如认证失败），返回 null 而不是抛出错误
+    // 这样调用者可以优雅地处理"用户未登录"的情况
+    console.warn('[User] 获取用户信息失败:', error);
+    return null;
+  }
 }
 
 export async function getUserCredits(userId: string) {
@@ -87,13 +167,40 @@ export async function getUserCredits(userId: string) {
   return { remainingCredits };
 }
 
+/**
+ * 获取已登录用户（内部方法）
+ * 非程序员解释：
+ * - 这是实际调用认证系统的方法
+ * - 如果数据库连接有问题，可能会抛出错误
+ * - 调用者应该使用 getUserInfo() 而不是直接调用这个方法
+ */
 export async function getSignUser() {
-  const auth = await getAuth();
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  try {
+    const auth = await getAuth();
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
 
-  return session?.user;
+    return session?.user;
+  } catch (error) {
+    // 记录详细错误信息，便于排查
+    const errorMessage =
+      error instanceof Error ? error.message : String(error);
+    const errorCode = (error as any)?.code || '';
+    const statusCode = (error as any)?.statusCode || (error as any)?.status;
+
+    // 只在开发环境显示详细错误
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[Auth] getSession 失败:', {
+        message: errorMessage,
+        code: errorCode,
+        statusCode,
+      });
+    }
+
+    // 重新抛出错误，让调用者决定如何处理
+    throw error;
+  }
 }
 
 export async function appendUserToResult(result: any) {

@@ -24,9 +24,10 @@ export async function POST(request: Request) {
      * {
      *   content: string;        // 用于出题的原始内容
      *   questionCount?: number; // 希望生成多少道题，默认 5
+     *   questionTypes?: string[]; // 题型选择，如 ['multiple-choice', 'true-false']
      * }
      */
-    const { content, questionCount } = body || {};
+    const { content, questionCount, questionTypes } = body || {};
 
     if (!content || typeof content !== 'string') {
       return NextResponse.json(
@@ -94,7 +95,8 @@ export async function POST(request: Request) {
 
     const result = await aiService.generateQuiz(
       content,
-      typeof questionCount === 'number' ? questionCount : 5
+      typeof questionCount === 'number' ? questionCount : 5,
+      Array.isArray(questionTypes) ? questionTypes : undefined
     );
 
     return NextResponse.json(result);

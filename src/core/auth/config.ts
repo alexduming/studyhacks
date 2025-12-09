@@ -61,6 +61,32 @@ export async function getAuthOptions() {
     }
   }
 
+  // 获取社交登录提供商配置（如果失败则返回空对象）
+  let socialProviders = {};
+  try {
+    socialProviders = await getSocialProviders(configs);
+  } catch (error) {
+    // 社交登录配置获取失败时，继续使用空配置（不影响基础认证功能）
+    // 只在开发环境显示警告
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[Auth] 社交登录配置获取失败，跳过社交登录:', error);
+    }
+  }
+
+  // 获取插件配置（如果失败则返回空数组）
+  let plugins: any[] = [];
+  try {
+    if (configs.google_client_id && configs.google_one_tap_enabled === 'true') {
+      plugins = [oneTap()];
+    }
+  } catch (error) {
+    // 插件配置失败时，继续使用空数组（不影响基础认证功能）
+    // 只在开发环境显示警告
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[Auth] 插件配置失败，跳过插件:', error);
+    }
+  }
+
   return {
     ...authOptions,
     // Add database connection only when actually needed (runtime)
@@ -68,11 +94,8 @@ export async function getAuthOptions() {
     emailAndPassword: {
       enabled: configs.email_auth_enabled !== 'false',
     },
-    socialProviders: await getSocialProviders(configs),
-    plugins:
-      configs.google_client_id && configs.google_one_tap_enabled === 'true'
-        ? [oneTap()]
-        : [],
+    socialProviders,
+    plugins,
   };
 }
 

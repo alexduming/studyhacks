@@ -78,40 +78,194 @@ export class OpenRouterService {
     return OpenRouterService.instance;
   }
 
+  /**
+   * 判断是否为可重试的网络错误
+   * 非程序员解释：
+   * - 有些错误是网络临时问题（比如连接断开、超时），可以重试
+   * - 有些错误是永久性的（比如认证失败、参数错误），不应该重试
+   * - 这个方法帮助我们区分这两种情况
+   */
+  private isRetryableError(error: any): boolean {
+    if (!error) return false;
+
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorCode = (error as any)?.code || '';
+    const errorCause = (error as any)?.cause;
+
+    // 检查错误代码（Node.js 网络错误代码）
+    const retryableCodes = [
+      'ECONNRESET', // 连接被重置（最常见，通常是网络波动）
+      'ETIMEDOUT', // 连接超时
+      'ECONNREFUSED', // 连接被拒绝（可能是临时服务不可用）
+      'ENOTFOUND', // DNS 解析失败
+      'EAI_AGAIN', // DNS 查询临时失败
+      'EPIPE', // 管道断开
+      'ECONNABORTED', // 连接中止
+    ];
+
+    if (retryableCodes.includes(errorCode)) {
+      return true;
+    }
+
+    // 检查错误消息中的关键词
+    const retryableKeywords = [
+      'fetch failed',
+      'network',
+      'timeout',
+      'connection',
+      'socket',
+      'TLS',
+      'ECONNRESET',
+      'ETIMEDOUT',
+    ];
+
+    const lowerMessage = errorMessage.toLowerCase();
+    if (retryableKeywords.some((keyword) => lowerMessage.includes(keyword))) {
+      return true;
+    }
+
+    // 检查 cause 中的错误（fetch 错误通常会把底层错误放在 cause 中）
+    if (errorCause) {
+      const causeCode = (errorCause as any)?.code || '';
+      if (retryableCodes.includes(causeCode)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * 执行带超时和重试的 fetch 请求
+   * 非程序员解释：
+   * - 这个方法会尝试多次请求，如果第一次失败且是网络问题，会自动重试
+   * - 每次重试前会等待一段时间（指数退避：1秒、2秒、4秒...）
+   * - 如果所有重试都失败，才会抛出错误
+   */
+  private async fetchWithRetry(
+    url: string,
+    options: RequestInit,
+    maxRetries: number = 3,
+    timeoutMs: number = 30000
+  ): Promise<Response> {
+    let lastError: Error | null = null;
+
+    // 重试循环：最多尝试 maxRetries + 1 次（初始尝试 + 重试次数）
+    for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+      try {
+        // 创建超时控制器
+        // 非程序员解释：AbortController 就像一个"取消按钮"，可以在超时后取消请求
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+          controller.abort();
+        }, timeoutMs);
+
+        try {
+          // 执行 fetch 请求，并传入 abort signal（用于超时取消）
+          const response = await fetch(url, {
+            ...options,
+            signal: controller.signal,
+          });
+
+          // 请求成功，清除超时定时器
+          clearTimeout(timeoutId);
+          return response;
+        } catch (fetchError: any) {
+          // 清除超时定时器
+          clearTimeout(timeoutId);
+
+          // 如果是超时错误，包装成更清晰的错误信息
+          if (fetchError.name === 'AbortError') {
+            throw new Error(
+              `请求超时（${timeoutMs}ms）。这通常是因为网络连接较慢或服务器响应延迟。`
+            );
+          }
+
+          // 其他错误直接抛出
+          throw fetchError;
+        }
+      } catch (error: any) {
+        lastError = error;
+
+        // 判断是否为可重试的错误
+        const isRetryable = this.isRetryableError(error);
+
+        // 如果不是可重试的错误，或者已经达到最大重试次数，直接抛出错误
+        if (!isRetryable || attempt > maxRetries) {
+          throw error;
+        }
+
+        // 计算指数退避延迟时间（1秒、2秒、4秒...）
+        // 非程序员解释：指数退避就是每次等待时间翻倍，避免频繁重试给服务器造成压力
+        const delayMs = Math.min(1000 * Math.pow(2, attempt - 1), 10000); // 最多等待10秒
+
+        console.warn(
+          `[OpenRouter] 网络错误，${delayMs}ms 后重试 (${attempt}/${maxRetries + 1})...`,
+          {
+            error: error instanceof Error ? error.message : String(error),
+            code: (error as any)?.code,
+          }
+        );
+
+        // 等待指定时间后重试
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+
+    // 如果所有重试都失败，抛出最后一个错误
+    throw lastError || new Error('请求失败：未知错误（所有重试均失败）');
+  }
+
+  /**
+   * 调用 OpenRouter AI API
+   * 非程序员解释：
+   * - 这是实际调用 AI 模型的方法
+   * - 现在包含了超时控制（30秒）和自动重试机制（最多3次）
+   * - 如果网络临时出现问题，会自动重试，提高成功率
+   */
   private async callAI(prompt: string, systemPrompt?: string): Promise<string> {
     try {
       // 防御性检查：如果没有配置密钥，直接给出清晰错误，方便排查
       if (!this.apiKey) {
         // 这一条信息只会出现在服务器日志 / 浏览器控制台的错误信息中，
-        // 对于真实用户界面，我们仍然只会展示“生成失败，请稍后重试”等安全文案。
+        // 对于真实用户界面，我们仍然只会展示"生成失败，请稍后重试"等安全文案。
         throw new Error(
           'OpenRouter API 密钥未配置：请在 .env.development / .env.production 或 Vercel 环境变量中设置 OPENROUTER_API_KEY=你的密钥（仅服务端使用）'
         );
       }
 
-      const response = await fetch(`${this.baseURL}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': 'http://localhost:3000',
-          'X-Title': 'StudyHacks Study Platform',
+      // 使用带重试机制的 fetch
+      // 非程序员解释：
+      // - timeoutMs: 30000 = 30秒超时（如果30秒内没有响应，就认为请求失败）
+      // - maxRetries: 3 = 最多重试3次（加上初始尝试，总共最多4次）
+      const response = await this.fetchWithRetry(
+        `${this.baseURL}/chat/completions`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'http://localhost:3000',
+            'X-Title': 'StudyHacks Study Platform',
+          },
+          body: JSON.stringify({
+            // 使用 DeepSeek V3.2 Exp 模型
+            // 对应你给出的文档：https://openrouter.ai/deepseek/deepseek-v3.2-exp
+            // 如果未来要换模型，只需要改这一行（或做成可配置）
+            model: 'deepseek/deepseek-v3.2-exp',
+            messages: [
+              ...(systemPrompt
+                ? [{ role: 'system', content: systemPrompt }]
+                : []),
+              { role: 'user', content: prompt },
+            ],
+            temperature: 0.7,
+            max_tokens: 4000,
+          }),
         },
-        body: JSON.stringify({
-          // 使用 DeepSeek V3.2 Exp 模型
-          // 对应你给出的文档：https://openrouter.ai/deepseek/deepseek-v3.2-exp
-          // 如果未来要换模型，只需要改这一行（或做成可配置）
-          model: 'deepseek/deepseek-v3.2-exp',
-          messages: [
-            ...(systemPrompt
-              ? [{ role: 'system', content: systemPrompt }]
-              : []),
-            { role: 'user', content: prompt },
-          ],
-          temperature: 0.7,
-          max_tokens: 4000,
-        }),
-      });
+        3, // 最多重试3次
+        30000 // 30秒超时
+      );
 
       if (!response.ok) {
         // 为了更精准地找到问题，这里把 HTTP 状态码和返回文本尽量带出来
@@ -468,8 +622,27 @@ Return ONLY valid JSON.`;
   /**
    * Generate quiz questions from content
    */
-  async generateQuiz(content: string, questionCount: number = 5) {
-    const prompt = `Create ${questionCount} diverse educational quiz questions from the following content for StudyHacks AI. Include multiple choice, true/false, and fill-in-the-blank questions.
+  async generateQuiz(
+    content: string,
+    questionCount: number = 5,
+    questionTypes?: string[]
+  ) {
+    // 根据题型参数生成提示文本
+    let typeInstruction =
+      'Include multiple choice, true/false, and fill-in-the-blank questions.';
+    if (questionTypes && questionTypes.length > 0) {
+      const typeMap: Record<string, string> = {
+        'multiple-choice': 'multiple choice',
+        'true-false': 'true/false',
+        'fill-blank': 'fill-in-the-blank',
+      };
+      const selectedTypes = questionTypes
+        .map((t) => typeMap[t] || t)
+        .join(', ');
+      typeInstruction = `Only include ${selectedTypes} questions.`;
+    }
+
+    const prompt = `Create ${questionCount} diverse educational quiz questions from the following content for StudyHacks AI. ${typeInstruction}
 
 Content: ${content}
 
