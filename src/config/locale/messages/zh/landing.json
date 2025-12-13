@@ -49,6 +49,12 @@
               "description": "从您的笔记和文档创建信息图",
               "url": "/infographic",
               "icon": "Image"
+            },
+            {
+              "title": "AI PPT",
+              "description": "专业级PPT生成器",
+              "url": "/aippt",
+              "icon": "Presentation"
             }
           ]
         },

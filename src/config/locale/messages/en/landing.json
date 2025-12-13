@@ -49,6 +49,12 @@
               "description": "Create infographics from your notes and documents",
               "url": "/infographic",
               "icon": "Image"
+            },
+            {
+              "title": "AI PPT",
+              "description": "Professional PPT Generator",
+              "url": "/aippt",
+              "icon": "Presentation"
             }
           ]
         },

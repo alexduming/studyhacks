@@ -40,6 +40,10 @@ const nextConfig = {
     // 这会导致首次编译稍慢，但可以避免 "Persisting failed" 错误
     // 如果不需要缓存，可以设置为 false；如果需要缓存但想减少错误，可以保持 true 但接受偶尔的错误
     turbopackFileSystemCacheForDev: false, // 改为 false 可以完全避免缓存写入错误
+    // Increase body size limit for server actions (e.g. large file uploads)
+    serverActions: {
+      bodySizeLimit: '10mb',
+    },
     // Disable mdxRs for Vercel deployment compatibility with fumadocs-mdx
     ...(process.env.VERCEL ? {} : { mdxRs: true }),
   },
