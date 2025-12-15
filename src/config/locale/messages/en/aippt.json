@@ -1,0 +1,63 @@
+{
+  "title": "AI PPT Generator - Study Smarter",
+  "steps": {
+    "input": "Content",
+    "outline": "Outline",
+    "style": "Style",
+    "result": "Result"
+  },
+  "input_step": {
+    "title": "What would you like to present?",
+    "tabs": {
+      "text": "Topic / Text",
+      "pdf": "Upload PDF"
+    },
+    "placeholder": "Enter your presentation topic or paste content here...",
+    "upload_hint": "Click to upload PDF",
+    "upload_subhint": "We'll extract the text for you",
+    "button_analyze": "Start Analysis",
+    "analyzing": "Analyzing Content..."
+  },
+  "outline_step": {
+    "title": "Review & Edit Outline",
+    "description": "Adjust the slide titles and key points before generating visuals.",
+    "slide_title": "Title",
+    "slide_content": "Content points",
+    "add_slide": "Add Slide",
+    "remove_slide": "Remove",
+    "button_next": "Next: Select Style"
+  },
+  "style_step": {
+    "title": "Choose a Visual Style",
+    "subtitle": "Select a preset or upload your own reference style",
+    "custom_upload": "Custom Reference Images",
+    "upload_limit_hint": "Max 8 images",
+    "button_generate": "Start Generation",
+    "generating": "Creating your presentation...",
+    "settings": {
+      "ratio": "Aspect Ratio",
+      "resolution": "Resolution"
+    }
+  },
+  "result_step": {
+    "title": "Your Presentation is Ready",
+    "download_all": "Download All",
+    "back_home": "Create New",
+    "preview": "Preview",
+    "download": "Download",
+    "status": {
+      "pending": "Waiting",
+      "generating": "Drawing...",
+      "failed": "Failed"
+    }
+  },
+  "errors": {
+    "input_required": "Please enter content or upload a file",
+    "upload_limit": "Max 8 images allowed",
+    "invalid_outline": "Failed to generate a valid outline",
+    "no_task_id": "Failed to start generation task",
+    "generation_failed": "Generation failed",
+    "timeout": "Generation timed out",
+    "general_failed": "An error occurred"
+  }
+}

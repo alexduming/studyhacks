@@ -1,0 +1,63 @@
+{
+  "title": "AI PPT 生成器 - 学习更智能",
+  "steps": {
+    "input": "内容输入",
+    "outline": "大纲编辑",
+    "style": "风格选择",
+    "result": "生成结果"
+  },
+  "input_step": {
+    "title": "您想演示什么内容？",
+    "tabs": {
+      "text": "主题 / 文本",
+      "pdf": "上传 PDF"
+    },
+    "placeholder": "请输入演示文稿的主题、大纲或详细内容...",
+    "upload_hint": "点击上传 PDF 文件",
+    "upload_subhint": "支持自动提取文本内容",
+    "button_analyze": "开始分析",
+    "analyzing": "正在分析内容..."
+  },
+  "outline_step": {
+    "title": "审查 & 编辑大纲",
+    "description": "在生成画面之前，您可以调整每一页的标题和要点。",
+    "slide_title": "标题",
+    "slide_content": "内容要点",
+    "add_slide": "添加页面",
+    "remove_slide": "删除",
+    "button_next": "下一步：选择风格"
+  },
+  "style_step": {
+    "title": "选择视觉风格",
+    "subtitle": "选择预设风格或上传您喜欢的参考图",
+    "custom_upload": "自定义风格参考图",
+    "upload_limit_hint": "最多 8 张",
+    "button_generate": "开始生成",
+    "generating": "正在生成演示文稿...",
+    "settings": {
+      "ratio": "画幅比例",
+      "resolution": "分辨率"
+    }
+  },
+  "result_step": {
+    "title": "您的演示文稿已准备就绪",
+    "download_all": "下载全部",
+    "back_home": "创建新文档",
+    "preview": "预览",
+    "download": "下载",
+    "status": {
+      "pending": "等待中",
+      "generating": "绘制中...",
+      "failed": "失败"
+    }
+  },
+  "errors": {
+    "input_required": "请输入内容或上传文件",
+    "upload_limit": "最多上传 8 张图片",
+    "invalid_outline": "生成大纲失败，请重试",
+    "no_task_id": "无法启动生成任务",
+    "generation_failed": "生成失败",
+    "timeout": "生成超时",
+    "general_failed": "发生错误"
+  }
+}

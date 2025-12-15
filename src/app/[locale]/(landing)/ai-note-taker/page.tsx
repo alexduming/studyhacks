@@ -116,10 +116,10 @@ const AINoteTaker = ({
    * - 这样用户可以实时看到自己还剩多少积分
    */
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
       fetchUserCredits();
     }
-  }, [user]);
+  }, [user?.id]);
 
   const handleFileUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
