@@ -97,7 +97,7 @@ export function RegisterCompletePage({ email, token }: Props) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
@@ -107,7 +107,7 @@ export function RegisterCompletePage({ email, token }: Props) {
             {t('email_register.page_title')}
           </CardTitle>
           <CardDescription>
-            您的邮箱 <span className="font-medium text-blue-600">{email}</span> 已验证成功
+            {t('email_register.subtitle', { email })}
             <br />
             {t('email_register.instruction')}
           </CardDescription>
@@ -187,7 +187,7 @@ export function RegisterCompletePage({ email, token }: Props) {
             <Button
               variant="ghost"
               onClick={() => router.push('/sign-in')}
-              className="text-sm text-gray-600 hover:text-gray-900"
+              className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
             >
               {t('email_register.back_to_login')}
             </Button>

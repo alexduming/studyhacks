@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { eq, and } from 'drizzle-orm';
-import { hash } from 'bcryptjs';
+import { hashPassword } from 'better-auth/crypto';
 
 import { EmailVerificationService } from '@/shared/services/email-verification-service';
 import { db } from '@/core/db';
@@ -143,8 +143,8 @@ export async function POST(request: NextRequest) {
           newUser = createdUser;
         }
 
-        // 哈希密码（使用 bcryptjs，与 better-auth 兼容）
-        const hashedPassword = await hash(password, 10);
+        // 哈希密码（使用 better-auth 的 hashPassword 函数，确保完全兼容）
+        const hashedPassword = await hashPassword(password);
 
         // 创建或更新账户记录（存储密码）
         // 先检查是否已存在 account（可能由于之前的错误导致部分创建）
