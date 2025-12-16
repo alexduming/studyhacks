@@ -14,7 +14,7 @@
     "password_title": "密码",
     "password_placeholder": "请输入您的密码",
     "forgot_password": "忘记密码？",
-    "sign_in_failed": "登录失败，请检查密码或点击"忘记密码？"重置",
+    "sign_in_failed": "登录失败，请检查密码或点击'忘记密码？'重置",
     "or": "或",
     "continue": "继续",
     "no_account": "还没有账户？",

@@ -14,7 +14,7 @@
     "password_title": "Password",
     "password_placeholder": "Create a strong password",
     "forgot_password": "Forgot password?",
-    "sign_in_failed": "Login failed. Please check your password or click 'Forgot password?' to reset it.",
+    "sign_in_failed": "Login failed. Please check your password or click \"Forgot password?\" to reset it.",
     "or": "Or",
     "continue": "Continue",
     "no_account": "New to StudyHacks?",
