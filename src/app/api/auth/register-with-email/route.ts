@@ -23,6 +23,8 @@ export async function POST(request: NextRequest) {
   try {
     const { email, password, name, token } = await request.json();
 
+    console.log(`📝 收到注册请求: email=${email}, name=${name}`);
+
     // 验证必填字段
     if (!email || !password || !name || !token) {
       return NextResponse.json(
@@ -53,6 +55,8 @@ export async function POST(request: NextRequest) {
     // 使用事务确保数据一致性：user 和 account 必须同时创建或同时失败
     const database = db();
     
+    console.log(`🚀 开始处理数据库事务: email=${email}`);
+
     try {
       // 在事务中执行所有数据库操作，确保数据一致性
       const result = await database.transaction(async (tx) => {
@@ -62,6 +66,8 @@ export async function POST(request: NextRequest) {
           .from(user)
           .where(eq(user.email, email))
           .limit(1);
+        
+        console.log(`🔍 检查用户是否存在: ${existingUser.length > 0 ? '是' : '否'}`);
 
         let userId: string;
         let newUser: typeof user.$inferSelect;
@@ -83,6 +89,8 @@ export async function POST(request: NextRequest) {
               )
             )
             .limit(1);
+          
+          console.log(`🔍 检查 Account 是否存在: ${existingAccount.length > 0 ? '是' : '否'}`);
 
           if (existingAccount.length > 0) {
             // 用户已存在且已有 account 记录，说明已完整注册
@@ -119,6 +127,8 @@ export async function POST(request: NextRequest) {
           isNewUser = true;
           userId = getUuid();
           
+          console.log(`🆕 创建新用户: ${userId}`);
+
           // 创建用户记录
           const [createdUser] = await tx
             .insert(user)
@@ -160,6 +170,7 @@ export async function POST(request: NextRequest) {
             .where(eq(account.id, existingAccount[0].id));
         } else {
           // 创建新的 account 记录
+          console.log(`🔐 创建 Account 记录`);
           const accountId = getUuid();
           await tx.insert(account).values({
             id: accountId,
@@ -174,6 +185,24 @@ export async function POST(request: NextRequest) {
       });
 
       const { userId, newUser, isNewUser } = result;
+
+      // === 添加数据验证步骤 ===
+      console.log(`🕵️‍♂️ 事务完成，正在验证数据写入情况...`);
+      const verifyUser = await database.select().from(user).where(eq(user.id, userId)).limit(1);
+      const verifyAccount = await database.select().from(account).where(and(eq(account.userId, userId), eq(account.providerId, 'credential'))).limit(1);
+
+      if (verifyUser.length === 0) {
+        console.error(`❌ 严重错误：事务成功但无法查询到 User 记录。UserID: ${userId}`);
+        throw new Error('REGISTRATION_VERIFICATION_FAILED_USER');
+      }
+
+      if (verifyAccount.length === 0) {
+        console.error(`❌ 严重错误：事务成功但无法查询到 Account 记录。UserID: ${userId}`);
+        throw new Error('REGISTRATION_VERIFICATION_FAILED_ACCOUNT');
+      }
+
+      console.log(`✅ 数据验证通过：User 和 Account 均已存在`);
+      // ========================
 
       // 只有新用户才赠送积分和发送欢迎邮件
       if (isNewUser) {
