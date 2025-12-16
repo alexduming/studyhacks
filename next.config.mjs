@@ -26,7 +26,23 @@ const nextConfig = {
     ],
   },
   async redirects() {
-    return [];
+    // 说明（给非程序员看的注释）：
+    // - 这里配置的是“旧地址自动跳到新地址”的规则（301 重定向）
+    // - 现在把原来的 /aippt 自动跳转到新的 /slides，避免老用户的收藏链接失效
+    return [
+      {
+        // 处理带语言前缀的路径，例如 /en/aippt 或 /zh/aippt
+        source: '/:locale/aippt',
+        destination: '/:locale/slides',
+        permanent: true,
+      },
+      {
+        // 兜底：如果没有语言前缀，访问 /aippt 也跳转到 /slides
+        source: '/aippt',
+        destination: '/slides',
+        permanent: true,
+      },
+    ];
   },
   turbopack: {
     resolveAlias: {

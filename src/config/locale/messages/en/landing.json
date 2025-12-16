@@ -51,9 +51,9 @@
               "icon": "Image"
             },
             {
-              "title": "AI PPT Generator",
+              "title": "AI Slides Generator",
               "description": "Generate professional presentations with AI",
-              "url": "/aippt",
+              "url": "/slides",
               "icon": "Presentation"
             }
           ]

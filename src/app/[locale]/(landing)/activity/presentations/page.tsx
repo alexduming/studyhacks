@@ -13,9 +13,10 @@ export default async function PresentationsPage() {
 
   return (
     <div className="space-y-6">
+       {/* 说明：这里的按钮链接原来指向 /aippt，为了让 URL 更好理解，已统一改成 /slides */}
        <div className="flex justify-between items-center">
           <h2 className="text-xl font-semibold">My Presentations</h2>
-          <Link href="/aippt">
+          <Link href="/slides">
               <Button>
                   <Presentation className="mr-2 h-4 w-4" />
                   New Presentation
@@ -29,14 +30,15 @@ export default async function PresentationsPage() {
               <Presentation className="text-muted-foreground h-8 w-8" />
             </div>
             <h3 className="text-lg font-semibold">No presentations yet</h3>
-            <Link href="/aippt" className="mt-4">
+            {/* 说明：空列表时的“Create Now”按钮，同样从 /aippt 改为 /slides */}
+            <Link href="/slides" className="mt-4">
               <Button>Create Now</Button>
             </Link>
           </div>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {presentations.map((item) => (
-              <Link key={item.id} href={`/aippt?id=${item.id}`}>
+              <Link key={item.id} href={`/slides?id=${item.id}`}>
                 <Card className="hover:border-primary group h-full overflow-hidden transition-all hover:shadow-md">
                   <div className="bg-muted relative aspect-video w-full overflow-hidden">
                     {item.thumbnailUrl ? (

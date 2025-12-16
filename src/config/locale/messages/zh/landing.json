@@ -53,7 +53,7 @@
             {
               "title": "AI PPT 生成器",
               "description": "使用 AI 生成专业演示文稿",
-              "url": "/aippt",
+              "url": "/slides",
               "icon": "Presentation"
             }
           ]

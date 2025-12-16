@@ -1,3 +1,7 @@
+// 说明（给非程序员看的注释）：
+// - 这个页面对应前台 URL 路径 `/slides`，是“AI PPT 生成器”的实际页面
+// - 原来路径是 `/aippt`，现在为了让外国用户更好理解，统一改成“slides”（幻灯片）
+// - 下面的大部分代码都是生成和管理 PPT 幻灯片的交互逻辑，没有改动业务，只是换了路由位置
 'use client';
 
 import React, { Suspense, useEffect, useRef, useState } from 'react';
@@ -71,7 +75,9 @@ interface SlideData {
 
 type Step = 'input' | 'outline' | 'style' | 'result';
 
+// 说明：组件名字本身不会影响路由，这里保留原来的语义，减少大范围重命名风险
 export default function AIPPTPage() {
+  // 这里的 'aippt' 是多语言文案的命名空间，不等于 URL 路径，可以暂时保留
   const t = useTranslations('aippt');
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -377,7 +383,9 @@ export default function AIPPTPage() {
             const safeTitle = slide.title
               .replace(/[^a-z0-9\u4e00-\u9fa5]/gi, '_') // 支持中文
               .substring(0, 30);
-            const filename = `slide-${(index + 1).toString().padStart(2, '0')}-${safeTitle}.png`;
+            const filename = `slide-${(index + 1)
+              .toString()
+              .padStart(2, '0')}-${safeTitle}.png`;
             imgFolder?.file(filename, buffer);
             return { success: true, filename };
           } catch (error) {
@@ -446,9 +454,9 @@ export default function AIPPTPage() {
       const pres = new PptxGenJS();
 
       // 设置演示文稿属性
-      pres.author = 'AI PPT Generator';
-      pres.company = 'Study Platform';
-      pres.title = slides[0]?.title || 'Presentation';
+      pres.author = 'AI Slides Generator';
+      pres.company = 'StudyHacks';
+      pres.title = slides[0]?.title || 'Slides';
 
       // 辅助函数：将图片URL转换为base64（处理跨域问题）
       const imageUrlToBase64 = async (url: string): Promise<string> => {
@@ -799,7 +807,10 @@ export default function AIPPTPage() {
             )
           );
           // Update local tracker
-          localSlides[index] = { ...localSlides[index], status: 'generating' };
+          localSlides[index] = {
+            ...localSlides[index],
+            status: 'generating',
+          };
 
           // Construct prompt from title + content
           // This ensures the generated image text aligns with user content
@@ -915,6 +926,8 @@ export default function AIPPTPage() {
 
     const currentIndex = steps.findIndex((s) => s.id === currentStep);
 
+    // 说明：这个容器用 flex + justify-center 来让“1 / 2 / 3 / 4 四个步骤”整体在页面水平居中
+    // 之前这里误写成了一个无效的 class（`justify中心`），Tailwind 不识别，所以实际没有起到居中效果
     return (
       <div className="relative mb-12 flex justify-center">
         <div className="absolute top-0 right-0 hidden md:block">
