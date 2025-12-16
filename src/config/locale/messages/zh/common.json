@@ -14,6 +14,7 @@
     "password_title": "密码",
     "password_placeholder": "请输入您的密码",
     "forgot_password": "忘记密码？",
+    "sign_in_failed": "登录失败，请检查密码或点击"忘记密码？"重置",
     "or": "或",
     "continue": "继续",
     "no_account": "还没有账户？",
@@ -69,6 +70,30 @@
     "didnt_request_reset": "请求重置密码",
     "automated_email": "此邮件由StudyHacks自动发送，请勿回复。",
     "contact_support": "如有疑问，请联系我们的客服团队。"
+  },
+  "forgot_password": {
+    "title": "重置密码",
+    "description": "输入您的邮箱地址，我们将发送重置密码的链接给您",
+    "send_reset_link": "发送重置链接",
+    "email_sent": "重置链接已发送！",
+    "email_sent_description": "我们已将密码重置链接发送至 {email}，请查收邮件。",
+    "check_email": "查看您的邮箱",
+    "check_spam": "如果没有看到邮件，请检查垃圾邮件文件夹",
+    "try_another_email": "尝试其他邮箱",
+    "back_to_sign_in": "返回登录",
+    "error": "发送重置链接失败，请重试。"
+  },
+  "reset_password": {
+    "title": "设置新密码",
+    "description": "请输入您的新密码",
+    "reset_button": "重置密码",
+    "success": "密码重置成功！",
+    "success_title": "密码重置完成",
+    "success_description": "您的密码已重置。现在可以使用新密码登录了。",
+    "error": "重置密码失败，请重试。",
+    "invalid_link": "无效的重置链接",
+    "link_expired": "此重置链接已过期或无效，请重新申请。",
+    "request_new_link": "申请新的重置链接"
   },
   "email_register": {
     "page_title": "完成注册",

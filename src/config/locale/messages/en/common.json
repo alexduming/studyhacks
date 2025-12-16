@@ -14,6 +14,7 @@
     "password_title": "Password",
     "password_placeholder": "Create a strong password",
     "forgot_password": "Forgot password?",
+    "sign_in_failed": "Login failed. Please check your password or click 'Forgot password?' to reset it.",
     "or": "Or",
     "continue": "Continue",
     "no_account": "New to StudyHacks?",
@@ -69,6 +70,30 @@
     "didnt_request_reset": "request a password reset",
     "automated_email": "This email was sent automatically by StudyHacks. Please do not reply.",
     "contact_support": "If you have any questions, please contact our support team."
+  },
+  "forgot_password": {
+    "title": "Reset Your Password",
+    "description": "Enter your email address and we'll send you a link to reset your password",
+    "send_reset_link": "Send Reset Link",
+    "email_sent": "Reset link sent!",
+    "email_sent_description": "We've sent a password reset link to {email}. Please check your inbox.",
+    "check_email": "Check Your Email",
+    "check_spam": "If you don't see the email, please check your spam folder",
+    "try_another_email": "Try Another Email",
+    "back_to_sign_in": "Back to Sign In",
+    "error": "Failed to send reset link. Please try again."
+  },
+  "reset_password": {
+    "title": "Set New Password",
+    "description": "Enter your new password below",
+    "reset_button": "Reset Password",
+    "success": "Password reset successfully!",
+    "success_title": "Password Reset Complete",
+    "success_description": "Your password has been reset. You can now sign in with your new password.",
+    "error": "Failed to reset password. Please try again.",
+    "invalid_link": "Invalid Reset Link",
+    "link_expired": "This reset link has expired or is invalid. Please request a new one.",
+    "request_new_link": "Request New Reset Link"
   },
   "email_register": {
     "page_title": "Complete Registration",

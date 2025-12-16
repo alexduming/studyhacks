@@ -78,21 +78,8 @@ export function SignIn({
         },
         onSuccess: (ctx) => {},
         onError: (e: any) => {
-          const errorMsg = e?.error?.message || 'sign in failed';
-          toast.error(errorMsg);
-          
-          // 如果是密码相关错误，提示用户可能需要重置密码
-          if (errorMsg.toLowerCase().includes('password') || 
-              errorMsg.toLowerCase().includes('invalid') ||
-              errorMsg.toLowerCase().includes('failed')) {
-            setTimeout(() => {
-              toast.info(
-                t('sign.password_reset_hint'),
-                { duration: 8000 }
-              );
-            }, 500);
-          }
-          
+          // 使用友好的错误提示，引导用户重置密码
+          toast.error(t('sign_in_failed'));
           setLoading(false);
         },
       }
@@ -130,12 +117,12 @@ export function SignIn({
               <div className="grid gap-2">
                 <div className="flex items-center">
                   <Label htmlFor="password">{t('password_title')}</Label>
-                  {/* <Link
-                    href="#"
-                    className="ml-auto inline-block text-sm underline"
+                  <Link
+                    href="/forgot-password"
+                    className="ml-auto inline-block text-sm underline hover:text-primary"
                   >
-                    Forgot your password?
-                  </Link> */}
+                    {t('forgot_password')}
+                  </Link>
                 </div>
 
                 <Input
