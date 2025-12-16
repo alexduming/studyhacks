@@ -213,7 +213,7 @@ function ResetPasswordContent() {
                   {t('email_verification.loading')}
                 </>
               ) : (
-                t('reset_password.reset_button')}
+                t('reset_password.reset_button')
               )}
             </Button>
 
