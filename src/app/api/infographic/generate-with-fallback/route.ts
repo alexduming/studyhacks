@@ -36,7 +36,7 @@ interface GenerateParams {
 async function tryGenerateWithKie(
   params: GenerateParams,
   apiKey: string
-): Promise<{ success: boolean; taskId?: string; error?: string }> {
+): Promise<{ success: boolean; taskId?: string; imageUrls?: string[]; error?: string }> {
   try {
     console.log('🔄 尝试使用 KIE (nano-banana-pro) 生成...');
     
@@ -221,7 +221,7 @@ async function tryGenerateWithTogether(
 async function tryGenerateWithNovita(
   params: GenerateParams,
   apiKey: string
-): Promise<{ success: boolean; taskId?: string; error?: string }> {
+): Promise<{ success: boolean; taskId?: string; imageUrls?: string[]; error?: string }> {
   try {
     console.log('🔄 尝试使用 Novita AI (FLUX) 生成...');
     

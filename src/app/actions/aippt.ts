@@ -147,7 +147,10 @@ Do not include any markdown formatting (like \`\`\`json), just the raw JSON obje
     try {
       return JSON.parse(responseContent);
     } catch (e) {
-      console.error('Failed to parse DeepSeek response as JSON:', responseContent);
+      console.error(
+        'Failed to parse DeepSeek response as JSON:',
+        responseContent
+      );
       throw new Error('Invalid JSON response from AI');
     }
   } catch (error) {
