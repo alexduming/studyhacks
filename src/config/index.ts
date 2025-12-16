@@ -96,4 +96,17 @@ export const envConfigs = {
   creem_environment: process.env.CREEM_ENVIRONMENT ?? 'sandbox', // sandbox 或 production
   creem_signing_secret: process.env.CREEM_SIGNING_SECRET ?? '',
   creem_product_ids: process.env.CREEM_PRODUCT_IDS ?? '', // JSON 字符串，映射产品 ID
+
+  // ====== R2 存储配置（支持直接用环境变量配置）======
+  // 非程序员解释：
+  // - 如果你不想每次在 /admin 里点来点去，可以直接在 .env 或部署平台的环境变量里写好
+  // - key 名称与数据库中的配置名保持一致：r2_access_key / r2_secret_key / r2_bucket_name 等
+  r2_access_key: process.env.R2_ACCESS_KEY ?? '',
+  r2_secret_key: process.env.R2_SECRET_KEY ?? '',
+  r2_bucket_name: process.env.R2_BUCKET_NAME ?? '',
+  r2_account_id: process.env.R2_ACCOUNT_ID ?? '',
+  // 可选：自定义 R2 Endpoint，比如 https://<account-id>.r2.cloudflarestorage.com
+  r2_endpoint: process.env.R2_ENDPOINT ?? '',
+  // 可选：对外访问域名，比如 https://cdn.example.com/your-bucket
+  r2_domain: process.env.R2_DOMAIN ?? '',
 };

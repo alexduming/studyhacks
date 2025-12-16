@@ -7,42 +7,50 @@
     "result": "生成结果"
   },
   "input_step": {
+    "hero_title": "AI 演示文稿生成器",
+    "hero_subtitle": "几秒钟内将您的想法转化为精美的幻灯片",
     "title": "您想演示什么内容？",
     "tabs": {
       "text": "主题 / 文本",
-      "pdf": "上传 PDF"
+      "pdf": "上传文件"
     },
-    "placeholder": "请输入演示文稿的主题、大纲或详细内容...",
-    "upload_hint": "点击上传 PDF 文件",
-    "upload_subhint": "支持自动提取文本内容",
+    "placeholder": "描述您的演示主题或在此粘贴内容...",
+    "drop_hint": "拖放文件到此处上传",
+    "upload_hint": "点击上传 PDF/DOCX/TXT",
+    "upload_subhint": "我们将为您提取文本",
+    "attach": "添加附件",
+    "slide_count": "页数",
     "button_analyze": "开始分析",
-    "analyzing": "正在分析内容..."
+    "analyzing": "分析内容中..."
   },
   "outline_step": {
-    "title": "审查 & 编辑大纲",
-    "description": "在生成画面之前，您可以调整每一页的标题和要点。",
+    "title": "审查和编辑大纲",
+    "description": "在生成视觉效果之前调整幻灯片标题和要点。",
     "slide_title": "标题",
     "slide_content": "内容要点",
-    "add_slide": "添加页面",
-    "remove_slide": "删除",
+    "add_slide": "添加幻灯片",
+    "remove_slide": "移除",
     "button_next": "下一步：选择风格"
   },
   "style_step": {
     "title": "选择视觉风格",
-    "subtitle": "选择预设风格或上传您喜欢的参考图",
-    "custom_upload": "自定义风格参考图",
-    "upload_limit_hint": "最多 8 张",
+    "subtitle": "选择预设风格或上传您自己的参考图",
+    "custom_upload": "自定义参考图片",
+    "upload_limit_hint": "最多 8 张图片",
     "button_generate": "开始生成",
-    "generating": "正在生成演示文稿...",
+    "generating": "正在创建您的演示文稿...",
     "settings": {
-      "ratio": "画幅比例",
+      "ratio": "画面比例",
       "resolution": "分辨率"
     }
   },
   "result_step": {
     "title": "您的演示文稿已准备就绪",
     "download_all": "下载全部",
-    "back_home": "创建新文档",
+    "download_pptx": "导出 PPTX",
+    "download_images": "下载图片包 (ZIP)",
+    "download_success": "下载成功！",
+    "back_home": "新建演示",
     "preview": "预览",
     "download": "下载",
     "status": {
@@ -54,6 +62,7 @@
   "errors": {
     "input_required": "请输入内容或上传文件",
     "upload_limit": "最多上传 8 张图片",
+    "upload_failed": "图片上传失败",
     "invalid_outline": "生成大纲失败，请重试",
     "no_task_id": "无法启动生成任务",
     "generation_failed": "生成失败",
