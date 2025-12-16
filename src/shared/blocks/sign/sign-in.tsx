@@ -78,7 +78,21 @@ export function SignIn({
         },
         onSuccess: (ctx) => {},
         onError: (e: any) => {
-          toast.error(e?.error?.message || 'sign in failed');
+          const errorMsg = e?.error?.message || 'sign in failed';
+          toast.error(errorMsg);
+          
+          // 如果是密码相关错误，提示用户可能需要重置密码
+          if (errorMsg.toLowerCase().includes('password') || 
+              errorMsg.toLowerCase().includes('invalid') ||
+              errorMsg.toLowerCase().includes('failed')) {
+            setTimeout(() => {
+              toast.info(
+                t('sign.password_reset_hint'),
+                { duration: 8000 }
+              );
+            }, 500);
+          }
+          
           setLoading(false);
         },
       }
