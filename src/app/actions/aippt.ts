@@ -115,22 +115,25 @@ Ensure the content is concise, professional, and suitable for a presentation.
 Do not include any markdown formatting (like \`\`\`json), just the raw JSON object.`;
 
   try {
-    const response: Response = await fetch('https://api.deepseek.com/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'deepseek-chat',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content },
-        ],
-        stream: false,
-        response_format: { type: 'json_object' },
-      }),
-    });
+    const response: Response = await fetch(
+      'https://api.deepseek.com/chat/completions',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: 'deepseek-chat',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content },
+          ],
+          stream: false,
+          response_format: { type: 'json_object' },
+        }),
+      }
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -139,12 +142,12 @@ Do not include any markdown formatting (like \`\`\`json), just the raw JSON obje
     }
 
     const data = await response.json();
-    const content = data.choices[0].message.content;
+    const responseContent = data.choices[0].message.content;
 
     try {
-      return JSON.parse(content);
+      return JSON.parse(responseContent);
     } catch (e) {
-      console.error('Failed to parse DeepSeek response as JSON:', content);
+      console.error('Failed to parse DeepSeek response as JSON:', responseContent);
       throw new Error('Invalid JSON response from AI');
     }
   } catch (error) {
