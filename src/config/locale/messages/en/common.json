@@ -27,7 +27,8 @@
     "billing_title": "Subscription",
     "name_title": "Full Name",
     "name_placeholder": "Enter your full name",
-    "admin_title": "Study Hub",
+    "admin_title": "Admin Dashboard",
+    "my_library": "My Library",
     "credits_title": "AI Credits: {credits}"
   },
   "payment": {

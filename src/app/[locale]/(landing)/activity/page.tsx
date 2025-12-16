@@ -1,11 +1,5 @@
-import { redirect } from '@/core/i18n/navigation';
+import { redirect } from 'next/navigation';
 
-export default async function ActivityPage({
-  params,
-}: {
-  params: Promise<{ locale: string }>;
-}) {
-  const { locale } = await params;
-
-  redirect({ href: '/activity/ai-tasks', locale });
+export default function ActivityPage() {
+  redirect('/activity/presentations');
 }

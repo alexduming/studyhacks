@@ -1,25 +1,45 @@
 {
-  "title": "活动",
+  "title": "我的资料库",
   "nav": {
     "items": [
       {
-        "title": "AI 任务",
-        "url": "/activity/ai-tasks",
-        "icon": "RiTaskLine"
+        "title": "演示文稿",
+        "url": "/activity/presentations",
+        "icon": "Presentation"
       },
       {
-        "title": "AI 对话",
-        "url": "/activity/chats",
-        "icon": "RiChat2Line"
+        "title": "笔记",
+        "url": "/activity/notes",
+        "icon": "FileText"
+      },
+      {
+        "title": "闪卡",
+        "url": "/activity/flashcards",
+        "icon": "BookOpen"
+      },
+      {
+        "title": "测验",
+        "url": "/activity/quizzes",
+        "icon": "Activity"
+      },
+      {
+        "title": "信息图",
+        "url": "/activity/infographics",
+        "icon": "Image"
+      },
+      {
+        "title": "播客",
+        "url": "/activity/podcasts",
+        "icon": "Music"
       }
     ]
   },
   "top_nav": {
     "items": [
       {
-        "title": "活动",
+        "title": "资料库",
         "url": "/activity",
-        "icon": "Activity"
+        "icon": "Library"
       },
       {
         "title": "设置",

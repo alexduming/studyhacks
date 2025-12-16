@@ -27,7 +27,8 @@
     "billing_title": "账单",
     "name_title": "姓名",
     "name_placeholder": "请输入您的姓名",
-    "admin_title": "学习中心",
+    "admin_title": "管理后台",
+    "my_library": "我的资料库",
     "credits_title": "AI积分: {credits}"
   },
   "payment": {

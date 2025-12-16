@@ -1,12 +1,18 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { Suspense, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   createKieTaskAction,
   parseFileAction,
   queryKieTaskAction,
 } from '@/app/actions/aippt';
+import {
+  createPresentationAction,
+  getPresentationAction,
+  updatePresentationAction,
+} from '@/app/actions/presentation';
 import { useCompletion } from '@ai-sdk/react';
 import {
   ArrowLeft,
@@ -67,6 +73,30 @@ type Step = 'input' | 'outline' | 'style' | 'result';
 
 export default function AIPPTPage() {
   const t = useTranslations('aippt');
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const presentationId = searchParams.get('id');
+
+  // Load presentation if ID is present
+  useEffect(() => {
+    if (presentationId) {
+      const loadData = async () => {
+        try {
+          const data = await getPresentationAction(presentationId);
+          if (data && data.content) {
+            const parsedSlides = JSON.parse(data.content);
+            setSlides(parsedSlides);
+            setCurrentStep('result');
+            if (data.styleId) setSelectedStyleId(data.styleId);
+          }
+        } catch (e) {
+          console.error('Failed to load presentation', e);
+          toast.error('Failed to load presentation');
+        }
+      };
+      loadData();
+    }
+  }, [presentationId]);
 
   // --- State ---
   const [currentStep, setCurrentStep] = useState<Step>('input');
@@ -219,6 +249,21 @@ export default function AIPPTPage() {
     });
   };
 
+  // Helper to convert Blob to Base64
+  const blobToBase64 = (blob: Blob): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Remove data URL prefix (e.g., "data:image/png;base64,")
+        const base64 = result.split(',')[1] || result;
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  };
+
   // Upload image to cloud storage and get public URL (with compression)
   const uploadImageToStorage = async (
     blob: Blob,
@@ -257,33 +302,104 @@ export default function AIPPTPage() {
   };
 
   // Helper to get array buffer from URL (for ZIP)
+  // 说明：通过代理API获取图片，避免CORS跨域问题
   const urlToBuffer = async (url: string): Promise<ArrayBuffer> => {
-    const res = await fetch(url);
-    return await res.arrayBuffer();
+    try {
+      // 如果是相对路径或同源URL，直接fetch
+      if (url.startsWith('/') || url.startsWith(window.location.origin)) {
+        const res = await fetch(url);
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return await res.arrayBuffer();
+      }
+
+      // 对于跨域URL，通过代理API获取
+      // 如果代理API不存在，尝试直接fetch（可能会失败，但至少尝试）
+      try {
+        const proxyRes = await fetch(
+          `/api/storage/proxy-image?url=${encodeURIComponent(url)}`
+        );
+        if (proxyRes.ok) {
+          return await proxyRes.arrayBuffer();
+        }
+      } catch (proxyError) {
+        console.warn('Proxy fetch failed, trying direct fetch:', proxyError);
+      }
+
+      // 回退到直接fetch（可能遇到CORS问题）
+      const res = await fetch(url, {
+        mode: 'cors',
+        credentials: 'omit',
+      });
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      return await res.arrayBuffer();
+    } catch (error) {
+      console.error('Failed to fetch image:', url, error);
+      throw error;
+    }
   };
 
+  // 下载图片包功能
+  // 说明：将所有幻灯片图片打包成ZIP文件下载
   const handleDownloadImages = async () => {
     try {
+      // 检查是否有已完成的图片
+      const completedSlides = slides.filter(
+        (slide) => slide.status === 'completed' && slide.imageUrl
+      );
+
+      if (completedSlides.length === 0) {
+        toast.error(t('result_step.no_images') || '没有可下载的图片');
+        return;
+      }
+
+      toast.loading(t('result_step.downloading') || '正在打包图片...', {
+        id: 'zip-download',
+      });
+
       const JSZip = (await import('jszip')).default;
       const zip = new JSZip();
       const imgFolder = zip.folder('slides');
 
-      // Add images to ZIP
-      await Promise.all(
-        slides.map(async (slide, index) => {
-          if (slide.imageUrl) {
+      // 添加图片到ZIP，使用Promise.allSettled来处理部分失败的情况
+      const results = await Promise.allSettled(
+        completedSlides.map(async (slide, index) => {
+          try {
+            if (!slide.imageUrl) {
+              throw new Error('Image URL is empty');
+            }
+
             const buffer = await urlToBuffer(slide.imageUrl);
-            // Filename: slide-01-Title.png
+            // 文件名格式：slide-01-Title.png
             const safeTitle = slide.title
-              .replace(/[^a-z0-9]/gi, '_')
+              .replace(/[^a-z0-9\u4e00-\u9fa5]/gi, '_') // 支持中文
               .substring(0, 30);
             const filename = `slide-${(index + 1).toString().padStart(2, '0')}-${safeTitle}.png`;
             imgFolder?.file(filename, buffer);
+            return { success: true, filename };
+          } catch (error) {
+            console.error(`Failed to add slide ${index + 1} to ZIP:`, error);
+            return {
+              success: false,
+              error: error instanceof Error ? error.message : 'Unknown error',
+            };
           }
         })
       );
 
-      // Generate and download
+      // 检查是否有成功的图片
+      const successCount = results.filter(
+        (r) => r.status === 'fulfilled' && r.value.success
+      ).length;
+
+      if (successCount === 0) {
+        throw new Error('所有图片下载失败，可能是CORS问题');
+      }
+
+      // 生成ZIP文件
       const content = await zip.generateAsync({ type: 'blob' });
       const url = URL.createObjectURL(content);
       const a = document.createElement('a');
@@ -294,38 +410,134 @@ export default function AIPPTPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      toast.success(t('result_step.download_success') || 'Images downloaded!');
-    } catch (e) {
+      toast.dismiss('zip-download');
+      if (successCount < completedSlides.length) {
+        toast.warning(
+          `部分图片下载成功 (${successCount}/${completedSlides.length})`
+        );
+      } else {
+        toast.success(t('result_step.download_success') || '图片包下载成功！');
+      }
+    } catch (e: any) {
       console.error('ZIP Gen Error:', e);
-      toast.error('Failed to create ZIP');
+      toast.dismiss('zip-download');
+      toast.error(
+        e.message || t('result_step.download_failed') || '创建ZIP文件失败'
+      );
     }
   };
 
+  // 导出PPTX功能
+  // 说明：将幻灯片转换为PowerPoint格式并下载
   const handleDownloadPPTX = async () => {
     try {
-      // Dynamically import pptxgenjs to avoid SSR issues
+      // 检查是否有幻灯片
+      if (slides.length === 0) {
+        toast.error(t('result_step.no_slides') || '没有可导出的幻灯片');
+        return;
+      }
+
+      toast.loading(t('result_step.generating_pptx') || '正在生成PPTX文件...', {
+        id: 'pptx-download',
+      });
+
+      // 动态导入pptxgenjs，避免SSR问题
       const PptxGenJS = (await import('pptxgenjs')).default;
       const pres = new PptxGenJS();
 
-      // Sort slides by index (they are already sorted in array)
-      for (const slide of slides) {
+      // 设置演示文稿属性
+      pres.author = 'AI PPT Generator';
+      pres.company = 'Study Platform';
+      pres.title = slides[0]?.title || 'Presentation';
+
+      // 辅助函数：将图片URL转换为base64（处理跨域问题）
+      const imageUrlToBase64 = async (url: string): Promise<string> => {
+        try {
+          // 如果是相对路径或同源URL，直接fetch
+          if (url.startsWith('/') || url.startsWith(window.location.origin)) {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const blob = await res.blob();
+            return new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                const base64 = reader.result as string;
+                resolve(base64);
+              };
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+          }
+
+          // 对于跨域URL，尝试通过代理API获取
+          try {
+            const proxyRes = await fetch(
+              `/api/storage/proxy-image?url=${encodeURIComponent(url)}`
+            );
+            if (proxyRes.ok) {
+              const blob = await proxyRes.blob();
+              return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                  const base64 = reader.result as string;
+                  resolve(base64);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+              });
+            }
+          } catch (proxyError) {
+            console.warn(
+              'Proxy fetch failed, trying direct fetch:',
+              proxyError
+            );
+          }
+
+          // 回退到直接fetch（可能遇到CORS问题）
+          const res = await fetch(url, { mode: 'cors', credentials: 'omit' });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const blob = await res.blob();
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const base64 = reader.result as string;
+              resolve(base64);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+        } catch (error) {
+          console.error('Failed to convert image to base64:', url, error);
+          throw error;
+        }
+      };
+
+      // 遍历所有幻灯片，创建PPT页面
+      for (let i = 0; i < slides.length; i++) {
+        const slide = slides[i];
         const pptSlide = pres.addSlide();
 
-        // Add Background Image if completed
+        // 添加背景图片（如果已完成且有图片URL）
         if (slide.status === 'completed' && slide.imageUrl) {
-          pptSlide.background = { path: slide.imageUrl };
+          try {
+            // 将图片URL转换为base64，避免跨域问题
+            const base64Image = await imageUrlToBase64(slide.imageUrl);
+            pptSlide.background = { data: base64Image };
+          } catch (imageError) {
+            console.warn(
+              `Failed to load background image for slide ${i + 1}:`,
+              imageError
+            );
+            // 如果图片加载失败，使用白色背景
+            pptSlide.background = { color: 'FFFFFF' };
+          }
         } else {
-          // Fallback background
+          // 如果没有图片，使用白色背景
           pptSlide.background = { color: 'FFFFFF' };
         }
 
-        // We do NOT add text overlay if the image already "contains" it conceptually,
-        // BUT the KIE generation is purely background/visual usually.
-        // If the user wants the text on the slide, we should add it.
-        // The prompt said "DO NOT include text in the image description", so the image is likely clean.
-        // So we should add Title and Content as text boxes.
-
-        // Title
+        // 添加标题文本
+        // 说明：KIE生成的图片通常不包含文字，所以我们需要在PPT中添加标题和内容
         pptSlide.addText(slide.title, {
           x: 0.5,
           y: 0.5,
@@ -333,28 +545,70 @@ export default function AIPPTPage() {
           h: 1,
           fontSize: 32,
           bold: true,
-          color: 'FFFFFF',
-          shadow: { type: 'outer', color: '000000', blur: 3, offset: 2 },
+          color: slide.status === 'completed' ? 'FFFFFF' : '000000', // 根据背景调整文字颜色
+          shadow:
+            slide.status === 'completed'
+              ? { type: 'outer', color: '000000', blur: 3, offset: 2 }
+              : undefined,
+          align: 'left',
         });
 
-        // Content
-        pptSlide.addText(slide.content, {
-          x: 0.5,
-          y: 1.8,
-          w: '90%',
-          h: 3.5,
-          fontSize: 18,
-          color: 'FFFFFF',
-          bullet: true,
-          shadow: { type: 'outer', color: '000000', blur: 2, offset: 1 },
-        });
+        // 添加内容文本（支持多行和项目符号）
+        // 说明：pptxgenjs的addText可以接受字符串，会自动处理换行
+        // 如果需要项目符号，可以将内容按行分割后分别添加，或使用单个字符串
+        const contentText = slide.content.trim();
+        if (contentText) {
+          // 将多行内容转换为带项目符号的格式
+          const contentLines = contentText
+            .split('\n')
+            .filter((line) => line.trim());
+          const formattedContent =
+            contentLines.length > 1
+              ? contentLines.map((line) => `• ${line.trim()}`).join('\n')
+              : contentText;
+
+          pptSlide.addText(formattedContent, {
+            x: 0.5,
+            y: 1.8,
+            w: '90%',
+            h: 3.5,
+            fontSize: 18,
+            color: slide.status === 'completed' ? 'FFFFFF' : '000000',
+            bullet: contentLines.length > 1, // 多行时启用项目符号
+            shadow:
+              slide.status === 'completed'
+                ? { type: 'outer', color: '000000', blur: 2, offset: 1 }
+                : undefined,
+            align: 'left',
+          });
+        }
       }
 
-      pres.writeFile({ fileName: `Presentation-${Date.now()}.pptx` });
-      toast.success('PPTX Downloaded!');
-    } catch (e) {
+      // 使用write方法获取Blob，然后手动创建下载链接
+      // 说明：writeFile在某些浏览器中可能不会触发下载，所以改用write方法
+      // pptxgenjs的write方法返回Promise<Blob>
+      const blob = (await pres.write({ outputType: 'blob' })) as Blob;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Presentation-${Date.now()}.pptx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      // 延迟释放URL，确保下载完成
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+      }, 100);
+
+      toast.dismiss('pptx-download');
+      toast.success(t('result_step.pptx_downloaded') || 'PPTX文件下载成功！');
+    } catch (e: any) {
       console.error('PPT Gen Error:', e);
-      toast.error('Failed to generate PPTX');
+      toast.dismiss('pptx-download');
+      toast.error(
+        e.message || t('result_step.pptx_failed') || '生成PPTX文件失败'
+      );
     }
   };
 
@@ -472,6 +726,24 @@ export default function AIPPTPage() {
     setIsGenerating(true);
     setCurrentStep('result');
 
+    // Create a local mutable copy to track latest state for DB save
+    // Initial state is what we have now
+    const localSlides = [...slides];
+
+    // 1. Create DB record immediately
+    let presentationId = '';
+    try {
+      const { id } = await createPresentationAction({
+        title: slides[0]?.title || 'Untitled Presentation',
+        content: JSON.stringify(slides),
+        status: 'generating',
+        styleId: selectedStyleId || 'custom',
+      });
+      presentationId = id;
+    } catch (e) {
+      console.error('Failed to create presentation record', e);
+    }
+
     try {
       // Prepare Style Image URLs (KIE API requires publicly accessible URLs)
       let styleImageUrls: string[] = [];
@@ -507,6 +779,12 @@ export default function AIPPTPage() {
           console.error('[Frontend] Failed to upload custom images:', error);
           toast.error(t('errors.upload_failed') + ': ' + error.message);
           setIsGenerating(false);
+          // Mark as failed in DB
+          if (presentationId) {
+            await updatePresentationAction(presentationId, {
+              status: 'failed',
+            });
+          }
           return;
         }
       }
@@ -520,6 +798,8 @@ export default function AIPPTPage() {
               s.id === slide.id ? { ...s, status: 'generating' } : s
             )
           );
+          // Update local tracker
+          localSlides[index] = { ...localSlides[index], status: 'generating' };
 
           // Construct prompt from title + content
           // This ensures the generated image text aligns with user content
@@ -538,8 +818,9 @@ export default function AIPPTPage() {
           // Poll
           let resultUrl = '';
           let attempts = 0;
-          while (attempts < 60) {
-            await new Promise((r) => setTimeout(r, 2000));
+          // Extend polling to 10 minutes (200 * 3s = 600s)
+          while (attempts < 200) {
+            await new Promise((r) => setTimeout(r, 3000));
             const statusRes = await queryKieTaskAction(taskData.task_id);
             const status = statusRes.data?.status;
 
@@ -566,6 +847,12 @@ export default function AIPPTPage() {
                   : s
               )
             );
+            // Update local tracker
+            localSlides[index] = {
+              ...localSlides[index],
+              status: 'completed',
+              imageUrl: resultUrl,
+            };
           } else {
             throw new Error(t('errors.timeout'));
           }
@@ -576,10 +863,29 @@ export default function AIPPTPage() {
               s.id === slide.id ? { ...s, status: 'failed' } : s
             )
           );
+          // Update local tracker
+          localSlides[index] = { ...localSlides[index], status: 'failed' };
         }
       });
 
       await Promise.all(promises);
+
+      // 2. Generation Completed - Update DB with FINAL content
+      if (presentationId) {
+        // Check if any slide failed
+        const anyFailed = localSlides.some((s) => s.status === 'failed');
+        const finalStatus = anyFailed ? 'failed' : 'completed';
+
+        // Use the thumbnail of the first slide
+        const thumbnail = localSlides[0]?.imageUrl;
+
+        await updatePresentationAction(presentationId, {
+          status: finalStatus,
+          content: JSON.stringify(localSlides),
+          thumbnailUrl: thumbnail,
+        });
+        console.log('Presentation saved successfully:', presentationId);
+      }
     } catch (e: any) {
       console.error('Generation Prep Error:', e);
       toast.error(e.message || t('errors.general_failed'));
@@ -589,6 +895,9 @@ export default function AIPPTPage() {
           s.status === 'pending' ? { ...s, status: 'failed' } : s
         )
       );
+      if (presentationId) {
+        await updatePresentationAction(presentationId, { status: 'failed' });
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -607,7 +916,17 @@ export default function AIPPTPage() {
     const currentIndex = steps.findIndex((s) => s.id === currentStep);
 
     return (
-      <div className="mb-12 flex justify-center">
+      <div className="relative mb-12 flex justify-center">
+        <div className="absolute top-0 right-0 hidden md:block">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.push('/activity/presentations')}
+          >
+            <Presentation className="mr-2 h-4 w-4" />
+            My Presentations
+          </Button>
+        </div>
         <div className="flex items-center space-x-4">
           {steps.map((step, idx) => (
             <div key={step.id} className="flex items-center">
@@ -851,7 +1170,7 @@ export default function AIPPTPage() {
           ) : (
             <Sparkles className="h-3 w-3" />
           )}
-          Live Inference Stream
+          Generating...
         </h3>
         <div
           ref={logContainerRef}

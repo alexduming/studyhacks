@@ -49,6 +49,12 @@
               "description": "从您的笔记和文档创建信息图",
               "url": "/infographic",
               "icon": "Image"
+            },
+            {
+              "title": "AI PPT 生成器",
+              "description": "使用 AI 生成专业演示文稿",
+              "url": "/aippt",
+              "icon": "Presentation"
             }
           ]
         },
@@ -64,18 +70,7 @@
       "show_name": true,
       "show_credits": true,
       "show_sign_out": true,
-      "items": [
-        {
-          "title": "账单",
-          "url": "/settings/billing",
-          "icon": "CreditCard"
-        },
-        {
-          "title": "活动记录",
-          "url": "/activity",
-          "icon": "Activity"
-        }
-      ]
+      "items": []
     },
     "show_sign": true,
     "show_theme": false,

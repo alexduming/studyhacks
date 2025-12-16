@@ -70,18 +70,7 @@
       "show_name": true,
       "show_credits": true,
       "show_sign_out": true,
-      "items": [
-        {
-          "title": "Billing",
-          "url": "/settings/billing",
-          "icon": "CreditCard"
-        },
-        {
-          "title": "Activity",
-          "url": "/activity",
-          "icon": "Activity"
-        }
-      ]
+      "items": []
     },
     "show_sign": true,
     "show_theme": false,

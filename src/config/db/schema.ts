@@ -567,3 +567,30 @@ export const chatMessage = pgTable(
     index('idx_chat_message_user_id').on(table.userId, table.status),
   ]
 );
+
+// --- New Tables for Study Center ---
+
+export const presentation = pgTable(
+  'presentation',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    content: text('content'), // JSON string of slides (titles, content, image URLs)
+    status: text('status').notNull(), // generating, completed, failed
+    kieTaskId: text('kie_task_id'), // KIE generation task ID
+    styleId: text('style_id'), // Used style ID
+    thumbnailUrl: text('thumbnail_url'), // First slide or generated thumbnail
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .$onUpdate(() => new Date())
+      .notNull(),
+    deletedAt: timestamp('deleted_at'),
+  },
+  (table) => [
+    index('idx_presentation_user_status').on(table.userId, table.status),
+    index('idx_presentation_created_at').on(table.createdAt),
+  ]
+);

@@ -1,25 +1,45 @@
 {
-  "title": "Activity",
+  "title": "My Library",
   "nav": {
     "items": [
       {
-        "title": "AI Tasks",
-        "url": "/activity/ai-tasks",
-        "icon": "RiTaskLine"
+        "title": "Presentations",
+        "url": "/activity/presentations",
+        "icon": "Presentation"
       },
       {
-        "title": "AI Chats",
-        "url": "/activity/chats",
-        "icon": "RiChat2Line"
+        "title": "Notes",
+        "url": "/activity/notes",
+        "icon": "FileText"
+      },
+      {
+        "title": "Flashcards",
+        "url": "/activity/flashcards",
+        "icon": "BookOpen"
+      },
+      {
+        "title": "Quizzes",
+        "url": "/activity/quizzes",
+        "icon": "Activity"
+      },
+      {
+        "title": "Infographics",
+        "url": "/activity/infographics",
+        "icon": "Image"
+      },
+      {
+        "title": "Podcasts",
+        "url": "/activity/podcasts",
+        "icon": "Music"
       }
     ]
   },
   "top_nav": {
     "items": [
       {
-        "title": "Activity",
+        "title": "Library",
         "url": "/activity",
-        "icon": "Activity"
+        "icon": "Library"
       },
       {
         "title": "Settings",
