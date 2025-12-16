@@ -5,9 +5,42 @@ import pdf from 'pdf-parse';
 
 import { PPT_STYLES } from '@/config/aippt';
 
-const KIE_API_KEY = '75a2809b76cfae9675cbdddd1af5f488';
+const KIE_API_KEY =
+  process.env.KIE_NANO_BANANA_PRO_KEY || '75a2809b76cfae9675cbdddd1af5f488';
+const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN || '';
 // 使用 DeepSeek 官方 Key（从环境变量读取，避免明文暴露）
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
+
+// 资源的基础 URL
+// 优先使用 R2 域名，其次是 App URL，最后是生产环境域名
+// 注意：AI 服务无法访问 localhost，必须使用公网 URL
+const ASSETS_BASE_URL =
+  process.env.NEXT_PUBLIC_ASSETS_URL || 'https://cdn.studyhacks.ai';
+
+/**
+ * 处理图片 URL，确保是公网可访问的
+ */
+function resolveImageUrl(url: string): string {
+  if (!url) return '';
+
+  // 如果已经是 http 开头，检查是否是 localhost
+  if (url.startsWith('http')) {
+    if (url.includes('localhost') || url.includes('127.0.0.1')) {
+      // 将 localhost 替换为公网域名
+      // 假设路径结构保持一致：http://localhost:3000/styles/... -> https://cdn.xxx.com/styles/...
+      const urlPath = new URL(url).pathname;
+      return `${ASSETS_BASE_URL}${urlPath}`;
+    }
+    return url;
+  }
+
+  // 如果是相对路径，添加 Base URL
+  if (url.startsWith('/')) {
+    return `${ASSETS_BASE_URL}${url}`;
+  }
+
+  return url;
+}
 
 /**
  * Parse File (PDF/DOCX/TXT) to Text
@@ -23,74 +56,63 @@ export async function parseFileAction(formData: FormData) {
     const fileType = file.type;
     const fileName = file.name.toLowerCase();
 
+    let extractedText = '';
+
     if (fileType === 'application/pdf' || fileName.endsWith('.pdf')) {
       const data = await pdf(buffer);
-      return data.text;
+      extractedText = data.text;
     } else if (
       fileType ===
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
       fileName.endsWith('.docx')
     ) {
       const result = await mammoth.extractRawText({ buffer });
-      return result.value;
+      extractedText = result.value;
     } else if (
       fileType === 'text/plain' ||
       fileName.endsWith('.txt') ||
       fileName.endsWith('.md')
     ) {
-      return buffer.toString('utf-8');
+      extractedText = buffer.toString('utf-8');
     } else {
       throw new Error('Unsupported file type');
     }
-  } catch (e: any) {
-    console.error('File Parse Error:', e);
-    throw new Error(`Failed to parse file: ${e.message}`);
+
+    // Basic cleaning
+    return extractedText.trim();
+  } catch (error) {
+    console.error('File parsing error:', error);
+    throw new Error('Failed to parse file');
   }
 }
 
 /**
- * Deprecated: Use parseFileAction instead
+ * Generate PPT Outline via DeepSeek V3
  */
-export async function parsePdfAction(formData: FormData) {
-  return parseFileAction(formData);
-}
-
-/**
- * Analyze content using DeepSeek to generate slide outline
- */
-export async function analyzeContentAction(
+export async function generateOutlineAction(
   content: string,
-  mode: 'text' | 'pdf' | 'topic' = 'text'
+  slideCount: number = 8
 ) {
-  // 说明：
-  // - 这个函数是旧版“非流式大纲分析”的 Server Action，目前 /aippt 页面已经主要使用流式接口 /api/ai/analyze-ppt
-  // - 这里仍然保留，改为走 DeepSeek 官方 API，方便以后其他地方复用
   if (!DEEPSEEK_API_KEY) {
-    throw new Error('DeepSeek API Key is missing');
+    throw new Error('DeepSeek API Key is not configured');
   }
 
-  const systemPrompt = `
-You are a professional presentation designer.
-Your goal is to create a JSON structure for a slide deck based on the user's input.
-The output must be a valid JSON array where each object represents a slide.
-
-Each slide object must have:
-- 'title': The title of the slide.
-- 'content': Key points (bullet points separated by \\n).
-- 'visualDescription': A highly detailed prompt for an AI image generator (Stable Diffusion/Flux/Midjourney style). Describe the visual composition, style, colors, and subject. DO NOT include text in the image description.
-
-Input Content:
-${content.substring(0, 15000)} // Truncate to avoid context limit if needed
-
-Format:
-[
-  {
-    "title": "Slide Title",
-    "content": "Point 1\\nPoint 2",
-    "visualDescription": "A futuristic city skyline..."
-  }
-]
-`;
+  const systemPrompt = `You are an expert presentation designer.
+Create a structured outline for a presentation based on the user's content.
+The output must be a valid JSON object with the following structure:
+{
+  "title": "Presentation Title",
+  "slides": [
+    {
+      "title": "Slide Title",
+      "content": "Key bullet points (max 50 words)",
+      "visualDescription": "Description of the visual/image for this slide"
+    }
+  ]
+}
+Generate exactly ${slideCount} slides.
+Ensure the content is concise, professional, and suitable for a presentation.
+Do not include any markdown formatting (like \`\`\`json), just the raw JSON object.`;
 
   try {
     const response = await fetch('https://api.deepseek.com/chat/completions', {
@@ -100,32 +122,34 @@ Format:
         Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'deepseek-chat', // DeepSeek V3.2 非思考模式
-        messages: [{ role: 'user', content: systemPrompt }],
-        // 这里不用强制 response_format=json，因为我们自己从 content 中解析 JSON
+        model: 'deepseek-chat',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content },
+        ],
         stream: false,
+        response_format: { type: 'json_object' },
       }),
     });
 
     if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`DeepSeek API Error: ${response.status} ${errText}`);
+      const errorText = await response.text();
+      console.error('DeepSeek API Error:', errorText);
+      throw new Error(`DeepSeek API error: ${response.status}`);
     }
 
     const data = await response.json();
-    let text = data.choices?.[0]?.message?.content || '';
+    const content = data.choices[0].message.content;
 
-    // 兼容性处理：如果模型返回了 ```json 包裹的内容，先去掉外层 Markdown
-    if (text.includes('```json')) {
-      text = text.split('```json')[1].split('```')[0];
-    } else if (text.includes('```')) {
-      text = text.split('```')[1].split('```')[0];
+    try {
+      return JSON.parse(content);
+    } catch (e) {
+      console.error('Failed to parse DeepSeek response as JSON:', content);
+      throw new Error('Invalid JSON response from AI');
     }
-
-    return JSON.parse(text);
-  } catch (error: any) {
-    console.error('Analysis Error (DeepSeek official):', error);
-    throw new Error('Failed to analyze content with DeepSeek official API');
+  } catch (error) {
+    console.error('Outline generation error:', error);
+    throw error;
   }
 }
 
@@ -143,7 +167,10 @@ export async function createKieTaskAction(params: {
 
   // Styles
   let styleSuffix = '';
-  let referenceImages: string[] = params.customImages || [];
+  // 处理参考图片 URL：确保是公网可访问的
+  let referenceImages: string[] = (params.customImages || []).map(
+    resolveImageUrl
+  );
 
   if (params.styleId) {
     const style = PPT_STYLES.find((s) => s.id === params.styleId);
@@ -208,10 +235,10 @@ export async function createKieTaskAction(params: {
 }
 
 /**
- * Query KIE Task Status
+ * Query Task Status via KIE API
  */
 export async function queryKieTaskAction(taskId: string) {
-  // Documentation says query param is 'taskId', not 'task_id'
+  // Kie Query Endpoint
   const endpoint = `https://api.kie.ai/api/v1/jobs/recordInfo?taskId=${taskId}`;
 
   try {
@@ -224,18 +251,21 @@ export async function queryKieTaskAction(taskId: string) {
 
     const data = await res.json();
 
-    // Normalize response for frontend
-    // API returns { data: { state: "success", resultJson: "{\"resultUrls\":[...]}" } }
+    // Check if task succeeded
+    // Data structure: data.data.state (success/fail/processing)
+    // Results: data.data.resultJson (stringified JSON) -> { resultUrls: string[] }
 
-    if (data.code === 200 && data.data) {
+    if (data.data && data.data.resultJson) {
       let results: string[] = [];
       try {
-        if (data.data.resultJson) {
+        if (typeof data.data.resultJson === 'string') {
           const parsed = JSON.parse(data.data.resultJson);
           results = parsed.resultUrls || [];
+        } else if (data.data.resultJson.resultUrls) {
+          results = data.data.resultJson.resultUrls;
         }
       } catch (e) {
-        console.error('Failed to parse resultJson', e);
+        console.warn('Failed to parse resultJson', e);
       }
 
       return {
@@ -256,4 +286,171 @@ export async function queryKieTaskAction(taskId: string) {
     console.error('[KIE] Query Error:', e);
     throw e;
   }
+}
+
+/**
+ * Create Image Generation Task with Fallback (KIE → Replicate)
+ *
+ * 非程序员解释：
+ * - 这个函数实现了托底逻辑：首先尝试用KIE生成PPT图片
+ * - 如果KIE失败，自动切换到Replicate
+ * - 返回结果中包含使用的提供商信息
+ */
+export async function createKieTaskWithFallbackAction(params: {
+  prompt: string;
+  styleId?: string;
+  aspectRatio?: string;
+  imageSize?: string;
+  customImages?: string[];
+}) {
+  console.log('\n🎯 PPT生成 - 开始尝试多提供商生成');
+
+  // 预处理图片 URL，确保对所有提供商都是公网可访问的
+  const processedParams = {
+    ...params,
+    customImages: (params.customImages || []).map(resolveImageUrl),
+  };
+
+  // 第一步：尝试使用KIE
+  if (KIE_API_KEY) {
+    try {
+      console.log('🔄 尝试使用 KIE (nano-banana-pro)...');
+      // 注意：createKieTaskAction 内部也会处理 URL，但这里为了日志清晰，我们可以认为它已经接收到了处理过的参数
+      // 但为了兼容性，createKieTaskAction 内部保留了 URL 处理逻辑
+      const result = await createKieTaskAction(params);
+      console.log('✅ KIE 任务创建成功:', result.task_id);
+      return {
+        success: true,
+        task_id: result.task_id,
+        provider: 'KIE',
+        fallbackUsed: false,
+      };
+    } catch (error: any) {
+      console.warn('⚠️ KIE 失败:', error.message);
+      console.log('🔄 准备切换到 Replicate 托底服务...');
+    }
+  } else {
+    console.log('⏭️ 跳过 KIE（未配置API Key）');
+  }
+
+  // 第二步：使用Replicate托底
+  if (REPLICATE_API_TOKEN) {
+    try {
+      console.log('🔄 尝试使用 Replicate (FLUX)...');
+
+      // 处理样式
+      let styleSuffix = '';
+      if (params.styleId) {
+        const style = PPT_STYLES.find((s) => s.id === params.styleId);
+        if (style) {
+          styleSuffix = style.suffix;
+        }
+      }
+
+      let finalPrompt = params.prompt + ' ' + styleSuffix;
+
+      // 如果有参考图片，添加风格指导
+      const referenceImages = processedParams.customImages;
+      if (referenceImages && referenceImages.length > 0) {
+        finalPrompt +=
+          ' (Style Reference: Strictly follow the visual style, color palette, and composition from the provided input image)';
+        console.log(
+          `[Replicate] 使用 ${referenceImages.length} 张参考图:`,
+          referenceImages
+        );
+      }
+
+      // 解析分辨率
+      const imageSize = params.imageSize || '4K';
+      let width = 1024;
+      let height = 1024;
+
+      if (params.aspectRatio) {
+        const [w, h] = params.aspectRatio.split(':').map(Number);
+        if (imageSize === '4K') {
+          const scale = 4096 / Math.max(w, h);
+          width = Math.round(w * scale);
+          height = Math.round(h * scale);
+        } else if (imageSize === '2K') {
+          const scale = 2048 / Math.max(w, h);
+          width = Math.round(w * scale);
+          height = Math.round(h * scale);
+        } else {
+          const scale = 1024 / Math.max(w, h);
+          width = Math.round(w * scale);
+          height = Math.round(h * scale);
+        }
+      }
+
+      // 调用Replicate API
+      const Replicate = require('replicate').default;
+      const replicate = new Replicate({ auth: REPLICATE_API_TOKEN });
+
+      // Replicate 的输入参数可能不支持 image_input 数组，通常支持 image (单张) 或其他特定参数
+      // FLUX 模型通常主要依赖 prompt。如果必须使用参考图，需要确认模型是否支持 image-to-image 或 controlnet
+      // black-forest-labs/flux-schnell 主要是 text-to-image。
+      // 为了安全起见，我们主要依赖 prompt，但如果模型支持图片输入，我们可以尝试传入第一张
+      // 这里我们主要依赖详细的 prompt 来控制风格
+
+      const input: any = {
+        prompt: finalPrompt,
+        width,
+        height,
+        num_outputs: 1,
+        // disable_safety_checker: true,
+      };
+
+      // 只有当模型明确支持参考图时才传入。目前 flux-schnell 主要是文生图。
+      // 如果需要图生图，可能需要切换模型。暂时只用 prompt。
+
+      const output = await replicate.run('black-forest-labs/flux-schnell', {
+        input,
+      });
+
+      const imageUrl = Array.isArray(output) ? output[0] : output;
+
+      console.log('✅ Replicate 生成成功');
+
+      // 返回类似KIE的格式，但标记为同步结果
+      return {
+        success: true,
+        task_id: `replicate-${Date.now()}`,
+        provider: 'Replicate',
+        fallbackUsed: true,
+        imageUrl, // 直接返回图片URL（同步结果）
+      };
+    } catch (error: any) {
+      console.error('❌ Replicate 失败:', error.message);
+    }
+  } else {
+    console.log('⏭️ 跳过 Replicate（未配置API Token）');
+  }
+
+  // 所有服务都失败
+  throw new Error('所有图片生成服务都暂时不可用，请稍后重试');
+}
+
+/**
+ * Query Task Status with Fallback Support
+ *
+ * 非程序员解释：
+ * - 这个函数查询任务状态，支持KIE和Replicate
+ * - 对于Replicate的同步结果，直接返回成功状态
+ */
+export async function queryKieTaskWithFallbackAction(
+  taskId: string,
+  provider?: string
+) {
+  // 如果是Replicate的任务（同步API），直接返回成功
+  if (provider === 'Replicate' || taskId.startsWith('replicate-')) {
+    return {
+      data: {
+        status: 'SUCCESS',
+        results: [], // 图片URL已在创建时返回
+      },
+    };
+  }
+
+  // 否则使用原来的KIE查询逻辑
+  return await queryKieTaskAction(taskId);
 }

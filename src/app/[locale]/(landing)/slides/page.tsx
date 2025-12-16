@@ -9,8 +9,10 @@ import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   createKieTaskAction,
+  createKieTaskWithFallbackAction,
   parseFileAction,
   queryKieTaskAction,
+  queryKieTaskWithFallbackAction,
 } from '@/app/actions/aippt';
 import {
   createPresentationAction,
@@ -71,6 +73,8 @@ interface SlideData {
   status: 'pending' | 'generating' | 'completed' | 'failed';
   imageUrl?: string;
   taskId?: string;
+  provider?: string; // 使用的AI提供商（KIE/Replicate）
+  fallbackUsed?: boolean; // 是否使用了托底服务
 }
 
 type Step = 'input' | 'outline' | 'style' | 'result';
@@ -816,7 +820,8 @@ export default function AIPPTPage() {
           // This ensures the generated image text aligns with user content
           const finalPrompt = `Slide Title: "${slide.title}"\n\nKey Content:\n${slide.content}`;
 
-          const taskData = await createKieTaskAction({
+          // 使用带托底的Action（KIE → Replicate）
+          const taskData = await createKieTaskWithFallbackAction({
             prompt: finalPrompt,
             styleId: selectedStyleId || undefined,
             aspectRatio,
@@ -826,35 +831,50 @@ export default function AIPPTPage() {
 
           if (!taskData.task_id) throw new Error(t('errors.no_task_id'));
 
-          // Poll
+          // 如果是同步API（Replicate），直接使用返回的图片URL
           let resultUrl = '';
-          let attempts = 0;
-          // Extend polling to 10 minutes (200 * 3s = 600s)
-          while (attempts < 200) {
-            await new Promise((r) => setTimeout(r, 3000));
-            const statusRes = await queryKieTaskAction(taskData.task_id);
-            const status = statusRes.data?.status;
+          if (taskData.imageUrl) {
+            resultUrl = taskData.imageUrl;
+            console.log(`✅ Slide ${index} - 同步生成完成 (${taskData.provider})`);
+          } else {
+            // 异步API（KIE），需要轮询
+            let attempts = 0;
+            // Extend polling to 10 minutes (200 * 3s = 600s)
+            while (attempts < 200) {
+              await new Promise((r) => setTimeout(r, 3000));
+              const statusRes = await queryKieTaskWithFallbackAction(
+                taskData.task_id,
+                taskData.provider
+              );
+              const status = statusRes.data?.status;
 
-            if (
-              status === 'SUCCESS' ||
-              (statusRes.data?.results && statusRes.data.results.length > 0)
-            ) {
-              const imgs = statusRes.data?.results || [];
-              if (imgs.length > 0) {
-                resultUrl = imgs[0];
-                break;
+              if (
+                status === 'SUCCESS' ||
+                (statusRes.data?.results && statusRes.data.results.length > 0)
+              ) {
+                const imgs = statusRes.data?.results || [];
+                if (imgs.length > 0) {
+                  resultUrl = imgs[0];
+                  break;
+                }
+              } else if (status === 'FAILED') {
+                throw new Error(t('errors.generation_failed'));
               }
-            } else if (status === 'FAILED') {
-              throw new Error(t('errors.generation_failed'));
+              attempts++;
             }
-            attempts++;
           }
 
           if (resultUrl) {
             setSlides((prev) =>
               prev.map((s) =>
                 s.id === slide.id
-                  ? { ...s, status: 'completed', imageUrl: resultUrl }
+                  ? { 
+                      ...s, 
+                      status: 'completed', 
+                      imageUrl: resultUrl,
+                      provider: taskData.provider, // 记录使用的提供商
+                      fallbackUsed: taskData.fallbackUsed, // 记录是否使用了托底
+                    }
                   : s
               )
             );
@@ -1573,6 +1593,17 @@ export default function AIPPTPage() {
               )}
             </div>
             <div className="p-4">
+              {/* 显示提供商信息 */}
+              {slide.status === 'completed' && slide.provider && (
+                <div className={`mb-2 rounded-md px-2 py-1 text-[10px] font-medium ${
+                  slide.fallbackUsed 
+                    ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400'
+                    : 'bg-green-500/10 text-green-600 dark:text-green-400'
+                }`}>
+                  {slide.fallbackUsed ? '⚠️' : '✅'} {slide.provider}
+                  {slide.fallbackUsed && ' (托底服务)'}
+                </div>
+              )}
               <h3 className="mb-1 truncate font-semibold">
                 {index + 1}. {slide.title}
               </h3>

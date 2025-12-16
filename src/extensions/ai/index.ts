@@ -148,3 +148,5 @@ export const aiManager = new AIManager();
 
 export * from './kie';
 export * from './replicate';
+export * from './together';
+export * from './novita';

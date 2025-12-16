@@ -58,6 +58,9 @@ const InfographicPage = () => {
   // 用于控制图片放大查看的模态框状态
   // 当用户点击图片时，这个状态会保存要显示的图片 URL
   const [enlargedImageUrl, setEnlargedImageUrl] = useState<string | null>(null);
+  // 记录使用的提供商和是否使用了托底服务
+  const [provider, setProvider] = useState<string | null>(null);
+  const [fallbackUsed, setFallbackUsed] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -100,7 +103,8 @@ const InfographicPage = () => {
     setImageUrls([]);
 
     try {
-      const resp = await fetch('/api/infographic/generate', {
+      // 使用带托底的新API
+      const resp = await fetch('/api/infographic/generate-with-fallback', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -127,9 +131,18 @@ const InfographicPage = () => {
       }
 
       setTaskId(data.taskId);
+      setProvider(data.provider || null);
+      setFallbackUsed(data.fallbackUsed || false);
 
-      // 任务创建成功后，开始轮询查询任务结果
-      await pollInfographicResult(data.taskId);
+      // 如果返回了imageUrls（同步API如Replicate/Together AI），直接显示
+      if (data.imageUrls && data.imageUrls.length > 0) {
+        setImageUrls(data.imageUrls);
+        setIsGenerating(false);
+        return;
+      }
+
+      // 否则开始轮询查询任务结果（异步API如KIE/Novita）
+      await pollInfographicResult(data.taskId, data.provider);
     } catch (err) {
       console.error('Generate infographic error:', err);
       setError(
@@ -149,16 +162,17 @@ const InfographicPage = () => {
    * - nano-banana-pro 在后台慢慢画图，我们只能拿到一个 taskId
    * - 这里每隔几秒去问一次「画完了吗？有图片地址了吗？」
    * - 一旦拿到 resultUrls，就在右侧直接显示图片并支持下载
+   * - 新增：支持多提供商查询（KIE、Replicate、Together AI、Novita AI）
    */
-  const pollInfographicResult = async (taskId: string) => {
+  const pollInfographicResult = async (taskId: string, provider?: string) => {
     const maxAttempts = 20; // 最多轮询 20 次（例如每 3 秒一次，大约 1 分钟）
     const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
-        const resp = await fetch(
-          `/api/infographic/query?taskId=${encodeURIComponent(taskId)}`
-        );
+        // 使用带托底的查询API
+        const queryUrl = `/api/infographic/query-with-fallback?taskId=${encodeURIComponent(taskId)}${provider ? `&provider=${encodeURIComponent(provider)}` : ''}`;
+        const resp = await fetch(queryUrl);
 
         if (!resp.ok) {
           const text = await resp.text();
@@ -172,15 +186,15 @@ const InfographicPage = () => {
           throw new Error(data.error || '查询信息图任务失败');
         }
 
-        const state = data.state as string;
-        const urls = (data.resultUrls || []) as string[];
+        const status = data.status as string;
+        const urls = (data.results || data.resultUrls || []) as string[];
 
-        if (state === 'success' && urls.length > 0) {
+        if (status === 'SUCCESS' && urls.length > 0) {
           setImageUrls(urls);
           return;
         }
 
-        if (state === 'fail') {
+        if (status === 'FAILED') {
           throw new Error('信息图生成失败，请稍后重试。');
         }
       } catch (err) {
@@ -424,6 +438,17 @@ const InfographicPage = () => {
 
               {!isGenerating && imageUrls.length > 0 && (
                 <div className="space-y-4">
+                  {/* 显示使用的提供商信息 */}
+                  {provider && (
+                    <div className={`rounded-lg border px-3 py-2 text-xs ${
+                      fallbackUsed 
+                        ? 'border-yellow-500/30 bg-yellow-500/10 text-yellow-300'
+                        : 'border-green-500/30 bg-green-500/10 text-green-300'
+                    }`}>
+                      {fallbackUsed ? '⚠️' : '✅'} 由 <strong>{provider}</strong> 生成
+                      {fallbackUsed && ' （KIE服务不可用，已自动切换到托底服务）'}
+                    </div>
+                  )}
                   {imageUrls.map((url, idx) => (
                     <div
                       key={idx}
