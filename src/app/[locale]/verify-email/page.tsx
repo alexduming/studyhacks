@@ -8,7 +8,6 @@ interface Props {
   searchParams: Promise<{
     token?: string;
     email?: string;
-    invite?: string;
   }>;
 }
 
@@ -21,7 +20,7 @@ export async function generateMetadata() {
 }
 
 export default async function VerifyEmailPage({ searchParams }: Props) {
-  const { token, email, invite } = await searchParams;
+  const { token, email } = await searchParams;
   const t = await getTranslations('common');
 
   // 如果没有token或email参数，显示错误页面
@@ -60,7 +59,7 @@ export default async function VerifyEmailPage({ searchParams }: Props) {
     // 动态导入注册完成页面组件
     const { RegisterCompletePage } = await import('@/shared/components/auth/register-complete-page');
 
-    return <RegisterCompletePage email={email} token={token} inviteCode={invite} />;
+    return <RegisterCompletePage email={email} token={token} />;
 
   } catch (error) {
     console.error('Email verification error:', error);

@@ -1,14 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { eq, and } from 'drizzle-orm';
 import { hashPassword } from 'better-auth/crypto';
+import { and, eq } from 'drizzle-orm';
 
-import { EmailVerificationService } from '@/shared/services/email-verification-service';
 import { db } from '@/core/db';
-import { user, account } from '@/config/db/schema';
-import { getUuid } from '@/shared/lib/hash';
-import { createCredit, CreditTransactionType, CreditStatus, CreditTransactionScene } from '@/shared/models/credit';
-import { getSnowId } from '@/shared/lib/hash';
-import { getInvitationByCode, updateInvitation, InvitationStatus } from '@/shared/models/invitation';
+import { account, user } from '@/config/db/schema';
+import { getSnowId, getUuid } from '@/shared/lib/hash';
+import {
+  createCredit,
+  CreditStatus,
+  CreditTransactionScene,
+  CreditTransactionType,
+} from '@/shared/models/credit';
+import {
+  getInvitationByCode,
+  InvitationStatus,
+  updateInvitation,
+} from '@/shared/models/invitation';
+import { EmailVerificationService } from '@/shared/services/email-verification-service';
 
 // 强制使用 Node.js 运行时，因为需要使用 bcryptjs 和数据库操作
 export const runtime = 'nodejs';
@@ -24,7 +32,9 @@ export async function POST(request: NextRequest) {
   try {
     const { email, password, name, token, inviteCode } = await request.json();
 
-    console.log(`📝 收到注册请求: email=${email}, name=${name}, inviteCode=${inviteCode || '无'}`);
+    console.log(
+      `📝 收到注册请求: email=${email}, name=${name}, inviteCode=${inviteCode || '无'}`
+    );
 
     // 验证必填字段
     if (!email || !password || !name || !token) {
@@ -43,7 +53,10 @@ export async function POST(request: NextRequest) {
     }
 
     // 首先验证邮箱令牌
-    const verificationResult = await EmailVerificationService.verifyToken(token, email);
+    const verificationResult = await EmailVerificationService.verifyToken(
+      token,
+      email
+    );
 
     if (!verificationResult.success) {
       return NextResponse.json(
@@ -55,8 +68,21 @@ export async function POST(request: NextRequest) {
     // 邮箱验证通过，进行注册
     // 使用事务确保数据一致性：user 和 account 必须同时创建或同时失败
     const database = db();
-    
-    console.log(`🚀 开始处理数据库事务: email=${email}`);
+
+    // 尝试从验证记录中获取邀请码（如果前端未提供）
+    let finalInviteCode = inviteCode;
+    if (!finalInviteCode) {
+      const savedInviteCode =
+        await EmailVerificationService.getInviteCode(email);
+      if (savedInviteCode) {
+        console.log(`🎁 从验证记录中找到邀请码: ${savedInviteCode}`);
+        finalInviteCode = savedInviteCode;
+      }
+    }
+
+    console.log(
+      `🚀 开始处理数据库事务: email=${email}, inviteCode=${finalInviteCode || '无'}`
+    );
 
     try {
       // 在事务中执行所有数据库操作，确保数据一致性
@@ -67,8 +93,10 @@ export async function POST(request: NextRequest) {
           .from(user)
           .where(eq(user.email, email))
           .limit(1);
-        
-        console.log(`🔍 检查用户是否存在: ${existingUser.length > 0 ? '是' : '否'}`);
+
+        console.log(
+          `🔍 检查用户是否存在: ${existingUser.length > 0 ? '是' : '否'}`
+        );
 
         let userId: string;
         let newUser: typeof user.$inferSelect;
@@ -90,8 +118,10 @@ export async function POST(request: NextRequest) {
               )
             )
             .limit(1);
-          
-          console.log(`🔍 检查 Account 是否存在: ${existingAccount.length > 0 ? '是' : '否'}`);
+
+          console.log(
+            `🔍 检查 Account 是否存在: ${existingAccount.length > 0 ? '是' : '否'}`
+          );
 
           if (existingAccount.length > 0) {
             // 用户已存在且已有 account 记录，说明已完整注册
@@ -101,7 +131,9 @@ export async function POST(request: NextRequest) {
 
           // 用户存在但没有 account 记录，这是数据不一致的情况
           // 我们需要补全 account 记录，让用户能够登录
-          console.log(`⚠️ 检测到数据不一致：用户 ${email} 存在但缺少 account 记录，正在补全...`);
+          console.log(
+            `⚠️ 检测到数据不一致：用户 ${email} 存在但缺少 account 记录，正在补全...`
+          );
 
           // 更新用户信息（可能用户之前没有设置姓名）
           await tx
@@ -119,7 +151,7 @@ export async function POST(request: NextRequest) {
             .from(user)
             .where(eq(user.id, userId))
             .limit(1);
-          
+
           if (updatedUser) {
             newUser = updatedUser;
           }
@@ -127,7 +159,7 @@ export async function POST(request: NextRequest) {
           // 新用户，创建完整的用户记录
           isNewUser = true;
           userId = getUuid();
-          
+
           console.log(`🆕 创建新用户: ${userId}`);
 
           // 创建用户记录
@@ -140,7 +172,7 @@ export async function POST(request: NextRequest) {
               emailVerified: true, // 因为已经通过邮箱验证
             })
             .returning();
-          
+
           newUser = createdUser;
         }
 
@@ -189,16 +221,30 @@ export async function POST(request: NextRequest) {
 
       // === 添加数据验证步骤 ===
       console.log(`🕵️‍♂️ 事务完成，正在验证数据写入情况...`);
-      const verifyUser = await database.select().from(user).where(eq(user.id, userId)).limit(1);
-      const verifyAccount = await database.select().from(account).where(and(eq(account.userId, userId), eq(account.providerId, 'credential'))).limit(1);
+      const verifyUser = await database
+        .select()
+        .from(user)
+        .where(eq(user.id, userId))
+        .limit(1);
+      const verifyAccount = await database
+        .select()
+        .from(account)
+        .where(
+          and(eq(account.userId, userId), eq(account.providerId, 'credential'))
+        )
+        .limit(1);
 
       if (verifyUser.length === 0) {
-        console.error(`❌ 严重错误：事务成功但无法查询到 User 记录。UserID: ${userId}`);
+        console.error(
+          `❌ 严重错误：事务成功但无法查询到 User 记录。UserID: ${userId}`
+        );
         throw new Error('REGISTRATION_VERIFICATION_FAILED_USER');
       }
 
       if (verifyAccount.length === 0) {
-        console.error(`❌ 严重错误：事务成功但无法查询到 Account 记录。UserID: ${userId}`);
+        console.error(
+          `❌ 严重错误：事务成功但无法查询到 Account 记录。UserID: ${userId}`
+        );
         throw new Error('REGISTRATION_VERIFICATION_FAILED_ACCOUNT');
       }
 
@@ -209,7 +255,7 @@ export async function POST(request: NextRequest) {
       if (isNewUser) {
         /**
          * 赠送免费用户月度积分（10积分）
-         * 
+         *
          * 非程序员解释：
          * - 每个新注册的用户都会获得10个AI积分
          * - 这些积分会在当月最后一天的23:59:59过期
@@ -218,7 +264,15 @@ export async function POST(request: NextRequest) {
          */
         const now = new Date();
         // 计算当月最后一天的23:59:59
-        const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+        const lastDayOfMonth = new Date(
+          now.getFullYear(),
+          now.getMonth() + 1,
+          0,
+          23,
+          59,
+          59,
+          999
+        );
 
         await createCredit({
           id: getUuid(),
@@ -236,27 +290,29 @@ export async function POST(request: NextRequest) {
 
         /**
          * 处理邀请码逻辑
-         * 
+         *
          * 非程序员解释：
          * - 如果用户使用邀请码注册，需要给邀请方和被邀请方都发放积分奖励
          * - 邀请方获得100积分（可累计）
          * - 被邀请方获得100积分（一次性）
          * - 积分有效期为1个月
          */
-        if (inviteCode) {
+        if (finalInviteCode) {
           try {
-            console.log(`🎁 处理邀请码: ${inviteCode}`);
-            
+            console.log(`🎁 处理邀请码: ${finalInviteCode}`);
+
             // 查询邀请码是否有效
-            const invitation = await getInvitationByCode(inviteCode);
-            
+            const invitation = await getInvitationByCode(finalInviteCode);
+
             if (invitation) {
               // 确保不是自己邀请自己
               if (invitation.inviterId === userId) {
                 console.log(`⚠️ 用户尝试使用自己的邀请码注册`);
               } else {
-                console.log(`✅ 找到有效邀请码，邀请人: ${invitation.inviterEmail}`);
-                
+                console.log(
+                  `✅ 找到有效邀请码，邀请人: ${invitation.inviterEmail}`
+                );
+
                 // 计算积分过期时间（1个月后）
                 const creditExpiresAt = new Date();
                 creditExpiresAt.setMonth(creditExpiresAt.getMonth() + 1);
@@ -276,7 +332,10 @@ export async function POST(request: NextRequest) {
                   description: `Invitation reward for new user (invited by ${invitation.inviterEmail})`,
                   expiresAt: creditExpiresAt,
                   status: CreditStatus.ACTIVE,
-                  metadata: JSON.stringify({ invitationId: invitation.id, role: 'invitee' }),
+                  metadata: JSON.stringify({
+                    invitationId: invitation.id,
+                    role: 'invitee',
+                  }),
                 });
                 console.log(`✅ 为被邀请人 ${email} 发放100积分`);
 
@@ -294,9 +353,14 @@ export async function POST(request: NextRequest) {
                   description: `Invitation reward for referring ${email}`,
                   expiresAt: creditExpiresAt,
                   status: CreditStatus.ACTIVE,
-                  metadata: JSON.stringify({ invitationId: invitation.id, role: 'inviter' }),
+                  metadata: JSON.stringify({
+                    invitationId: invitation.id,
+                    role: 'inviter',
+                  }),
                 });
-                console.log(`✅ 为邀请人 ${invitation.inviterEmail} 发放100积分`);
+                console.log(
+                  `✅ 为邀请人 ${invitation.inviterEmail} 发放100积分`
+                );
 
                 // 3. 更新邀请记录状态
                 await updateInvitation(invitation.id, {
@@ -310,7 +374,7 @@ export async function POST(request: NextRequest) {
                 console.log(`✅ 更新邀请记录状态为已接受`);
               }
             } else {
-              console.log(`⚠️ 邀请码 ${inviteCode} 无效或已被使用`);
+              console.log(`⚠️ 邀请码 ${finalInviteCode} 无效或已被使用`);
             }
           } catch (inviteError: any) {
             // 邀请码处理失败不应该影响注册流程
@@ -319,16 +383,22 @@ export async function POST(request: NextRequest) {
         }
 
         // 发送欢迎邮件（仅新用户）
-        const { EmailService } = await import('@/shared/services/email-service');
+        const { EmailService } = await import(
+          '@/shared/services/email-service'
+        );
         await EmailService.sendWelcomeEmail(email, name.trim());
       } else {
         // 对于补全 account 的已存在用户，记录日志但不发送邮件
-        console.log(`✅ 已为用户 ${email} 补全 account 记录，现在可以正常登录了`);
+        console.log(
+          `✅ 已为用户 ${email} 补全 account 记录，现在可以正常登录了`
+        );
       }
 
       return NextResponse.json({
         success: true,
-        message: isNewUser ? '注册成功！' : '账户信息已更新，现在可以正常登录了！',
+        message: isNewUser
+          ? '注册成功！'
+          : '账户信息已更新，现在可以正常登录了！',
         user: {
           id: newUser.id,
           email: newUser.email,
@@ -336,7 +406,6 @@ export async function POST(request: NextRequest) {
         },
         isNewUser, // 标识是否为新用户
       });
-
     } catch (dbError: any) {
       console.error('数据库错误:', dbError);
 
@@ -350,10 +419,7 @@ export async function POST(request: NextRequest) {
 
       // 处理数据库唯一约束错误（邮箱重复）
       if (dbError.code === '23505' || dbError.message?.includes('unique')) {
-        return NextResponse.json(
-          { error: '该邮箱已被注册' },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: '该邮箱已被注册' }, { status: 400 });
       }
 
       return NextResponse.json(
@@ -361,7 +427,6 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-
   } catch (error) {
     console.error('注册 API 错误:', error);
     return NextResponse.json(

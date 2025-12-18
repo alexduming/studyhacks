@@ -118,6 +118,7 @@ export const emailVerification = pgTable(
       .notNull(),
     lastSentAt: timestamp('last_sent_at'),
     verifiedAt: timestamp('verified_at'),
+    inviteCode: text('invite_code'),
   },
   (table) => [
     // Find verification by email
