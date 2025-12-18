@@ -23,6 +23,11 @@
         "icon": "Coins"
       },
       {
+        "title": "邀请好友",
+        "url": "/settings/invitation",
+        "icon": "Users"
+      },
+      {
         "title": "API 密钥",
         "url": "/settings/apikeys",
         "icon": "RiKeyLine"

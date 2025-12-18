@@ -19,7 +19,7 @@
     "upload_hint": "点击上传 PDF/DOCX/TXT/图片",
     "upload_subhint": "我们将为您提取文本（图片支持AI文字识别，可批量上传）",
     "attach": "添加附件",
-    "slide_count": "页数",
+    "slide_count": "生成页数",
     "button_analyze": "开始分析",
     "analyzing": "分析内容中..."
   },

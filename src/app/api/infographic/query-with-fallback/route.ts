@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAllConfigs } from '@/shared/models/config';
+import { getStorageServiceWithConfigs } from '@/shared/services/storage';
+import { getUserInfo } from '@/shared/models/user';
+import { nanoid } from 'nanoid';
+import { db } from '@/core/db';
+import { aiTask } from '@/config/db/schema';
+import { eq, and } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 
@@ -251,10 +257,115 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // ✅ 新增：如果任务成功且有结果，自动保存到 R2
+    let savedUrls: string[] = [];
+    if (result.status === 'SUCCESS' && result.resultUrls && result.resultUrls.length > 0) {
+      try {
+        // 获取当前用户信息
+        const user = await getUserInfo();
+        
+        // 检查 R2 是否配置
+        if (user && configs.r2_bucket_name && configs.r2_access_key) {
+          console.log(`[Infographic] 开始保存 ${result.resultUrls.length} 张图片到 R2`);
+          
+          const storageService = getStorageServiceWithConfigs(configs);
+          
+          // 并行保存所有图片
+          const savePromises = result.resultUrls.map(async (imageUrl: string, index: number) => {
+            try {
+              const timestamp = Date.now();
+              const randomId = nanoid(8);
+              const fileExtension = imageUrl.includes('.jpg') || imageUrl.includes('.jpeg') 
+                ? 'jpg' 
+                : 'png';
+              
+              const fileName = `${timestamp}_${randomId}_${index}.${fileExtension}`;
+              const storageKey = `infographic/${user.id}/${fileName}`;
+
+              console.log(`[Infographic] 保存图片 ${index + 1}: ${storageKey}`);
+
+              const uploadResult = await storageService.downloadAndUpload({
+                url: imageUrl,
+                key: storageKey,
+                contentType: `image/${fileExtension}`,
+                disposition: 'inline',
+              });
+
+              if (uploadResult.success && uploadResult.url) {
+                console.log(`[Infographic] ✅ 图片 ${index + 1} 保存成功: ${uploadResult.url}`);
+                return uploadResult.url;
+              } else {
+                console.warn(`[Infographic] ⚠️ 图片 ${index + 1} 保存失败: ${uploadResult.error}`);
+                return imageUrl; // 失败时返回原始 URL
+              }
+            } catch (error: any) {
+              console.error(`[Infographic] ❌ 图片 ${index + 1} 保存异常:`, error);
+              return imageUrl; // 异常时返回原始 URL
+            }
+          });
+
+          savedUrls = await Promise.all(savePromises);
+          console.log(`[Infographic] 保存完成，成功 ${savedUrls.filter((url, i) => url !== result.resultUrls![i]).length}/${result.resultUrls.length} 张`);
+          
+          // ✅ 更新 ai_task 记录，保存 R2 URL
+          try {
+            // 根据 taskId 查找对应的 ai_task 记录
+            const [existingTask] = await db()
+              .select()
+              .from(aiTask)
+              .where(
+                and(
+                  eq(aiTask.taskId, taskId),
+                  eq(aiTask.userId, user.id),
+                  eq(aiTask.scene, 'ai_infographic')
+                )
+              )
+              .limit(1);
+
+            if (existingTask) {
+              // 更新 taskResult 字段，保存 R2 URL
+              await db()
+                .update(aiTask)
+                .set({
+                  taskResult: JSON.stringify({
+                    imageUrls: savedUrls,
+                    originalUrls: result.resultUrls,
+                    savedToR2: true,
+                    savedAt: new Date().toISOString(),
+                  }),
+                  status: 'success',
+                })
+                .where(eq(aiTask.id, existingTask.id));
+
+              console.log(`[Infographic] ✅ 已更新 ai_task 记录: ${existingTask.id}`);
+            } else {
+              console.log(`[Infographic] ⚠️ 未找到对应的 ai_task 记录: taskId=${taskId}`);
+            }
+          } catch (updateError: any) {
+            console.error('[Infographic] 更新 ai_task 记录失败:', updateError);
+          }
+        } else {
+          // R2 未配置或用户未登录，直接返回原始 URL
+          savedUrls = result.resultUrls;
+          if (!user) {
+            console.log('[Infographic] 用户未登录，跳过 R2 保存');
+          } else if (!configs.r2_bucket_name || !configs.r2_access_key) {
+            console.log('[Infographic] R2 未配置，跳过保存');
+          }
+        }
+      } catch (error: any) {
+        console.error('[Infographic] 保存图片到 R2 失败:', error);
+        // 保存失败不影响返回结果，使用原始 URL
+        savedUrls = result.resultUrls;
+      }
+    } else {
+      savedUrls = result.resultUrls || [];
+    }
+
     return NextResponse.json({
       success: true,
       status: result.status,
-      results: result.resultUrls || [],
+      results: savedUrls,
     });
   } catch (error) {
     console.error('Query with fallback error:', error);

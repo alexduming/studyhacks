@@ -23,6 +23,11 @@
         "icon": "Coins"
       },
       {
+        "title": "Invite Friends",
+        "url": "/settings/invitation",
+        "icon": "Users"
+      },
+      {
         "title": "API Keys",
         "url": "/settings/apikeys",
         "icon": "RiKeyLine"

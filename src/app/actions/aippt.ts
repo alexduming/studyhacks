@@ -579,7 +579,7 @@ export async function createKieTaskWithFallbackAction(params: {
   customImages?: string[];
   preferredProvider?: 'Replicate' | 'KIE'; // 首选提供商（强制优先使用）
 }) {
-  const { preferredProvider = 'Replicate', ...taskParams } = params;
+  const { preferredProvider = 'KIE', ...taskParams } = params;
 
   // 预处理图片 URL，确保对所有提供商都是公网可访问的
   const processedParams = {
@@ -908,13 +908,61 @@ export async function createReplicateTaskAction(params: {
 
     console.log('✅ Replicate 生成成功，URL:', imageUrl);
 
+    // ✅ 新增：自动保存 Replicate 生成的图片到 R2
+    let finalImageUrl = imageUrl;
+    try {
+      // 动态导入 storage 相关模块
+      const { getStorageServiceWithConfigs } = await import(
+        '@/shared/services/storage'
+      );
+      const { getAllConfigs } = await import('@/shared/models/config');
+      const { getUserInfo } = await import('@/shared/models/user');
+      const { nanoid } = await import('nanoid');
+
+      const user = await getUserInfo();
+      const configs = await getAllConfigs();
+
+      if (user && configs.r2_bucket_name && configs.r2_access_key) {
+        console.log('[Replicate] 开始保存图片到 R2...');
+        const storageService = getStorageServiceWithConfigs(configs);
+
+        const timestamp = Date.now();
+        const randomId = nanoid(8);
+        const fileExtension =
+          imageUrl.includes('.jpg') || imageUrl.includes('.jpeg')
+            ? 'jpg'
+            : 'png';
+        const fileName = `${timestamp}_${randomId}.${fileExtension}`;
+        const storageKey = `slides/${user.id}/${fileName}`;
+
+        const uploadResult = await storageService.downloadAndUpload({
+          url: imageUrl,
+          key: storageKey,
+          contentType: `image/${fileExtension}`,
+          disposition: 'inline',
+        });
+
+        if (uploadResult.success && uploadResult.url) {
+          console.log(`[Replicate] ✅ 图片保存成功: ${uploadResult.url}`);
+          finalImageUrl = uploadResult.url;
+        } else {
+          console.warn(`[Replicate] ⚠️ 图片保存失败: ${uploadResult.error}`);
+        }
+      } else {
+        console.log('[Replicate] R2 未配置或用户未登录，跳过保存');
+      }
+    } catch (saveError: any) {
+      console.error('[Replicate] 保存图片异常:', saveError);
+      // 保存失败不影响流程，继续使用原始 URL
+    }
+
     // 返回类似KIE的格式，但标记为同步结果
     const result = {
       success: true,
       task_id: `replicate-${Date.now()}`,
       provider: 'Replicate',
       fallbackUsed: false, // 如果是主力调用，这里应该是 false
-      imageUrl, // 直接返回图片URL（同步结果）
+      imageUrl: finalImageUrl, // 返回（可能已替换为 R2 的）图片URL
     };
 
     console.log('[Replicate] 返回值:', {
@@ -935,10 +983,16 @@ export async function createReplicateTaskAction(params: {
  * 非程序员解释：
  * - 这个函数查询任务状态，支持KIE和Replicate
  * - 对于Replicate的同步结果，直接返回成功状态
+ * - ✅ 新增：任务成功后自动保存图片到 R2
  */
 export async function queryKieTaskWithFallbackAction(
   taskId: string,
-  provider?: string
+  provider?: string,
+  options?: {
+    userId?: string;
+    slideIndex?: number;
+    presentationId?: string;
+  }
 ) {
   // 如果是Replicate的任务（同步API），直接返回成功
   if (provider === 'Replicate' || taskId.startsWith('replicate-')) {
@@ -951,5 +1005,104 @@ export async function queryKieTaskWithFallbackAction(
   }
 
   // 否则使用原来的KIE查询逻辑
-  return await queryKieTaskAction(taskId);
+  const result = await queryKieTaskAction(taskId);
+
+  // ✅ 新增：如果任务成功且有结果，自动保存到 R2
+  if (
+    result?.data?.status === 'SUCCESS' &&
+    result.data.results &&
+    result.data.results.length > 0
+  ) {
+    try {
+      // 动态导入 storage 相关模块（避免在前端执行）
+      const { getStorageServiceWithConfigs } = await import(
+        '@/shared/services/storage'
+      );
+      const { getAllConfigs } = await import('@/shared/models/config');
+      const { getUserInfo } = await import('@/shared/models/user');
+      const { nanoid } = await import('nanoid');
+
+      // 获取当前用户
+      const user = await getUserInfo();
+      if (!user) {
+        console.log('[Slides] 用户未登录，跳过 R2 保存');
+        return result;
+      }
+
+      // 获取配置
+      const configs = await getAllConfigs();
+
+      // 检查 R2 是否配置
+      if (!configs.r2_bucket_name || !configs.r2_access_key) {
+        console.log('[Slides] R2 未配置，跳过保存');
+        return result;
+      }
+
+      console.log(
+        `[Slides] 开始保存 ${result.data.results.length} 张图片到 R2`
+      );
+
+      const storageService = getStorageServiceWithConfigs(configs);
+
+      // 并行保存所有图片
+      const savePromises = result.data.results.map(
+        async (imageUrl: string, index: number) => {
+          try {
+            const timestamp = Date.now();
+            const randomId = nanoid(8);
+            const fileExtension =
+              imageUrl.includes('.jpg') || imageUrl.includes('.jpeg')
+                ? 'jpg'
+                : 'png';
+
+            const fileName = `${timestamp}_${randomId}_${index}.${fileExtension}`;
+            const storageKey = `slides/${user.id}/${fileName}`;
+
+            console.log(`[Slides] 保存图片 ${index + 1}: ${storageKey}`);
+
+            const uploadResult = await storageService.downloadAndUpload({
+              url: imageUrl,
+              key: storageKey,
+              contentType: `image/${fileExtension}`,
+              disposition: 'inline',
+            });
+
+            if (uploadResult.success && uploadResult.url) {
+              console.log(
+                `[Slides] ✅ 图片 ${index + 1} 保存成功: ${uploadResult.url}`
+              );
+              return uploadResult.url;
+            } else {
+              console.warn(
+                `[Slides] ⚠️ 图片 ${index + 1} 保存失败: ${uploadResult.error}`
+              );
+              return imageUrl; // 失败时返回原始 URL
+            }
+          } catch (error: any) {
+            console.error(`[Slides] ❌ 图片 ${index + 1} 保存异常:`, error);
+            return imageUrl; // 异常时返回原始 URL
+          }
+        }
+      );
+
+      const savedUrls = await Promise.all(savePromises);
+      console.log(
+        `[Slides] 保存完成，成功 ${savedUrls.filter((url, i) => url !== result.data.results![i]).length}/${result.data.results.length} 张`
+      );
+
+      // 返回保存后的 R2 URL
+      return {
+        data: {
+          status: result.data.status,
+          results: savedUrls,
+        },
+      };
+    } catch (error: any) {
+      console.error('[Slides] 保存图片到 R2 失败:', error);
+      // 保存失败不影响返回结果，使用原始 URL
+      return result;
+    }
+  }
+
+  return result;
 }

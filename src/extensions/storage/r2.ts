@@ -88,6 +88,12 @@ export class R2Provider implements StorageProvider {
         };
       }
 
+      if (!this.configs.publicDomain) {
+        console.warn(
+          '⚠️ [R2] Warning: publicDomain (R2_DOMAIN) is not configured. The returned URL will be a private endpoint and may not be accessible publicly.'
+        );
+      }
+
       const publicUrl = this.configs.publicDomain
         ? `${this.configs.publicDomain}/${options.key}`
         : url;

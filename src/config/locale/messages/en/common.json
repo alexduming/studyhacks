@@ -98,6 +98,10 @@
   "email_register": {
     "page_title": "Complete Registration",
     "subtitle": "Your email {email} has been verified successfully",
+    "invite_code_title": "Invitation Code",
+    "invite_code_optional": "Optional",
+    "invite_code_placeholder": "Enter invitation code to get 100 credits reward",
+    "invite_code_description": "Use a friend's invitation code, both parties get 100 credits reward (valid for 1 month)",
     "instruction": "Please set your account information to complete registration",
     "name_title": "Full Name",
     "name_placeholder": "Enter your full name",

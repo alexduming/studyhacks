@@ -8,6 +8,7 @@ import { user, account } from '@/config/db/schema';
 import { getUuid } from '@/shared/lib/hash';
 import { createCredit, CreditTransactionType, CreditStatus, CreditTransactionScene } from '@/shared/models/credit';
 import { getSnowId } from '@/shared/lib/hash';
+import { getInvitationByCode, updateInvitation, InvitationStatus } from '@/shared/models/invitation';
 
 // 强制使用 Node.js 运行时，因为需要使用 bcryptjs 和数据库操作
 export const runtime = 'nodejs';
@@ -21,9 +22,9 @@ export const runtime = 'nodejs';
  */
 export async function POST(request: NextRequest) {
   try {
-    const { email, password, name, token } = await request.json();
+    const { email, password, name, token, inviteCode } = await request.json();
 
-    console.log(`📝 收到注册请求: email=${email}, name=${name}`);
+    console.log(`📝 收到注册请求: email=${email}, name=${name}, inviteCode=${inviteCode || '无'}`);
 
     // 验证必填字段
     if (!email || !password || !name || !token) {
@@ -232,6 +233,90 @@ export async function POST(request: NextRequest) {
           expiresAt: lastDayOfMonth, // 当月最后一天过期
           status: CreditStatus.ACTIVE,
         });
+
+        /**
+         * 处理邀请码逻辑
+         * 
+         * 非程序员解释：
+         * - 如果用户使用邀请码注册，需要给邀请方和被邀请方都发放积分奖励
+         * - 邀请方获得100积分（可累计）
+         * - 被邀请方获得100积分（一次性）
+         * - 积分有效期为1个月
+         */
+        if (inviteCode) {
+          try {
+            console.log(`🎁 处理邀请码: ${inviteCode}`);
+            
+            // 查询邀请码是否有效
+            const invitation = await getInvitationByCode(inviteCode);
+            
+            if (invitation) {
+              // 确保不是自己邀请自己
+              if (invitation.inviterId === userId) {
+                console.log(`⚠️ 用户尝试使用自己的邀请码注册`);
+              } else {
+                console.log(`✅ 找到有效邀请码，邀请人: ${invitation.inviterEmail}`);
+                
+                // 计算积分过期时间（1个月后）
+                const creditExpiresAt = new Date();
+                creditExpiresAt.setMonth(creditExpiresAt.getMonth() + 1);
+                creditExpiresAt.setHours(23, 59, 59, 999);
+
+                // 1. 给被邀请方（新用户）发放100积分
+                const inviteeCreditId = getUuid();
+                await createCredit({
+                  id: inviteeCreditId,
+                  userId: userId,
+                  userEmail: email,
+                  transactionNo: getSnowId(),
+                  transactionType: CreditTransactionType.GRANT,
+                  transactionScene: CreditTransactionScene.AWARD, // 使用AWARD场景表示邀请奖励
+                  credits: 100,
+                  remainingCredits: 100,
+                  description: `Invitation reward for new user (invited by ${invitation.inviterEmail})`,
+                  expiresAt: creditExpiresAt,
+                  status: CreditStatus.ACTIVE,
+                  metadata: JSON.stringify({ invitationId: invitation.id, role: 'invitee' }),
+                });
+                console.log(`✅ 为被邀请人 ${email} 发放100积分`);
+
+                // 2. 给邀请方发放100积分
+                const inviterCreditId = getUuid();
+                await createCredit({
+                  id: inviterCreditId,
+                  userId: invitation.inviterId,
+                  userEmail: invitation.inviterEmail,
+                  transactionNo: getSnowId(),
+                  transactionType: CreditTransactionType.GRANT,
+                  transactionScene: CreditTransactionScene.AWARD,
+                  credits: 100,
+                  remainingCredits: 100,
+                  description: `Invitation reward for referring ${email}`,
+                  expiresAt: creditExpiresAt,
+                  status: CreditStatus.ACTIVE,
+                  metadata: JSON.stringify({ invitationId: invitation.id, role: 'inviter' }),
+                });
+                console.log(`✅ 为邀请人 ${invitation.inviterEmail} 发放100积分`);
+
+                // 3. 更新邀请记录状态
+                await updateInvitation(invitation.id, {
+                  status: InvitationStatus.ACCEPTED,
+                  inviteeId: userId,
+                  inviteeEmail: email,
+                  acceptedAt: now,
+                  inviterCreditId: inviterCreditId,
+                  inviteeCreditId: inviteeCreditId,
+                });
+                console.log(`✅ 更新邀请记录状态为已接受`);
+              }
+            } else {
+              console.log(`⚠️ 邀请码 ${inviteCode} 无效或已被使用`);
+            }
+          } catch (inviteError: any) {
+            // 邀请码处理失败不应该影响注册流程
+            console.error(`❌ 处理邀请码时出错:`, inviteError);
+          }
+        }
 
         // 发送欢迎邮件（仅新用户）
         const { EmailService } = await import('@/shared/services/email-service');

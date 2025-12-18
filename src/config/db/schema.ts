@@ -541,6 +541,40 @@ export const chat = pgTable(
   (table) => [index('idx_chat_user_status').on(table.userId, table.status)]
 );
 
+export const invitation = pgTable(
+  'invitation',
+  {
+    id: text('id').primaryKey(),
+    inviterId: text('inviter_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    inviterEmail: text('inviter_email'),
+    inviteeId: text('invitee_id').references(() => user.id, { onDelete: 'set null' }),
+    inviteeEmail: text('invitee_email'),
+    code: text('code').notNull().unique(),
+    status: text('status').notNull().default('pending'), // pending, accepted, expired
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+    acceptedAt: timestamp('accepted_at'),
+    expiresAt: timestamp('expires_at'),
+    inviterCreditId: text('inviter_credit_id'),
+    inviteeCreditId: text('invitee_credit_id'),
+    note: text('note'),
+  },
+  (table) => [
+    // Query invitations by inviter
+    index('idx_invitation_inviter_id').on(table.inviterId, table.status),
+    // Query invitation by code (for registration validation)
+    index('idx_invitation_code').on(table.code, table.status),
+    // Query invitations by invitee
+    index('idx_invitation_invitee_id').on(table.inviteeId),
+    // Order invitations by creation time
+    index('idx_invitation_created_at').on(table.createdAt),
+  ]
+);
+
 export const chatMessage = pgTable(
   'chat_message',
   {

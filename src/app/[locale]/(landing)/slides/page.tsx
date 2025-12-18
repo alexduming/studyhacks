@@ -1064,8 +1064,11 @@ export default function AIPPTPage() {
         const anyFailed = localSlides.some((s) => s.status === 'failed');
         const finalStatus = anyFailed ? 'failed' : 'completed';
 
-        // Use the thumbnail of the first slide
-        const thumbnail = localSlides[0]?.imageUrl;
+        // Use the thumbnail of the first successfully generated slide
+        const firstSuccessSlide = localSlides.find(
+          (s) => s.status === 'completed' && s.imageUrl
+        );
+        const thumbnail = firstSuccessSlide?.imageUrl || localSlides[0]?.imageUrl;
 
         await updatePresentationAction(presentationId, {
           status: finalStatus,

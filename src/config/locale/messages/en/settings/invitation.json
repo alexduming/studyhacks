@@ -1,0 +1,44 @@
+{
+  "page_title": "Invite Friends",
+  "page_description": "Invite friends to register, both parties get 100 credits reward, valid for 1 month",
+  "stats": {
+    "successful_invitations": "Successful Invitations",
+    "total_invitations": "Total invitations",
+    "people": "people",
+    "pending_invitations": "Pending",
+    "waiting_registration": "Waiting for friends to register",
+    "earned_credits": "Earned Credits",
+    "invitation_reward": "Invitation reward credits"
+  },
+  "invite_code": {
+    "title": "My Invitation Code",
+    "description": "Share your invitation code with friends. When they register successfully with your code, both of you will receive 100 credits reward",
+    "code_label": "Invitation Code",
+    "link_label": "Invitation Link",
+    "copy_code": "Copy Code",
+    "copy_link": "Copy Link",
+    "copied": "Copied",
+    "copy_success": "Invitation code copied",
+    "link_copy_success": "Invitation link copied"
+  },
+  "rules": {
+    "title": "Reward Rules:",
+    "rule_1": "When an invitee successfully registers with your code, both parties receive 100 credits",
+    "rule_2": "Credits are valid for 1 month",
+    "rule_3": "You can invite multiple friends, invitation rewards are cumulative",
+    "rule_4": "Each new user can only use one invitation code"
+  },
+  "invitation_records": {
+    "title": "Invitation Records",
+    "description": "Recent invitation records",
+    "waiting_registration": "Waiting for registration",
+    "accepted_time": "Accepted",
+    "created_time": "Created",
+    "status_accepted": "Accepted",
+    "status_pending": "Pending",
+    "status_expired": "Expired"
+  },
+  "loading": "Loading...",
+  "load_error": "Failed to load invitation data"
+}
+

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -30,6 +30,18 @@ export function RegisterCompletePage({ email, token }: Props) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');
+
+  // 从 URL 中获取邀请码
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const invite = params.get('invite');
+      if (invite) {
+        setInviteCode(invite.toUpperCase());
+      }
+    }
+  }, []);
 
   const handleRegister = async () => {
     if (loading) return;
@@ -65,6 +77,7 @@ export function RegisterCompletePage({ email, token }: Props) {
           password,
           name: name.trim(),
           token,
+          inviteCode: inviteCode.trim() || undefined,
         }),
       });
 
@@ -166,6 +179,24 @@ export function RegisterCompletePage({ email, token }: Props) {
                 disabled={loading}
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="invite-code">
+              {t('email_register.invite_code_title')} <span className="text-xs text-muted-foreground">({t('email_register.invite_code_optional')})</span>
+            </Label>
+            <Input
+              id="invite-code"
+              type="text"
+              placeholder={t('email_register.invite_code_placeholder')}
+              value={inviteCode}
+              onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+              disabled={loading}
+              maxLength={8}
+            />
+            <p className="text-xs text-muted-foreground">
+              {t('email_register.invite_code_description')}
+            </p>
           </div>
 
           <Button

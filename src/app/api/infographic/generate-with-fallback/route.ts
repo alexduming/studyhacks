@@ -384,19 +384,19 @@ export async function POST(request: NextRequest) {
       outputFormat,
     };
 
-    // 降级策略：依次尝试各个提供商（Replicate 主力 → KIE 托底）
+    // 降级策略：依次尝试各个提供商（KIE 主力 → Replicate 托底）
     const providers = [
-      {
-        name: 'Replicate',
-        key: configs.replicate_api_token,
-        envKey: process.env.REPLICATE_API_TOKEN,
-        fn: tryGenerateWithReplicate,
-      },
       {
         name: 'KIE',
         key: configs.kie_api_key,
         envKey: process.env.KIE_NANO_BANANA_PRO_KEY,
         fn: tryGenerateWithKie,
+      },
+      {
+        name: 'Replicate',
+        key: configs.replicate_api_token,
+        envKey: process.env.REPLICATE_API_TOKEN,
+        fn: tryGenerateWithReplicate,
       },
     ];
 
