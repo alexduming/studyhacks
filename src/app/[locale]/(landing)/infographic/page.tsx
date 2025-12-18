@@ -1,6 +1,10 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import {
+  parseFileAction,
+  parseMultipleImagesAction,
+} from '@/app/actions/aippt';
 import { motion } from 'framer-motion';
 import {
   Download,
@@ -15,10 +19,6 @@ import {
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
-import {
-  parseFileAction,
-  parseMultipleImagesAction,
-} from '@/app/actions/aippt';
 import { CreditsCost } from '@/shared/components/ai-elements/credits-display';
 import { Button } from '@/shared/components/ui/button';
 import { Dialog, DialogContent } from '@/shared/components/ui/dialog';
@@ -105,18 +105,30 @@ const InfographicPage = () => {
       const docCount = files.filter((f) => f.name.endsWith('.docx')).length;
       const otherCount = files.length - imageCount - pdfCount - docCount;
 
+      // 使用多语言文案构建文件类型统计信息
       const typeParts = [];
-      if (imageCount > 0) typeParts.push(`${imageCount}张图片`);
-      if (pdfCount > 0) typeParts.push(`${pdfCount}个PDF`);
-      if (docCount > 0) typeParts.push(`${docCount}个文档`);
-      if (otherCount > 0) typeParts.push(`${otherCount}个其他文件`);
+      if (imageCount > 0)
+        typeParts.push(t('upload.file_type_images', { count: imageCount }));
+      if (pdfCount > 0)
+        typeParts.push(t('upload.file_type_pdfs', { count: pdfCount }));
+      if (docCount > 0)
+        typeParts.push(t('upload.file_type_docs', { count: docCount }));
+      if (otherCount > 0)
+        typeParts.push(t('upload.file_type_others', { count: otherCount }));
 
+      // 使用多语言分隔符连接文件类型
+      const fileTypesText = typeParts.join(t('upload.separator'));
       setFileInfo(
         t('upload.file_info', {
-          fileName: `${files.length} 个文件：${typeParts.join('、')}`,
+          fileName: `${t('upload.file_count', { count: files.length })}：${fileTypesText}`,
         })
       );
-      toast.success(`已选择 ${files.length} 个文件：${typeParts.join('、')}`);
+      toast.success(
+        t('upload.files_selected_toast', {
+          count: files.length,
+          types: fileTypesText,
+        })
+      );
     } else if (files.length === 1) {
       // 单个文件上传
       setUploadedFile(files[0]);
@@ -136,11 +148,7 @@ const InfographicPage = () => {
 
   const handleGenerate = async () => {
     // 检查是否至少有一种输入（文本、单个文件或多个文件）
-    if (
-      !sourceContent.trim() &&
-      !uploadedFile &&
-      uploadedFiles.length === 0
-    ) {
+    if (!sourceContent.trim() && !uploadedFile && uploadedFiles.length === 0) {
       setError(t('errors.no_content'));
       return;
     }
@@ -156,7 +164,9 @@ const InfographicPage = () => {
       // 处理批量文件上传（支持图片、PDF、DOCX等多种类型）
       if (uploadedFiles.length > 0) {
         setIsParsingFiles(true);
-        setParsingProgress(`正在处理 ${uploadedFiles.length} 个文件...`);
+        setParsingProgress(
+          t('upload.processing_files', { count: uploadedFiles.length })
+        );
 
         // 检查是否全部是图片文件
         const allImages = uploadedFiles.every(
@@ -169,7 +179,9 @@ const InfographicPage = () => {
 
         if (allImages) {
           // 场景1：全部是图片 - 使用批量 OCR 处理（更高效）
-          setParsingProgress(`正在识别 ${uploadedFiles.length} 张图片...`);
+          setParsingProgress(
+            t('upload.recognizing_images', { count: uploadedFiles.length })
+          );
           const formData = new FormData();
           uploadedFiles.forEach((file) => {
             formData.append('files', file);
@@ -182,7 +194,11 @@ const InfographicPage = () => {
           for (let i = 0; i < uploadedFiles.length; i++) {
             const file = uploadedFiles[i];
             setParsingProgress(
-              `正在处理文件 ${i + 1}/${uploadedFiles.length}: ${file.name}...`
+              t('upload.processing_file', {
+                current: i + 1,
+                total: uploadedFiles.length,
+                fileName: file.name,
+              })
             );
 
             try {
@@ -190,12 +206,15 @@ const InfographicPage = () => {
               formData.append('file', file);
               const content = await parseFileAction(formData);
               parsedContents.push(
-                `=== 文件 ${i + 1}: ${file.name} ===\n${content}`
+                `${t('upload.file_header', { index: i + 1, fileName: file.name })}\n${content}`
               );
             } catch (error: any) {
-              console.error(`解析文件 ${file.name} 失败:`, error);
+              console.error(
+                t('upload.parse_file_failed', { fileName: file.name }),
+                error
+              );
               parsedContents.push(
-                `=== 文件 ${i + 1}: ${file.name} ===\n[解析失败: ${error.message}]`
+                `${t('upload.file_header', { index: i + 1, fileName: file.name })}\n${t('upload.parse_failed_message', { error: error.message })}`
               );
             }
           }
@@ -209,7 +228,7 @@ const InfographicPage = () => {
         // 如果用户同时输入了文字，将文件内容和用户输入结合起来
         // 用户输入的文字作为额外的说明或要求
         if (sourceContent.trim()) {
-          contentToGenerate = `${sourceContent}\n\n=== 从上传文件中提取的内容 ===\n${parsedContent}`;
+          contentToGenerate = `${sourceContent}\n\n${t('upload.extracted_content_header')}\n${parsedContent}`;
         } else {
           contentToGenerate = parsedContent;
         }
@@ -217,7 +236,9 @@ const InfographicPage = () => {
       // 处理单个文件上传
       else if (uploadedFile) {
         setIsParsingFiles(true);
-        setParsingProgress(`正在处理文件: ${uploadedFile.name}...`);
+        setParsingProgress(
+          t('upload.processing_single_file', { fileName: uploadedFile.name })
+        );
 
         const formData = new FormData();
         formData.append('file', uploadedFile);
@@ -229,7 +250,7 @@ const InfographicPage = () => {
 
         // 如果用户同时输入了文字，将文件内容和用户输入结合起来
         if (sourceContent.trim()) {
-          contentToGenerate = `${sourceContent}\n\n=== 从上传文件中提取的内容 ===\n${parsedContent}`;
+          contentToGenerate = `${sourceContent}\n\n${t('upload.extracted_content_header')}\n${parsedContent}`;
         } else {
           contentToGenerate = parsedContent;
         }
@@ -327,7 +348,7 @@ const InfographicPage = () => {
         }
 
         if (status === 'FAILED') {
-          throw new Error('信息图生成失败，请稍后重试。');
+          throw new Error(t('errors.generation_failed'));
         }
       } catch (err) {
         console.error('Poll infographic result error:', err);
@@ -415,13 +436,13 @@ const InfographicPage = () => {
                     ) : (
                       <>
                         <Upload className="mr-2 h-4 w-4" />
-                        上传文件（支持批量）
+                        {t('upload.button_label_batch')}
                       </>
                     )}
                   </label>
                 </Button>
                 <span className="text-xs text-gray-400">
-                  支持PDF、DOCX、TXT、图片等，可批量上传
+                  {t('upload.hint_batch')}
                 </span>
               </div>
 
@@ -463,7 +484,9 @@ const InfographicPage = () => {
                     <div className="flex items-center gap-2">
                       <Images className="h-4 w-4 text-green-500" />
                       <span className="text-sm font-medium text-white">
-                        已选择 {uploadedFiles.length} 个文件
+                        {t('upload.files_selected', {
+                          count: uploadedFiles.length,
+                        })}
                       </span>
                     </div>
                     <Button
@@ -616,7 +639,6 @@ const InfographicPage = () => {
                   ) : (
                     <>
                       <CreditsCost credits={3} />
-                      <Zap className="mr-2 h-4 w-4" />
                       {t('actions.generate')}
                     </>
                   )}

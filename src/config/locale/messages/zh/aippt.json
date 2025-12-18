@@ -17,11 +17,29 @@
     "placeholder": "描述您的演示主题或在此粘贴内容...",
     "drop_hint": "拖放文件到此处上传",
     "upload_hint": "点击上传 PDF/DOCX/TXT/图片",
-    "upload_subhint": "我们将为您提取文本（图片支持AI文字识别，可批量上传）",
+    "upload_subhint": "我们将为您提取文本",
     "attach": "添加附件",
     "slide_count": "生成页数",
     "button_analyze": "开始分析",
-    "analyzing": "分析内容中..."
+    "analyzing": "分析内容中...",
+    "file_type_images": "{count}张图片",
+    "file_type_pdfs": "{count}个PDF",
+    "file_type_docs": "{count}个文档",
+    "file_type_others": "{count}个其他文件",
+    "files_selected": "已选择 {count} 张图片",
+    "files_selected_batch": "已选择 {count} 个文件：{types}",
+    "separator": "、",
+    "processing_files": "正在处理 {count} 个文件...",
+    "recognizing_images": "正在识别 {count} 张图片...",
+    "processing_file": "正在处理文件 {current}/{total}: {fileName}...",
+    "processing_single_file": "正在处理文件: {fileName}...",
+    "file_header": "=== 文件 {index}: {fileName} ===",
+    "parse_failed_message": "[解析失败: {error}]",
+    "extracted_content_header": "=== 从上传文件中提取的内容 ===",
+    "analyzing_hint": "⏳ 正在使用 AI 识别图片中的文字...",
+    "quality_hint": "💡 提示：清晰的图片识别效果更好",
+    "analyzing_content": "正在分析内容并构建大纲...",
+    "waiting_analysis": "等待分析..."
   },
   "outline_step": {
     "title": "审查和编辑大纲",
@@ -42,7 +60,8 @@
     "settings": {
       "ratio": "画面比例",
       "resolution": "分辨率"
-    }
+    },
+    "presentation_settings": "演示文稿设置"
   },
   "result_step": {
     "title": "您的演示文稿已准备就绪",
@@ -60,6 +79,9 @@
     "back_home": "新建演示",
     "preview": "预览",
     "download": "下载",
+    "download_partial": "部分图片下载成功 ({success}/{total})",
+    "zip_creation_failed": "创建ZIP文件失败",
+    "download_all_failed": "所有图片下载失败，可能是CORS问题",
     "status": {
       "pending": "等待中",
       "generating": "绘制中...",

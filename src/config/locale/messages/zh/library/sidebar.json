@@ -15,12 +15,12 @@
       {
         "title": "闪卡",
         "url": "/library/flashcards",
-        "icon": "BookOpen"
+        "icon": "Brain"
       },
       {
         "title": "测验",
         "url": "/library/quizzes",
-        "icon": "Activity"
+        "icon": "Target"
       },
       {
         "title": "信息图",
@@ -30,7 +30,7 @@
       {
         "title": "播客",
         "url": "/library/podcasts",
-        "icon": "Music"
+        "icon": "Headphones"
       }
     ]
   },

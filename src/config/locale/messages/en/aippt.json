@@ -21,7 +21,25 @@
     "attach": "Attach File",
     "slide_count": "Slides",
     "button_analyze": "Start Analysis",
-    "analyzing": "Analyzing Content..."
+    "analyzing": "Analyzing Content...",
+    "file_type_images": "{count} images",
+    "file_type_pdfs": "{count} PDFs",
+    "file_type_docs": "{count} docs",
+    "file_type_others": "{count} other files",
+    "files_selected": "Selected {count} images",
+    "files_selected_batch": "Selected {count} files: {types}",
+    "separator": ", ",
+    "processing_files": "Processing {count} files...",
+    "recognizing_images": "Recognizing {count} images...",
+    "processing_file": "Processing file {current}/{total}: {fileName}...",
+    "processing_single_file": "Processing file: {fileName}...",
+    "file_header": "=== File {index}: {fileName} ===",
+    "parse_failed_message": "[Parse failed: {error}]",
+    "extracted_content_header": "=== Content extracted from uploaded files ===",
+    "analyzing_hint": "⏳ AI is recognizing text from images...",
+    "quality_hint": "💡 Tip: Clearer images yield better results",
+    "analyzing_content": "Analyzing content and structuring outline...",
+    "waiting_analysis": "Waiting for analysis..."
   },
   "outline_step": {
     "title": "Review & Edit Outline",
@@ -42,7 +60,8 @@
     "settings": {
       "ratio": "Aspect Ratio",
       "resolution": "Resolution"
-    }
+    },
+    "presentation_settings": "Presentation Settings"
   },
   "result_step": {
     "title": "Your Presentation is Ready",
@@ -60,6 +79,9 @@
     "back_home": "Create New",
     "preview": "Preview",
     "download": "Download",
+    "download_partial": "Partially downloaded ({success}/{total})",
+    "zip_creation_failed": "Failed to create ZIP file",
+    "download_all_failed": "All images failed to download, possibly due to CORS",
     "status": {
       "pending": "Waiting",
       "generating": "Drawing...",

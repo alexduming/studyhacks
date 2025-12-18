@@ -156,17 +156,40 @@ export default function AIPPTPage() {
       console.log('[Frontend] Stream finished, result length:', result.length);
       console.log('[Frontend] Raw result:', result.substring(0, 200));
 
+      if (!result || !result.trim()) {
+        toast.error(t('errors.general_failed') + ': Empty response');
+        return;
+      }
+
       try {
         // Clean up code blocks if present
         let cleanJson = result
           .replace(/```json/g, '')
           .replace(/```/g, '')
           .trim();
-        // Find array start/end if extra text exists
+
+        // Find array start
         const startIndex = cleanJson.indexOf('[');
+        if (startIndex !== -1) {
+          cleanJson = cleanJson.substring(startIndex);
+        }
+
+        // Check for array end and attempt repair if missing (Timeout/Truncation handling)
         const endIndex = cleanJson.lastIndexOf(']');
-        if (startIndex !== -1 && endIndex !== -1) {
-          cleanJson = cleanJson.substring(startIndex, endIndex + 1);
+        if (endIndex === -1) {
+          console.warn(
+            '[Frontend] JSON incomplete (likely timeout), attempting repair...'
+          );
+          // Try to close it if it looks like an array started
+          // Find the last valid closing brace of an object
+          const lastCloseBrace = cleanJson.lastIndexOf('}');
+          if (lastCloseBrace !== -1) {
+            // Cut off everything after the last '}', and add ']'
+            // This sacrifices the last partial slide but saves the rest
+            cleanJson = cleanJson.substring(0, lastCloseBrace + 1) + ']';
+          }
+        } else {
+          cleanJson = cleanJson.substring(0, endIndex + 1);
         }
 
         console.log(
@@ -199,7 +222,18 @@ export default function AIPPTPage() {
       } catch (e: any) {
         console.error('[Frontend] Parse Error:', e);
         console.error('[Frontend] Failed content:', result);
-        toast.error(t('errors.invalid_outline') + ': ' + e.message);
+
+        if (
+          e.message.includes('Unexpected end of JSON input') ||
+          e.name === 'SyntaxError'
+        ) {
+          // likely a timeout that couldn't be repaired
+          toast.error(
+            'Generation timed out or incomplete. Please reduce content length.'
+          );
+        } else {
+          toast.error(t('errors.invalid_outline') + ': ' + e.message);
+        }
       }
     },
     onError: (err) => {
@@ -367,11 +401,11 @@ export default function AIPPTPage() {
       );
 
       if (completedSlides.length === 0) {
-        toast.error(t('result_step.no_images') || '没有可下载的图片');
+        toast.error(t('result_step.no_images'));
         return;
       }
 
-      toast.loading(t('result_step.downloading') || '正在打包图片...', {
+      toast.loading(t('result_step.downloading'), {
         id: 'zip-download',
       });
 
@@ -413,7 +447,7 @@ export default function AIPPTPage() {
       ).length;
 
       if (successCount === 0) {
-        throw new Error('所有图片下载失败，可能是CORS问题');
+        throw new Error(t('result_step.download_all_failed'));
       }
 
       // 生成ZIP文件
@@ -430,17 +464,18 @@ export default function AIPPTPage() {
       toast.dismiss('zip-download');
       if (successCount < completedSlides.length) {
         toast.warning(
-          `部分图片下载成功 (${successCount}/${completedSlides.length})`
+          t('result_step.download_partial', {
+            success: successCount,
+            total: completedSlides.length,
+          })
         );
       } else {
-        toast.success(t('result_step.download_success') || '图片包下载成功！');
+        toast.success(t('result_step.download_success'));
       }
     } catch (e: any) {
       console.error('ZIP Gen Error:', e);
       toast.dismiss('zip-download');
-      toast.error(
-        e.message || t('result_step.download_failed') || '创建ZIP文件失败'
-      );
+      toast.error(e.message || t('result_step.zip_creation_failed'));
     }
   };
 
@@ -450,11 +485,11 @@ export default function AIPPTPage() {
     try {
       // 检查是否有幻灯片
       if (slides.length === 0) {
-        toast.error(t('result_step.no_slides') || '没有可导出的幻灯片');
+        toast.error(t('result_step.no_slides'));
         return;
       }
 
-      toast.loading(t('result_step.generating_pptx') || '正在生成PPTX文件...', {
+      toast.loading(t('result_step.generating_pptx'), {
         id: 'pptx-download',
       });
 
@@ -619,13 +654,11 @@ export default function AIPPTPage() {
       }, 100);
 
       toast.dismiss('pptx-download');
-      toast.success(t('result_step.pptx_downloaded') || 'PPTX文件下载成功！');
+      toast.success(t('result_step.pptx_downloaded'));
     } catch (e: any) {
       console.error('PPT Gen Error:', e);
       toast.dismiss('pptx-download');
-      toast.error(
-        e.message || t('result_step.pptx_failed') || '生成PPTX文件失败'
-      );
+      toast.error(e.message || t('result_step.pptx_failed'));
     }
   };
 
@@ -653,7 +686,9 @@ export default function AIPPTPage() {
       // 处理批量文件上传（支持图片、PDF、DOCX等多种类型）
       if (uploadedFiles.length > 0) {
         setIsParsingFiles(true);
-        setParsingProgress(`正在处理 ${uploadedFiles.length} 个文件...`);
+        setParsingProgress(
+          t('input_step.processing_files', { count: uploadedFiles.length })
+        );
 
         // 检查是否全部是图片文件
         const allImages = uploadedFiles.every(
@@ -666,7 +701,9 @@ export default function AIPPTPage() {
 
         if (allImages) {
           // 场景1：全部是图片 - 使用批量 OCR 处理（更高效）
-          setParsingProgress(`正在识别 ${uploadedFiles.length} 张图片...`);
+          setParsingProgress(
+            t('input_step.recognizing_images', { count: uploadedFiles.length })
+          );
           const formData = new FormData();
           uploadedFiles.forEach((file) => {
             formData.append('files', file);
@@ -679,7 +716,11 @@ export default function AIPPTPage() {
           for (let i = 0; i < uploadedFiles.length; i++) {
             const file = uploadedFiles[i];
             setParsingProgress(
-              `正在处理文件 ${i + 1}/${uploadedFiles.length}: ${file.name}...`
+              t('input_step.processing_file', {
+                current: i + 1,
+                total: uploadedFiles.length,
+                fileName: file.name,
+              })
             );
 
             try {
@@ -687,12 +728,12 @@ export default function AIPPTPage() {
               formData.append('file', file);
               const content = await parseFileAction(formData);
               parsedContents.push(
-                `=== 文件 ${i + 1}: ${file.name} ===\n${content}`
+                `${t('input_step.file_header', { index: i + 1, fileName: file.name })}\n${content}`
               );
             } catch (error: any) {
               console.error(`解析文件 ${file.name} 失败:`, error);
               parsedContents.push(
-                `=== 文件 ${i + 1}: ${file.name} ===\n[解析失败: ${error.message}]`
+                `${t('input_step.file_header', { index: i + 1, fileName: file.name })}\n${t('input_step.parse_failed_message', { error: error.message })}`
               );
             }
           }
@@ -706,7 +747,7 @@ export default function AIPPTPage() {
         // 如果用户同时输入了文字，将文件内容和用户输入结合起来
         // 用户输入的文字作为额外的说明或要求
         if (inputText.trim()) {
-          contentToAnalyze = `${inputText}\n\n=== 从上传文件中提取的内容 ===\n${parsedContent}`;
+          contentToAnalyze = `${inputText}\n\n${t('input_step.extracted_content_header')}\n${parsedContent}`;
         } else {
           contentToAnalyze = parsedContent;
         }
@@ -714,7 +755,11 @@ export default function AIPPTPage() {
       // 处理单个文件上传
       else if (uploadedFile) {
         setIsParsingFiles(true);
-        setParsingProgress(`正在处理文件: ${uploadedFile.name}...`);
+        setParsingProgress(
+          t('input_step.processing_single_file', {
+            fileName: uploadedFile.name,
+          })
+        );
 
         const formData = new FormData();
         formData.append('file', uploadedFile);
@@ -726,7 +771,7 @@ export default function AIPPTPage() {
 
         // 如果用户同时输入了文字，将文件内容和用户输入结合起来
         if (inputText.trim()) {
-          contentToAnalyze = `${inputText}\n\n=== 从上传文件中提取的内容 ===\n${parsedContent}`;
+          contentToAnalyze = `${inputText}\n\n${t('input_step.extracted_content_header')}\n${parsedContent}`;
         } else {
           contentToAnalyze = parsedContent;
         }
@@ -912,27 +957,23 @@ export default function AIPPTPage() {
           // This ensures the generated image text aligns with user content
           const finalPrompt = `Slide Title: "${slide.title}"\n\nKey Content:\n${slide.content}`;
 
-          // 🎯 根据索引决定使用哪个提供商（真正的负载均衡）
-          const useReplicate = index % 2 === 0; // 偶数索引用 Replicate，奇数索引用 KIE
-          const preferredProvider = useReplicate ? 'Replicate' : 'KIE';
+          // 🎯 统一使用 KIE 作为首选提供商（取消负载均衡）
+          const preferredProvider = 'KIE';
 
           console.log(`\n📸 ============================================`);
           console.log(
-            `📸 Slide ${index + 1}/${slides.length}: 强制分配给 ${preferredProvider}`
-          );
-          console.log(
-            `📸 索引: ${index} (${index % 2 === 0 ? '偶数→Replicate' : '奇数→KIE'})`
+            `📸 Slide ${index + 1}/${slides.length}: 开始生成 (KIE优先)`
           );
           console.log(`📸 ============================================\n`);
 
-          // 使用带托底的Action，但强制指定首选提供商（负载均衡）
+          // 使用带托底的Action，优先尝试 KIE
           const taskData = await createKieTaskWithFallbackAction({
             prompt: finalPrompt,
             styleId: selectedStyleId || undefined,
             aspectRatio,
             imageSize: resolution,
             customImages: styleImageUrls, // Pass public URLs
-            preferredProvider, // 新增：指定首选提供商
+            preferredProvider: 'KIE', // 强制优先使用 KIE
           });
 
           if (!taskData.task_id) throw new Error(t('errors.no_task_id'));
@@ -1068,7 +1109,8 @@ export default function AIPPTPage() {
         const firstSuccessSlide = localSlides.find(
           (s) => s.status === 'completed' && s.imageUrl
         );
-        const thumbnail = firstSuccessSlide?.imageUrl || localSlides[0]?.imageUrl;
+        const thumbnail =
+          firstSuccessSlide?.imageUrl || localSlides[0]?.imageUrl;
 
         await updatePresentationAction(presentationId, {
           status: finalStatus,
@@ -1225,7 +1267,9 @@ export default function AIPPTPage() {
                   <div className="flex items-center gap-2">
                     <Images className="h-4 w-4 text-green-500" />
                     <span className="text-sm font-medium">
-                      已选择 {uploadedFiles.length} 张图片
+                      {t('input_step.files_selected', {
+                        count: uploadedFiles.length,
+                      })}
                     </span>
                   </div>
                   <Button
@@ -1328,14 +1372,32 @@ export default function AIPPTPage() {
                         files.length - imageCount - pdfCount - docCount;
 
                       const typeParts = [];
-                      if (imageCount > 0) typeParts.push(`${imageCount}张图片`);
-                      if (pdfCount > 0) typeParts.push(`${pdfCount}个PDF`);
-                      if (docCount > 0) typeParts.push(`${docCount}个文档`);
+                      if (imageCount > 0)
+                        typeParts.push(
+                          t('input_step.file_type_images', {
+                            count: imageCount,
+                          })
+                        );
+                      if (pdfCount > 0)
+                        typeParts.push(
+                          t('input_step.file_type_pdfs', { count: pdfCount })
+                        );
+                      if (docCount > 0)
+                        typeParts.push(
+                          t('input_step.file_type_docs', { count: docCount })
+                        );
                       if (otherCount > 0)
-                        typeParts.push(`${otherCount}个其他文件`);
+                        typeParts.push(
+                          t('input_step.file_type_others', {
+                            count: otherCount,
+                          })
+                        );
 
                       toast.success(
-                        `已选择 ${files.length} 个文件：${typeParts.join('、')}`
+                        t('input_step.files_selected_batch', {
+                          count: files.length,
+                          types: typeParts.join(t('input_step.separator')),
+                        })
                       );
                     } else if (files.length === 1) {
                       // 单个文件上传
@@ -1465,9 +1527,9 @@ export default function AIPPTPage() {
                 📸 {parsingProgress}
               </span>
               <div className="text-green-700">
-                ⏳ 正在使用 AI 识别图片中的文字...
+                {t('input_step.analyzing_hint')}
                 <br />
-                💡 提示：清晰的图片识别效果更好
+                {t('input_step.quality_hint')}
               </div>
             </div>
           ) : completion ? (
@@ -1517,10 +1579,10 @@ export default function AIPPTPage() {
               {isAnalyzing ? (
                 <>
                   <Loader2 className="text-primary h-8 w-8 animate-spin" />
-                  <p>Analyzing content and structuring outline...</p>
+                  <p>{t('input_step.analyzing_content')}</p>
                 </>
               ) : (
-                <p>Waiting for analysis...</p>
+                <p>{t('input_step.waiting_analysis')}</p>
               )}
             </div>
           ) : (
@@ -1623,7 +1685,9 @@ export default function AIPPTPage() {
         {/* Settings Column */}
         <div className="space-y-6 lg:col-span-1">
           <Card className="p-6">
-            <h3 className="mb-4 font-semibold">Presentation Settings</h3>
+            <h3 className="mb-4 font-semibold">
+              {t('style_step.presentation_settings')}
+            </h3>
 
             <div className="space-y-4">
               <div>
@@ -1790,11 +1854,11 @@ export default function AIPPTPage() {
             <>
               <Button variant="secondary" onClick={handleDownloadPPTX}>
                 <Presentation className="mr-2 h-4 w-4" />{' '}
-                {t('result_step.download_pptx') || 'Export PPTX'}
+                {t('result_step.download_pptx')}
               </Button>
               <Button variant="secondary" onClick={handleDownloadImages}>
                 <Images className="mr-2 h-4 w-4" />{' '}
-                {t('result_step.download_images') || 'Download Images'}
+                {t('result_step.download_images')}
               </Button>
             </>
           )}

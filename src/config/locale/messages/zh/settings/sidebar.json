@@ -37,9 +37,9 @@
   "top_nav": {
     "items": [
       {
-        "title": "活动",
+        "title": "资料库",
         "url": "/library",
-        "icon": "Activity"
+        "icon": "Library"
       },
       {
         "title": "设置",

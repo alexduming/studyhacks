@@ -1,6 +1,11 @@
 // 使用原生 Fetch 实现 DeepSeek 流式调用，确保完全兼容性
 // 避免 AI SDK 自动拼接错误路径 (如 /responses)
 
+// Vercel Edge Runtime 配置
+// Edge Runtime 支持长连接流式传输，只要保持数据流动，通常不受 10s/60s 墙钟时间限制
+// 注意：Edge Runtime 不支持 Node.js 特定 API (如 fs, path)，但在本文件中仅使用了 fetch 和 Web 标准 API，完全兼容。
+export const runtime = 'edge';
+
 export async function POST(req: Request) {
   try {
     const { prompt, slideCount } = await req.json();

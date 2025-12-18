@@ -587,22 +587,22 @@ export async function createKieTaskWithFallbackAction(params: {
     customImages: (taskParams.customImages || []).map(resolveImageUrl),
   };
 
-  // 🎯 强制使用指定提供商（实现真正的负载均衡）
+  // 🎯 指定提供商或使用默认值（默认 KIE 优先）
   const primaryProvider = preferredProvider;
   const fallbackProvider =
     preferredProvider === 'Replicate' ? 'KIE' : 'Replicate';
 
   console.log(
-    `\n🎯 负载均衡 - 强制使用: ${primaryProvider}，备用: ${fallbackProvider}`
+    `\n🎯 生成任务 - 优先使用: ${primaryProvider}，备用: ${fallbackProvider}`
   );
 
-  // 1️⃣ 先尝试强制使用指定的提供商
+  // 1️⃣ 先尝试优先使用的提供商
   try {
     if (primaryProvider === 'Replicate') {
       if (!REPLICATE_API_TOKEN) {
         throw new Error('Replicate API Token 未配置');
       }
-      console.log(`🔄 [负载均衡] 使用 Replicate (google/nano-banana-pro)...`);
+      console.log(`🔄 [优先] 使用 Replicate (google/nano-banana-pro)...`);
       const result = await createReplicateTaskAction(processedParams);
       console.log('✅ Replicate 任务创建成功');
       return {
@@ -614,7 +614,7 @@ export async function createKieTaskWithFallbackAction(params: {
       if (!KIE_API_KEY) {
         throw new Error('KIE API Key 未配置');
       }
-      console.log(`🔄 [负载均衡] 使用 KIE (nano-banana-pro)...`);
+      console.log(`🔄 [优先] 使用 KIE (nano-banana-pro)...`);
       const result = await createKieTaskAction(processedParams);
       console.log('✅ KIE 任务创建成功:', result.task_id);
       return {

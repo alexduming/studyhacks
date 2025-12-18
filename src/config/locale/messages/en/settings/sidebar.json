@@ -37,9 +37,9 @@
   "top_nav": {
     "items": [
       {
-        "title": "Activity",
+        "title": "Library",
         "url": "/library",
-        "icon": "Activity"
+        "icon": "Library"
       },
       {
         "title": "Settings",
