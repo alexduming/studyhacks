@@ -30,28 +30,6 @@ export function RegisterCompletePage({ email, token }: Props) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [inviteCode, setInviteCode] = useState('');
-
-  // 从 URL 或 sessionStorage 中获取邀请码
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const inviteFromUrl = params.get('invite');
-      
-      if (inviteFromUrl) {
-        // 如果 URL 中有，优先使用 URL 中的，并更新 sessionStorage
-        const code = inviteFromUrl.toUpperCase();
-        setInviteCode(code);
-        sessionStorage.setItem('invite_code', code);
-      } else {
-        // 如果 URL 中没有，尝试从 sessionStorage 读取
-        const inviteFromStorage = sessionStorage.getItem('invite_code');
-        if (inviteFromStorage) {
-          setInviteCode(inviteFromStorage);
-        }
-      }
-    }
-  }, []);
 
   const handleRegister = async () => {
     if (loading) return;
@@ -87,7 +65,9 @@ export function RegisterCompletePage({ email, token }: Props) {
           password,
           name: name.trim(),
           token,
-          inviteCode: inviteCode.trim() || undefined,
+          // 邀请码处理逻辑：
+          // 前端不需要再传递 inviteCode，后端会自动从 email_verification 记录中查找
+          // 这样即使在跳转过程中丢失参数，只要初始步骤（发送验证邮件）时有邀请码，就能正确关联
         }),
       });
 
@@ -105,11 +85,6 @@ export function RegisterCompletePage({ email, token }: Props) {
       if (data.success) {
         console.log('✅ [Frontend] 注册成功，准备跳转');
         
-        // 注册成功后清除 sessionStorage 中的邀请码
-        if (typeof window !== 'undefined') {
-          sessionStorage.removeItem('invite_code');
-        }
-
         toast.success(t('email_register.welcome_title'));
         // 跳转到登录页面或用户仪表板
         router.push('/sign-in');
@@ -195,24 +170,6 @@ export function RegisterCompletePage({ email, token }: Props) {
                 disabled={loading}
               />
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="invite-code">
-              {t('email_register.invite_code_title')} <span className="text-xs text-muted-foreground">({t('email_register.invite_code_optional')})</span>
-            </Label>
-            <Input
-              id="invite-code"
-              type="text"
-              placeholder={t('email_register.invite_code_placeholder')}
-              value={inviteCode}
-              onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-              disabled={loading}
-              maxLength={8}
-            />
-            <p className="text-xs text-muted-foreground">
-              {t('email_register.invite_code_description')}
-            </p>
           </div>
 
           <Button
