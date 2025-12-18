@@ -20,9 +20,10 @@ import { toast } from 'sonner';
 interface Props {
   email: string;
   token: string;
+  inviteCode?: string;
 }
 
-export function RegisterCompletePage({ email, token }: Props) {
+export function RegisterCompletePage({ email, token, inviteCode: propInviteCode }: Props) {
   const t = useTranslations('common');
   const router = useRouter();
   const [name, setName] = useState('');
@@ -32,8 +33,16 @@ export function RegisterCompletePage({ email, token }: Props) {
   const [loading, setLoading] = useState(false);
   const [inviteCode, setInviteCode] = useState('');
 
-  // 从 URL 或 sessionStorage 中获取邀请码
+  // 从 URL、props 或 sessionStorage 中获取邀请码
   useEffect(() => {
+    // 优先使用 props 中的邀请码（从验证链接传递过来的）
+    if (propInviteCode) {
+      const code = propInviteCode.toUpperCase();
+      setInviteCode(code);
+      sessionStorage.setItem('invite_code', code);
+      return;
+    }
+
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const inviteFromUrl = params.get('invite');

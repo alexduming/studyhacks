@@ -56,9 +56,14 @@ export class EmailVerificationService {
   /**
    * 发送验证链接
    */
-  static async sendVerificationLink(email: string, type: 'registration' | 'password_reset' = 'registration'): Promise<VerificationResult> {
+  static async sendVerificationLink(
+    email: string,
+    type: 'registration' | 'password_reset' = 'registration',
+    inviteCode?: string,
+    locale?: string
+  ): Promise<VerificationResult> {
     try {
-      console.log(`🚀 开始发送验证链接: email=${email}, type=${type}`);
+      console.log(`🚀 开始发送验证链接: email=${email}, type=${type}, inviteCode=${inviteCode || '无'}, locale=${locale || 'en'}`);
 
       // 验证邮箱格式
       if (!this.isValidEmail(email)) {
