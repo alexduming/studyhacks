@@ -34,9 +34,9 @@
           "5MB文件上传限制",
           "社区支持"
         ],
-        "interval": "one-time",
+        "interval": "month",
         "amount": 0,
-        "currency": "CNY",
+        "currency": "USD",
         "price": "免费",
         "original_price": "",
         "unit": "",
@@ -55,7 +55,7 @@
         "plan_name": "免费版"
       },
       {
-        "title": "学生版",
+        "title": "入门版",
         "description": "适合想要取得优异成绩的认真学生。",
         "label": "最受欢迎",
         "features_title": "免费版所有功能，此外",
@@ -69,30 +69,39 @@
           "进度跟踪和分析",
           "优先邮件支持"
         ],
-        "interval": "one-time",
-        "amount": 6900,
-        "currency": "CNY",
+        "interval": "month",
+        "amount": 999,
+        "currency": "USD",
         "price": "¥69",
         "original_price": "",
-        "unit": "/ 30天",
+        "unit": "/ 月",
         "is_featured": true,
         "tip": "无限AI工具，学习更智能",
         "button": {
-          "title": "购买 30 天",
+          "title": "升级入门版",
           "url": "/#pricing",
           "icon": "RiFlashlightFill"
         },
         "product_id": "student",
-        "product_name": "StudyHacks 学生方案 (30天)",
+        "product_name": "StudyHacks 学生方案",
         "credits": 500,
         "valid_days": 30,
         "group": "monthly",
-        "plan_name": "学生版"
+        "plan_name": "入门版",
+        "cn_amount": 6900,
+        "currencies": [
+          {
+            "currency": "CNY",
+            "amount": 6900,
+            "price": "¥69.00",
+            "original_price": ""
+          }
+        ]
       },
       {
         "title": "专业版",
         "description": "为想要最佳效果的学生提供最大功能。",
-        "features_title": "学生版所有功能，此外",
+        "features_title": "入门版所有功能，此外",
         "features": [
           "无限AI积分",
           "高级学习分析",
@@ -103,25 +112,34 @@
           "离线学习模式",
           "24/7优先支持"
         ],
-        "interval": "one-time",
-        "amount": 13900,
-        "currency": "CNY",
+        "interval": "month",
+        "amount": 1999,
+        "currency": "USD",
         "price": "¥139",
         "original_price": "",
-        "unit": "/ 30天",
+        "unit": "/ 月",
         "is_featured": false,
         "tip": "终极学习体验，无限使用",
         "button": {
-          "title": "购买 30 天",
+          "title": "升级专业版",
           "url": "/#pricing",
           "icon": "RiFlashlightFill"
         },
         "product_id": "pro",
-        "product_name": "StudyHacks 专业方案 (30天)",
+        "product_name": "StudyHacks 专业方案",
         "credits": 9999,
         "valid_days": 30,
         "group": "monthly",
-        "plan_name": "专业版"
+        "plan_name": "专业版",
+        "cn_amount": 13900,
+        "currencies": [
+          {
+            "currency": "CNY",
+            "amount": 13900,
+            "price": "¥139.00",
+            "original_price": ""
+          }
+        ]
       },
       {
         "title": "免费版",
@@ -135,9 +153,9 @@
           "5MB文件上传限制",
           "社区支持"
         ],
-        "interval": "one-time",
+        "interval": "year",
         "amount": 0,
-        "currency": "CNY",
+        "currency": "USD",
         "price": "免费",
         "original_price": "",
         "unit": "",
@@ -156,12 +174,12 @@
         "plan_name": "免费版"
       },
       {
-        "title": "学生版",
+        "title": "入门版",
         "description": "适合想要取得优异成绩的认真学生。",
         "label": "最受欢迎",
         "features_title": "免费版所有功能，此外",
         "features": [
-          "每月500个AI积分",
+          "每月600个AI积分",
           "高级AI笔记生成",
           "无限闪卡和测验",
           "间隔重复算法",
@@ -170,30 +188,30 @@
           "进度跟踪和分析",
           "优先邮件支持"
         ],
-        "interval": "one-time",
-        "amount": 66000,
-        "currency": "CNY",
-        "price": "¥660",
-        "original_price": "¥828",
-        "unit": "/ 年",
+        "interval": "year",
+        "amount": 8316,
+        "currency": "USD",
+        "price": "¥55",
+        "original_price": "¥69",
+        "unit": "/ 月",
         "is_featured": true,
-        "tip": "年度一次性购买，学习更智能更省钱",
+        "tip": "年度订阅，学习更智能更省钱",
         "button": {
-          "title": "购买 1 年",
+          "title": "升级入门版",
           "url": "/#pricing",
           "icon": "RiFlashlightFill"
         },
         "product_id": "student-yearly",
-        "product_name": "StudyHacks 学生方案 (1年)",
+        "product_name": "StudyHacks 学生方案年度",
         "credits": 6000,
         "valid_days": 365,
         "group": "yearly",
-        "plan_name": "学生版"
+        "plan_name": "入门版"
       },
       {
         "title": "专业版",
         "description": "为想要最佳效果的学生提供最大功能。",
-        "features_title": "学生版所有功能，此外",
+        "features_title": "入门版所有功能，此外",
         "features": [
           "无限AI积分",
           "高级学习分析",
@@ -204,21 +222,21 @@
           "离线学习模式",
           "24/7优先支持"
         ],
-        "interval": "one-time",
-        "amount": 133200,
-        "currency": "CNY",
-        "price": "¥1332",
-        "original_price": "¥1668",
-        "unit": "/ 年",
+        "interval": "year",
+        "amount": 16632,
+        "currency": "USD",
+        "price": "¥111",
+        "original_price": "¥139",
+        "unit": "/ 月",
         "is_featured": false,
         "tip": "终极学习体验，无限使用",
         "button": {
-          "title": "购买 1 年",
+          "title": "升级专业版",
           "url": "/#pricing",
           "icon": "RiFlashlightFill"
         },
         "product_id": "pro-yearly",
-        "product_name": "StudyHacks 专业方案 (1年)",
+        "product_name": "StudyHacks 专业方案年度",
         "credits": 119988,
         "valid_days": 365,
         "group": "yearly",
@@ -228,6 +246,8 @@
   },
   "page": {
     "current_plan": "当前方案",
-    "processing": "处理中"
+    "processing": "处理中",
+    "or_pay_with": "人民币支付 👉",
+    "wechat_alipay": "支付宝 / 微信"
   }
 }

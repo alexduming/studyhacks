@@ -142,6 +142,49 @@ export default function AIPPTPage() {
   // Result State
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
+  // Helper to handle API errors gracefully
+  const handleApiError = (
+    err: any,
+    fallbackKey: string = 'errors.general_failed'
+  ) => {
+    let message = err.message || '';
+
+    // Try to parse JSON error from API
+    try {
+      // Check if message looks like JSON or contains known error code
+      if (
+        typeof message === 'string' &&
+        (message.trim().startsWith('{') ||
+          message.includes('INSUFFICIENT_CREDITS'))
+      ) {
+        // Handle case where message is "Error: {...}" or just "{...}"
+        const jsonStr = message.replace(/^Error:\s*/i, '').trim();
+        if (jsonStr.startsWith('{')) {
+          const errorObj = JSON.parse(jsonStr);
+
+          if (errorObj.code === 'INSUFFICIENT_CREDITS') {
+            const match = errorObj.error?.match(
+              /Required: (\d+), Available: (\d+)/
+            );
+            const required = match ? match[1] : '?';
+            const remaining = match ? match[2] : '?';
+
+            toast.error(
+              t('errors.insufficient_credits', { required, remaining })
+            );
+            return;
+          }
+          // Use specific error message if available
+          message = errorObj.error || message;
+        }
+      }
+    } catch (e) {
+      // Failed to parse, stick to original string
+    }
+
+    toast.error(t(fallbackKey) + ': ' + message);
+  };
+
   // --- Streaming Hook ---
   const {
     complete,
@@ -240,7 +283,7 @@ export default function AIPPTPage() {
     },
     onError: (err) => {
       console.error('[Frontend] Stream Error:', err);
-      toast.error(t('errors.general_failed') + ': ' + err.message);
+      handleApiError(err);
     },
   });
 
@@ -783,7 +826,7 @@ export default function AIPPTPage() {
       complete(contentToAnalyze);
     } catch (e: any) {
       console.error(e);
-      toast.error(e.message || t('errors.general_failed'));
+      handleApiError(e);
       setCurrentStep('input');
       setIsParsingFiles(false);
       setParsingProgress('');

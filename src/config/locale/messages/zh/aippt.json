@@ -96,6 +96,7 @@
     "no_task_id": "无法启动生成任务",
     "generation_failed": "生成失败",
     "timeout": "生成超时",
-    "general_failed": "发生错误"
+    "general_failed": "发生错误",
+    "insufficient_credits": "积分不足。需要: {required}, 剩余: {remaining}"
   }
 }

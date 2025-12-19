@@ -96,6 +96,7 @@
     "no_task_id": "Failed to start generation task",
     "generation_failed": "Generation failed",
     "timeout": "Generation timed out",
-    "general_failed": "An error occurred"
+    "general_failed": "An error occurred",
+    "insufficient_credits": "Insufficient credits. Required: {required}, Remaining: {remaining}"
   }
 }
