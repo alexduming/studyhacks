@@ -1,14 +1,56 @@
+import { consumeCredits, getRemainingCredits } from '@/shared/models/credit';
+import { getUserInfo } from '@/shared/models/user';
+
 // 使用原生 Fetch 实现 DeepSeek 流式调用，确保完全兼容性
 // 避免 AI SDK 自动拼接错误路径 (如 /responses)
 
-// Vercel Edge Runtime 配置
-// Edge Runtime 支持长连接流式传输，只要保持数据流动，通常不受 10s/60s 墙钟时间限制
-// 注意：Edge Runtime 不支持 Node.js 特定 API (如 fs, path)，但在本文件中仅使用了 fetch 和 Web 标准 API，完全兼容。
-export const runtime = 'edge';
+// Change to nodejs runtime to support DB operations for credit deduction
+export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
   try {
     const { prompt, slideCount } = await req.json();
+
+    // 1. Check User & Credits
+    const user = await getUserInfo();
+    if (!user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const requiredCredits = 3;
+    const remaining = await getRemainingCredits(user.id);
+    
+    if (remaining < requiredCredits) {
+      return new Response(
+        JSON.stringify({ 
+          error: `Insufficient credits. Required: ${requiredCredits}, Available: ${remaining}`,
+          code: 'INSUFFICIENT_CREDITS'
+        }), 
+        {
+          status: 402,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    // 2. Consume Credits
+    try {
+      await consumeCredits({
+        userId: user.id,
+        credits: requiredCredits,
+        scene: 'ai_ppt_outline',
+        description: 'Generate PPT Outline',
+      });
+    } catch (e) {
+      console.error('Failed to consume credits:', e);
+      return new Response(JSON.stringify({ error: 'Failed to process credits' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
     console.log(
       '[Analyze PPT] Request received, prompt length:',

@@ -8,6 +8,7 @@ import React, { Suspense, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
+  consumeCreditsAction, // Import new action
   createKieTaskAction,
   createKieTaskWithFallbackAction,
   parseFileAction,
@@ -47,6 +48,7 @@ import { flushSync } from 'react-dom';
 import { toast } from 'sonner';
 
 import { PPT_RATIOS, PPT_SIZES, PPT_STYLES } from '@/config/aippt';
+import { CreditsCost } from '@/shared/components/ai-elements/credits-display';
 import { Button } from '@/shared/components/ui/button';
 import { Card } from '@/shared/components/ui/card';
 import { Input } from '@/shared/components/ui/input';
@@ -134,7 +136,7 @@ export default function AIPPTPage() {
   const [customImages, setCustomImages] = useState<string[]>([]); // Base64 for preview
   const [customImageFiles, setCustomImageFiles] = useState<File[]>([]); // Actual files for upload
   const [aspectRatio, setAspectRatio] = useState('16:9');
-  const [resolution, setResolution] = useState('4K');
+  const [resolution, setResolution] = useState('2K');
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Result State
@@ -860,6 +862,26 @@ export default function AIPPTPage() {
 
   const handleStartGeneration = async () => {
     setIsGenerating(true);
+
+    // 0. Deduct Credits
+    const requiredCredits = slides.length * (resolution === '4K' ? 12 : 6);
+    try {
+      await consumeCreditsAction({
+        credits: requiredCredits,
+        description: `Generate ${slides.length} slides (${resolution})`,
+        metadata: {
+          slideCount: slides.length,
+          resolution,
+          aspectRatio,
+        },
+      });
+    } catch (e: any) {
+      console.error('Failed to consume credits:', e);
+      toast.error(e.message || 'Insufficient credits');
+      setIsGenerating(false);
+      return;
+    }
+
     setCurrentStep('result');
 
     // Create a local mutable copy to track latest state for DB save
@@ -1474,7 +1496,10 @@ export default function AIPPTPage() {
                 {isAnalyzing ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <ArrowRight className="h-4 w-4" />
+                  <>
+                    <CreditsCost credits={3} className="mr-2" />
+                    <ArrowRight className="h-4 w-4" />
+                  </>
                 )}
               </Button>
             </div>
@@ -1790,7 +1815,16 @@ export default function AIPPTPage() {
             className="w-full py-6 text-lg"
             size="lg"
             onClick={handleStartGeneration}
+            disabled={isGenerating}
           >
+            {isGenerating ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <CreditsCost
+                credits={slides.length * (resolution === '4K' ? 12 : 6)}
+                className="mr-2 bg-white/20 text-white"
+              />
+            )}
             {t('style_step.button_generate')}
           </Button>
         </div>

@@ -4,6 +4,8 @@ import mammoth from 'mammoth';
 import pdf from 'pdf-parse';
 
 import { PPT_STYLES } from '@/config/aippt';
+import { consumeCredits, getRemainingCredits } from '@/shared/models/credit';
+import { getSignUser } from '@/shared/models/user';
 
 // 移除硬编码的 API Key，强制使用环境变量
 const KIE_API_KEY = process.env.KIE_NANO_BANANA_PRO_KEY || '';
@@ -426,6 +428,37 @@ Do not include any markdown formatting (like \`\`\`json), just the raw JSON obje
     console.error('Outline generation error:', error);
     throw error;
   }
+}
+
+/**
+ * Consume Credits Action (Server Side)
+ */
+export async function consumeCreditsAction(params: {
+  credits: number;
+  description: string;
+  metadata?: any;
+}) {
+  const user = await getSignUser();
+  if (!user) {
+    throw new Error('Unauthorized');
+  }
+
+  const remaining = await getRemainingCredits(user.id);
+  if (remaining < params.credits) {
+    throw new Error(
+      `Insufficient credits. Required: ${params.credits}, Available: ${remaining}`
+    );
+  }
+
+  await consumeCredits({
+    userId: user.id,
+    credits: params.credits,
+    scene: 'ai_ppt',
+    description: params.description,
+    metadata: params.metadata ? JSON.stringify(params.metadata) : undefined,
+  });
+
+  return { success: true, remaining: remaining - params.credits };
 }
 
 /**
