@@ -638,7 +638,7 @@ const InfographicPage = () => {
                     </>
                   ) : (
                     <>
-                      <CreditsCost credits={3} />
+                      <CreditsCost credits={resolution === '4K' ? 12 : 6} />
                       {t('actions.generate')}
                     </>
                   )}

@@ -209,15 +209,15 @@ export async function GET(request: NextRequest) {
     // 根据provider或taskId前缀判断使用哪个提供商
     let result: any;
 
-    if (provider === 'Together AI' || taskId.startsWith('together-')) {
+    if (provider === 'Together AI' || (!provider && taskId.startsWith('together-'))) {
       // Together AI是同步API，不需要查询
       return NextResponse.json({
         success: true,
         status: 'SUCCESS',
         results: [],
       });
-    } else if (provider === 'Replicate' || taskId.startsWith('replicate-') || 
-               (!taskId.includes('-') && taskId.length > 20)) {
+    } else if (provider === 'Replicate' || (!provider && (taskId.startsWith('replicate-') || 
+               (!taskId.includes('-') && taskId.length > 20)))) {
       // ✅ Replicate 异步查询
       // 说明：Replicate 的 predictionId 格式类似 "ufawqhfynnddngldkgtslldrkq"（无前缀）
       const apiToken = configs.replicate_api_token || process.env.REPLICATE_API_TOKEN;
@@ -228,7 +228,7 @@ export async function GET(request: NextRequest) {
         );
       }
       result = await queryReplicateTask(taskId, apiToken);
-    } else if (provider === 'Novita AI' || taskId.startsWith('novita-')) {
+    } else if (provider === 'Novita AI' || (!provider && taskId.startsWith('novita-'))) {
       // Novita AI异步API
       const apiKey = configs.novita_api_key || process.env.NOVITA_API_KEY;
       if (!apiKey) {

@@ -339,7 +339,8 @@ export async function POST(request: NextRequest) {
     }
 
     const remainingCredits = await getRemainingCredits(user.id);
-    const requiredCredits = 3;
+    // 动态计算积分消耗：4K=12积分，其他(1K/2K)=6积分
+    const requiredCredits = resolution === '4K' ? 12 : 6;
 
     if (remainingCredits < requiredCredits) {
       return NextResponse.json(
