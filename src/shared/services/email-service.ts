@@ -261,25 +261,25 @@ export class EmailService {
             <h3 style="text-align: center; margin: 30px 0;">您可以享受的服务</h3>
             <div class="features">
               <div class="feature">
-                <h4>📚 丰富课程</h4>
-                <p>精选高质量学习内容</p>
+                <h4>📚 AI笔记助手</h4>
+                <p>将讲座、视频和文档转换为智能笔记</p>
               </div>
               <div class="feature">
-                <h4>🎯 个性学习</h4>
-                <p>定制化学习路径推荐</p>
+                <h4>🎯 智能闪卡</h4>
+                <p>创建具有间隔重复功能的智能闪卡</p>
               </div>
               <div class="feature">
-                <h4>👥 社区交流</h4>
-                <p>与同学交流学习心得</p>
+                <h4>👥 互动测验</h4>
+                <p>通过自适应 AI 测验测试您的知识</p>
               </div>
               <div class="feature">
-                <h4>🎖️ 成就系统</h4>
-                <p>记录学习成果和进度</p>
+                <h4>🎖️ 信息图与幻灯片</h4>
+                <p>一键生成可视化学习资料</p>
               </div>
             </div>
 
             <div class="footer">
-              <p>感谢您选择 Study！</p>
+              <p>感谢您选择 StudyHacks！</p>
               <p>如有任何问题，请随时联系我们。</p>
               <p style="margin-top: 20px;">
                 <a href="${process.env.NEXT_PUBLIC_APP_URL}/contact" style="color: #6366f1;">联系我们</a> |
