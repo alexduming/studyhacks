@@ -55,20 +55,35 @@ async function tryGenerateWithFal(
 
     const prompt = `Create an educational infographic explaining the provided file or text. You select some typical visual elements. Style: Flat vector. Labels in the language the same as provided information.\n\nContent:\n${params.content}`;
 
+    // 映射宽高比到 FAL (nano-banana-pro) 支持的值
+    // 支持的值: "16:9" | "4:3" | "1:1" | "9:16" | "3:4" | "3:2" | "2:3" | "5:4" | "4:5" | "21:9"
+    let falAspectRatio = '1:1';
+    switch (params.aspectRatio) {
+      case '16:9':
+        falAspectRatio = '16:9';
+        break;
+      case '9:16':
+        falAspectRatio = '9:16';
+        break;
+      case '4:3':
+        falAspectRatio = '4:3';
+        break;
+      case '3:4':
+        falAspectRatio = '3:4';
+        break;
+      case '1:1':
+      default:
+        falAspectRatio = '1:1';
+        break;
+    }
+
     const input = {
       prompt,
       num_images: 1,
-      aspect_ratio: params.aspectRatio === '16:9' ? '16:9' : 'square', // FAL expects 'square', '16:9', '9:16', or 'landscape'/'portrait'
+      aspect_ratio: falAspectRatio,
       output_format: 'png',
       resolution: params.resolution || '2K', // 支持 1K, 2K, 4K
     };
-
-    // Map aspect ratio to FAL expected values
-    if (params.aspectRatio === '1:1') input.aspect_ratio = 'square';
-    else if (params.aspectRatio === '9:16') input.aspect_ratio = '9:16';
-    else if (params.aspectRatio === '16:9') input.aspect_ratio = '16:9';
-    else if (params.aspectRatio === '4:3') input.aspect_ratio = 'landscape';
-    else if (params.aspectRatio === '3:4') input.aspect_ratio = 'portrait';
 
     console.log('[FAL] 请求参数:', {
       model: 'fal-ai/nano-banana-pro',
@@ -79,7 +94,7 @@ async function tryGenerateWithFal(
 
     // 使用 subscribe 等待结果
     const result: any = await fal.subscribe('fal-ai/nano-banana-pro', {
-      input,
+      input: input as any,
       logs: true,
       onQueueUpdate: (update: any) => {
         if (update.status === 'IN_PROGRESS') {
