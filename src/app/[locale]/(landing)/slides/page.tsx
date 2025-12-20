@@ -73,7 +73,7 @@ interface SlideData {
   id: string;
   title: string;
   content: string;
-  visualDescription: string;
+  visualDescription?: string;
   status: 'pending' | 'generating' | 'completed' | 'failed';
   imageUrl?: string;
   taskId?: string;
@@ -1127,11 +1127,13 @@ export default function AIPPTPage() {
 
             console.log(`✨ Slide ${index + 1} 已立即渲染到页面！`);
 
-            // Update local tracker
+            // ✅ 修复：Update local tracker - 保持与前端状态完全一致
             localSlides[index] = {
               ...localSlides[index],
               status: 'completed',
               imageUrl: resultUrl,
+              provider: taskData.provider, // ✅ 新增：记录提供商
+              fallbackUsed: taskData.fallbackUsed, // ✅ 新增：记录是否托底
             };
 
             console.log(
@@ -1166,23 +1168,50 @@ export default function AIPPTPage() {
 
       // 2. Generation Completed - Update DB with FINAL content
       if (presentationId) {
+        // ✅ 修复：从最新的 React 状态读取最终结果，确保数据库保存的是最新状态
+        // 原因：localSlides 可能因为异步更新顺序问题导致不同步
+        let finalSlides: SlideData[] = [];
+        setSlides((currentSlides) => {
+          finalSlides = currentSlides; // 捕获最新状态
+          return currentSlides; // 不修改状态
+        });
+
+        // 如果 finalSlides 为空(不应该发生),回退到 localSlides
+        const slidesToSave = finalSlides.length > 0 ? finalSlides : localSlides;
+
+        console.log(
+          `[DB Save] 准备保存 ${slidesToSave.length} 张幻灯片到数据库`
+        );
+        console.log(
+          `[DB Save] 状态统计:`,
+          slidesToSave.reduce(
+            (acc, s) => {
+              acc[s.status] = (acc[s.status] || 0) + 1;
+              return acc;
+            },
+            {} as Record<string, number>
+          )
+        );
+
         // Check if any slide failed
-        const anyFailed = localSlides.some((s) => s.status === 'failed');
+        const anyFailed = slidesToSave.some((s) => s.status === 'failed');
         const finalStatus = anyFailed ? 'failed' : 'completed';
 
         // Use the thumbnail of the first successfully generated slide
-        const firstSuccessSlide = localSlides.find(
+        const firstSuccessSlide = slidesToSave.find(
           (s) => s.status === 'completed' && s.imageUrl
         );
         const thumbnail =
-          firstSuccessSlide?.imageUrl || localSlides[0]?.imageUrl;
+          firstSuccessSlide?.imageUrl || slidesToSave[0]?.imageUrl;
+
+        console.log(`[DB Save] 最终状态: ${finalStatus}, 缩略图: ${thumbnail ? '有' : '无'}`);
 
         await updatePresentationAction(presentationId, {
           status: finalStatus,
-          content: JSON.stringify(localSlides),
+          content: JSON.stringify(slidesToSave),
           thumbnailUrl: thumbnail,
         });
-        console.log('Presentation saved successfully:', presentationId);
+        console.log('✅ Presentation saved successfully:', presentationId);
       }
     } catch (e: any) {
       console.error('Generation Prep Error:', e);
@@ -1705,17 +1734,19 @@ export default function AIPPTPage() {
                     </div>
 
                     {/* Visual Prompt (Optional, good for power users) */}
-                    <div>
-                      <label className="text-muted-foreground mb-1 flex items-center gap-2 text-xs font-semibold uppercase">
-                        Visual Prompt{' '}
-                        <span className="bg-primary/10 text-primary rounded px-1 text-[10px]">
-                          AI
-                        </span>
-                      </label>
-                      <p className="text-muted-foreground/70 line-clamp-2 text-xs italic">
-                        {slide.visualDescription}
-                      </p>
-                    </div>
+                    {slide.visualDescription && (
+                      <div>
+                        <label className="text-muted-foreground mb-1 flex items-center gap-2 text-xs font-semibold uppercase">
+                          Visual Prompt{' '}
+                          <span className="bg-primary/10 text-primary rounded px-1 text-[10px]">
+                            AI
+                          </span>
+                        </label>
+                        <p className="text-muted-foreground/70 line-clamp-2 text-xs italic">
+                          {slide.visualDescription}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

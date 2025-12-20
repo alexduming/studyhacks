@@ -78,7 +78,6 @@ CRITICAL RULE:
 Each slide object must have:
 - 'title': The title of the slide.
 - 'content': Key points (bullet points separated by \\n).
-- 'visualDescription': A highly detailed prompt for an AI image generator (Stable Diffusion/Flux/Midjourney style). Describe the visual composition, style, colors, and subject. DO NOT include text in the image description.
 
 Output ONLY the JSON array. Do not include markdown formatting like \`\`\`json or \`\`\`.
 
@@ -86,8 +85,7 @@ Example Output:
 [
   {
     "title": "Slide Title",
-    "content": "Point 1\\nPoint 2",
-    "visualDescription": "A futuristic city skyline..."
+    "content": "Point 1\\nPoint 2"
   }
 ]
 `;

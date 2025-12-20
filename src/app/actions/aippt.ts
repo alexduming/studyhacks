@@ -379,8 +379,7 @@ The output must be a valid JSON object with the following structure:
   "slides": [
   {
     "title": "Slide Title",
-      "content": "Key bullet points (max 50 words)",
-      "visualDescription": "Description of the visual/image for this slide"
+      "content": "Key bullet points (max 50 words)"
   }
 ]
 }
@@ -616,7 +615,7 @@ export async function createKieTaskWithFallbackAction(params: {
   customImages?: string[];
   preferredProvider?: 'FAL' | 'Replicate' | 'KIE'; // 首选提供商
 }) {
-  const { preferredProvider = 'FAL', ...taskParams } = params;
+  const { preferredProvider, ...taskParams } = params;
 
   // 预处理图片 URL，确保对所有提供商都是公网可访问的
   const processedParams = {
@@ -755,15 +754,22 @@ export async function createFalTaskAction(params: {
       input.image_urls = referenceImages;
     }
 
+    // 动态选择模型：如果有参考图，使用 edit 模型；否则使用标准模型
+    const falModel =
+      referenceImages.length > 0
+        ? 'fal-ai/nano-banana-pro/edit'
+        : 'fal-ai/nano-banana-pro';
+
     console.log('[FAL] 请求参数:', {
-      model: 'fal-ai/nano-banana-pro/edit',
+      model: falModel,
       prompt: input.prompt.substring(0, 100) + '...',
+      hasReferenceImages: referenceImages.length > 0,
     });
 
     const startTime = Date.now();
 
     // 使用 subscribe 等待结果
-    const result: any = await fal.subscribe('fal-ai/nano-banana-pro/edit', {
+    const result: any = await fal.subscribe(falModel, {
       input,
       logs: true,
       onQueueUpdate: (update: any) => {
