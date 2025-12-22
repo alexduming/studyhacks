@@ -61,6 +61,8 @@ export default async function HistoryPage() {
                       alt={item.title}
                       fill
                       className="object-cover"
+                      unoptimized
+                      referrerPolicy="no-referrer"
                     />
                   ) : (
                     <div className="bg-secondary/50 flex h-full w-full items-center justify-center">

@@ -371,8 +371,22 @@ export async function generateOutlineAction(
     throw new Error('DeepSeek API Key is not configured');
   }
 
+  // 简单的语言检测：如果有中文字符，则倾向于中文；否则默认为英文（针对纯英文输入的情况）
+  const hasChineseChar = /[\u4e00-\u9fa5]/.test(content);
+  const languageInstruction = hasChineseChar
+    ? 'The user input contains Chinese characters. Output MUST be in Chinese (简体中文).'
+    : 'The user input is in English. Output MUST be in English. Do NOT use Chinese.';
+
   const systemPrompt = `You are an expert presentation designer.
 Create a structured outline for a presentation based on the user's content.
+
+CRITICAL RULE:
+- ${languageInstruction}
+- Strictly maintain the same language as the user's input content.
+- If the input is in Chinese, ALL titles and content in the output JSON MUST be in Chinese.
+- If the input is in English, output in English.
+- Do NOT translate unless explicitly asked.
+
 The output must be a valid JSON object with the following structure:
 {
   "title": "Presentation Title",
@@ -400,7 +414,12 @@ Do not include any markdown formatting (like \`\`\`json), just the raw JSON obje
           model: 'deepseek-chat',
           messages: [
             { role: 'system', content: systemPrompt },
-            { role: 'user', content },
+            {
+              role: 'user',
+              content: hasChineseChar
+                ? content
+                : content + '\n\n(Please generate the outline in English)',
+            },
           ],
           stream: false,
           response_format: { type: 'json_object' },
@@ -472,6 +491,8 @@ export async function createKieTaskAction(params: {
   aspectRatio?: string;
   imageSize?: string;
   customImages?: string[]; // Array of publicly accessible image URLs
+  isEnhancedMode?: boolean;
+  isPromptEnhancedMode?: boolean;
 }) {
   const endpoint = 'https://api.kie.ai/api/v1/jobs/createTask';
 
@@ -484,15 +505,20 @@ export async function createKieTaskAction(params: {
 
   if (params.styleId) {
     const style = PPT_STYLES.find((s) => s.id === params.styleId);
-    if (style) {
+    if (style && params.isPromptEnhancedMode !== false) {
       styleSuffix = style.suffix;
       // Note: Preset reference images should be handled by client
       // and passed in customImages/referenceImages to keep this action pure
     }
   }
 
+  // Content Strategy Prompt
+  const contentStrategy = params.isEnhancedMode
+    ? `\n\n[Content Enhancement Strategy]\nIf user provided content is detailed, use it directly. If content is simple/sparse, use your professional knowledge to expand on the subject to create a rich, complete slide, BUT you must STRICTLY preserve any specific data, numbers, and professional terms provided. Do NOT invent false data. For sparse content, use advanced layout techniques (grid, whitespace, font size) to fill the space professionally without forced filling.`
+    : `\n\n[Strict Mode]\nSTRICTLY follow the provided text for Title and Content. Do NOT add, remove, or modify any words. Do NOT expand or summarize. Render the text exactly as given.`;
+
   // Combine prompts
-  let finalPrompt = params.prompt + ' ' + styleSuffix;
+  let finalPrompt = params.prompt + ' ' + styleSuffix + contentStrategy;
 
   // Log reference images info
   if (referenceImages.length > 0) {
@@ -524,6 +550,8 @@ export async function createKieTaskAction(params: {
       headers: {
         Authorization: `Bearer ${KIE_API_KEY}`,
         'Content-Type': 'application/json',
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       },
       body: JSON.stringify(body),
     });
@@ -556,6 +584,8 @@ export async function queryKieTaskAction(taskId: string) {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${KIE_API_KEY}`,
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       },
     });
 
@@ -614,12 +644,21 @@ export async function createKieTaskWithFallbackAction(params: {
   imageSize?: string;
   customImages?: string[];
   preferredProvider?: 'FAL' | 'Replicate' | 'KIE'; // 首选提供商
+  isEnhancedMode?: boolean;
+  isPromptEnhancedMode?: boolean;
 }) {
-  const { preferredProvider, ...taskParams } = params;
+  const {
+    preferredProvider,
+    isEnhancedMode = true,
+    isPromptEnhancedMode = true,
+    ...taskParams
+  } = params;
 
   // 预处理图片 URL，确保对所有提供商都是公网可访问的
   const processedParams = {
     ...taskParams,
+    isEnhancedMode,
+    isPromptEnhancedMode,
     customImages: (taskParams.customImages || []).map(resolveImageUrl),
   };
 
@@ -709,6 +748,8 @@ export async function createFalTaskAction(params: {
   aspectRatio?: string;
   imageSize?: string;
   customImages?: string[];
+  isEnhancedMode?: boolean;
+  isPromptEnhancedMode?: boolean;
 }) {
   if (!FAL_KEY) {
     throw new Error('FAL API Key 未配置');
@@ -724,12 +765,17 @@ export async function createFalTaskAction(params: {
     let styleSuffix = '';
     if (params.styleId) {
       const style = PPT_STYLES.find((s) => s.id === params.styleId);
-      if (style) {
+      if (style && params.isPromptEnhancedMode !== false) {
         styleSuffix = style.suffix;
       }
     }
 
-    let finalPrompt = params.prompt + ' ' + styleSuffix;
+    // Content Strategy Prompt
+    const contentStrategy = params.isEnhancedMode
+      ? `\n\n[Content Enhancement Strategy]\nIf user provided content is detailed, use it directly. If content is simple/sparse, use your professional knowledge to expand on the subject to create a rich, complete slide, BUT you must STRICTLY preserve any specific data, numbers, and professional terms provided. Do NOT invent false data. For sparse content, use advanced layout techniques (grid, whitespace, font size) to fill the space professionally without forced filling.`
+      : `\n\n[Strict Mode]\nSTRICTLY follow the provided text for Title and Content. Do NOT add, remove, or modify any words. Do NOT expand or summarize. Render the text exactly as given.`;
+
+    let finalPrompt = params.prompt + ' ' + styleSuffix + contentStrategy;
 
     // 处理参考图片
     const referenceImages = (params.customImages || []).map(resolveImageUrl);
@@ -860,6 +906,8 @@ export async function createReplicateTaskAction(params: {
   aspectRatio?: string;
   imageSize?: string;
   customImages?: string[];
+  isEnhancedMode?: boolean;
+  isPromptEnhancedMode?: boolean;
 }) {
   if (!REPLICATE_API_TOKEN) {
     console.log('⏭️ 跳过 Replicate（未配置API Token）');
@@ -879,12 +927,17 @@ export async function createReplicateTaskAction(params: {
     let styleSuffix = '';
     if (params.styleId) {
       const style = PPT_STYLES.find((s) => s.id === params.styleId);
-      if (style) {
+      if (style && params.isPromptEnhancedMode !== false) {
         styleSuffix = style.suffix;
       }
     }
 
-    let finalPrompt = params.prompt + ' ' + styleSuffix;
+    // Content Strategy Prompt
+    const contentStrategy = params.isEnhancedMode
+      ? `\n\n[Content Enhancement Strategy]\nIf user provided content is detailed, use it directly. If content is simple/sparse, use your professional knowledge to expand on the subject to create a rich, complete slide, BUT you must STRICTLY preserve any specific data, numbers, and professional terms provided. Do NOT invent false data. For sparse content, use advanced layout techniques (grid, whitespace, font size) to fill the space professionally without forced filling.`
+      : `\n\n[Strict Mode]\nSTRICTLY follow the provided text for Title and Content. Do NOT add, remove, or modify any words. Do NOT expand or summarize. Render the text exactly as given.`;
+
+    let finalPrompt = params.prompt + ' ' + styleSuffix + contentStrategy;
 
     // 处理参考图片
     const referenceImages = processedParams.customImages || [];

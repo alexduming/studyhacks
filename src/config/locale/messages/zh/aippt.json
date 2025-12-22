@@ -59,7 +59,17 @@
     "generating": "正在创建您的演示文稿...",
     "settings": {
       "ratio": "画面比例",
-      "resolution": "分辨率"
+      "resolution": "分辨率",
+      "content_enhancement": {
+        "label": "内容增强",
+        "on_desc": "智能扩充内容并优化排版",
+        "off_desc": "严格遵循大纲内容"
+      },
+      "prompt_enhancement": {
+        "label": "提示词增强",
+        "on_desc": "包含详细风格指令",
+        "off_desc": "仅参考图片风格，更具创意"
+      }
     },
     "presentation_settings": "演示文稿设置"
   },

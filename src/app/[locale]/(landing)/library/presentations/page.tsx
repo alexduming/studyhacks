@@ -47,6 +47,8 @@ export default async function PresentationsPage() {
                         alt={item.title}
                         fill
                         className="object-cover transition-transform group-hover:scale-105"
+                        unoptimized
+                        referrerPolicy="no-referrer"
                       />
                     ) : (
                       <div className="bg-secondary/50 flex h-full w-full items-center justify-center">

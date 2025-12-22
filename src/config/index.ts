@@ -68,6 +68,17 @@ export const envConfigs = {
   auth_url: process.env.AUTH_URL || getAppUrl(), // 使用与 app_url 相同的逻辑
   auth_secret: process.env.AUTH_SECRET ?? '', // openssl rand -base64 32
 
+  // ====== 社交登录配置 (Social Auth) ======
+  // 允许通过环境变量配置社交登录，方便本地开发和部署
+  google_auth_enabled: process.env.GOOGLE_AUTH_ENABLED ?? 'false',
+  google_client_id: process.env.GOOGLE_CLIENT_ID ?? '',
+  google_client_secret: process.env.GOOGLE_CLIENT_SECRET ?? '',
+  google_one_tap_enabled: process.env.GOOGLE_ONE_TAP_ENABLED ?? 'false',
+
+  github_auth_enabled: process.env.GITHUB_AUTH_ENABLED ?? 'false',
+  github_client_id: process.env.GITHUB_CLIENT_ID ?? '',
+  github_client_secret: process.env.GITHUB_CLIENT_SECRET ?? '',
+
   // ====== 支付配置（Payment Configuration） ======
   // 非程序员解释：
   // - 这些配置控制支付功能（Stripe/PayPal/Creem）

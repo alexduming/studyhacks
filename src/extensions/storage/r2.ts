@@ -129,11 +129,22 @@ export class R2Provider implements StorageProvider {
     options: StorageDownloadUploadOptions
   ): Promise<StorageUploadResult> {
     try {
-      const response = await fetch(options.url);
+      console.log(`[R2] Downloading from: ${options.url}`);
+      
+      const response = await fetch(options.url, {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+      });
+
       if (!response.ok) {
+        console.error(
+          `[R2] Download failed: ${response.status} ${response.statusText}`
+        );
         return {
           success: false,
-          error: `HTTP error! status: ${response.status}`,
+          error: `HTTP error! status: ${response.status} ${response.statusText}`,
           provider: this.name,
         };
       }

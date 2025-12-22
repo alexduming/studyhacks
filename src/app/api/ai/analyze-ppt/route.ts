@@ -63,6 +63,12 @@ export async function POST(req: Request) {
       ? `Generate EXACTLY ${slideCount} slides.`
       : 'Generate between 6-12 slides depending on the content depth.';
 
+    // 简单的语言检测
+    const hasChineseChar = /[\u4e00-\u9fa5]/.test(prompt || '');
+    const languageInstruction = hasChineseChar
+      ? 'The user input contains Chinese characters. Output MUST be in Chinese (简体中文).'
+      : 'The user input is in English. Output MUST be in English. Do NOT use Chinese.';
+
     const systemPrompt = `
 You are a professional presentation designer.
 Your goal is to create a JSON structure for a slide deck based on the user's input.
@@ -70,6 +76,7 @@ ${slideCountPrompt}
 The output must be a valid JSON array where each object represents a slide.
 
 CRITICAL RULE:
+- ${languageInstruction}
 - Strictly maintain the same language as the user's input content.
 - If the input is in Chinese, ALL titles and content in the output JSON MUST be in Chinese.
 - If the input is in English, output in English.
@@ -106,7 +113,12 @@ Example Output:
         model: 'deepseek-chat',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: prompt },
+          {
+            role: 'user',
+            content: hasChineseChar
+              ? prompt
+              : prompt + '\n\n(Please generate the outline in English)',
+          },
         ],
         stream: true, // 开启流式
         temperature: 0.7,

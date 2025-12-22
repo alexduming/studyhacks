@@ -59,7 +59,17 @@
     "generating": "Creating your presentation...",
     "settings": {
       "ratio": "Aspect Ratio",
-      "resolution": "Resolution"
+      "resolution": "Resolution",
+      "content_enhancement": {
+        "label": "Content Enhancement",
+        "on_desc": "Auto-expand details & optimize layout",
+        "off_desc": "Strictly follow outline"
+      },
+      "prompt_enhancement": {
+        "label": "Prompt Enhancement",
+        "on_desc": "Include detailed style instructions",
+        "off_desc": "Reference image style only, more creative"
+      }
     },
     "presentation_settings": "Presentation Settings"
   },

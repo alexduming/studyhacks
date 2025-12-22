@@ -53,7 +53,15 @@ async function tryGenerateWithFal(
       credentials: apiKey,
     });
 
-    const prompt = `Create an educational infographic explaining the provided file or text. You select some typical visual elements. Style: Flat vector. Labels in the language the same as provided information.\n\nContent:\n${params.content}`;
+    const prompt = `Create an educational infographic explaining the provided file or text. You select some typical visual elements. Style: Flat vector.
+IMPORTANT: The text labels inside the infographic MUST be in the SAME LANGUAGE as the provided content.
+- If the content is in English, use English labels.
+- If the content is in Chinese, use Chinese labels.
+- If the content is in another language, use that language.
+Do NOT translate the content.
+
+Content:
+${params.content}`;
 
     // 映射宽高比到 FAL (nano-banana-pro) 支持的值
     // 支持的值: "16:9" | "4:3" | "1:1" | "9:16" | "3:4" | "3:2" | "2:3" | "5:4" | "4:5" | "21:9"
@@ -182,7 +190,15 @@ async function tryGenerateWithKie(
   try {
     console.log('🔄 尝试使用 KIE (nano-banana-pro) 生成...');
 
-    const prompt = `Create an educational infographic explaining the provided file or text. You select some typical visual elements. Style: Flat vector. Labels in the language the same as provided information.\n\nContent:\n${params.content}`;
+    const prompt = `Create an educational infographic explaining the provided file or text. You select some typical visual elements. Style: Flat vector.
+IMPORTANT: The text labels inside the infographic MUST be in the SAME LANGUAGE as the provided content.
+- If the content is in English, use English labels.
+- If the content is in Chinese, use Chinese labels.
+- If the content is in another language, use that language.
+Do NOT translate the content.
+
+Content:
+${params.content}`;
 
     const payload = {
       model: 'nano-banana-pro',
@@ -239,7 +255,15 @@ async function tryGenerateWithReplicate(
   try {
     console.log('🔄 尝试使用 Replicate (google/nano-banana-pro) 生成...');
 
-    const prompt = `Create an educational infographic explaining the provided file or text. You select some typical visual elements. Style: Flat vector. Labels in the language the same as provided information.\n\nContent:\n${params.content}`;
+    const prompt = `Create an educational infographic explaining the provided file or text. You select some typical visual elements. Style: Flat vector.
+IMPORTANT: The text labels inside the infographic MUST be in the SAME LANGUAGE as the provided content.
+- If the content is in English, use English labels.
+- If the content is in Chinese, use Chinese labels.
+- If the content is in another language, use that language.
+Do NOT translate the content.
+
+Content:
+${params.content}`;
 
     const Replicate = require('replicate');
     const replicate = new Replicate({ auth: apiToken });

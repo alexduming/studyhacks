@@ -201,6 +201,32 @@ export async function getAllConfigs(): Promise<Configs> {
     configs.auth_url = envValue;
   }
 
+  // ====== 社交登录配置强制使用环境变量 ======
+  // Google
+  if (process.env.GOOGLE_AUTH_ENABLED) {
+    configs.google_auth_enabled = process.env.GOOGLE_AUTH_ENABLED;
+  }
+  if (process.env.GOOGLE_CLIENT_ID) {
+    configs.google_client_id = process.env.GOOGLE_CLIENT_ID;
+  }
+  if (process.env.GOOGLE_CLIENT_SECRET) {
+    configs.google_client_secret = process.env.GOOGLE_CLIENT_SECRET;
+  }
+  if (process.env.GOOGLE_ONE_TAP_ENABLED) {
+    configs.google_one_tap_enabled = process.env.GOOGLE_ONE_TAP_ENABLED;
+  }
+
+  // Github
+  if (process.env.GITHUB_AUTH_ENABLED) {
+    configs.github_auth_enabled = process.env.GITHUB_AUTH_ENABLED;
+  }
+  if (process.env.GITHUB_CLIENT_ID) {
+    configs.github_client_id = process.env.GITHUB_CLIENT_ID;
+  }
+  if (process.env.GITHUB_CLIENT_SECRET) {
+    configs.github_client_secret = process.env.GITHUB_CLIENT_SECRET;
+  }
+
   // ====== 支付配置强制使用环境变量（防止测试密钥泄露到生产环境） ======
   // 原因：Stripe、PayPal、Creem 的生产密钥通常在 Vercel 等平台设置为环境变量
   //      如果数据库中还保存着测试密钥，会导致生产环境使用测试密钥的问题
