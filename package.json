@@ -166,7 +166,7 @@
     "autoprefixer": "^10.4.21",
     "babel-plugin-react-compiler": "^1.0.0",
     "baseline-browser-mapping": "^2.9.0",
-    "drizzle-kit": "^0.31.4",
+    "drizzle-kit": "^0.31.8",
     "eslint": "^9.37.0",
     "eslint-config-next": "16.0.7",
     "postcss": "^8.5.6",

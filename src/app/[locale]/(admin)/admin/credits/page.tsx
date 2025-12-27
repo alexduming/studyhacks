@@ -67,6 +67,11 @@ export default async function CreditsPage({
       url: '/admin/credits/create',
       icon: 'Plus',
     },
+    {
+      title: 'Generate Codes',
+      url: '/admin/credits/generate',
+      icon: 'Ticket',
+    },
   ];
 
   const total = await getCreditsCount({

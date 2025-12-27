@@ -1,11 +1,11 @@
 import { db } from '@/core/db';
 import { envConfigs } from '@/config';
-import { config } from '@/config/db/schema';
+import { systemConfig } from '@/config/db/schema';
 
 import { publicSettingNames } from '../services/settings';
 
-export type Config = typeof config.$inferSelect;
-export type NewConfig = typeof config.$inferInsert;
+export type Config = typeof systemConfig.$inferSelect;
+export type NewConfig = typeof systemConfig.$inferInsert;
 export type UpdateConfig = Partial<Omit<NewConfig, 'name'>>;
 
 export type Configs = Record<string, string>;
@@ -15,12 +15,35 @@ export async function saveConfigs(configs: Record<string, string>) {
     const configEntries = Object.entries(configs);
     const results = [];
 
-    for (const [name, configValue] of configEntries) {
+    for (const [key, configValue] of configEntries) {
       const [upsertResult] = await tx
-        .insert(config)
-        .values({ name, value: configValue })
+        .insert(systemConfig)
+        .values({ 
+          id: key, // Using key as id for simplicity if needed, or uuid. But better to let schema handle it if auto-generated, or use deterministic ID.
+          // Wait, the schema says: id text primary key, key text unique not null, value text not null.
+          // We need to generate ID or find existing one.
+          // Let's use getUuid() or let DB handle it if possible (but Drizzle needs explicit ID usually unless default).
+          // Actually, let's look at schema again. 
+          // id: text('id').primaryKey(),
+          // key: text('key').unique().notNull(),
+          // value: text('value').notNull(),
+          // We should probably query by key first or use onConflict on key.
+          // But onConflict target needs to be a unique column. 'key' is unique.
+          
+          // Let's assume we need to provide ID for new inserts.
+          // Since we don't have uuid import here, let's use a simple strategy or import uuid.
+          // But wait, the previous code used `config` table which had `name` and `value`.
+          // The new `systemConfig` has `key`, `value`, `type`.
+          // We need to adapt this function.
+          
+          key: key, 
+          value: configValue,
+          type: 'string', // Default type
+          id: key // Using key as ID to ensure uniqueness and simplicity for now, or we need to fetch existing.
+                 // Actually, if we use onConflict on 'key', we can update value.
+        })
         .onConflictDoUpdate({
-          target: config.name,
+          target: systemConfig.key,
           set: { value: configValue },
         })
         .returning();
@@ -35,7 +58,7 @@ export async function saveConfigs(configs: Record<string, string>) {
 }
 
 export async function addConfig(newConfig: NewConfig) {
-  const [result] = await db().insert(config).values(newConfig).returning();
+  const [result] = await db().insert(systemConfig).values(newConfig).returning();
 
   return result;
 }
@@ -62,7 +85,7 @@ export async function getConfigs(): Promise<Configs> {
   for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
     try {
       // 执行数据库查询
-      const result = await db().select().from(config);
+      const result = await db().select().from(systemConfig);
 
       // 如果查询结果为空，返回空配置对象
       if (!result || result.length === 0) {
@@ -71,7 +94,7 @@ export async function getConfigs(): Promise<Configs> {
 
       // 将查询结果转换为配置对象
       for (const configItem of result) {
-        configs[configItem.name] = configItem.value ?? '';
+        configs[configItem.key] = configItem.value ?? '';
       }
 
       // 成功获取配置，返回结果

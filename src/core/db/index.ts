@@ -1,6 +1,7 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
+import * as schema from '@/config/db/schema';
 import { envConfigs } from '@/config';
 import { isCloudflareWorker } from '@/shared/lib/env';
 
@@ -40,7 +41,7 @@ export function db() {
       connect_timeout: 5,
     });
 
-    return drizzle(client);
+    return drizzle(client, { schema });
   }
 
   // Singleton mode: reuse existing connection (good for traditional servers)
@@ -76,7 +77,7 @@ export function db() {
       },
     });
 
-    dbInstance = drizzle({ client });
+    dbInstance = drizzle(client, { schema });
     return dbInstance;
   }
 
@@ -100,7 +101,7 @@ export function db() {
     },
   });
 
-  return drizzle({ client: serverlessClient });
+  return drizzle(serverlessClient, { schema });
 }
 
 // Optional: Function to close database connection (useful for testing or graceful shutdown)

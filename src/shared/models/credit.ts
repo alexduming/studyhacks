@@ -33,6 +33,7 @@ export enum CreditTransactionScene {
   RENEWAL = 'renewal', // renewal
   GIFT = 'gift', // gift
   AWARD = 'award', // award
+  REDEMPTION = 'redemption', // code redemption
 }
 
 // Calculate credit expiration time based on order and subscription info
