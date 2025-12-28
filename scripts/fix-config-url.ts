@@ -1,5 +1,5 @@
 import { db } from '../src/core/db';
-import { config } from '../src/config/db/schema';
+import { systemConfig } from '../src/config/db/schema';
 import { eq, inArray } from 'drizzle-orm';
 import { envConfigs } from '../src/config';
 
@@ -16,8 +16,8 @@ async function main() {
     // 1. 查询当前值
     const currentConfigs = await db()
       .select()
-      .from(config)
-      .where(inArray(config.name, configKeys));
+      .from(systemConfig)
+      .where(inArray(systemConfig.name, configKeys));
       
     console.log('当前数据库中的配置:');
     currentConfigs.forEach(c => {
@@ -29,13 +29,13 @@ async function main() {
     
     for (const key of configKeys) {
       await db()
-        .insert(config)
+        .insert(systemConfig)
         .values({
           name: key,
           value: targetUrl
         })
         .onConflictDoUpdate({
-          target: config.name,
+          target: systemConfig.name,
           set: { value: targetUrl }
         });
       
