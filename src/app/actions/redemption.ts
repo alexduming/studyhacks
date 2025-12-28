@@ -1,11 +1,10 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
-import { getTranslations } from 'next-intl/server';
+import { eq, and, gt } from 'drizzle-orm';
 
 import { db } from '@/core/db';
 import { PERMISSIONS, requirePermission } from '@/core/rbac';
-import { redemptionCode } from '@/config/db/schema';
+import { redemptionCode, redemptionRecord } from '@/config/db/schema';
 import { getUuid } from '@/shared/lib/hash';
 import {
   createCredit,
@@ -33,6 +32,9 @@ function generateSecureCode(length = 16) {
 export async function generateCodesAction(
   amount: number,
   quantity: number,
+  maxUses: number = 1,
+  creditValidityDays: number = 30,
+  expiresAt?: string, // ISO Date string from form
   locale: string = 'en'
 ) {
   // 1. 权限检查
@@ -44,6 +46,7 @@ export async function generateCodesAction(
 
   const codesToInsert = [];
   const createdBy = (await getUserInfo())?.id;
+  const codeExpiresAt = expiresAt ? new Date(expiresAt) : null;
 
   // 2. 批量生成
   for (let i = 0; i < quantity; i++) {
@@ -54,6 +57,10 @@ export async function generateCodesAction(
       createdBy,
       createdAt: new Date(),
       status: 'active',
+      maxUses,
+      usedCount: 0,
+      creditValidityDays,
+      expiresAt: codeExpiresAt,
     });
   }
 
@@ -82,43 +89,79 @@ export async function redeemCodeAction(code: string) {
 
   // 2. 开启事务处理
   return await db().transaction(async (tx) => {
-    // 2.1 查询兑换码并锁定 (Simple select for now, concurrency handled by unique index/atomic update check)
-    // Note: Drizzle transaction doesn't auto-lock unless using `for update`.
-    // We will rely on the atomic update returning updated rows count to detect race conditions.
-    
-    const [existingCode] = await tx
+    // 2.1 查询兑换码并锁定
+    // 使用 for('update') 防止并发超兑
+    const result = await tx
       .select()
       .from(redemptionCode)
-      .where(eq(redemptionCode.code, formattedCode));
+      .where(eq(redemptionCode.code, formattedCode))
+      .for('update'); // Lock row for update
+
+    const existingCode = result[0];
 
     if (!existingCode) {
-      return { success: false, error: 'invalid_code' };
+      return { success: false, error: 'invalid_code' }; // 无效兑换码
     }
 
+    // 2.2 基础校验
     if (existingCode.status !== 'active') {
-      return { success: false, error: 'code_used_or_expired' };
+      return { success: false, error: 'code_used_or_expired' }; // 已失效
     }
 
-    // 2.2 标记为已使用 (Atomic update)
-    const [updated] = await tx
+    // 检查是否过期
+    if (existingCode.expiresAt && new Date() > existingCode.expiresAt) {
+      return { success: false, error: 'code_expired' }; // 已过期
+    }
+
+    // 检查剩余次数
+    if (existingCode.usedCount >= existingCode.maxUses) {
+      return { success: false, error: 'code_usage_limit_reached' }; // 次数已用完
+    }
+
+    // 2.3 检查用户是否已兑换过此码 (每人限一次)
+    const recordResult = await tx
+      .select()
+      .from(redemptionRecord)
+      .where(
+        and(
+          eq(redemptionRecord.codeId, existingCode.id),
+          eq(redemptionRecord.userId, user.id)
+        )
+      );
+    
+    if (recordResult.length > 0) {
+      return { success: false, error: 'already_redeemed' }; // 您已使用过此兑换码
+    }
+
+    // 2.4 更新兑换码使用状态
+    const newUsedCount = existingCode.usedCount + 1;
+    const isFullyUsed = newUsedCount >= existingCode.maxUses;
+
+    await tx
       .update(redemptionCode)
       .set({
-        status: 'used',
-        userId: user.id,
-        usedAt: new Date(),
+        usedCount: newUsedCount,
+        status: isFullyUsed ? 'used' : 'active',
+        // usedAt: new Date(), // 可选：更新最后使用时间
       })
-      .where(
-        // Ensure we are updating the exact active record
-        eq(redemptionCode.id, existingCode.id)
-      )
-      .returning();
+      .where(eq(redemptionCode.id, existingCode.id));
 
-    // Double check if update actually happened (in case of race condition)
-    if (!updated) {
-       return { success: false, error: 'code_used_or_expired' };
+    // 2.5 插入兑换记录
+    await tx.insert(redemptionRecord).values({
+      id: getUuid(),
+      codeId: existingCode.id,
+      userId: user.id,
+      redeemedAt: new Date(),
+    });
+
+    // 2.6 计算积分有效期
+    let creditExpiresAt = null;
+    if (existingCode.creditValidityDays && existingCode.creditValidityDays > 0) {
+      creditExpiresAt = new Date();
+      creditExpiresAt.setDate(creditExpiresAt.getDate() + existingCode.creditValidityDays);
     }
 
-    // 2.3 发放积分
+    // 2.7 发放积分
     await createCredit({
       id: getUuid(),
       userId: user.id,
@@ -129,9 +172,9 @@ export async function redeemCodeAction(code: string) {
       remainingCredits: existingCode.credits,
       status: CreditStatus.ACTIVE,
       description: `Redeemed code: ${formattedCode}`,
+      expiresAt: creditExpiresAt,
     });
 
     return { success: true, credits: existingCode.credits };
   });
 }
-

@@ -40,24 +40,19 @@ export default async function CreditsPage({
     { title: t('list.crumbs.credits'), is_active: true },
   ];
 
+  // Updated tabs to include 'Codes' link
   const tabs: Tab[] = [
     {
-      name: 'all',
-      title: t('list.tabs.all'),
+      name: 'transactions',
+      title: 'Transactions',
       url: '/admin/credits',
-      is_active: !type || type === 'all',
+      is_active: true,
     },
     {
-      name: 'grant',
-      title: t('list.tabs.grant'),
-      url: '/admin/credits?type=grant',
-      is_active: type === 'grant',
-    },
-    {
-      name: 'consume',
-      title: t('list.tabs.consume'),
-      url: '/admin/credits?type=consume',
-      is_active: type === 'consume',
+      name: 'codes',
+      title: 'Redemption Codes',
+      url: '/admin/credits/codes',
+      is_active: false,
     },
   ];
 

@@ -32,6 +32,8 @@
     "rbac:init": "npx tsx scripts/init-rbac.ts",
     "rbac:assign": "npx tsx scripts/assign-role.ts",
     "migrate:invitation": "npx tsx scripts/run-invitation-migration.ts",
+    "db:check-email-verification": "npx tsx scripts/check-email-verification-table.ts",
+    "db:safe-migrate-email-verification": "npx tsx scripts/safe-migrate-email-verification.ts",
     "payment:clear-stripe": "npx tsx scripts/clear-stripe-from-db.ts",
     "payment:verify": "npx tsx scripts/verify-production-keys.ts",
     "postinstall": "fumadocs-mdx",

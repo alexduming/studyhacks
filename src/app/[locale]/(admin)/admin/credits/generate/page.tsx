@@ -53,6 +53,39 @@ export default async function GenerateCreditsPage({
           max: 1000,
         },
       },
+      {
+        name: 'maxUses',
+        title: 'Max Uses Per Code',
+        type: 'number',
+        required: true,
+        placeholder: '1',
+        defaultValue: 1,
+        metadata: {
+          min: 1,
+          description: 'How many times each code can be redeemed (by different users)',
+        },
+      },
+      {
+        name: 'creditValidityDays',
+        title: 'Credit Validity (Days)',
+        type: 'number',
+        required: true,
+        placeholder: '30',
+        defaultValue: 30,
+        metadata: {
+          min: 1,
+          description: 'How long the redeemed credits remain valid',
+        },
+      },
+      {
+        name: 'expiresAt',
+        title: 'Code Expiration Date',
+        type: 'text', // Using text for date input for now as 'date' type might need component support
+        placeholder: 'YYYY-MM-DD (Optional)',
+        metadata: {
+          description: 'Leave empty for no expiration',
+        },
+      },
     ],
     submit: {
       button: {
@@ -63,27 +96,27 @@ export default async function GenerateCreditsPage({
         
         const amount = Number(data.get('amount'));
         const quantity = Number(data.get('quantity'));
+        const maxUses = Number(data.get('maxUses')) || 1;
+        const creditValidityDays = Number(data.get('creditValidityDays')) || 30;
+        const expiresAt = data.get('expiresAt') as string;
 
         if (!amount || !quantity) {
            throw new Error('Invalid input');
         }
 
-        const result = await generateCodesAction(amount, quantity, locale);
-
-        // We can't easily show the codes in the form response with the current FormCard abstraction 
-        // if it expects a simple redirect. 
-        // However, usually FormCard handles success message. 
-        // To show the codes, we might need a custom client component instead of FormCard.
-        // But for "Standard" implementation, let's just generate them and maybe 
-        // redirect to a page that lists the newly generated ones?
-        // Or better: Let's accept that we just generate them and they appear in the database.
-        // The user asked to "Generate and distribute". 
-        // Ideal: Display them.
+        const result = await generateCodesAction(
+          amount, 
+          quantity, 
+          maxUses, 
+          creditValidityDays, 
+          expiresAt || undefined, 
+          locale
+        );
         
         return {
           status: 'success',
           message: `Generated ${quantity} codes successfully.`,
-          redirect_url: '/admin/credits', // Back to list to see them (if we add a tab for codes)
+          redirect_url: '/admin/credits', 
         };
       },
     },
@@ -99,4 +132,3 @@ export default async function GenerateCreditsPage({
     </>
   );
 }
-

@@ -15,35 +15,15 @@ export async function saveConfigs(configs: Record<string, string>) {
     const configEntries = Object.entries(configs);
     const results = [];
 
-    for (const [key, configValue] of configEntries) {
+    for (const [name, configValue] of configEntries) {
       const [upsertResult] = await tx
         .insert(systemConfig)
         .values({ 
-          id: key, // Using key as id for simplicity if needed, or uuid. But better to let schema handle it if auto-generated, or use deterministic ID.
-          // Wait, the schema says: id text primary key, key text unique not null, value text not null.
-          // We need to generate ID or find existing one.
-          // Let's use getUuid() or let DB handle it if possible (but Drizzle needs explicit ID usually unless default).
-          // Actually, let's look at schema again. 
-          // id: text('id').primaryKey(),
-          // key: text('key').unique().notNull(),
-          // value: text('value').notNull(),
-          // We should probably query by key first or use onConflict on key.
-          // But onConflict target needs to be a unique column. 'key' is unique.
-          
-          // Let's assume we need to provide ID for new inserts.
-          // Since we don't have uuid import here, let's use a simple strategy or import uuid.
-          // But wait, the previous code used `config` table which had `name` and `value`.
-          // The new `systemConfig` has `key`, `value`, `type`.
-          // We need to adapt this function.
-          
-          key: key, 
+          name: name, 
           value: configValue,
-          type: 'string', // Default type
-          id: key // Using key as ID to ensure uniqueness and simplicity for now, or we need to fetch existing.
-                 // Actually, if we use onConflict on 'key', we can update value.
         })
         .onConflictDoUpdate({
-          target: systemConfig.key,
+          target: systemConfig.name,
           set: { value: configValue },
         })
         .returning();
@@ -94,7 +74,7 @@ export async function getConfigs(): Promise<Configs> {
 
       // 将查询结果转换为配置对象
       for (const configItem of result) {
-        configs[configItem.key] = configItem.value ?? '';
+        configs[configItem.name] = configItem.value ?? '';
       }
 
       // 成功获取配置，返回结果

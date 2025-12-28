@@ -87,11 +87,14 @@ export const role = pgTable(
   {
     id: text('id').primaryKey(),
     name: text('name').unique().notNull(),
+    title: text('title').notNull(),
     description: text('description'),
+    status: text('status').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at')
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
+    sort: integer('sort').notNull(),
   },
   (table) => [index('idx_role_name').on(table.name)]
 );
@@ -100,12 +103,11 @@ export const permission = pgTable(
   'permission',
   {
     id: text('id').primaryKey(),
-    code: text('code').unique().notNull(), // e.g., 'user:read', 'user:write'
-    name: text('name').notNull(),
+    code: text('code').unique().notNull(), // e.g., 'admin.users.read'
+    resource: text('resource').notNull(), // e.g., 'users', 'posts'
+    action: text('action').notNull(), // e.g., 'read', 'write', 'delete'
+    title: text('title').notNull(), // Display name, e.g., 'Read Users'
     description: text('description'),
-    type: text('type').notNull(), // 'menu', 'button', 'api'
-    parentId: text('parent_id'),
-    path: text('path'), // for menu type
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at')
       .$onUpdate(() => /* @__PURE__ */ new Date())
@@ -137,13 +139,18 @@ export const rolePermission = pgTable(
 export const userRole = pgTable(
   'user_role',
   {
+    id: text('id').primaryKey(),
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
     roleId: text('role_id')
       .notNull()
       .references(() => role.id, { onDelete: 'cascade' }),
+    expiresAt: timestamp('expires_at'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
   },
   (table) => [
     index('idx_user_role_user').on(table.userId),
@@ -389,22 +396,10 @@ export const file = pgTable(
   ]
 );
 
-export const systemConfig = pgTable(
-  'system_config',
-  {
-    id: text('id').primaryKey(),
-    key: text('key').unique().notNull(),
-    value: text('value').notNull(),
-    description: text('description'),
-    type: text('type').notNull(), // string, number, boolean, json
-    isPublic: boolean('is_public').default(false).notNull(),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at')
-      .$onUpdate(() => /* @__PURE__ */ new Date())
-      .notNull(),
-  },
-  (table) => [index('idx_system_config_key').on(table.key)]
-);
+export const systemConfig = pgTable('config', {
+  name: text('name').primaryKey(),
+  value: text('value'),
+});
 
 export const aiTask = pgTable(
   'ai_task',
@@ -496,10 +491,31 @@ export const redemptionCode = pgTable(
     usedAt: timestamp('used_at'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     createdBy: text('created_by'),
+    maxUses: integer('max_uses').default(1).notNull(),
+    usedCount: integer('used_count').default(0).notNull(),
+    expiresAt: timestamp('expires_at'),
+    creditValidityDays: integer('credit_validity_days').default(30),
   },
   (table) => [
     index('idx_redemption_code_status').on(table.code, table.status),
     index('idx_redemption_code_created_at').on(table.createdAt),
+  ]
+);
+
+export const redemptionRecord = pgTable(
+  'redemption_record',
+  {
+    id: text('id').primaryKey(),
+    codeId: text('code_id')
+      .notNull()
+      .references(() => redemptionCode.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    redeemedAt: timestamp('redeemed_at').defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('idx_redemption_record_unique').on(table.userId, table.codeId),
   ]
 );
 
