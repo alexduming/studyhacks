@@ -160,6 +160,7 @@ export async function POST(request: NextRequest) {
           // 新用户，创建完整的用户记录
           isNewUser = true;
           userId = getUuid();
+          const now = new Date();
 
           console.log(`🆕 创建新用户: ${userId}`);
 
@@ -171,6 +172,8 @@ export async function POST(request: NextRequest) {
               email,
               name: name.trim(),
               emailVerified: true, // 因为已经通过邮箱验证
+              createdAt: now,
+              updatedAt: now,
             })
             .returning();
 
@@ -206,12 +209,15 @@ export async function POST(request: NextRequest) {
           // 创建新的 account 记录
           console.log(`🔐 创建 Account 记录`);
           const accountId = getUuid();
+          const now = new Date();
           await tx.insert(account).values({
             id: accountId,
             accountId: email, // better-auth 使用邮箱作为 accountId
             providerId: 'credential', // better-auth 的邮箱密码提供者
             userId: userId,
             password: hashedPassword,
+            createdAt: now,
+            updatedAt: now,
           });
         }
 
