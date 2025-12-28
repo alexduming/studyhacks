@@ -5,7 +5,7 @@ import { fal } from '@fal-ai/client';
 import { AIMediaType, AITaskStatus } from '@/extensions/ai';
 import { createAITaskRecordOnly } from '@/shared/models/ai_task';
 import { getAllConfigs } from '@/shared/models/config';
-import { consumeCredits, getRemainingCredits } from '@/shared/models/credit';
+import { consumeCredits, getRemainingCredits, refundCredits } from '@/shared/models/credit';
 import { getUserInfo } from '@/shared/models/user';
 
 // 使用 Node.js 运行时，保证可以安全调用外部 API 并使用环境变量
@@ -658,6 +658,18 @@ export async function POST(request: NextRequest) {
 
     // 所有提供商都失败
     console.error('❌ 所有提供商都失败:', errors);
+
+    // 自动退还积分
+    try {
+      console.log(`💰 生成失败，自动退还用户 ${requiredCredits} 积分`);
+      await refundCredits({
+        userId: user.id,
+        credits: requiredCredits,
+        description: 'Refund for failed Infographic generation',
+      });
+    } catch (refundError) {
+      console.error('Failed to refund credits:', refundError);
+    }
 
     return NextResponse.json(
       {

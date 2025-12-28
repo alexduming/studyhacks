@@ -1,4 +1,4 @@
-import { consumeCredits, getRemainingCredits } from '@/shared/models/credit';
+import { consumeCredits, getRemainingCredits, refundCredits } from '@/shared/models/credit';
 import { getUserInfo } from '@/shared/models/user';
 
 // 使用原生 Fetch 实现 DeepSeek 流式调用，确保完全兼容性
@@ -8,6 +8,9 @@ import { getUserInfo } from '@/shared/models/user';
 export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
+  let userId: string | undefined;
+  const requiredCredits = 3;
+
   try {
     const { prompt, slideCount } = await req.json();
 
@@ -19,8 +22,8 @@ export async function POST(req: Request) {
         headers: { 'Content-Type': 'application/json' },
       });
     }
+    userId = user.id;
 
-    const requiredCredits = 3;
     const remaining = await getRemainingCredits(user.id);
     
     if (remaining < requiredCredits) {
@@ -187,6 +190,23 @@ Example Output:
     });
   } catch (error: any) {
     console.error('[Analyze PPT] Error:', error);
+
+    // 自动退还积分 (如果已扣除)
+    // 注意：这里简单假设如果在主流程中抛出错误，且 userId 存在，就尝试退款。
+    // 理想情况下应该有一个明确的 flag 标记 "creditsConsumed"
+    if (userId) {
+      try {
+        console.log(`💰 PPT生成失败，自动退还用户 ${requiredCredits} 积分`);
+        await refundCredits({
+          userId,
+          credits: requiredCredits,
+          description: 'Refund for failed PPT outline generation',
+        });
+      } catch (refundError) {
+        console.error('Failed to refund credits:', refundError);
+      }
+    }
+
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },

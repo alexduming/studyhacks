@@ -930,6 +930,7 @@ export default function AIPPTClient({ initialPresentation }: AIPPTClientProps) {
             isEnhancedMode,
             isPromptEnhancedMode,
             outputLanguage,
+            refundCredits: resolution === '4K' ? 12 : 6,
           });
 
           if (!taskData.task_id) throw new Error(t('errors.no_task_id'));

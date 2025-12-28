@@ -34,6 +34,30 @@ export enum CreditTransactionScene {
   GIFT = 'gift', // gift
   AWARD = 'award', // award
   REDEMPTION = 'redemption', // code redemption
+  REFUND = 'refund', // refund for failed generation
+}
+
+// refund credits
+export async function refundCredits({
+  userId,
+  credits,
+  description = 'Refund for failed generation',
+}: {
+  userId: string;
+  credits: number;
+  description?: string;
+}) {
+  return await createCredit({
+    id: getUuid(),
+    transactionNo: getSnowId(),
+    transactionType: CreditTransactionType.GRANT,
+    transactionScene: CreditTransactionScene.REFUND,
+    userId,
+    credits,
+    remainingCredits: credits,
+    description,
+    status: CreditStatus.ACTIVE,
+  });
 }
 
 // Calculate credit expiration time based on order and subscription info

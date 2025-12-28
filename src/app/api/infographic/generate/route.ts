@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { consumeCredits, getRemainingCredits } from '@/shared/models/credit';
+import {
+  consumeCredits,
+  getRemainingCredits,
+  refundCredits,
+} from '@/shared/models/credit';
 import { getUserInfo } from '@/shared/models/user';
 
 // 使用 Node.js 运行时，保证可以安全调用外部 API 并使用环境变量
@@ -140,6 +144,18 @@ ${content}`;
       console.error('  - API URL:', `${KIE_BASE_URL}/jobs/createTask`);
       console.error('  - 请求 payload:', JSON.stringify(payload, null, 2));
 
+      // 自动退还积分
+      try {
+        console.log(`💰 生成失败，自动退还用户 ${requiredCredits} 积分`);
+        await refundCredits({
+          userId: user.id,
+          credits: requiredCredits,
+          description: 'Refund for failed Infographic generation',
+        });
+      } catch (refundError) {
+        console.error('Failed to refund credits:', refundError);
+      }
+
       return NextResponse.json(
         {
           success: false,
@@ -167,6 +183,18 @@ ${content}`;
       console.error('  - code:', data.code);
       console.error('  - message:', data.message || data.msg);
       console.error('  - 完整响应:', JSON.stringify(data, null, 2));
+
+      // 自动退还积分
+      try {
+        console.log(`💰 生成失败，自动退还用户 ${requiredCredits} 积分`);
+        await refundCredits({
+          userId: user.id,
+          credits: requiredCredits,
+          description: 'Refund for failed Infographic generation',
+        });
+      } catch (refundError) {
+        console.error('Failed to refund credits:', refundError);
+      }
 
       return NextResponse.json(
         {

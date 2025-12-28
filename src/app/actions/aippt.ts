@@ -6,7 +6,11 @@ import mammoth from 'mammoth';
 import pdf from 'pdf-parse';
 
 import { PPT_STYLES } from '@/config/aippt';
-import { consumeCredits, getRemainingCredits } from '@/shared/models/credit';
+import {
+  consumeCredits,
+  getRemainingCredits,
+  refundCredits,
+} from '@/shared/models/credit';
 import { getSignUser } from '@/shared/models/user';
 
 // 移除硬编码的 API Key，强制使用环境变量
@@ -659,12 +663,14 @@ export async function createKieTaskWithFallbackAction(params: {
   isEnhancedMode?: boolean;
   isPromptEnhancedMode?: boolean;
   outputLanguage?: 'auto' | 'zh' | 'en';
+  refundCredits?: number; // 失败时自动退还的积分数量
 }) {
   const {
     preferredProvider,
     isEnhancedMode = true,
     isPromptEnhancedMode = true,
     outputLanguage = 'auto',
+    refundCredits: refundAmount,
     ...taskParams
   } = params;
 
@@ -749,6 +755,24 @@ export async function createKieTaskWithFallbackAction(params: {
 
   // 如果所有都失败了
   console.error(`❌ 所有图片生成服务都失败`);
+
+  // 自动退还积分
+  if (refundAmount && refundAmount > 0) {
+    try {
+      const user = await getSignUser();
+      if (user) {
+        console.log(`💰 生成失败，自动退还用户 ${refundAmount} 积分`);
+        await refundCredits({
+          userId: user.id,
+          credits: refundAmount,
+          description: 'Refund for failed PPT slide generation',
+        });
+      }
+    } catch (refundError) {
+      console.error('Failed to refund credits:', refundError);
+    }
+  }
+
   throw new Error(
     `所有图片生成服务都暂时不可用: ${lastError?.message || '未知错误'}`
   );
