@@ -69,7 +69,11 @@
         "label": "提示词增强",
         "on_desc": "包含详细风格指令",
         "off_desc": "仅参考图片风格，更具创意"
-      }
+      },
+      "language": "输出语言",
+      "language_auto": "自动（跟随输入）",
+      "language_zh": "简体中文",
+      "language_en": "英文"
     },
     "presentation_settings": "演示文稿设置"
   },

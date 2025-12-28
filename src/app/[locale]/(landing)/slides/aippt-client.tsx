@@ -152,6 +152,9 @@ export default function AIPPTClient({ initialPresentation }: AIPPTClientProps) {
 
   const [isEnhancedMode, setIsEnhancedMode] = useState(true);
   const [isPromptEnhancedMode, setIsPromptEnhancedMode] = useState(true);
+  const [outputLanguage, setOutputLanguage] = useState<'auto' | 'zh' | 'en'>(
+    'auto'
+  );
 
   const [customImages, setCustomImages] = useState<string[]>([]);
   const [customImageFiles, setCustomImageFiles] = useState<File[]>([]);
@@ -926,6 +929,7 @@ export default function AIPPTClient({ initialPresentation }: AIPPTClientProps) {
             preferredProvider: 'FAL',
             isEnhancedMode,
             isPromptEnhancedMode,
+            outputLanguage,
           });
 
           if (!taskData.task_id) throw new Error(t('errors.no_task_id'));
@@ -1610,6 +1614,31 @@ export default function AIPPTClient({ initialPresentation }: AIPPTClientProps) {
                   checked={isPromptEnhancedMode}
                   onCheckedChange={setIsPromptEnhancedMode}
                 />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium">
+                  {t('style_step.settings.language')}
+                </label>
+                <Select
+                  value={outputLanguage}
+                  onValueChange={(val: any) => setOutputLanguage(val)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">
+                      {t('style_step.settings.language_auto')}
+                    </SelectItem>
+                    <SelectItem value="zh">
+                      {t('style_step.settings.language_zh')}
+                    </SelectItem>
+                    <SelectItem value="en">
+                      {t('style_step.settings.language_en')}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>

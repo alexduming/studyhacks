@@ -4,8 +4,15 @@ import { oneTap } from 'better-auth/plugins';
 import { db } from '@/core/db';
 import { envConfigs } from '@/config';
 import * as schema from '@/config/db/schema';
-import { getUuid } from '@/shared/lib/hash';
+import { getSnowId, getUuid } from '@/shared/lib/hash';
 import { getAllConfigs } from '@/shared/models/config';
+import {
+  createCredit,
+  CreditStatus,
+  CreditTransactionScene,
+  CreditTransactionType,
+} from '@/shared/models/credit';
+import { EmailService } from '@/shared/services/email-service';
 
 // Static auth options - NO database connection
 // This ensures zero database calls during build time
@@ -102,6 +109,54 @@ export async function getAuthOptions() {
     },
     socialProviders,
     plugins,
+    databaseHooks: {
+      user: {
+        create: {
+          after: async (user) => {
+            try {
+              console.log(`🆕 Social Login User Created: ${user.email}`);
+
+              const now = new Date();
+              // Calculate end of month
+              const lastDayOfMonth = new Date(
+                now.getFullYear(),
+                now.getMonth() + 1,
+                0,
+                23,
+                59,
+                59,
+                999
+              );
+
+              // Grant 10 credits
+              await createCredit({
+                id: getUuid(),
+                userId: user.id,
+                userEmail: user.email,
+                transactionNo: getSnowId(),
+                transactionType: CreditTransactionType.GRANT,
+                transactionScene: CreditTransactionScene.GIFT,
+                credits: 10,
+                remainingCredits: 10,
+                description:
+                  'Monthly free credits for new user registration (Social Login)',
+                expiresAt: lastDayOfMonth,
+                status: CreditStatus.ACTIVE,
+              });
+
+              console.log(
+                `🎁 Credits granted for social login user: ${user.email}`
+              );
+
+              // Send welcome email
+              await EmailService.sendWelcomeEmail(user.email, user.name);
+            } catch (error) {
+              console.error('❌ Error in user.create.after hook:', error);
+            }
+          },
+        },
+      },
+    },
   };
 }
 

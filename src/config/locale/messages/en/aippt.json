@@ -69,7 +69,11 @@
         "label": "Prompt Enhancement",
         "on_desc": "Include detailed style instructions",
         "off_desc": "Reference image style only, more creative"
-      }
+      },
+      "language": "Output Language",
+      "language_auto": "Auto (Follow Input)",
+      "language_zh": "Simplified Chinese",
+      "language_en": "English"
     },
     "presentation_settings": "Presentation Settings"
   },

@@ -493,6 +493,7 @@ export async function createKieTaskAction(params: {
   customImages?: string[]; // Array of publicly accessible image URLs
   isEnhancedMode?: boolean;
   isPromptEnhancedMode?: boolean;
+  outputLanguage?: 'auto' | 'zh' | 'en';
 }) {
   const endpoint = 'https://api.kie.ai/api/v1/jobs/createTask';
 
@@ -512,10 +513,21 @@ export async function createKieTaskAction(params: {
     }
   }
 
+  // Language Strategy Prompt
+  let languagePrompt = '';
+  if (params.outputLanguage === 'zh') {
+    languagePrompt = `\n\n[Language Requirement]\nIMPORTANT: The output text in the image MUST be in Simplified Chinese (简体中文). Translate any English system instructions to Chinese if they appear in the final output.`;
+  } else if (params.outputLanguage === 'en') {
+    languagePrompt = `\n\n[Language Requirement]\nIMPORTANT: The output text in the image MUST be in English.`;
+  } else {
+    // Auto
+    languagePrompt = `\n\n[Language Requirement]\nIMPORTANT: Strictly maintain the language of the user's input content. If the user input is Chinese, the output text MUST be in Chinese. If the user input is English, the output text MUST be in English.`;
+  }
+
   // Content Strategy Prompt
   const contentStrategy = params.isEnhancedMode
-    ? `\n\n[Content Enhancement Strategy]\nIf user provided content is detailed, use it directly. If content is simple/sparse, use your professional knowledge to expand on the subject to create a rich, complete slide, BUT you must STRICTLY preserve any specific data, numbers, and professional terms provided. Do NOT invent false data. For sparse content, use advanced layout techniques (grid, whitespace, font size) to fill the space professionally without forced filling.`
-    : `\n\n[Strict Mode]\nSTRICTLY follow the provided text for Title and Content. Do NOT add, remove, or modify any words. Do NOT expand or summarize. Render the text exactly as given.`;
+    ? `\n\n[Content Enhancement Strategy]\nIf user provided content is detailed, use it directly. If content is simple/sparse, use your professional knowledge to expand on the subject to create a rich, complete slide, BUT you must STRICTLY preserve any specific data, numbers, and professional terms provided. Do NOT invent false data. For sparse content, use advanced layout techniques (grid, whitespace, font size) to fill the space professionally without forced filling.${languagePrompt}`
+    : `\n\n[Strict Mode]\nSTRICTLY follow the provided text for Title and Content. Do NOT add, remove, or modify any words. Do NOT expand or summarize. Render the text exactly as given.${languagePrompt}`;
 
   // Combine prompts
   let finalPrompt = params.prompt + ' ' + styleSuffix + contentStrategy;
@@ -646,11 +658,13 @@ export async function createKieTaskWithFallbackAction(params: {
   preferredProvider?: 'FAL' | 'Replicate' | 'KIE'; // 首选提供商
   isEnhancedMode?: boolean;
   isPromptEnhancedMode?: boolean;
+  outputLanguage?: 'auto' | 'zh' | 'en';
 }) {
   const {
     preferredProvider,
     isEnhancedMode = true,
     isPromptEnhancedMode = true,
+    outputLanguage = 'auto',
     ...taskParams
   } = params;
 
@@ -659,6 +673,7 @@ export async function createKieTaskWithFallbackAction(params: {
     ...taskParams,
     isEnhancedMode,
     isPromptEnhancedMode,
+    outputLanguage,
     customImages: (taskParams.customImages || []).map(resolveImageUrl),
   };
 
@@ -750,6 +765,7 @@ export async function createFalTaskAction(params: {
   customImages?: string[];
   isEnhancedMode?: boolean;
   isPromptEnhancedMode?: boolean;
+  outputLanguage?: 'auto' | 'zh' | 'en';
 }) {
   if (!FAL_KEY) {
     throw new Error('FAL API Key 未配置');
@@ -770,10 +786,21 @@ export async function createFalTaskAction(params: {
       }
     }
 
+    // Language Strategy Prompt
+    let languagePrompt = '';
+    if (params.outputLanguage === 'zh') {
+      languagePrompt = `\n\n[Language Requirement]\nIMPORTANT: The output text in the image MUST be in Simplified Chinese (简体中文). Translate any English system instructions to Chinese if they appear in the final output.`;
+    } else if (params.outputLanguage === 'en') {
+      languagePrompt = `\n\n[Language Requirement]\nIMPORTANT: The output text in the image MUST be in English.`;
+    } else {
+      // Auto
+      languagePrompt = `\n\n[Language Requirement]\nIMPORTANT: Strictly maintain the language of the user's input content. If the user input is Chinese, the output text MUST be in Chinese. If the user input is English, the output text MUST be in English.`;
+    }
+
     // Content Strategy Prompt
     const contentStrategy = params.isEnhancedMode
-      ? `\n\n[Content Enhancement Strategy]\nIf user provided content is detailed, use it directly. If content is simple/sparse, use your professional knowledge to expand on the subject to create a rich, complete slide, BUT you must STRICTLY preserve any specific data, numbers, and professional terms provided. Do NOT invent false data. For sparse content, use advanced layout techniques (grid, whitespace, font size) to fill the space professionally without forced filling.`
-      : `\n\n[Strict Mode]\nSTRICTLY follow the provided text for Title and Content. Do NOT add, remove, or modify any words. Do NOT expand or summarize. Render the text exactly as given.`;
+      ? `\n\n[Content Enhancement Strategy]\nIf user provided content is detailed, use it directly. If content is simple/sparse, use your professional knowledge to expand on the subject to create a rich, complete slide, BUT you must STRICTLY preserve any specific data, numbers, and professional terms provided. Do NOT invent false data. For sparse content, use advanced layout techniques (grid, whitespace, font size) to fill the space professionally without forced filling.${languagePrompt}`
+      : `\n\n[Strict Mode]\nSTRICTLY follow the provided text for Title and Content. Do NOT add, remove, or modify any words. Do NOT expand or summarize. Render the text exactly as given.${languagePrompt}`;
 
     let finalPrompt = params.prompt + ' ' + styleSuffix + contentStrategy;
 
@@ -908,6 +935,7 @@ export async function createReplicateTaskAction(params: {
   customImages?: string[];
   isEnhancedMode?: boolean;
   isPromptEnhancedMode?: boolean;
+  outputLanguage?: 'auto' | 'zh' | 'en';
 }) {
   if (!REPLICATE_API_TOKEN) {
     console.log('⏭️ 跳过 Replicate（未配置API Token）');
@@ -932,10 +960,21 @@ export async function createReplicateTaskAction(params: {
       }
     }
 
+    // Language Strategy Prompt
+    let languagePrompt = '';
+    if (params.outputLanguage === 'zh') {
+      languagePrompt = `\n\n[Language Requirement]\nIMPORTANT: The output text in the image MUST be in Simplified Chinese (简体中文). Translate any English system instructions to Chinese if they appear in the final output.`;
+    } else if (params.outputLanguage === 'en') {
+      languagePrompt = `\n\n[Language Requirement]\nIMPORTANT: The output text in the image MUST be in English.`;
+    } else {
+      // Auto
+      languagePrompt = `\n\n[Language Requirement]\nIMPORTANT: Strictly maintain the language of the user's input content. If the user input is Chinese, the output text MUST be in Chinese. If the user input is English, the output text MUST be in English.`;
+    }
+
     // Content Strategy Prompt
     const contentStrategy = params.isEnhancedMode
-      ? `\n\n[Content Enhancement Strategy]\nIf user provided content is detailed, use it directly. If content is simple/sparse, use your professional knowledge to expand on the subject to create a rich, complete slide, BUT you must STRICTLY preserve any specific data, numbers, and professional terms provided. Do NOT invent false data. For sparse content, use advanced layout techniques (grid, whitespace, font size) to fill the space professionally without forced filling.`
-      : `\n\n[Strict Mode]\nSTRICTLY follow the provided text for Title and Content. Do NOT add, remove, or modify any words. Do NOT expand or summarize. Render the text exactly as given.`;
+      ? `\n\n[Content Enhancement Strategy]\nIf user provided content is detailed, use it directly. If content is simple/sparse, use your professional knowledge to expand on the subject to create a rich, complete slide, BUT you must STRICTLY preserve any specific data, numbers, and professional terms provided. Do NOT invent false data. For sparse content, use advanced layout techniques (grid, whitespace, font size) to fill the space professionally without forced filling.${languagePrompt}`
+      : `\n\n[Strict Mode]\nSTRICTLY follow the provided text for Title and Content. Do NOT add, remove, or modify any words. Do NOT expand or summarize. Render the text exactly as given.${languagePrompt}`;
 
     let finalPrompt = params.prompt + ' ' + styleSuffix + contentStrategy;
 
