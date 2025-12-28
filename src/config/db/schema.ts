@@ -473,6 +473,55 @@ export const chat = pgTable(
   (table) => [index('idx_chat_user_status').on(table.userId, table.status)]
 );
 
+export const chatMessage = pgTable(
+  'chat_message',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    chatId: text('chat_id')
+      .notNull()
+      .references(() => chat.id, { onDelete: 'cascade' }),
+    status: text('status').notNull(),
+    role: text('role').notNull(), // user, assistant, system
+    parts: text('parts').notNull(), // json string of parts
+    metadata: text('metadata'),
+    model: text('model').notNull(),
+    provider: text('provider').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    index('idx_chat_message_chat').on(table.chatId),
+    index('idx_chat_message_user').on(table.userId),
+  ]
+);
+
+export const apikey = pgTable(
+  'apikey',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    key: text('key').unique().notNull(),
+    title: text('title').notNull(),
+    status: text('status').notNull().default('active'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+    deletedAt: timestamp('deleted_at'),
+  },
+  (table) => [
+    index('idx_apikey_user').on(table.userId),
+    index('idx_apikey_key').on(table.key),
+  ]
+);
+
 export const invitation = pgTable(
   'invitation',
   {
