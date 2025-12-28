@@ -109,12 +109,15 @@ async function createMissingAccounts(userIds: string[], emails: string[]) {
 
       // 创建 account 记录
       const accountId = getUuid();
+      const now = new Date();
       await database.insert(account).values({
         id: accountId,
         accountId: email, // better-auth 使用邮箱作为 accountId
         providerId: 'credential', // better-auth 的邮箱密码提供者
         userId: userId,
         password: hashedPassword, // 临时密码，用户需要重置
+        createdAt: now,
+        updatedAt: now,
       });
 
       console.log(`✅ 为用户 ${email} 创建了 account 记录`);
