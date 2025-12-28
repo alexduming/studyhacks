@@ -186,6 +186,9 @@ export const credit = pgTable(
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
+    userEmail: text('user_email'),
+    orderNo: text('order_no'),
+    subscriptionNo: text('subscription_no'),
     transactionNo: text('transaction_no').unique().notNull(),
     transactionType: text('transaction_type').notNull(), // grant, consume
     transactionScene: text('transaction_scene'), // payment, subscription, renewal, gift, award
@@ -529,6 +532,7 @@ export const invitation = pgTable(
     inviterId: text('inviter_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
+    inviterEmail: text('inviter_email'),
     inviteeId: text('invitee_id').references(() => user.id, {
       onDelete: 'set null',
     }),
@@ -542,6 +546,9 @@ export const invitation = pgTable(
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
     acceptedAt: timestamp('accepted_at'),
+    inviterCreditId: text('inviter_credit_id'),
+    inviteeCreditId: text('invitee_credit_id'),
+    note: text('note'),
   },
   (table) => [
     index('idx_invitation_inviter').on(table.inviterId),
