@@ -10,7 +10,7 @@
 
 import { eq, inArray } from 'drizzle-orm';
 import { db } from '@/core/db';
-import { config } from '@/config/db/schema';
+import { systemConfig } from '@/config/db/schema';
 
 async function clearStripeConfig() {
   console.log('🔍 开始清理数据库中的 Stripe 配置...\n');
@@ -29,8 +29,8 @@ async function clearStripeConfig() {
     console.log('📋 当前数据库中的 Stripe 配置：');
     const existingConfigs = await db()
       .select()
-      .from(config)
-      .where(inArray(config.name, stripeConfigKeys));
+      .from(systemConfig)
+      .where(inArray(systemConfig.name, stripeConfigKeys));
 
     if (existingConfigs.length === 0) {
       console.log('  ✓ 数据库中没有 Stripe 配置（已经清理过或从未设置）\n');
@@ -53,8 +53,8 @@ async function clearStripeConfig() {
 
     // 删除所有 Stripe 配置
     const result = await db()
-      .delete(config)
-      .where(inArray(config.name, stripeConfigKeys))
+      .delete(systemConfig)
+      .where(inArray(systemConfig.name, stripeConfigKeys))
       .returning();
 
     console.log(`  ✓ 成功删除 ${result.length} 个配置项\n`);
