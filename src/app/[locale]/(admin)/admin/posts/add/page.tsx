@@ -43,7 +43,7 @@ export default async function PostAddPage({
   });
   const categoriesOptions = [
     ...categories.map((category) => ({
-      title: category.title,
+      title: category.name,
       value: category.id,
     })),
   ];

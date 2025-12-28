@@ -54,7 +54,7 @@ export default async function PostEditPage({
   });
   const categoriesOptions = [
     ...categories.map((category) => ({
-      title: category.title,
+      title: category.name,
       value: category.id,
     })),
   ];

@@ -282,37 +282,47 @@ export const order = pgTable(
     amount: integer('amount').notNull(), // checkout amount in cents
     currency: text('currency').notNull(), // checkout currency
     productId: text('product_id'),
+    productName: text('product_name'), // product name
+    planName: text('plan_name'), // Added
     paymentType: text('payment_type'), // one_time, subscription
     paymentInterval: text('payment_interval'), // day, week, month, year
     paymentProvider: text('payment_provider').notNull(),
+    paymentProductId: text('payment_product_id'), // Added
     paymentSessionId: text('payment_session_id'),
     checkoutInfo: text('checkout_info').notNull(), // checkout request info
+    checkoutUrl: text('checkout_url'), // checkout url
+    callbackUrl: text('callback_url'), // callback url, after handle callback
     checkoutResult: text('checkout_result'), // checkout result
     paymentResult: text('payment_result'), // payment result
+    transactionId: text('transaction_id'), // Added
+    subscriptionId: text('subscription_id'), // provider subscription id
+    subscriptionNo: text('subscription_no'), // Added
+    subscriptionResult: text('subscription_result'), // provider subscription result
     discountCode: text('discount_code'), // discount code
     discountAmount: integer('discount_amount'), // discount amount in cents
     discountCurrency: text('discount_currency'), // discount currency
     paymentEmail: text('payment_email'), // actual payment email
     paymentAmount: integer('payment_amount'), // actual payment amount
     paymentCurrency: text('payment_currency'), // actual payment currency
+    paymentUserName: text('payment_user_name'), // Added
+    paymentUserId: text('payment_user_id'), // Added
     paidAt: timestamp('paid_at'), // paid at
+    invoiceId: text('invoice_id'), // Added
+    invoiceUrl: text('invoice_url'), // Added
+    creditsAmount: integer('credits_amount'), // credits amount (granted)
+    creditsValidDays: integer('credits_valid_days'), // Added
+    description: text('description'), // order description
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at')
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
     deletedAt: timestamp('deleted_at'),
-    description: text('description'), // order description
-    productName: text('product_name'), // product name
-    subscriptionId: text('subscription_id'), // provider subscription id
-    subscriptionResult: text('subscription_result'), // provider subscription result
-    checkoutUrl: text('checkout_url'), // checkout url
-    callbackUrl: text('callback_url'), // callback url, after handle callback
-    creditsAmount: integer('credits_amount'), // credits amount (granted)
   },
   (table) => [
     index('idx_order_user').on(table.userId),
     index('idx_order_status').on(table.status),
     index('idx_order_no').on(table.orderNo),
+    index('idx_order_created_at').on(table.createdAt),
   ]
 );
 
@@ -320,23 +330,46 @@ export const subscription = pgTable(
   'subscription',
   {
     id: text('id').primaryKey(),
+    subscriptionNo: text('subscription_no'),
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
+    userEmail: text('user_email'),
     orderId: text('order_id')
       .notNull()
       .references(() => order.id, { onDelete: 'cascade' }),
     status: text('status').notNull(), // active, canceled, expired
     planId: text('plan_id').notNull(),
+    planName: text('plan_name'),
+    productId: text('product_id'),
+    productName: text('product_name'),
+    amount: integer('amount'),
+    currency: text('currency'),
+    interval: text('interval'),
+    intervalCount: integer('interval_count'),
+    paymentProvider: text('payment_provider'),
+    paymentProductId: text('payment_product_id'),
+    paymentUserId: text('payment_user_id'),
+    subscriptionId: text('subscription_id'), // provider subscription id
+    subscriptionResult: text('subscription_result'),
+    trialPeriodDays: integer('trial_period_days'),
+    billingUrl: text('billing_url'),
+    creditsAmount: integer('credits_amount'),
+    creditsValidDays: integer('credits_valid_days'),
     currentPeriodStart: timestamp('current_period_start').notNull(),
     currentPeriodEnd: timestamp('current_period_end').notNull(),
     cancelAtPeriodEnd: boolean('cancel_at_period_end').default(false).notNull(),
     canceledAt: timestamp('canceled_at'),
+    canceledEndAt: timestamp('canceled_end_at'),
+    canceledReason: text('canceled_reason'),
+    canceledReasonType: text('canceled_reason_type'),
     endedAt: timestamp('ended_at'),
+    description: text('description'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at')
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
+    deletedAt: timestamp('deleted_at'),
   },
   (table) => [
     index('idx_subscription_user').on(table.userId),
@@ -432,25 +465,29 @@ export const aiTask = pgTable(
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
-    taskId: text('task_id').unique().notNull(), // Provider's task ID
-    type: text('type').notNull(), // image_generation, text_generation, etc.
-    provider: text('provider').notNull(), // replicate, openai, etc.
-    status: text('status').notNull(), // processing, succeeded, failed, canceled
-    input: text('input'), // JSON string
-    output: text('output'), // JSON string
-    error: text('error'),
-    cost: integer('cost'), // Cost in credits
-    duration: integer('duration'), // Duration in milliseconds
+    taskId: text('task_id'),
+    mediaType: text('media_type').notNull(),
+    provider: text('provider').notNull(),
+    model: text('model'),
+    prompt: text('prompt'),
+    options: text('options'), // JSON string
+    status: text('status').notNull(),
+    taskInfo: text('task_info'), // JSON string
+    taskResult: text('task_result'), // JSON string
+    costCredits: integer('cost_credits').default(0),
+    scene: text('scene'),
+    creditId: text('credit_id'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at')
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
-    completedAt: timestamp('completed_at'),
+    deletedAt: timestamp('deleted_at'),
   },
   (table) => [
     index('idx_ai_task_user').on(table.userId),
     index('idx_ai_task_status').on(table.status),
     index('idx_ai_task_created_at').on(table.createdAt),
+    index('idx_ai_task_task_id').on(table.taskId),
   ]
 );
 

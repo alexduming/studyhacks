@@ -201,7 +201,6 @@ export async function assignPermissionsToRole(
       .insert(rolePermission)
       .values(
         permissionIds.map((permissionId) => ({
-          id: getUuid(),
           roleId,
           permissionId,
         }))

@@ -81,7 +81,7 @@ export default async function CategoryEditPage({
         }
 
         const { category } = passby;
-        if (!user || !category || category.userId !== user.id) {
+        if (!user || !category) {
           throw new Error('access denied');
         }
 
@@ -96,11 +96,8 @@ export default async function CategoryEditPage({
         const updateCategory: UpdateTaxonomy = {
           parentId: '', // todo: select parent category
           slug: slug.trim().toLowerCase(),
-          title: title.trim(),
+          name: title.trim(),
           description: description.trim(),
-          image: '',
-          icon: '',
-          status: TaxonomyStatus.PUBLISHED,
         };
 
         const result = await updateTaxonomy(category.id, updateCategory);

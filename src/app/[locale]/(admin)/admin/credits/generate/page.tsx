@@ -36,7 +36,7 @@ export default async function GenerateCreditsPage({
         name: 'amount',
         title: t('fields.amount'),
         type: 'number',
-        required: true,
+        validation: { required: true },
         placeholder: '200',
         metadata: {
           min: 1,
@@ -46,7 +46,7 @@ export default async function GenerateCreditsPage({
         name: 'quantity',
         title: 'Quantity', // Hardcoded fallback
         type: 'number',
-        required: true,
+        validation: { required: true },
         placeholder: '50',
         metadata: {
           min: 1,
@@ -57,7 +57,7 @@ export default async function GenerateCreditsPage({
         name: 'maxUses',
         title: 'Max Uses Per Code',
         type: 'number',
-        required: true,
+        validation: { required: true },
         placeholder: '1',
         defaultValue: 1,
         metadata: {
@@ -69,7 +69,7 @@ export default async function GenerateCreditsPage({
         name: 'creditValidityDays',
         title: 'Credit Validity (Days)',
         type: 'number',
-        required: true,
+        validation: { required: true },
         placeholder: '30',
         defaultValue: 30,
         metadata: {
