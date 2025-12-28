@@ -160,7 +160,6 @@ export async function assignPermissionToRole(
   const [result] = await db()
     .insert(rolePermission)
     .values({
-      id: getUuid(),
       roleId,
       permissionId,
     })

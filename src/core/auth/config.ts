@@ -112,7 +112,7 @@ export async function getAuthOptions() {
     databaseHooks: {
       user: {
         create: {
-          after: async (user) => {
+          after: async (user: any) => {
             try {
               console.log(`🆕 Social Login User Created: ${user.email}`);
 

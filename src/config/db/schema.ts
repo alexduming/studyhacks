@@ -63,8 +63,11 @@ export const account = pgTable(
     refreshTokenExpiresAt: timestamp('refresh_token_expires_at'),
     scope: text('scope'),
     password: text('password'),
-    createdAt: timestamp('created_at').notNull(),
-    updatedAt: timestamp('updated_at').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .defaultNow()
+      .notNull(),
   },
   (table) => [index('idx_account_user_id').on(table.userId)]
 );
@@ -219,16 +222,21 @@ export const taxonomy = pgTable(
   'taxonomy',
   {
     id: text('id').primaryKey(),
-    name: text('name').notNull(),
+    userId: text('user_id'),
+    parentId: text('parent_id'),
     slug: text('slug').unique().notNull(),
     type: text('type').notNull(), // category, tag
+    title: text('title').notNull(),
     description: text('description'),
-    count: integer('count').default(0).notNull(),
-    parentId: text('parent_id'),
+    image: text('image'),
+    icon: text('icon'),
+    status: text('status'),
+    sort: integer('sort'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at')
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
+    deletedAt: timestamp('deleted_at'),
   },
   (table) => [
     index('idx_taxonomy_type').on(table.type),

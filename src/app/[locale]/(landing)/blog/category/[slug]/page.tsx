@@ -86,7 +86,7 @@ export default async function CategoryBlogPage({
   const currentCategory: CategoryType = {
     id: categoryData.id,
     slug: categoryData.slug,
-    title: categoryData.name,
+    title: categoryData.title,
     url: `/blog/category/${categoryData.slug}`,
   };
 
@@ -94,7 +94,7 @@ export default async function CategoryBlogPage({
   const categories: CategoryType[] = categoriesData.map((category) => ({
     id: category.id,
     slug: category.slug,
-    title: category.name,
+    title: category.title,
     url: `/blog/category/${category.slug}`,
   }));
   categories.unshift({

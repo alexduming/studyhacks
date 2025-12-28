@@ -96,7 +96,7 @@ export default async function CategoryEditPage({
         const updateCategory: UpdateTaxonomy = {
           parentId: '', // todo: select parent category
           slug: slug.trim().toLowerCase(),
-          name: title.trim(),
+          title: title.trim(),
           description: description.trim(),
         };
 

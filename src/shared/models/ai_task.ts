@@ -37,7 +37,7 @@ export async function createAITask(newAITask: NewAITask) {
       const consumedCredit = await consumeCredits({
         userId: newAITask.userId,
         credits: newAITask.costCredits,
-        scene: newAITask.scene,
+        scene: newAITask.scene || undefined,
         description: `generate ${newAITask.mediaType}`,
         metadata: JSON.stringify({
           type: 'ai-task',

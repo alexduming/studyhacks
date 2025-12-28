@@ -59,7 +59,6 @@ export default async function GenerateCreditsPage({
         type: 'number',
         validation: { required: true },
         placeholder: '1',
-        defaultValue: 1,
         metadata: {
           min: 1,
           description: 'How many times each code can be redeemed (by different users)',
@@ -71,7 +70,6 @@ export default async function GenerateCreditsPage({
         type: 'number',
         validation: { required: true },
         placeholder: '30',
-        defaultValue: 30,
         metadata: {
           min: 1,
           description: 'How long the redeemed credits remain valid',
