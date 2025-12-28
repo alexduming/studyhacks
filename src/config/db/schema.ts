@@ -82,6 +82,27 @@ export const verification = pgTable(
   (table) => [index('idx_verification_identifier').on(table.identifier)]
 );
 
+export const emailVerification = pgTable(
+  'email_verification',
+  {
+    id: text('id').primaryKey(),
+    email: text('email').notNull(),
+    token: text('token').notNull(),
+    type: text('type').notNull(), // registration, password_reset
+    attempts: integer('attempts').default(0).notNull(),
+    isVerified: boolean('is_verified').default(false).notNull(),
+    verifiedAt: timestamp('verified_at'),
+    expiresAt: timestamp('expires_at').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    lastSentAt: timestamp('last_sent_at'),
+    inviteCode: text('invite_code'),
+  },
+  (table) => [
+    index('idx_email_verification_email').on(table.email),
+    index('idx_email_verification_token').on(table.token),
+  ]
+);
+
 export const role = pgTable(
   'role',
   {

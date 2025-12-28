@@ -139,10 +139,11 @@ export class StripeProvider implements PaymentProvider {
             client: 'web',
           };
         }
-        // if (allowedPaymentMethods.includes('alipay')) {
-        //   sessionParams.payment_method_types.push('alipay');
-        //   sessionParams.payment_method_options.alipay = {};
-        // }
+        // 启用支付宝支付方式（仅支持一次性支付，不支持订阅）
+        if (allowedPaymentMethods.includes('alipay')) {
+          sessionParams.payment_method_types.push('alipay');
+          sessionParams.payment_method_options.alipay = {};
+        }
 
         if (allowedPaymentMethods.length === 0) {
           // not set allowed payment methods, use default payment methods
