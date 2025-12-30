@@ -1,11 +1,17 @@
-import { consumeCredits, getRemainingCredits, refundCredits } from '@/shared/models/credit';
-import { getUserInfo } from '@/shared/models/user';
-
 // 使用原生 Fetch 实现 DeepSeek 流式调用，确保完全兼容性
 // 避免 AI SDK 自动拼接错误路径 (如 /responses)
 
+import { splitTextIntoChunks } from '@/shared/lib/text-splitter';
+import {
+  consumeCredits,
+  getRemainingCredits,
+  refundCredits,
+} from '@/shared/models/credit';
+import { getUserInfo } from '@/shared/models/user';
+
 // Change to nodejs runtime to support DB operations for credit deduction
 export const runtime = 'nodejs';
+export const maxDuration = 60; // Set timeout to 60 seconds (Vercel Hobby limit) or higher for Pro
 
 export async function POST(req: Request) {
   let userId: string | undefined;
@@ -25,13 +31,13 @@ export async function POST(req: Request) {
     userId = user.id;
 
     const remaining = await getRemainingCredits(user.id);
-    
+
     if (remaining < requiredCredits) {
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: `Insufficient credits. Required: ${requiredCredits}, Available: ${remaining}`,
-          code: 'INSUFFICIENT_CREDITS'
-        }), 
+          code: 'INSUFFICIENT_CREDITS',
+        }),
         {
           status: 402,
           headers: { 'Content-Type': 'application/json' },
@@ -49,10 +55,13 @@ export async function POST(req: Request) {
       });
     } catch (e) {
       console.error('Failed to consume credits:', e);
-      return new Response(JSON.stringify({ error: 'Failed to process credits' }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({ error: 'Failed to process credits' }),
+        {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     console.log(
@@ -71,6 +80,27 @@ export async function POST(req: Request) {
     const languageInstruction = hasChineseChar
       ? 'The user input contains Chinese characters. Output MUST be in Chinese (简体中文).'
       : 'The user input is in English. Output MUST be in English. Do NOT use Chinese.';
+
+    // --- 文本分块与摘要策略 (Chunking Strategy) ---
+    // DeepSeek Context Limit: ~128k tokens.
+    // 100,000 chars ≈ 30k-50k tokens (Safe).
+    // 如果超过 100,000 字符，我们进行分块摘要
+    const MAX_INPUT_CHARS = 100000;
+    let contentToAnalyze = prompt;
+
+    // 如果文本超长，只取前 100,000 字符（第一阶段方案：简单截断）
+    // 为了更智能的完整分析，未来可以引入 Map-Reduce 架构：
+    // 1. Map: 将长文切分为多个块，分别生成摘要
+    // 2. Reduce: 将摘要合并，生成最终 PPT 大纲
+    // 目前受限于 Vercel 60s 超时，采用 "截断优先" 策略，
+    // 但通过 text-splitter 保证截断在自然段落，不破坏句子完整性。
+    if (prompt && prompt.length > MAX_INPUT_CHARS) {
+      console.log(
+        `[Analyze PPT] Input too long (${prompt.length} chars). Truncating to safe limit.`
+      );
+      const chunks = splitTextIntoChunks(prompt, MAX_INPUT_CHARS);
+      contentToAnalyze = chunks[0] + '\n\n[Content truncated due to length...]';
+    }
 
     const systemPrompt = `
 You are a professional presentation designer.
@@ -118,19 +148,31 @@ Example Output:
           { role: 'system', content: systemPrompt },
           {
             role: 'user',
+            // DeepSeek Context Limit: 64k/128k tokens.
+            // contentToAnalyze is already safely truncated/processed above.
             content: hasChineseChar
-              ? prompt
-              : prompt + '\n\n(Please generate the outline in English)',
+              ? contentToAnalyze
+              : contentToAnalyze +
+                '\n\n(Please generate the outline in English)',
           },
         ],
         stream: true, // 开启流式
         temperature: 0.7,
+        max_tokens: 8192, // 增加最大输出 token 限制
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error('[DeepSeek API Error]', response.status, errorText);
+
+      // Handle Context Length Error Specifically
+      if (response.status === 400 && errorText.includes('context length')) {
+        throw new Error(
+          'Input content is too long for AI analysis. Please reduce the content length.'
+        );
+      }
+
       throw new Error(`DeepSeek API Error: ${response.status} ${errorText}`);
     }
 
