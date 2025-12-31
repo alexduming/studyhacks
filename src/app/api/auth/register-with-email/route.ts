@@ -16,6 +16,9 @@ import {
   getInvitationByCode,
   InvitationStatus,
   updateInvitation,
+  INVITATION_REWARD_AMOUNT,
+  MONTHLY_INVITATION_REWARD_LIMIT,
+  getMonthlyInvitationCredits,
 } from '@/shared/models/invitation';
 import { EmailVerificationService } from '@/shared/services/email-verification-service';
 
@@ -330,7 +333,7 @@ export async function POST(request: NextRequest) {
                 creditExpiresAt.setMonth(creditExpiresAt.getMonth() + 1);
                 creditExpiresAt.setHours(23, 59, 59, 999);
 
-                // 1. 给被邀请方（新用户）发放100积分
+                // 1. 给被邀请方（新用户）发放积分
                 const inviteeCreditId = getUuid();
                 await createCredit({
                   id: inviteeCreditId,
@@ -339,8 +342,8 @@ export async function POST(request: NextRequest) {
                   transactionNo: getSnowId(),
                   transactionType: CreditTransactionType.GRANT,
                   transactionScene: CreditTransactionScene.AWARD, // 使用AWARD场景表示邀请奖励
-                  credits: 100,
-                  remainingCredits: 100,
+                  credits: INVITATION_REWARD_AMOUNT,
+                  remainingCredits: INVITATION_REWARD_AMOUNT,
                   description: `Invitation reward for new user (invited by ${inviterInfo.inviterEmail})`,
                   expiresAt: creditExpiresAt,
                   status: CreditStatus.ACTIVE,
@@ -349,30 +352,52 @@ export async function POST(request: NextRequest) {
                     role: 'invitee',
                   }),
                 });
-                console.log(`✅ 为被邀请人 ${email} 发放100积分`);
-
-                // 2. 给邀请方发放100积分
-                const inviterCreditId = getUuid();
-                await createCredit({
-                  id: inviterCreditId,
-                  userId: inviterInfo.inviterId,
-                  userEmail: inviterInfo.inviterEmail,
-                  transactionNo: getSnowId(),
-                  transactionType: CreditTransactionType.GRANT,
-                  transactionScene: CreditTransactionScene.AWARD,
-                  credits: 100,
-                  remainingCredits: 100,
-                  description: `Invitation reward for referring ${email}`,
-                  expiresAt: creditExpiresAt,
-                  status: CreditStatus.ACTIVE,
-                  metadata: JSON.stringify({
-                    inviteCode: finalInviteCode,
-                    role: 'inviter',
-                  }),
-                });
                 console.log(
-                  `✅ 为邀请人 ${inviterInfo.inviterEmail} 发放100积分`
+                  `✅ 为被邀请人 ${email} 发放 ${INVITATION_REWARD_AMOUNT} 积分`
                 );
+
+                // 2. 计算邀请方本月已获得的邀请积分，并判断是否发放奖励
+                const currentMonthlyCredits = await getMonthlyInvitationCredits(
+                  inviterInfo.inviterId
+                );
+                const remainingQuota = Math.max(
+                  0,
+                  MONTHLY_INVITATION_REWARD_LIMIT - currentMonthlyCredits
+                );
+                const inviterRewardAmount = Math.min(
+                  INVITATION_REWARD_AMOUNT,
+                  remainingQuota
+                );
+                let inviterCreditId = null;
+
+                if (inviterRewardAmount > 0) {
+                  // 给邀请方发放积分
+                  inviterCreditId = getUuid();
+                  await createCredit({
+                    id: inviterCreditId,
+                    userId: inviterInfo.inviterId,
+                    userEmail: inviterInfo.inviterEmail,
+                    transactionNo: getSnowId(),
+                    transactionType: CreditTransactionType.GRANT,
+                    transactionScene: CreditTransactionScene.AWARD,
+                    credits: inviterRewardAmount,
+                    remainingCredits: inviterRewardAmount,
+                    description: `Invitation reward for referring ${email}`,
+                    expiresAt: creditExpiresAt,
+                    status: CreditStatus.ACTIVE,
+                    metadata: JSON.stringify({
+                      inviteCode: finalInviteCode,
+                      role: 'inviter',
+                    }),
+                  });
+                  console.log(
+                    `✅ 为邀请人 ${inviterInfo.inviterEmail} 发放 ${inviterRewardAmount} 积分 (本月已获: ${currentMonthlyCredits}, 本次额度: ${inviterRewardAmount})`
+                  );
+                } else {
+                  console.log(
+                    `⚠️ 邀请人 ${inviterInfo.inviterEmail} 当月邀请奖励已达上限 (${currentMonthlyCredits}/${MONTHLY_INVITATION_REWARD_LIMIT})，不再发放奖励`
+                  );
+                }
 
                 // 3. 创建新的邀请记录（不再更新原有记录）
                 // 这样设计允许一个邀请码被多人使用
@@ -386,6 +411,8 @@ export async function POST(request: NextRequest) {
                   code: finalInviteCode,
                   status: InvitationStatus.ACCEPTED,
                   acceptedAt: now,
+                  rewardAmount: inviterRewardAmount,
+                  inviteeRewardAmount: INVITATION_REWARD_AMOUNT,
                   inviterCreditId: inviterCreditId,
                   inviteeCreditId: inviteeCreditId,
                 });

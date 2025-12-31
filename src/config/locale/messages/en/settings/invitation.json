@@ -1,6 +1,6 @@
 {
   "page_title": "Invite Friends",
-  "page_description": "Invite friends to register, both parties get 100 credits reward, valid for 1 month",
+  "page_description": "Invite friends to register, both parties get 30 credits reward. Monthly limit: 600 credits.",
   "stats": {
     "successful_invitations": "Successful Invitations",
     "total_invitations": "Total invitations",
@@ -12,7 +12,7 @@
   },
   "invite_code": {
     "title": "My Invitation Code",
-    "description": "Share your invitation code with friends. When they register successfully with your code, both of you will receive 100 credits reward",
+    "description": "Share your invitation code with friends. When they register successfully with your code, both of you will receive 30 credits reward",
     "code_label": "Invitation Code",
     "link_label": "Invitation Link",
     "copy_code": "Copy Code",
@@ -23,9 +23,9 @@
   },
   "rules": {
     "title": "Reward Rules:",
-    "rule_1": "When an invitee successfully registers with your code, both parties receive 100 credits",
+    "rule_1": "When an invitee successfully registers with your code, both parties receive 30 credits",
     "rule_2": "Credits are valid for 1 month",
-    "rule_3": "You can invite multiple friends, invitation rewards are cumulative",
+    "rule_3": "You can invite multiple friends. Monthly reward limit is 600 credits.",
     "rule_4": "Each new user can only use one invitation code"
   },
   "invitation_records": {
@@ -41,4 +41,3 @@
   "loading": "Loading...",
   "load_error": "Failed to load invitation data"
 }
-

@@ -9,7 +9,8 @@ import {
   getCredits,
   getCreditsCount,
 } from '@/shared/models/credit';
-import { Crumb, Tab } from '@/shared/types/blocks/common';
+import { getUsers } from '@/shared/models/user';
+import { Crumb, Search, Tab } from '@/shared/types/blocks/common';
 import { type Table } from '@/shared/types/blocks/table';
 
 export default async function CreditsPage({
@@ -17,7 +18,12 @@ export default async function CreditsPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ page?: number; pageSize?: number; type?: string }>;
+  searchParams: Promise<{
+    page?: number;
+    pageSize?: number;
+    type?: string;
+    email?: string;
+  }>;
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
@@ -31,14 +37,32 @@ export default async function CreditsPage({
 
   const t = await getTranslations('admin.credits');
 
-  const { page: pageNum, pageSize, type } = await searchParams;
+  const { page: pageNum, pageSize, type, email } = await searchParams;
   const page = pageNum || 1;
   const limit = pageSize || 30;
+
+  let userIdFilter: string | undefined = undefined;
+  if (email) {
+    const users = await getUsers({ email, limit: 1 });
+    if (users.length > 0) {
+      userIdFilter = users[0].id;
+    } else {
+      userIdFilter = 'no-match';
+    }
+  }
 
   const crumbs: Crumb[] = [
     { title: t('list.crumbs.admin'), url: '/admin' },
     { title: t('list.crumbs.credits'), is_active: true },
   ];
+
+  const search: Search = {
+    name: 'email',
+    title: 'User Email',
+    placeholder: 'Search by user email',
+    value: email,
+    withButton: true,
+  };
 
   // Updated tabs to include 'Codes' link
   const tabs: Tab[] = [
@@ -70,11 +94,13 @@ export default async function CreditsPage({
   ];
 
   const total = await getCreditsCount({
+    userId: userIdFilter,
     transactionType: type as CreditTransactionType,
     status: CreditStatus.ACTIVE,
   });
 
   const credits = await getCredits({
+    userId: userIdFilter,
     transactionType: type as CreditTransactionType,
     status: CreditStatus.ACTIVE,
     getUser: true,
@@ -137,7 +163,12 @@ export default async function CreditsPage({
     <>
       <Header crumbs={crumbs} />
       <Main>
-        <MainHeader title={t('list.title')} tabs={tabs} actions={actions} />
+        <MainHeader
+          title={t('list.title')}
+          tabs={tabs}
+          actions={actions}
+          search={search}
+        />
         <TableCard table={table} />
       </Main>
     </>

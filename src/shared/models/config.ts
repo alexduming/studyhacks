@@ -1,3 +1,5 @@
+import { revalidateTag, unstable_cache } from 'next/cache';
+
 import { db } from '@/core/db';
 import { envConfigs } from '@/config';
 import { systemConfig } from '@/config/db/schema';
@@ -34,18 +36,58 @@ export async function saveConfigs(configs: Record<string, string>) {
     return results;
   });
 
+  // 使得缓存失效，下次请求重新获取最新配置
+  revalidateTag('system-configs');
   return result;
 }
 
 export async function addConfig(newConfig: NewConfig) {
   const [result] = await db().insert(systemConfig).values(newConfig).returning();
-
+  revalidateTag('system-configs');
   return result;
 }
 
 /**
+ * 内部函数：实际执行数据库查询的函数
+ * 不带缓存和重试逻辑
+ */
+async function fetchConfigsFromDb(): Promise<Configs> {
+  const configs: Record<string, string> = {};
+  
+  const result = await db().select().from(systemConfig);
+
+  if (!result || result.length === 0) {
+    return configs;
+  }
+
+  for (const configItem of result) {
+    configs[configItem.name] = configItem.value ?? '';
+  }
+
+  return configs;
+}
+
+/**
+ * 带缓存的配置获取函数
+ * 使用 unstable_cache 缓存数据库查询结果
+ * 缓存标签: system-configs
+ * 缓存时间: 60秒 (revalidate)
+ */
+const getCachedConfigs = unstable_cache(
+  async () => {
+    return await fetchConfigsFromDb();
+  },
+  ['system-configs-cache'], // Key parts
+  {
+    tags: ['system-configs'], // Cache tags
+    revalidate: 60, // Cache for 60 seconds
+  }
+);
+
+/**
  * 从数据库获取配置信息
  * 添加了重试机制和错误处理，提高连接稳定性
+ * 优化：引入 unstable_cache 缓存，避免每次请求都查库
  * @returns 配置对象
  */
 export async function getConfigs(): Promise<Configs> {
@@ -64,21 +106,8 @@ export async function getConfigs(): Promise<Configs> {
 
   for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
     try {
-      // 执行数据库查询
-      const result = await db().select().from(systemConfig);
-
-      // 如果查询结果为空，返回空配置对象
-      if (!result || result.length === 0) {
-        return configs;
-      }
-
-      // 将查询结果转换为配置对象
-      for (const configItem of result) {
-        configs[configItem.name] = configItem.value ?? '';
-      }
-
-      // 成功获取配置，返回结果
-      return configs;
+      // 执行带缓存的数据库查询
+      return await getCachedConfigs();
     } catch (error) {
       lastError = error as Error;
 
@@ -186,9 +215,14 @@ export async function getAllConfigs(): Promise<Configs> {
   if (process.env.NEXT_PUBLIC_APP_URL) {
     const envValue = process.env.NEXT_PUBLIC_APP_URL;
     if (dbConfigs.app_url && dbConfigs.app_url !== envValue) {
-      console.warn(
-        `[配置警告] app_url 环境变量 (${envValue}) 覆盖了数据库配置 (${dbConfigs.app_url})`
-      );
+      // 减少日志频率：只在开发环境且 10% 概率时打印（避免刷屏）
+      const isDevelopment = process.env.NODE_ENV === 'development';
+      const shouldLog = isDevelopment && Math.random() < 0.1;
+      if (shouldLog) {
+        console.warn(
+          `[配置警告] app_url 环境变量 (${envValue}) 覆盖了数据库配置 (${dbConfigs.app_url})`
+        );
+      }
     }
     configs.app_url = envValue;
   }
@@ -197,9 +231,14 @@ export async function getAllConfigs(): Promise<Configs> {
   if (process.env.AUTH_URL) {
     const envValue = process.env.AUTH_URL;
     if (dbConfigs.auth_url && dbConfigs.auth_url !== envValue) {
-      console.warn(
-        `[配置警告] auth_url 环境变量 (${envValue}) 覆盖了数据库配置 (${dbConfigs.auth_url})`
-      );
+      // 减少日志频率：只在开发环境且 10% 概率时打印（避免刷屏）
+      const isDevelopment = process.env.NODE_ENV === 'development';
+      const shouldLog = isDevelopment && Math.random() < 0.1;
+      if (shouldLog) {
+        console.warn(
+          `[配置警告] auth_url 环境变量 (${envValue}) 覆盖了数据库配置 (${dbConfigs.auth_url})`
+        );
+      }
     }
     configs.auth_url = envValue;
   }

@@ -337,3 +337,61 @@ export async function getRemainingCredits(userId: string): Promise<number> {
 
   return parseInt(result?.total || '0');
 }
+
+/**
+ * 获取用户剩余积分排行榜
+ * 非程序员解释：
+ * - 这个函数会查询所有用户的剩余积分，并按积分从高到低排序
+ * - 只统计有效的积分（未过期、未删除、还有剩余的授予类型积分）
+ * - 返回结果包含用户信息和总积分
+ *
+ * @param limit 返回前 N 名用户，默认 10
+ * @returns 用户积分排行榜数组，包含 userId, totalCredits, user 信息
+ */
+export async function getTopUsersByCredits(limit: number = 10): Promise<
+  Array<{
+    userId: string;
+    totalCredits: number;
+    user?: User;
+  }>
+> {
+  const currentTime = new Date();
+
+  // 使用 SQL GROUP BY 和 SUM 来聚合每个用户的剩余积分
+  // 条件：
+  // 1. transaction_type = 'grant' (只统计授予类型的积分)
+  // 2. status = 'active' (只统计活跃状态的积分)
+  // 3. remaining_credits > 0 (只统计还有剩余的积分)
+  // 4. expires_at IS NULL OR expires_at > 当前时间 (只统计未过期的积分)
+  const result = await db()
+    .select({
+      userId: credit.userId,
+      totalCredits: sum(credit.remainingCredits),
+    })
+    .from(credit)
+    .where(
+      and(
+        eq(credit.transactionType, CreditTransactionType.GRANT),
+        eq(credit.status, CreditStatus.ACTIVE),
+        gt(credit.remainingCredits, 0),
+        or(
+          isNull(credit.expiresAt), // Never expires
+          gt(credit.expiresAt, currentTime) // Not yet expired
+        )
+      )
+    )
+    .groupBy(credit.userId)
+    .orderBy(desc(sum(credit.remainingCredits)))
+    .limit(limit);
+
+  // 获取用户详细信息
+  const userIds = result.map((item) => item.userId);
+  const users = await getUserByUserIds(userIds);
+
+  // 合并用户信息
+  return result.map((item) => ({
+    userId: item.userId,
+    totalCredits: parseInt(item.totalCredits || '0'),
+    user: users.find((u) => u.id === item.userId),
+  }));
+}

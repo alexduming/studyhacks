@@ -1,11 +1,15 @@
-import { and, count, desc, eq, isNull } from 'drizzle-orm';
+import { and, count, desc, eq, isNull, gte, lte, sum, like } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 
 import { db } from '@/core/db';
-import { invitation } from '@/config/db/schema';
+import { invitation, credit } from '@/config/db/schema';
 import { getUuid } from '@/shared/lib/hash';
+import { CreditTransactionScene } from '@/shared/models/credit';
 
 import { appendUserToResult, User } from './user';
+
+export const INVITATION_REWARD_AMOUNT = 30;
+export const MONTHLY_INVITATION_REWARD_LIMIT = 600;
 
 /**
  * 邀请码类型定义
@@ -189,6 +193,37 @@ export async function getInvitationsCount({
 }
 
 /**
+ * 获取用户当月通过邀请获得的积分总额
+ * 
+ * 非程序员解释：
+ * - 用于限制每月最高邀请奖励
+ * - 查询当前月份内所有已接受邀请的奖励总和
+ * - 直接查询 credit 表，确保统计准确（包括旧的历史数据）
+ */
+export async function getMonthlyInvitationCredits(inviterId: string): Promise<number> {
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+  // 查询积分表中的邀请奖励记录
+  const [result] = await db()
+    .select({ total: sum(credit.credits) })
+    .from(credit)
+    .where(
+      and(
+        eq(credit.userId, inviterId),
+        eq(credit.transactionScene, CreditTransactionScene.AWARD),
+        like(credit.description, 'Invitation reward%'), // 匹配 "Invitation reward..."
+        gte(credit.createdAt, startOfMonth),
+        lte(credit.createdAt, endOfMonth)
+      )
+    );
+
+  // sum 可能返回 string，需要转换
+  return Number(result?.total) || 0;
+}
+
+/**
  * 获取或创建用户的邀请码
  * 
  * 非程序员解释：
@@ -267,4 +302,3 @@ export async function checkUserAlreadyInvited(email: string): Promise<boolean> {
 
   return (result?.count || 0) > 0;
 }
-

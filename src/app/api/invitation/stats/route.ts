@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
+import { and, eq, like, sum } from 'drizzle-orm';
 
+import { db } from '@/core/db';
+import { credit } from '@/config/db/schema';
+import { CreditTransactionScene } from '@/shared/models/credit';
 import { getUserInfo } from '@/shared/models/user';
 import { getInvitationsCount, InvitationStatus } from '@/shared/models/invitation';
 
@@ -41,14 +45,27 @@ export async function GET() {
       status: InvitationStatus.PENDING,
     });
 
+    // 统计获得的积分奖励（从积分表直接查询，以确保数据准确）
+    const [creditStats] = await db()
+      .select({ total: sum(credit.credits) })
+      .from(credit)
+      .where(
+        and(
+          eq(credit.userId, user.id),
+          eq(credit.transactionScene, CreditTransactionScene.AWARD),
+          like(credit.description, '%Invitation%')
+        )
+      );
+    
+    const earnedCredits = Number(creditStats?.total) || 0;
+
     return NextResponse.json({
       success: true,
       data: {
         total: totalCount,
         accepted: acceptedCount,
         pending: pendingCount,
-        // 计算获得的积分奖励（每成功邀请1人获得100积分）
-        earnedCredits: acceptedCount * 100,
+        earnedCredits,
       },
     });
   } catch (error: any) {
