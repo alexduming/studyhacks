@@ -453,7 +453,7 @@ const InfographicPage = () => {
   };
 
   return (
-    <div className="via-primary/5 min-h-screen bg-gradient-to-b from-gray-950 to-gray-950">
+    <div className="via-primary/5 min-h-screen bg-gradient-to-b from-background to-muted dark:from-gray-950 dark:to-gray-950">
       {/* 背景装饰：改为统一的 primary 光晕，移除额外的蓝色主色块 */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="bg-primary/10 absolute top-1/4 left-1/4 h-96 w-96 rounded-full blur-3xl" />
@@ -472,7 +472,7 @@ const InfographicPage = () => {
               <h1 className="via-primary/80 to-primary/60 mb-6 bg-gradient-to-r from-white bg-clip-text text-4xl font-bold text-transparent md:text-5xl">
                 {t('title', { defaultMessage: 'AI 学习信息图生成器' })}
               </h1>
-              <p className="mx-auto max-w-3xl text-lg text-gray-300 md:text-xl">
+              <p className="mx-auto max-w-3xl text-lg text-muted-foreground dark:text-gray-300 md:text-xl">
                 {t('subtitle', {
                   defaultMessage:
                     '上传课件 / 笔记 / 文本，让 AI 自动为你生成扁平风格的学习信息图。',
@@ -489,9 +489,9 @@ const InfographicPage = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="border-primary/20 rounded-2xl border bg-gray-900/60 p-6 backdrop-blur-sm"
+              className="border-primary/20 rounded-2xl border bg-background dark:bg-gray-900/60 p-6 backdrop-blur-sm"
             >
-              <h2 className="mb-4 text-xl font-semibold text-white">
+              <h2 className="mb-4 text-xl font-semibold text-foreground dark:text-white">
                 {t('form.input_title')}
               </h2>
 
@@ -530,7 +530,7 @@ const InfographicPage = () => {
                     )}
                   </label>
                 </Button>
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-muted-foreground dark:text-gray-400">
                   {t('upload.hint_batch')}
                 </span>
               </div>
@@ -546,9 +546,9 @@ const InfographicPage = () => {
                     ) : uploadedFile.type.startsWith('image/') ? (
                       <Images className="h-4 w-4 text-green-500" />
                     ) : (
-                      <FileText className="h-4 w-4 text-gray-500" />
+                      <FileText className="h-4 w-4 text-muted-foreground dark:text-gray-500" />
                     )}
-                    <span className="text-sm font-medium text-white">
+                    <span className="text-sm font-medium text-foreground dark:text-white">
                       {uploadedFile.name}
                     </span>
                   </div>
@@ -572,7 +572,7 @@ const InfographicPage = () => {
                   <div className="mb-2 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Images className="h-4 w-4 text-green-500" />
-                      <span className="text-sm font-medium text-white">
+                      <span className="text-sm font-medium text-foreground dark:text-white">
                         {t('upload.files_selected', {
                           count: uploadedFiles.length,
                         })}
@@ -596,7 +596,7 @@ const InfographicPage = () => {
                         key={index}
                         className="hover:bg-muted flex items-center justify-between rounded px-2 py-1"
                       >
-                        <span className="text-muted-foreground text-xs text-gray-300">
+                        <span className="text-muted-foreground dark:text-gray-300 text-xs">
                           {index + 1}. {file.name}
                         </span>
                         <Button
@@ -637,13 +637,13 @@ const InfographicPage = () => {
                 value={sourceContent}
                 onChange={(e) => setSourceContent(e.target.value)}
                 placeholder={t('form.textarea_placeholder')}
-                className="focus:border-primary mb-4 h-60 w-full resize-none rounded-lg border border-gray-600 bg-gray-800/60 p-4 text-sm text-white placeholder-gray-400 focus:outline-none"
+                className="focus:border-primary mb-4 h-60 w-full resize-none rounded-lg border border-border dark:border-gray-600 bg-background/60 dark:bg-gray-800/60 p-4 text-sm text-foreground dark:text-white placeholder-muted-foreground dark:placeholder-gray-400 focus:outline-none"
               />
 
               {/* 参数设置：宽高比 / 分辨率 / 格式 */}
               <div className="mb-4 grid gap-4 md:grid-cols-3">
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-gray-300">
+                  <label className="mb-2 block text-xs font-medium text-foreground/70 dark:text-gray-300">
                     {t('form.aspect_ratio_label')}
                   </label>
                   <select
@@ -651,7 +651,7 @@ const InfographicPage = () => {
                     onChange={(e) =>
                       setAspectRatio(e.target.value as AspectRatioOption)
                     }
-                    className="focus:border-primary w-full rounded-lg border border-gray-600 bg-gray-800/60 p-2 text-xs text-white focus:outline-none"
+                    className="focus:border-primary w-full rounded-lg border border-border dark:border-gray-600 bg-background/60 dark:bg-gray-800/60 p-2 text-xs text-foreground dark:text-white focus:outline-none"
                   >
                     {ASPECT_RATIO_OPTIONS.map((ratio) => (
                       <option key={ratio} value={ratio}>
@@ -661,7 +661,7 @@ const InfographicPage = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-gray-300">
+                  <label className="mb-2 block text-xs font-medium text-foreground/70 dark:text-gray-300">
                     {t('form.resolution_label')}
                   </label>
                   <select
@@ -669,7 +669,7 @@ const InfographicPage = () => {
                     onChange={(e) =>
                       setResolution(e.target.value as '1K' | '2K' | '4K')
                     }
-                    className="focus:border-primary w-full rounded-lg border border-gray-600 bg-gray-800/60 p-2 text-xs text-white focus:outline-none"
+                    className="focus:border-primary w-full rounded-lg border border-border dark:border-gray-600 bg-background/60 dark:bg-gray-800/60 p-2 text-xs text-foreground dark:text-white focus:outline-none"
                   >
                     <option value="1K">1K</option>
                     <option value="2K">2K</option>
@@ -677,7 +677,7 @@ const InfographicPage = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-gray-300">
+                  <label className="mb-2 block text-xs font-medium text-foreground/70 dark:text-gray-300">
                     {t('form.format_label')}
                   </label>
                   <select
@@ -685,7 +685,7 @@ const InfographicPage = () => {
                     onChange={(e) =>
                       setOutputFormat(e.target.value as 'png' | 'jpg')
                     }
-                    className="focus:border-primary w-full rounded-lg border border-gray-600 bg-gray-800/60 p-2 text-xs text-white focus:outline-none"
+                    className="focus:border-primary w-full rounded-lg border border-border dark:border-gray-600 bg-background/60 dark:bg-gray-800/60 p-2 text-xs text-foreground dark:text-white focus:outline-none"
                   >
                     <option value="png">PNG</option>
                     <option value="jpg">JPG</option>
@@ -711,7 +711,7 @@ const InfographicPage = () => {
                     setUploadedFiles([]);
                   }}
                   variant="outline"
-                  className="border-gray-600 text-gray-300 hover:border-gray-500"
+                  className="border-border dark:border-gray-600 text-foreground/70 dark:text-gray-300 hover:border-foreground/50 dark:hover:border-gray-500"
                 >
                   {t('actions.clear')}
                 </Button>
@@ -740,14 +740,14 @@ const InfographicPage = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
-              className="border-primary/20 rounded-2xl border bg-gray-900/60 p-6 backdrop-blur-sm"
+              className="border-primary/20 rounded-2xl border bg-background dark:bg-gray-900/60 p-6 backdrop-blur-sm"
             >
-              <h2 className="mb-4 text-xl font-semibold text-white">
+              <h2 className="mb-4 text-xl font-semibold text-foreground dark:text-white">
                 {t('result.title')}
               </h2>
 
               {!taskId && imageUrls.length === 0 && !error && !isGenerating && (
-                <div className="flex h-full flex-col items-center justify-center gap-4 text-center text-sm text-gray-400">
+                <div className="flex h-full flex-col items-center justify-center gap-4 text-center text-sm text-muted-foreground dark:text-gray-400">
                   <FileImage className="text-primary h-10 w-10" />
                   <p>{t('result.empty_desc')}</p>
                   <p className="text-xs text-gray-500">
@@ -764,7 +764,7 @@ const InfographicPage = () => {
                   </div>
 
                   <div className="w-full max-w-xs space-y-2">
-                    <div className="flex justify-between text-xs text-gray-400">
+                    <div className="flex justify-between text-xs text-muted-foreground dark:text-gray-400">
                       <span>{t('result.generating')}</span>
                       <span>{Math.round(progress)}%</span>
                     </div>
@@ -785,7 +785,7 @@ const InfographicPage = () => {
                   {imageUrls.map((url, idx) => (
                     <div
                       key={idx}
-                      className="border-primary/30 overflow-hidden rounded-xl border bg-gray-900/80"
+                      className="border-primary/30 overflow-hidden rounded-xl border bg-muted/80 dark:bg-gray-900/80"
                     >
                       <div className="border-primary/20 bg-primary/10 flex items-center justify-between border-b px-4 py-2">
                         <span className="text-primary/90 text-xs">
@@ -849,7 +849,7 @@ const InfographicPage = () => {
         }}
       >
         <DialogContent
-          className="border-primary/30 max-h-[95vh] max-w-[95vw] bg-gray-900/95 p-0"
+          className="border-primary/30 max-h-[95vh] max-w-[95vw] bg-background dark:bg-gray-900/95 p-0"
           showCloseButton={true}
         >
           {enlargedImageUrl && (

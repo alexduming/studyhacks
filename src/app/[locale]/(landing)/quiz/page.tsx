@@ -378,7 +378,7 @@ const QuizApp = () => {
   // 如果还未开始测验，显示欢迎/开始界面
   if (!quizStarted) {
     return (
-      <div className="via-primary/5 flex min-h-screen items-center justify-center bg-gradient-to-b from-gray-950 to-gray-950">
+      <div className="via-primary/5 from-background to-muted flex min-h-screen items-center justify-center bg-gradient-to-b dark:from-gray-950 dark:to-gray-950">
         <div className="relative z-10 container mx-auto px-4">
           <ScrollAnimation>
             <motion.div
@@ -396,40 +396,44 @@ const QuizApp = () => {
               <h1 className="via-primary/80 to-primary/60 mb-6 bg-gradient-to-r from-white bg-clip-text text-4xl font-bold text-transparent md:text-5xl">
                 {t('title')}
               </h1>
-              <p className="mb-8 text-lg text-gray-300">{t('subtitle')}</p>
+              <p className="text-muted-foreground mb-8 text-lg dark:text-gray-300">
+                {t('subtitle')}
+              </p>
 
               {questions.length > 0 && (
-                <div className="border-primary/20 mb-8 rounded-2xl border bg-gray-900/50 p-8 backdrop-blur-sm">
-                  <h3 className="mb-6 text-xl font-semibold text-white">
+                <div className="border-primary/20 bg-muted/50 mb-8 rounded-2xl border p-8 backdrop-blur-sm dark:bg-gray-900/50">
+                  <h3 className="text-foreground mb-6 text-xl font-semibold dark:text-white">
                     测验信息
                   </h3>
                   <div className="grid gap-6 text-left md:grid-cols-2">
                     <div>
-                      <p className="mb-2 text-gray-400">
+                      <p className="text-muted-foreground mb-2 dark:text-gray-400">
                         {t('stats.total_questions')}
                       </p>
-                      <p className="text-lg font-medium text-white">
+                      <p className="text-foreground text-lg font-medium dark:text-white">
                         {questions.length} 题
                       </p>
                     </div>
                     <div>
-                      <p className="mb-2 text-gray-400">
+                      <p className="text-muted-foreground mb-2 dark:text-gray-400">
                         {t('stats.time_spent')}
                       </p>
-                      <p className="text-lg font-medium text-white">
+                      <p className="text-foreground text-lg font-medium dark:text-white">
                         {Math.ceil(questions.length * 2)} 分钟
                       </p>
                     </div>
                     <div>
-                      <p className="mb-2 text-gray-400">
+                      <p className="text-muted-foreground mb-2 dark:text-gray-400">
                         {t('question.multiple_choice')},{' '}
                         {t('question.true_false')}, {t('question.fill_blank')}
                       </p>
-                      <p className="text-lg font-medium text-white"></p>
+                      <p className="text-foreground text-lg font-medium dark:text-white"></p>
                     </div>
                     <div>
-                      <p className="mb-2 text-gray-400">智能提示</p>
-                      <p className="text-lg font-medium text-white">
+                      <p className="text-muted-foreground mb-2 dark:text-gray-400">
+                        智能提示
+                      </p>
+                      <p className="text-foreground text-lg font-medium dark:text-white">
                         每题提供学习提示
                       </p>
                     </div>
@@ -445,7 +449,6 @@ const QuizApp = () => {
                   type="button"
                 >
                   <CreditsCost credits={3} />
-                  <Brain className="mr-2 h-5 w-5" />
                   {t('create.generate')}
                 </Button>
                 {questions.length > 0 && (
@@ -457,12 +460,6 @@ const QuizApp = () => {
                   </Button>
                 )}
               </div>
-
-              {questions.length === 0 && (
-                <p className="mt-4 text-sm text-gray-500">
-                  点击 "Generate Quiz" 上传学习资料生成测验题目
-                </p>
-              )}
             </motion.div>
           </ScrollAnimation>
 
@@ -478,9 +475,9 @@ const QuizApp = () => {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 onClick={(e) => e.stopPropagation()}
-                className="border-primary/20 max-h-[80vh] w-full max-w-3xl overflow-y-auto rounded-2xl border bg-gray-900 p-8"
+                className="border-primary/20 bg-background max-h-[80vh] w-full max-w-3xl overflow-y-auto rounded-2xl border p-8 dark:bg-gray-900"
               >
-                <h3 className="mb-6 text-2xl font-bold text-white">
+                <h3 className="text-foreground mb-6 text-2xl font-bold dark:text-white">
                   生成 AI 测验
                 </h3>
                 {/* 文件上传入口：可以直接从课件 / 笔记文件生成测验 */}
@@ -517,7 +514,7 @@ const QuizApp = () => {
                       )}
                     </label>
                   </Button>
-                  <span className="text-xs text-gray-400">
+                  <span className="text-muted-foreground text-xs dark:text-gray-400">
                     也可以直接在下方粘贴或编辑要生成测验的内容
                   </span>
                 </div>
@@ -531,13 +528,13 @@ const QuizApp = () => {
 
                 <div className="mb-6 grid gap-4 md:grid-cols-2">
                   <div>
-                    <label className="mb-3 block font-medium text-white">
+                    <label className="text-foreground mb-3 block font-medium dark:text-white">
                       测验题目数量
                     </label>
                     <select
                       value={questionCount}
                       onChange={(e) => setQuestionCount(Number(e.target.value))}
-                      className="focus:border-primary w-full rounded-lg border border-gray-600 bg-gray-800/50 p-3 text-white focus:outline-none"
+                      className="focus:border-primary border-border bg-background/50 text-foreground w-full rounded-lg border p-3 focus:outline-none dark:border-gray-600 dark:bg-gray-800/50 dark:text-white"
                     >
                       <option value={3}>3 题</option>
                       <option value={5}>5 题</option>
@@ -546,7 +543,7 @@ const QuizApp = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="mb-3 block font-medium text-white">
+                    <label className="text-foreground mb-3 block font-medium dark:text-white">
                       预计用时（分钟）
                     </label>
                     <input
@@ -561,7 +558,7 @@ const QuizApp = () => {
                             : Number(e.target.value)
                         )
                       }
-                      className="focus:border-primary w-full rounded-lg border border-gray-600 bg-gray-800/50 p-3 text-white focus:outline-none"
+                      className="focus:border-primary border-border bg-background/50 text-foreground w-full rounded-lg border p-3 focus:outline-none dark:border-gray-600 dark:bg-gray-800/50 dark:text-white"
                     />
                   </div>
                 </div>
@@ -578,7 +575,7 @@ const QuizApp = () => {
                       className={`rounded-lg border p-3 transition-all ${
                         selectedQuestionTypes.includes('all')
                           ? 'border-primary bg-primary/10 text-primary'
-                          : 'hover:border-primary/50 border-gray-600 bg-gray-800/50 text-gray-300'
+                          : 'hover:border-primary/50 border-border bg-background/50 text-foreground/70 dark:border-gray-600 dark:bg-gray-800/50 dark:text-gray-300'
                       }`}
                     >
                       全部题型
@@ -606,7 +603,7 @@ const QuizApp = () => {
                       className={`rounded-lg border p-3 transition-all ${
                         selectedQuestionTypes.includes('multiple-choice')
                           ? 'border-primary bg-primary/10 text-primary'
-                          : 'hover:border-primary/50 border-gray-600 bg-gray-800/50 text-gray-300'
+                          : 'hover:border-primary/50 border-border bg-background/50 text-foreground/70 dark:border-gray-600 dark:bg-gray-800/50 dark:text-gray-300'
                       }`}
                     >
                       选择题
@@ -631,7 +628,7 @@ const QuizApp = () => {
                       className={`rounded-lg border p-3 transition-all ${
                         selectedQuestionTypes.includes('true-false')
                           ? 'border-primary bg-primary/10 text-primary'
-                          : 'hover:border-primary/50 border-gray-600 bg-gray-800/50 text-gray-300'
+                          : 'hover:border-primary/50 border-border bg-background/50 text-foreground/70 dark:border-gray-600 dark:bg-gray-800/50 dark:text-gray-300'
                       }`}
                     >
                       判断题
@@ -656,7 +653,7 @@ const QuizApp = () => {
                       className={`rounded-lg border p-3 transition-all ${
                         selectedQuestionTypes.includes('fill-blank')
                           ? 'border-primary bg-primary/10 text-primary'
-                          : 'hover:border-primary/50 border-gray-600 bg-gray-800/50 text-gray-300'
+                          : 'hover:border-primary/50 border-border bg-background/50 text-foreground/70 dark:border-gray-600 dark:bg-gray-800/50 dark:text-gray-300'
                       }`}
                     >
                       填空题
@@ -668,7 +665,7 @@ const QuizApp = () => {
                   value={quizContent}
                   onChange={(e) => setQuizContent(e.target.value)}
                   placeholder="粘贴您的学习笔记、课程内容或任何想要转换为测验的文本..."
-                  className="focus:border-primary mb-4 h-48 w-full resize-none rounded-lg border border-gray-600 bg-gray-800/50 p-4 text-white placeholder-gray-400 focus:outline-none"
+                  className="focus:border-primary border-border bg-background/50 text-foreground placeholder-muted-foreground mb-4 h-48 w-full resize-none rounded-lg border p-4 focus:outline-none dark:border-gray-600 dark:bg-gray-800/50 dark:text-white dark:placeholder-gray-400"
                 />
                 {generationError && (
                   <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3">
@@ -683,7 +680,7 @@ const QuizApp = () => {
                       setQuizContent('');
                     }}
                     variant="outline"
-                    className="border-gray-600 text-gray-300 hover:border-gray-500"
+                    className="border-border text-foreground/70 hover:border-foreground/50 dark:border-gray-600 dark:text-gray-300 dark:hover:border-gray-500"
                   >
                     取消
                   </Button>
@@ -717,7 +714,7 @@ const QuizApp = () => {
     const score = calculateScore();
 
     return (
-      <div className="via-primary/5 flex min-h-screen items-center justify-center bg-gradient-to-b from-gray-950 to-gray-950">
+      <div className="via-primary/5 from-background to-muted flex min-h-screen items-center justify-center bg-gradient-to-b dark:from-gray-950 dark:to-gray-950">
         <div className="relative z-10 container mx-auto px-4">
           <ScrollAnimation>
             <motion.div
@@ -734,29 +731,37 @@ const QuizApp = () => {
                 {t('results.title')}
               </h1>
 
-              <div className="border-primary/20 mb-8 rounded-2xl border bg-gray-900/50 p-8 backdrop-blur-sm">
+              <div className="border-primary/20 bg-muted/50 mb-8 rounded-2xl border p-8 backdrop-blur-sm dark:bg-gray-900/50">
                 <div className="mb-8 text-center">
-                  <div className="mb-2 text-6xl font-bold text-white">
+                  <div className="text-foreground mb-2 text-6xl font-bold dark:text-white">
                     {score.percentage}%
                   </div>
-                  <p className="text-gray-400">您的得分</p>
+                  <p className="text-muted-foreground dark:text-gray-400">
+                    您的得分
+                  </p>
                 </div>
 
                 <div className="mb-8 grid gap-6 md:grid-cols-3">
                   <div>
-                    <p className="mb-2 text-gray-400">正确答案</p>
+                    <p className="text-muted-foreground mb-2 dark:text-gray-400">
+                      正确答案
+                    </p>
                     <p className="text-xl font-medium text-green-400">
                       {score.correct}/{score.total}
                     </p>
                   </div>
                   <div>
-                    <p className="mb-2 text-gray-400">平均用时</p>
+                    <p className="text-muted-foreground mb-2 dark:text-gray-400">
+                      平均用时
+                    </p>
                     <p className="text-primary text-xl font-medium">
                       {score.averageTime}秒
                     </p>
                   </div>
                   <div>
-                    <p className="mb-2 text-gray-400">使用提示</p>
+                    <p className="text-muted-foreground mb-2 dark:text-gray-400">
+                      使用提示
+                    </p>
                     <p className="text-xl font-medium text-yellow-400">
                       {score.totalHintsUsed}次
                     </p>
@@ -765,7 +770,7 @@ const QuizApp = () => {
 
                 {/* 详细答案 */}
                 <div className="space-y-4 text-left">
-                  <h3 className="mb-4 text-lg font-semibold text-white">
+                  <h3 className="text-foreground mb-4 text-lg font-semibold dark:text-white">
                     答题详情
                   </h3>
                   {userAnswers.map((answer, idx) => {
@@ -824,7 +829,7 @@ const QuizApp = () => {
   }
 
   return (
-    <div className="via-primary/5 min-h-screen bg-gradient-to-b from-gray-950 to-gray-950">
+    <div className="via-primary/5 from-background to-muted min-h-screen bg-gradient-to-b dark:from-gray-950 dark:to-gray-950">
       {/* 背景装饰：统一为 primary 色系的柔和光晕，避免额外蓝色块破坏整体主题 */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="bg-primary/10 absolute top-1/4 left-1/4 h-96 w-96 rounded-full blur-3xl" />

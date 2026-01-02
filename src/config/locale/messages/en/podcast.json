@@ -10,27 +10,32 @@
     "supported_platforms": "Supported Platforms",
     "file_selected": "Selected: ",
     "processing": "AI is creating your podcast...",
-    "upload_button": "Choose File"
+    "upload_button": "Choose File",
+    "input_type": {
+      "text": "Text",
+      "file": "File",
+      "link": "Link"
+    }
   },
   "mode": {
     "title": "Podcast Mode",
     "quick": {
-      "name": "Quick",
+      "name": "Brief",
       "description": "Fast generation, efficiency first",
       "duration": "1-2 minutes",
       "features": "News briefs, time-sensitive content",
       "credits": "5 credits"
     },
     "deep": {
-      "name": "Deep",
+      "name": "Deep Dive",
       "description": "In-depth analysis, high quality",
       "duration": "2-4 minutes",
       "features": "Professional knowledge, deep analysis",
       "credits": "8 credits"
     },
     "debate": {
-      "name": "Debate",
-      "description": "Dual-host debate format",
+      "name": "Conversation",
+      "description": "Dual-host conversation format",
       "duration": "2-4 minutes",
       "features": "Opinion discussion, multi-angle analysis",
       "credits": "10 credits"

@@ -390,7 +390,7 @@ const FlashcardsApp = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-950 via-primary/5 to-gray-950">
+    <div className="min-h-screen bg-gradient-to-b from-background via-primary/5 to-muted dark:from-gray-950 dark:to-gray-950">
       {/* 背景装饰 */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute top-1/4 left-1/4 h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
@@ -410,7 +410,7 @@ const FlashcardsApp = () => {
               <h1 className="mb-6 bg-gradient-to-r from-white via-primary/80 to-primary/60 bg-clip-text text-4xl font-bold text-transparent md:text-5xl">
                 {t('title')}
               </h1>
-              <p className="mx-auto max-w-3xl text-lg text-gray-300 md:text-xl">
+              <p className="mx-auto max-w-3xl text-lg text-muted-foreground dark:text-gray-300 md:text-xl">
                 {t('subtitle')}
               </p>
             </motion.div>
@@ -455,13 +455,13 @@ const FlashcardsApp = () => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: idx * 0.1 }}
-                    className="rounded-xl border border-primary/20 bg-gray-900/50 p-4 backdrop-blur-sm"
+                    className="rounded-xl border border-primary/20 bg-muted/50 dark:bg-gray-900/50 p-4 backdrop-blur-sm"
                   >
                     <div className="flex items-center gap-3">
                       <Icon className={`h-6 w-6 ${stat.color}`} />
                       <div>
-                        <p className="text-sm text-gray-400">{stat.label}</p>
-                        <p className="text-xl font-bold text-white">
+                        <p className="text-sm text-muted-foreground dark:text-gray-400">{stat.label}</p>
+                        <p className="text-xl font-bold text-foreground dark:text-white">
                           {stat.value}
                         </p>
                       </div>
@@ -540,7 +540,7 @@ const FlashcardsApp = () => {
                       animate={{ rotateY: 0, opacity: 1 }}
                       exit={{ rotateY: -180, opacity: 0 }}
                       transition={{ duration: 0.6 }}
-                      className="relative flex h-full flex-col items-center justify-center rounded-2xl border border-primary/30 bg-gray-900/80 p-8 text-center backdrop-blur-sm"
+                      className="relative flex h-full flex-col items-center justify-center rounded-2xl border border-primary/30 bg-muted/80 dark:bg-gray-900/80 p-8 text-center backdrop-blur-sm"
                     >
                       {!isFlipped ? (
                         <div>
@@ -550,23 +550,23 @@ const FlashcardsApp = () => {
                             >
                               {t(`card.difficulty.${currentCard.difficulty}`)}
                             </span>
-                            <span className="ml-2 text-sm text-gray-500">
+                            <span className="ml-2 text-sm text-muted-foreground dark:text-gray-500">
                               {t('card.review_count')} {currentCard.reviewCount}
                             </span>
                           </div>
-                          <h3 className="mb-4 text-2xl font-bold text-white">
+                          <h3 className="mb-4 text-2xl font-bold text-foreground dark:text-white">
                             {currentCard.front}
                           </h3>
-                          <p className="text-sm text-gray-400">
+                          <p className="text-sm text-muted-foreground dark:text-gray-400">
                             {t('card.click_to_flip')}
                           </p>
                         </div>
                       ) : (
                         <div>
-                          <h3 className="mb-4 text-xl font-semibold text-white">
+                          <h3 className="mb-4 text-xl font-semibold text-foreground dark:text-white">
                             {currentCard.back}
                           </h3>
-                          <p className="text-sm text-gray-400">
+                          <p className="text-sm text-muted-foreground dark:text-gray-400">
                             {t('card.click_to_return')}
                           </p>
                         </div>
@@ -637,13 +637,13 @@ const FlashcardsApp = () => {
               </div>
             ) : (
               <div className="py-16 text-center">
-                <Brain className="mx-auto mb-6 h-20 w-20 text-gray-600" />
-                <h3 className="mb-4 text-xl font-semibold text-white">
+                <Brain className="mx-auto mb-6 h-20 w-20 text-muted-foreground dark:text-gray-600" />
+                <h3 className="mb-4 text-xl font-semibold text-foreground dark:text-white">
                   {studyMode === 'review'
                     ? t('empty_state.no_due_cards')
                     : t('empty_state.no_cards')}
                 </h3>
-                <p className="mb-6 text-gray-400">
+                <p className="mb-6 text-muted-foreground dark:text-gray-400">
                   {studyMode === 'review'
                     ? t('empty_state.no_due_cards_desc')
                     : t('empty_state.no_cards_desc')}
@@ -660,7 +660,7 @@ const FlashcardsApp = () => {
         {/* 快捷操作 */}
         <ScrollAnimation delay={0.5}>
           <div className="mx-auto mt-12 max-w-4xl">
-            <div className="rounded-2xl border border-primary/20 bg-gray-900/50 p-6 backdrop-blur-sm">
+            <div className="rounded-2xl border border-primary/20 bg-muted/50 dark:bg-gray-900/50 p-6 backdrop-blur-sm">
               <div className="grid gap-4 md:grid-cols-3">
                 <Button
                   onClick={() => setShowCreateForm(true)}
@@ -706,36 +706,36 @@ const FlashcardsApp = () => {
         {showStats && (
           <ScrollAnimation delay={0.6}>
             <div className="mx-auto mt-6 max-w-4xl">
-              <div className="rounded-2xl border border-primary/20 bg-gray-900/70 p-6 backdrop-blur-sm">
-                <h3 className="mb-4 text-lg font-semibold text-white">
+              <div className="rounded-2xl border border-primary/20 bg-muted/70 dark:bg-gray-900/70 p-6 backdrop-blur-sm">
+                <h3 className="mb-4 text-lg font-semibold text-foreground dark:text-white">
                   学习统计概览
                 </h3>
-                <p className="mb-4 text-xs text-gray-400">
+                <p className="mb-4 text-xs text-muted-foreground dark:text-gray-400">
                   这里展示的是当前所有闪卡的分类统计结果，方便你了解整体进度和难度分布。
                 </p>
 
                 <div className="grid gap-4 md:grid-cols-3">
-                  <div className="rounded-lg border border-primary/20 bg-gray-900/60 p-4">
-                    <p className="text-xs text-gray-400">按难度分类</p>
-                    <ul className="mt-2 space-y-1 text-sm text-gray-200">
+                  <div className="rounded-lg border border-primary/20 bg-background/60 dark:bg-gray-900/60 p-4">
+                    <p className="text-xs text-muted-foreground dark:text-gray-400">按难度分类</p>
+                    <ul className="mt-2 space-y-1 text-sm text-foreground/80 dark:text-gray-200">
                       <li>简单卡片：{difficultyStats.easy}</li>
                       <li>中等卡片：{difficultyStats.medium}</li>
                       <li>困难卡片：{difficultyStats.hard}</li>
                     </ul>
                   </div>
 
-                  <div className="rounded-lg border border-primary/20 bg-gray-900/60 p-4">
-                    <p className="text-xs text-gray-400">按学习进度分类</p>
-                    <ul className="mt-2 space-y-1 text-sm text-gray-200">
+                  <div className="rounded-lg border border-primary/20 bg-background/60 dark:bg-gray-900/60 p-4">
+                    <p className="text-xs text-muted-foreground dark:text-gray-400">按学习进度分类</p>
+                    <ul className="mt-2 space-y-1 text-sm text-foreground/80 dark:text-gray-200">
                       <li>新卡片（未复习过）：{difficultyStats.newCards}</li>
                       <li>已学习卡片：{difficultyStats.reviewedCards}</li>
                       <li>待复习卡片：{stats.due}</li>
                     </ul>
                   </div>
 
-                  <div className="rounded-lg border border-primary/20 bg-gray-900/60 p-4">
-                    <p className="text-xs text-gray-400">整体进度</p>
-                    <ul className="mt-2 space-y-1 text-sm text-gray-200">
+                  <div className="rounded-lg border border-primary/20 bg-background/60 dark:bg-gray-900/60 p-4">
+                    <p className="text-xs text-muted-foreground dark:text-gray-400">整体进度</p>
+                    <ul className="mt-2 space-y-1 text-sm text-foreground/80 dark:text-gray-200">
                       <li>总卡片数：{stats.total}</li>
                       <li>已掌握卡片：{stats.mastered}</li>
                       <li>学习中卡片：{stats.learning}</li>
@@ -759,9 +759,9 @@ const FlashcardsApp = () => {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               onClick={(e) => e.stopPropagation()}
-              className="max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-primary/20 bg-gray-900 p-8"
+              className="max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-primary/20 bg-background dark:bg-gray-900 p-8"
             >
-              <h3 className="mb-6 text-2xl font-bold text-white">
+              <h3 className="mb-6 text-2xl font-bold text-foreground dark:text-white">
                 {t('create.title')}
               </h3>
 
@@ -799,7 +799,7 @@ const FlashcardsApp = () => {
                     )}
                   </label>
                 </Button>
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-muted-foreground dark:text-gray-400">
                   也可以直接在下方粘贴或编辑要学习的内容
                 </span>
               </div>
@@ -827,17 +827,17 @@ const FlashcardsApp = () => {
                 >
                   <SelectTrigger
                     id="flashcards-language-select"
-                    className="border-gray-600 bg-gray-800/50 text-gray-200"
+                    className="border-border dark:border-gray-600 bg-background/50 dark:bg-gray-800/50 text-foreground dark:text-gray-200"
                   >
                     <SelectValue placeholder={t('languages.auto')} />
                   </SelectTrigger>
-                  <SelectContent className="bg-gray-900 text-gray-100">
+                  <SelectContent className="bg-background dark:bg-gray-900 text-foreground dark:text-gray-100">
                     <SelectItem value="auto">{t('languages.auto')}</SelectItem>
                     <SelectItem value="zh">{t('languages.zh')}</SelectItem>
                     <SelectItem value="en">{t('languages.en')}</SelectItem>
                   </SelectContent>
                 </Select>
-                <p className="mt-1 text-xs text-gray-400">
+                <p className="mt-1 text-xs text-muted-foreground dark:text-gray-400">
                   {t('create.language_desc')}
                 </p>
               </div>
@@ -846,7 +846,7 @@ const FlashcardsApp = () => {
                 value={newCardContent}
                 onChange={(e) => setNewCardContent(e.target.value)}
                 placeholder={t('create.placeholder')}
-                className="mb-4 h-48 w-full resize-none rounded-lg border border-gray-600 bg-gray-800/50 p-4 text-white placeholder-gray-400 focus:border-primary focus:outline-none"
+                className="mb-4 h-48 w-full resize-none rounded-lg border border-border dark:border-gray-600 bg-background/50 dark:bg-gray-800/50 p-4 text-foreground dark:text-white placeholder-muted-foreground dark:placeholder-gray-400 focus:border-primary focus:outline-none"
               />
               {generationError && (
                 <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3">
@@ -861,7 +861,7 @@ const FlashcardsApp = () => {
                     setNewCardContent('');
                   }}
                   variant="outline"
-                  className="border-gray-600 text-gray-300 hover:border-gray-500"
+                  className="border-border dark:border-gray-600 text-foreground/70 dark:text-gray-300 hover:border-foreground/50 dark:hover:border-gray-500"
                 >
                   {t('buttons.cancel')}
                 </Button>

@@ -10,7 +10,12 @@
     "supported_platforms": "支持平台",
     "file_selected": "已选择：",
     "processing": "AI正在创建您的播客...",
-    "upload_button": "选择文件"
+    "upload_button": "选择文件",
+    "input_type": {
+      "text": "文本",
+      "file": "文件",
+      "link": "链接"
+    }
   },
   "mode": {
     "title": "播客模式",
@@ -22,15 +27,15 @@
       "credits": "5 积分"
     },
     "deep": {
-      "name": "深度",
+      "name": "精听",
       "description": "深度分析，内容质量高",
       "duration": "2-4 分钟",
       "features": "专业知识分享、深度解读",
       "credits": "8 积分"
     },
     "debate": {
-      "name": "辩论",
-      "description": "双主持人辩论形式",
+      "name": "对话",
+      "description": "双主持人讨论形式",
       "duration": "2-4 分钟",
       "features": "观点讨论、多角度分析",
       "credits": "10 积分"

@@ -1,17 +1,34 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Play, Pause, SkipBack, SkipForward, Volume2, Upload, Mic, 
-  Headphones, Clock, Download, Share2, Sparkles, Link as LinkIcon,
-  FileText, Zap, Users, MessageSquare, Globe, X
+import { useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import {
+  Clock,
+  Download,
+  FileText,
+  Globe,
+  Headphones,
+  Link as LinkIcon,
+  MessageSquare,
+  Mic,
+  Pause,
+  Play,
+  Share2,
+  SkipBack,
+  SkipForward,
+  Sparkles,
+  Upload,
+  Users,
+  Volume2,
+  X,
+  Zap,
 } from 'lucide-react';
-
-import { Button } from '@/shared/components/ui/button';
-import { ScrollAnimation } from '@/shared/components/ui/scroll-animation';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
+
+import { CreditsCost } from '@/shared/components/ai-elements/credits-display';
+import { Button } from '@/shared/components/ui/button';
+import { ScrollAnimation } from '@/shared/components/ui/scroll-animation';
 
 // 播客模式类型
 type PodcastMode = 'quick' | 'deep' | 'debate';
@@ -63,7 +80,7 @@ const SUPPORTED_PLATFORMS = [
 
 const PodcastApp = () => {
   const t = useTranslations('podcast');
-  
+
   // 添加自定义滚动条样式
   useEffect(() => {
     const style = document.createElement('style');
@@ -88,7 +105,7 @@ const PodcastApp = () => {
       document.head.removeChild(style);
     };
   }, []);
-  
+
   // ===== 状态管理 =====
   // 播客生成相关
   const [mode, setMode] = useState<PodcastMode>('deep');
@@ -102,24 +119,24 @@ const PodcastApp = () => {
     speaker_1: 'CN-Man-Beijing-V2',
     speaker_2: undefined,
   });
-  
+
   // 音色列表状态
   const [availableSpeakers, setAvailableSpeakers] = useState<Speaker[]>([]);
   const [isLoadingSpeakers, setIsLoadingSpeakers] = useState(false);
   const [playingDemoId, setPlayingDemoId] = useState<string | null>(null); // 当前播放的试听音色ID
-  
+
   // 生成状态
   const [isGenerating, setIsGenerating] = useState(false);
   const [isQuerying, setIsQuerying] = useState(false);
   const [currentEpisodeId, setCurrentEpisodeId] = useState<string | null>(null);
-  
+
   // 播放器相关
   const [podcasts, setPodcasts] = useState<Podcast[]>([]);
   const [currentPodcast, setCurrentPodcast] = useState<Podcast | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(0.7);
-  
+
   const audioRef = useRef<HTMLAudioElement>(null);
   const demoAudioRef = useRef<HTMLAudioElement>(null); // 用于播放音色试听
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -130,31 +147,39 @@ const PodcastApp = () => {
     const fetchSpeakers = async () => {
       setIsLoadingSpeakers(true);
       try {
-        const response = await fetch(`/api/ai/podcast/speakers?language=${language}`);
+        const response = await fetch(
+          `/api/ai/podcast/speakers?language=${language}`
+        );
         const data = await response.json();
-        
+
         if (data.success && Array.isArray(data.speakers)) {
           setAvailableSpeakers(data.speakers);
-          
+
           // 如果获取到了音色，且当前选择的音色不在列表中，默认选中第一个
           if (data.speakers.length > 0) {
             const firstSpeaker = data.speakers[0].speakerId;
-            
-            setVoices(prev => {
+
+            setVoices((prev) => {
               // 检查当前 speaker_1 是否有效
-              const isSpeaker1Valid = data.speakers.some((s: Speaker) => s.speakerId === prev.speaker_1);
-              const newSpeaker1 = isSpeaker1Valid ? prev.speaker_1 : firstSpeaker;
-              
+              const isSpeaker1Valid = data.speakers.some(
+                (s: Speaker) => s.speakerId === prev.speaker_1
+              );
+              const newSpeaker1 = isSpeaker1Valid
+                ? prev.speaker_1
+                : firstSpeaker;
+
               // 检查当前 speaker_2 是否有效（如果有的话）
               let newSpeaker2 = prev.speaker_2;
               if (prev.speaker_2) {
-                const isSpeaker2Valid = data.speakers.some((s: Speaker) => s.speakerId === prev.speaker_2);
+                const isSpeaker2Valid = data.speakers.some(
+                  (s: Speaker) => s.speakerId === prev.speaker_2
+                );
                 newSpeaker2 = isSpeaker2Valid ? prev.speaker_2 : firstSpeaker;
               }
-              
+
               return {
                 speaker_1: newSpeaker1,
-                speaker_2: newSpeaker2
+                speaker_2: newSpeaker2,
               };
             });
           }
@@ -176,7 +201,7 @@ const PodcastApp = () => {
       try {
         const response = await fetch('/api/podcast');
         const data = await response.json();
-        
+
         if (data.success && Array.isArray(data.podcasts)) {
           const loadedPodcasts: Podcast[] = data.podcasts.map((p: any) => ({
             id: p.id,
@@ -188,7 +213,7 @@ const PodcastApp = () => {
             audioUrl: p.audioUrl,
             createdDate: new Date(p.createdAt),
           }));
-          
+
           setPodcasts(loadedPodcasts);
         }
       } catch (error) {
@@ -222,7 +247,7 @@ const PodcastApp = () => {
     if (!audio) return;
 
     if (isPlaying) {
-      audio.play().catch(err => {
+      audio.play().catch((err) => {
         console.error('播放失败:', err);
         setIsPlaying(false);
       });
@@ -236,10 +261,10 @@ const PodcastApp = () => {
     if (!content || content.trim().length === 0) {
       return '未命名播客';
     }
-    
+
     // 移除多余的空格和换行
     const cleanContent = content.trim().replace(/\s+/g, ' ');
-    
+
     // 提取前30个字符作为标题
     const title = cleanContent.substring(0, 30);
     return title.length < cleanContent.length ? `${title}...` : title;
@@ -249,13 +274,15 @@ const PodcastApp = () => {
     if (!content || content.trim().length === 0) {
       return 'AI 生成的播客内容';
     }
-    
+
     // 移除多余的空格和换行
     const cleanContent = content.trim().replace(/\s+/g, ' ');
-    
+
     // 提取前100个字符作为摘要
     const description = cleanContent.substring(0, 100);
-    return description.length < cleanContent.length ? `${description}...` : description;
+    return description.length < cleanContent.length
+      ? `${description}...`
+      : description;
   };
 
   // ===== 音色试听处理 =====
@@ -305,7 +332,7 @@ const PodcastApp = () => {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
       toast.success('开始下载播客音频');
     } catch (error) {
       console.error('下载失败:', error);
@@ -343,7 +370,9 @@ const PodcastApp = () => {
         console.error('分享失败:', error);
         // 如果复制也失败，尝试直接复制链接
         try {
-          await navigator.clipboard.writeText(currentPodcast.audioUrl || window.location.href);
+          await navigator.clipboard.writeText(
+            currentPodcast.audioUrl || window.location.href
+          );
           toast.success('链接已复制到剪贴板');
         } catch (clipboardError) {
           toast.error('分享失败，请手动复制链接');
@@ -368,18 +397,18 @@ const PodcastApp = () => {
         'image/png',
         'image/webp',
       ];
-      
+
       if (!allowedTypes.includes(file.type)) {
         toast.error(t('errors.invalid_format'));
         return;
       }
-      
+
       // 验证文件大小 (10MB)
       if (file.size > 10 * 1024 * 1024) {
         toast.error(t('errors.file_too_large'));
         return;
       }
-      
+
       setSelectedFile(file);
       setInputType('file');
     }
@@ -402,10 +431,12 @@ const PodcastApp = () => {
       // 任务完成
       if (data.taskResult?.audioUrl) {
         // 优先使用 API 返回的 AI 生成标题，如果没有则使用自动生成的标题
-        const podcastTitle = data.taskResult.title || generatePodcastTitle(textContent);
+        const podcastTitle =
+          data.taskResult.title || generatePodcastTitle(textContent);
         // 优先使用 API 返回的 outline 作为描述，如果没有则使用自动生成的描述
-        const podcastDescription = data.taskResult.outline || generatePodcastDescription(textContent);
-        
+        const podcastDescription =
+          data.taskResult.outline || generatePodcastDescription(textContent);
+
         const newPodcast: Podcast = {
           id: episodeId,
           title: podcastTitle,
@@ -450,7 +481,7 @@ const PodcastApp = () => {
           // 不阻止用户使用，只记录错误
         }
 
-        setPodcasts(prev => [newPodcast, ...prev]);
+        setPodcasts((prev) => [newPodcast, ...prev]);
         setCurrentPodcast(newPodcast);
         toast.success(t('generate.success'));
         return true; // 停止轮询
@@ -467,7 +498,7 @@ const PodcastApp = () => {
   const startPolling = (episodeId: string) => {
     setIsQuerying(true);
     setCurrentEpisodeId(episodeId);
-    
+
     // 清除之前的轮询
     if (queryIntervalRef.current) {
       clearInterval(queryIntervalRef.current);
@@ -476,10 +507,10 @@ const PodcastApp = () => {
     // 等待 1 分钟后开始轮询
     console.log('⏳ 等待 60 秒后开始轮询...');
     toast.info('播客正在生成中，预计需要 1-2 分钟...');
-    
+
     setTimeout(() => {
       // 60 秒后首次查询
-      queryPodcastStatus(episodeId).then(shouldStop => {
+      queryPodcastStatus(episodeId).then((shouldStop) => {
         if (shouldStop) {
           setIsQuerying(false);
           setIsGenerating(false);
@@ -490,7 +521,7 @@ const PodcastApp = () => {
         // 设置轮询（每 10 秒查询一次）
         queryIntervalRef.current = setInterval(async () => {
           const shouldStop = await queryPodcastStatus(episodeId);
-          
+
           if (shouldStop) {
             if (queryIntervalRef.current) {
               clearInterval(queryIntervalRef.current);
@@ -547,7 +578,8 @@ const PodcastApp = () => {
       const requestBody: any = {
         mode,
         language,
-        voices: speakerCount === 'dual' ? voices : { speaker_1: voices.speaker_1 },
+        voices:
+          speakerCount === 'dual' ? voices : { speaker_1: voices.speaker_1 },
       };
 
       // 根据输入类型添加内容
@@ -562,7 +594,7 @@ const PodcastApp = () => {
         reader.onload = async (e) => {
           const fileContent = e.target?.result as string;
           requestBody.content = fileContent;
-          
+
           // 发送请求
           await sendGenerateRequest(requestBody);
         };
@@ -572,7 +604,6 @@ const PodcastApp = () => {
 
       // 发送请求
       await sendGenerateRequest(requestBody);
-
     } catch (error: any) {
       console.error('生成播客失败:', error);
       toast.error(error.message || t('generate.error'));
@@ -594,7 +625,9 @@ const PodcastApp = () => {
 
     if (!data.success) {
       if (data.insufficientCredits) {
-        toast.error(`${t('errors.insufficient_credits')}: ${data.requiredCredits} ${t('credits.required')}, ${data.remainingCredits} ${t('credits.remaining')}`);
+        toast.error(
+          `${t('errors.insufficient_credits')}: ${data.requiredCredits} ${t('credits.required')}, ${data.remainingCredits} ${t('credits.remaining')}`
+        );
       } else if (data.notConfigured) {
         toast.error(t('errors.not_configured'));
       } else {
@@ -653,26 +686,26 @@ const PodcastApp = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-950 via-primary/5 to-gray-950">
+    <div className="via-primary/5 from-background to-muted min-h-screen bg-gradient-to-b dark:from-gray-950 dark:to-gray-950">
       {/* 背景装饰 */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 h-96 w-96 rounded-full bg-primary/5 blur-3xl" />
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="bg-primary/10 absolute top-1/4 left-1/4 h-96 w-96 rounded-full blur-3xl" />
+        <div className="bg-primary/5 absolute right-1/4 bottom-1/4 h-96 w-96 rounded-full blur-3xl" />
       </div>
 
       <div className="relative z-10 container mx-auto px-4 py-24">
         {/* 标题 */}
         <ScrollAnimation>
-          <div className="text-center mb-12">
+          <div className="mb-12 text-center">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
             >
-              <h1 className="bg-gradient-to-r from-white via-primary/80 to-primary/60 bg-clip-text text-4xl font-bold text-transparent md:text-5xl mb-6">
+              <h1 className="via-primary/80 to-primary/60 mb-6 bg-gradient-to-r from-white bg-clip-text text-4xl font-bold text-transparent md:text-5xl">
                 {t('title')}
               </h1>
-              <p className="text-gray-300 text-lg md:text-xl max-w-3xl mx-auto">
+              <p className="text-muted-foreground mx-auto max-w-3xl text-lg md:text-xl dark:text-gray-300">
                 {t('subtitle')}
               </p>
             </motion.div>
@@ -681,35 +714,89 @@ const PodcastApp = () => {
 
         {/* 播客生成器 */}
         <ScrollAnimation delay={0.2}>
-          <div className="max-w-4xl mx-auto mb-12">
-            <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-primary/20 p-8">
-              <h2 className="text-2xl font-bold text-white mb-6">{t('generate.title')}</h2>
+          <div className="mx-auto mb-12 max-w-4xl">
+            <div className="border-primary/20 bg-muted/50 rounded-2xl border p-8 backdrop-blur-sm dark:bg-gray-900/50">
+              <h2 className="text-foreground mb-6 text-2xl font-bold dark:text-white">
+                {t('generate.title')}
+              </h2>
 
               {/* 模式选择 */}
               <div className="mb-6">
-                <label className="block text-white font-medium mb-3">{t('mode.title')}</label>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <label className="text-foreground mb-3 block font-medium dark:text-white">
+                  {t('mode.title')}
+                </label>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                   {(['quick', 'deep', 'debate'] as PodcastMode[]).map((m) => (
                     <button
                       key={m}
                       onClick={() => setMode(m)}
-                      className={`p-4 rounded-lg border transition-all duration-300 text-left ${
+                      className={`rounded-lg border p-4 text-left transition-all duration-300 ${
                         mode === m
-                          ? 'border-primary bg-primary/10'
-                          : 'border-gray-600 bg-gray-800/50 hover:border-primary/50'
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-border bg-background hover:border-primary/50 text-foreground dark:border-gray-600 dark:bg-gray-800/50 dark:text-white'
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-2">
+                      <div className="mb-2 flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          {m === 'quick' && <Zap className="h-5 w-5 text-primary" />}
-                          {m === 'deep' && <FileText className="h-5 w-5 text-primary" />}
-                          {m === 'debate' && <MessageSquare className="h-5 w-5 text-primary" />}
-                          <span className="text-white font-medium">{t(`mode.${m}.name`)}</span>
+                          {m === 'quick' && (
+                            <Zap
+                              className={`h-5 w-5 ${
+                                mode === m
+                                  ? 'text-primary-foreground'
+                                  : 'text-primary dark:text-primary'
+                              }`}
+                            />
+                          )}
+                          {m === 'deep' && (
+                            <FileText
+                              className={`h-5 w-5 ${
+                                mode === m
+                                  ? 'text-primary-foreground'
+                                  : 'text-primary dark:text-primary'
+                              }`}
+                            />
+                          )}
+                          {m === 'debate' && (
+                            <MessageSquare
+                              className={`h-5 w-5 ${
+                                mode === m
+                                  ? 'text-primary-foreground'
+                                  : 'text-primary dark:text-primary'
+                              }`}
+                            />
+                          )}
+                          <span className="font-medium">
+                            {t(`mode.${m}.name`)}
+                          </span>
                         </div>
-                        <span className="text-xs text-gray-400">{t(`mode.${m}.credits`)}</span>
+                        <span
+                          className={`text-xs ${
+                            mode === m
+                              ? 'text-primary-foreground/80'
+                              : 'text-muted-foreground dark:text-gray-400'
+                          }`}
+                        >
+                          {t(`mode.${m}.credits`)}
+                        </span>
                       </div>
-                      <p className="text-gray-400 text-sm mb-1">{t(`mode.${m}.description`)}</p>
-                      <p className="text-gray-500 text-xs">{t(`mode.${m}.duration`)}</p>
+                      <p
+                        className={`mb-1 text-sm ${
+                          mode === m
+                            ? 'text-primary-foreground/90'
+                            : 'text-muted-foreground dark:text-gray-400'
+                        }`}
+                      >
+                        {t(`mode.${m}.description`)}
+                      </p>
+                      <p
+                        className={`text-xs ${
+                          mode === m
+                            ? 'text-primary-foreground/70'
+                            : 'text-muted-foreground dark:text-gray-500'
+                        }`}
+                      >
+                        {t(`mode.${m}.duration`)}
+                      </p>
                     </button>
                   ))}
                 </div>
@@ -717,33 +804,35 @@ const PodcastApp = () => {
 
               {/* 输入区域 */}
               <div className="mb-6">
-                <label className="block text-white font-medium mb-3">{t('upload.title')}</label>
-                
+                <label className="text-foreground mb-3 block font-medium dark:text-white">
+                  {t('upload.title')}
+                </label>
+
                 {/* 输入类型切换 */}
-                <div className="flex gap-2 mb-4">
+                <div className="mb-4 flex gap-2">
                   <Button
                     variant={inputType === 'text' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setInputType('text')}
                   >
-                    <FileText className="h-4 w-4 mr-2" />
-                    文本
+                    <FileText className="mr-2 h-4 w-4" />
+                    {t('upload.input_type.text')}
                   </Button>
                   <Button
                     variant={inputType === 'file' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setInputType('file')}
                   >
-                    <Upload className="h-4 w-4 mr-2" />
-                    文件
+                    <Upload className="mr-2 h-4 w-4" />
+                    {t('upload.input_type.file')}
                   </Button>
                   <Button
                     variant={inputType === 'link' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setInputType('link')}
                   >
-                    <LinkIcon className="h-4 w-4 mr-2" />
-                    链接
+                    <LinkIcon className="mr-2 h-4 w-4" />
+                    {t('upload.input_type.link')}
                   </Button>
                 </div>
 
@@ -753,7 +842,7 @@ const PodcastApp = () => {
                     value={textContent}
                     onChange={(e) => setTextContent(e.target.value)}
                     placeholder={t('upload.drag_text')}
-                    className="w-full h-32 p-4 bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-primary focus:outline-none resize-none"
+                    className="focus:border-primary border-border bg-background/50 text-foreground placeholder-muted-foreground h-32 w-full resize-none rounded-lg border p-4 focus:outline-none dark:border-gray-600 dark:bg-gray-800/50 dark:text-white dark:placeholder-gray-400"
                   />
                 )}
 
@@ -769,18 +858,26 @@ const PodcastApp = () => {
                     />
                     <div
                       onClick={() => fileInputRef.current?.click()}
-                      className="w-full h-32 p-4 bg-gray-800/50 border-2 border-dashed border-gray-600 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-primary transition-colors"
+                      className="hover:border-primary border-border bg-muted/50 flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-4 transition-colors dark:border-gray-600 dark:bg-gray-800/50"
                     >
-                      <Upload className="h-8 w-8 text-gray-400 mb-2" />
+                      <Upload className="mb-2 h-8 w-8 text-gray-400" />
                       {selectedFile ? (
                         <div className="text-center">
-                          <p className="text-white">{selectedFile.name}</p>
-                          <p className="text-gray-400 text-sm">{(selectedFile.size / 1024).toFixed(2)} KB</p>
+                          <p className="text-foreground dark:text-white">
+                            {selectedFile.name}
+                          </p>
+                          <p className="text-muted-foreground text-sm dark:text-gray-400">
+                            {(selectedFile.size / 1024).toFixed(2)} KB
+                          </p>
                         </div>
                       ) : (
                         <div className="text-center">
-                          <p className="text-white">{t('upload.drag_text')}</p>
-                          <p className="text-gray-400 text-sm">{t('upload.supported_formats')}</p>
+                          <p className="text-foreground dark:text-white">
+                            {t('upload.drag_text')}
+                          </p>
+                          <p className="text-muted-foreground text-sm dark:text-gray-400">
+                            {t('upload.supported_formats')}
+                          </p>
                         </div>
                       )}
                     </div>
@@ -791,7 +888,7 @@ const PodcastApp = () => {
                         onClick={() => setSelectedFile(null)}
                         className="mt-2"
                       >
-                        <X className="h-4 w-4 mr-2" />
+                        <X className="mr-2 h-4 w-4" />
                         清除文件
                       </Button>
                     )}
@@ -802,23 +899,25 @@ const PodcastApp = () => {
                 {inputType === 'link' && (
                   <div>
                     <div className="relative">
-                      <LinkIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                      <LinkIcon className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-gray-400" />
                       <input
                         type="url"
                         value={linkContent}
                         onChange={(e) => setLinkContent(e.target.value)}
                         placeholder={t('upload.paste_link')}
-                        className="w-full pl-10 pr-4 py-3 bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-primary focus:outline-none"
+                        className="focus:border-primary border-border bg-background/50 text-foreground placeholder-muted-foreground w-full rounded-lg border py-3 pr-4 pl-10 focus:outline-none dark:border-gray-600 dark:bg-gray-800/50 dark:text-white dark:placeholder-gray-400"
                       />
                     </div>
                     {/* 支持的平台 */}
                     <div className="mt-3">
-                      <p className="text-sm text-gray-400 mb-2">{t('upload.supported_platforms')}:</p>
+                      <p className="text-muted-foreground mb-2 text-sm dark:text-gray-400">
+                        {t('upload.supported_platforms')}:
+                      </p>
                       <div className="flex flex-wrap gap-2">
                         {SUPPORTED_PLATFORMS.map((platform) => (
                           <div
                             key={platform.name}
-                            className="px-3 py-1 bg-gray-800/50 rounded-full text-xs text-gray-300 flex items-center gap-1"
+                            className="bg-muted/50 text-foreground/70 flex items-center gap-1 rounded-full px-3 py-1 text-xs dark:bg-gray-800/50 dark:text-gray-300"
                           >
                             <span>{platform.icon}</span>
                             <span>{platform.name}</span>
@@ -832,14 +931,14 @@ const PodcastApp = () => {
 
               {/* 语言选择 */}
               <div className="mb-6">
-                <label className="block text-white font-medium mb-3">
-                  <Globe className="inline h-4 w-4 mr-2" />
+                <label className="text-foreground mb-3 block font-medium dark:text-white">
+                  <Globe className="mr-2 inline h-4 w-4" />
                   {t('settings.language.label')}
                 </label>
                 <select
                   value={language}
                   onChange={(e) => setLanguage(e.target.value)}
-                  className="w-full p-3 bg-gray-800/50 border border-gray-600 rounded-lg text-white focus:border-primary focus:outline-none"
+                  className="focus:border-primary border-border bg-background/50 text-foreground w-full rounded-lg border p-3 focus:outline-none dark:border-gray-600 dark:bg-gray-800/50 dark:text-white"
                 >
                   {/* ListenHub API 只支持 en, zh, ja 三种语言 */}
                   <option value="zh">{t('settings.language.zh')}</option>
@@ -850,30 +949,30 @@ const PodcastApp = () => {
 
               {/* 人数和音色选择 */}
               <div className="mb-6">
-                <label className="block text-white font-medium mb-3">
-                  <Users className="inline h-4 w-4 mr-2" />
+                <label className="text-foreground mb-3 block font-medium dark:text-white">
+                  <Users className="mr-2 inline h-4 w-4" />
                   {t('settings.speakers.label')}
                 </label>
-                <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="mb-4 grid grid-cols-2 gap-4">
                   <button
                     onClick={() => setSpeakerCount('single')}
-                    className={`p-3 rounded-lg border transition-all ${
+                    className={`rounded-lg border p-3 transition-all ${
                       speakerCount === 'single'
-                        ? 'border-primary bg-primary/10'
-                        : 'border-gray-600 bg-gray-800/50 hover:border-primary/50'
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'border-border bg-background hover:border-primary/50 text-foreground dark:border-gray-600 dark:bg-gray-800/50 dark:text-white'
                     }`}
                   >
-                    <span className="text-white">{t('settings.speakers.single')}</span>
+                    <span>{t('settings.speakers.single')}</span>
                   </button>
                   <button
                     onClick={() => setSpeakerCount('dual')}
-                    className={`p-3 rounded-lg border transition-all ${
+                    className={`rounded-lg border p-3 transition-all ${
                       speakerCount === 'dual'
-                        ? 'border-primary bg-primary/10'
-                        : 'border-gray-600 bg-gray-800/50 hover:border-primary/50'
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'border-border bg-background hover:border-primary/50 text-foreground dark:border-gray-600 dark:bg-gray-800/50 dark:text-white'
                     }`}
                   >
-                    <span className="text-white">{t('settings.speakers.dual')}</span>
+                    <span>{t('settings.speakers.dual')}</span>
                   </button>
                 </div>
 
@@ -881,33 +980,59 @@ const PodcastApp = () => {
                 <div className="space-y-4">
                   {/* 音色 1 */}
                   <div>
-                    <label className="block text-sm text-gray-400 mb-3">
-                      <Mic className="inline h-3 w-3 mr-1" />
+                    <label className="text-muted-foreground mb-3 block text-sm dark:text-gray-400">
+                      <Mic className="mr-1 inline h-3 w-3" />
                       {speakerCount === 'single' ? '选择音色' : '音色 1'}
-                      {isLoadingSpeakers && <span className="ml-2 text-xs text-gray-500">(加载中...)</span>}
+                      {isLoadingSpeakers && (
+                        <span className="ml-2 text-xs text-gray-500">
+                          (加载中...)
+                        </span>
+                      )}
                     </label>
-                    <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                    <div className="custom-scrollbar grid max-h-60 grid-cols-2 gap-2 overflow-y-auto pr-2">
                       {availableSpeakers.map((speaker) => {
-                        const isSelected = voices.speaker_1 === speaker.speakerId;
+                        const isSelected =
+                          voices.speaker_1 === speaker.speakerId;
                         const isPlaying = playingDemoId === speaker.speakerId;
                         return (
                           <div
                             key={speaker.speakerId}
-                            onClick={() => setVoices({ ...voices, speaker_1: speaker.speakerId })}
-                            className={`relative p-3 rounded-lg border cursor-pointer transition-all ${
+                            onClick={() =>
+                              setVoices({
+                                ...voices,
+                                speaker_1: speaker.speakerId,
+                              })
+                            }
+                            className={`relative cursor-pointer rounded-lg border p-3 transition-all ${
                               isSelected
-                                ? 'border-primary bg-primary/10'
-                                : 'border-gray-600 bg-gray-800/50 hover:border-primary/50'
+                                ? 'border-primary bg-primary text-primary-foreground'
+                                : 'border-border bg-background hover:border-primary/50 text-foreground dark:border-gray-600 dark:bg-gray-800/50 dark:text-white'
                             }`}
                           >
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                                  speaker.gender === 'male' ? 'bg-blue-500/20 text-blue-400' : 'bg-pink-500/20 text-pink-400'
-                                }`}>
+                                <div
+                                  className={`flex h-8 w-8 items-center justify-center rounded-full ${
+                                    isSelected
+                                      ? speaker.gender === 'male'
+                                        ? 'bg-blue-500/30 text-blue-200'
+                                        : 'bg-pink-500/30 text-pink-200'
+                                      : speaker.gender === 'male'
+                                        ? 'bg-blue-500/20 text-blue-400 dark:text-blue-400'
+                                        : 'bg-pink-500/20 text-pink-400 dark:text-pink-400'
+                                  }`}
+                                >
                                   {speaker.gender === 'male' ? '👨' : '👩'}
                                 </div>
-                                <span className="text-white text-sm font-medium">{speaker.speakerName}</span>
+                                <span
+                                  className={`text-sm font-medium ${
+                                    isSelected
+                                      ? 'text-primary-foreground'
+                                      : 'text-foreground dark:text-white'
+                                  }`}
+                                >
+                                  {speaker.speakerName}
+                                </span>
                               </div>
                               {speaker.demoAudioUrl && (
                                 <button
@@ -915,22 +1040,28 @@ const PodcastApp = () => {
                                     e.stopPropagation();
                                     handlePlayDemo(speaker);
                                   }}
-                                  className={`p-1.5 rounded-full transition-all ${
-                                    isPlaying ? 'bg-primary text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                  className={`rounded-full p-1.5 transition-all ${
+                                    isPlaying
+                                      ? 'bg-primary text-primary-foreground'
+                                      : 'bg-muted text-foreground/70 hover:bg-muted/80 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
                                   }`}
                                 >
-                                  {isPlaying ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+                                  {isPlaying ? (
+                                    <Pause className="h-3 w-3" />
+                                  ) : (
+                                    <Play className="h-3 w-3" />
+                                  )}
                                 </button>
                               )}
                             </div>
                             {isSelected && (
-                              <div className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full"></div>
+                              <div className="bg-primary absolute top-1 right-1 h-2 w-2 rounded-full"></div>
                             )}
                           </div>
                         );
                       })}
                       {availableSpeakers.length === 0 && !isLoadingSpeakers && (
-                        <div className="col-span-2 text-center text-gray-400 py-4">
+                        <div className="text-muted-foreground col-span-2 py-4 text-center dark:text-gray-400">
                           暂无可用音色
                         </div>
                       )}
@@ -940,33 +1071,59 @@ const PodcastApp = () => {
                   {/* 音色 2 (双人模式) */}
                   {speakerCount === 'dual' && (
                     <div>
-                      <label className="block text-sm text-gray-400 mb-3">
-                        <Mic className="inline h-3 w-3 mr-1" />
+                      <label className="text-muted-foreground mb-3 block text-sm dark:text-gray-400">
+                        <Mic className="mr-1 inline h-3 w-3" />
                         音色 2
-                        {isLoadingSpeakers && <span className="ml-2 text-xs text-gray-500">(加载中...)</span>}
+                        {isLoadingSpeakers && (
+                          <span className="ml-2 text-xs text-gray-500">
+                            (加载中...)
+                          </span>
+                        )}
                       </label>
-                      <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                      <div className="custom-scrollbar grid max-h-60 grid-cols-2 gap-2 overflow-y-auto pr-2">
                         {availableSpeakers.map((speaker) => {
-                          const isSelected = voices.speaker_2 === speaker.speakerId;
+                          const isSelected =
+                            voices.speaker_2 === speaker.speakerId;
                           const isPlaying = playingDemoId === speaker.speakerId;
                           return (
                             <div
                               key={speaker.speakerId}
-                              onClick={() => setVoices({ ...voices, speaker_2: speaker.speakerId })}
-                              className={`relative p-3 rounded-lg border cursor-pointer transition-all ${
+                              onClick={() =>
+                                setVoices({
+                                  ...voices,
+                                  speaker_2: speaker.speakerId,
+                                })
+                              }
+                              className={`relative cursor-pointer rounded-lg border p-3 transition-all ${
                                 isSelected
-                                  ? 'border-primary bg-primary/10'
-                                  : 'border-gray-600 bg-gray-800/50 hover:border-primary/50'
+                                  ? 'border-primary bg-primary text-primary-foreground'
+                                  : 'border-border bg-background hover:border-primary/50 text-foreground dark:border-gray-600 dark:bg-gray-800/50 dark:text-white'
                               }`}
                             >
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                                    speaker.gender === 'male' ? 'bg-blue-500/20 text-blue-400' : 'bg-pink-500/20 text-pink-400'
-                                  }`}>
+                                  <div
+                                    className={`flex h-8 w-8 items-center justify-center rounded-full ${
+                                      isSelected
+                                        ? speaker.gender === 'male'
+                                          ? 'bg-blue-500/30 text-blue-200'
+                                          : 'bg-pink-500/30 text-pink-200'
+                                        : speaker.gender === 'male'
+                                          ? 'bg-blue-500/20 text-blue-400 dark:text-blue-400'
+                                          : 'bg-pink-500/20 text-pink-400 dark:text-pink-400'
+                                    }`}
+                                  >
                                     {speaker.gender === 'male' ? '👨' : '👩'}
                                   </div>
-                                  <span className="text-white text-sm font-medium">{speaker.speakerName}</span>
+                                  <span
+                                    className={`text-sm font-medium ${
+                                      isSelected
+                                        ? 'text-primary-foreground'
+                                        : 'text-foreground dark:text-white'
+                                    }`}
+                                  >
+                                    {speaker.speakerName}
+                                  </span>
                                 </div>
                                 {speaker.demoAudioUrl && (
                                   <button
@@ -974,25 +1131,32 @@ const PodcastApp = () => {
                                       e.stopPropagation();
                                       handlePlayDemo(speaker);
                                     }}
-                                    className={`p-1.5 rounded-full transition-all ${
-                                      isPlaying ? 'bg-primary text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                    className={`rounded-full p-1.5 transition-all ${
+                                      isPlaying
+                                        ? 'bg-primary text-white'
+                                        : 'bg-muted text-foreground/70 hover:bg-muted/80 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
                                     }`}
                                   >
-                                    {isPlaying ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+                                    {isPlaying ? (
+                                      <Pause className="h-3 w-3" />
+                                    ) : (
+                                      <Play className="h-3 w-3" />
+                                    )}
                                   </button>
                                 )}
                               </div>
                               {isSelected && (
-                                <div className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full"></div>
+                                <div className="bg-primary absolute top-1 right-1 h-2 w-2 rounded-full"></div>
                               )}
                             </div>
                           );
                         })}
-                        {availableSpeakers.length === 0 && !isLoadingSpeakers && (
-                          <div className="col-span-2 text-center text-gray-400 py-4">
-                            暂无可用音色
-                          </div>
-                        )}
+                        {availableSpeakers.length === 0 &&
+                          !isLoadingSpeakers && (
+                            <div className="text-muted-foreground col-span-2 py-4 text-center dark:text-gray-400">
+                              暂无可用音色
+                            </div>
+                          )}
                       </div>
                     </div>
                   )}
@@ -1003,17 +1167,19 @@ const PodcastApp = () => {
               <Button
                 onClick={handleGeneratePodcast}
                 disabled={isGenerating || isQuerying}
-                className="w-full bg-gradient-to-r from-primary to-primary/70 hover:from-primary/90 hover:to-primary/80 text-white py-4"
+                className="from-primary to-primary/70 hover:from-primary/90 hover:to-primary/80 w-full bg-gradient-to-r py-4 text-white"
               >
                 {isGenerating || isQuerying ? (
                   <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
-                    {isQuerying ? t('generate.querying') : t('generate.generating')}
+                    <div className="mr-2 h-5 w-5 animate-spin rounded-full border-b-2 border-white" />
+                    {isQuerying
+                      ? t('generate.querying')
+                      : t('generate.generating')}
                   </>
                 ) : (
                   <>
-                    <Sparkles className="h-5 w-5 mr-2" />
-                    {t('generate.button')} ({getCreditsForMode(mode)} {t('credits.required')})
+                    <CreditsCost credits={getCreditsForMode(mode)} />
+                    {t('generate.button')}
                   </>
                 )}
               </Button>
@@ -1024,40 +1190,44 @@ const PodcastApp = () => {
         {/* 播客播放器 */}
         {currentPodcast && currentPodcast.audioUrl && (
           <ScrollAnimation delay={0.3}>
-            <div className="max-w-4xl mx-auto mb-12">
-              <div className="bg-gradient-to-r from-primary/20 to-primary/5 rounded-2xl border border-primary/30 p-8">
-                <div className="flex items-center justify-between mb-6">
+            <div className="mx-auto mb-12 max-w-4xl">
+              <div className="from-primary/20 to-primary/5 border-primary/30 dark:from-primary/20 dark:to-primary/5 rounded-2xl border bg-gradient-to-r p-8">
+                <div className="mb-6 flex items-center justify-between">
                   <div>
-                    <h3 className="text-2xl font-bold text-white mb-2">{currentPodcast.title}</h3>
-                    <p className="text-gray-300">{currentPodcast.description}</p>
+                    <h3 className="text-foreground mb-2 text-2xl font-bold dark:text-white">
+                      {currentPodcast.title}
+                    </h3>
+                    <p className="text-muted-foreground dark:text-gray-300">
+                      {currentPodcast.description}
+                    </p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       className="border-primary/30 text-primary/80 hover:bg-primary/10"
                       onClick={handleDownload}
                     >
-                      <Download className="h-4 w-4 mr-2" />
+                      <Download className="mr-2 h-4 w-4" />
                       {t('player.download')}
                     </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       className="border-primary/30 text-primary/80 hover:bg-primary/10"
                       onClick={handleShare}
                     >
-                      <Share2 className="h-4 w-4 mr-2" />
+                      <Share2 className="mr-2 h-4 w-4" />
                       {t('player.share')}
                     </Button>
                   </div>
                 </div>
 
                 {/* 播放控制 */}
-                <div className="bg-gray-900/50 rounded-xl p-6">
+                <div className="bg-muted/50 rounded-xl p-6 dark:bg-gray-900/50">
                   {/* 进度条 */}
                   <div className="mb-4">
-                    <div className="flex justify-between text-sm text-gray-400 mb-2">
+                    <div className="text-muted-foreground mb-2 flex justify-between text-sm dark:text-gray-400">
                       <span>{formatTime(currentTime)}</span>
                       <span>{formatTime(currentPodcast.duration)}</span>
                     </div>
@@ -1067,9 +1237,9 @@ const PodcastApp = () => {
                       max={currentPodcast.duration}
                       value={currentTime}
                       onChange={handleSeek}
-                      className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                      className="bg-muted h-2 w-full cursor-pointer appearance-none rounded-lg dark:bg-gray-700"
                       style={{
-                        background: `linear-gradient(to right, rgb(139,92,246) 0%, rgb(139,92,246) ${(currentTime / currentPodcast.duration) * 100}%, #4b5563 ${(currentTime / currentPodcast.duration) * 100}%, #4b5563 100%)`
+                        background: `linear-gradient(to right, rgb(139,92,246) 0%, rgb(139,92,246) ${(currentTime / currentPodcast.duration) * 100}%, #4b5563 ${(currentTime / currentPodcast.duration) * 100}%, #4b5563 100%)`,
                       }}
                     />
                   </div>
@@ -1080,24 +1250,24 @@ const PodcastApp = () => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-gray-400 hover:text-white"
+                        className="text-muted-foreground hover:text-foreground dark:text-gray-400 dark:hover:text-white"
                       >
                         <SkipBack className="h-5 w-5" />
                       </Button>
                       <Button
                         onClick={() => handlePlayPause()}
-                        className="bg-gradient-to-r from-primary to-primary/70 hover:from-primary/90 hover:to-primary/80 text-white w-12 h-12 rounded-full"
+                        className="from-primary to-primary/70 hover:from-primary/90 hover:to-primary/80 h-12 w-12 rounded-full bg-gradient-to-r text-white"
                       >
                         {isPlaying ? (
                           <Pause className="h-5 w-5" />
                         ) : (
-                          <Play className="h-5 w-5 ml-1" />
+                          <Play className="ml-1 h-5 w-5" />
                         )}
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-gray-400 hover:text-white"
+                        className="text-muted-foreground hover:text-foreground dark:text-gray-400 dark:hover:text-white"
                       >
                         <SkipForward className="h-5 w-5" />
                       </Button>
@@ -1113,9 +1283,9 @@ const PodcastApp = () => {
                         step="0.1"
                         value={volume}
                         onChange={handleVolumeChange}
-                        className="w-24 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                        className="h-2 w-24 cursor-pointer appearance-none rounded-lg bg-gray-700"
                         style={{
-                          background: `linear-gradient(to right, rgb(139,92,246) 0%, rgb(139,92,246) ${volume * 100}%, #4b5563 ${volume * 100}%, #4b5563 100%)`
+                          background: `linear-gradient(to right, rgb(139,92,246) 0%, rgb(139,92,246) ${volume * 100}%, #4b5563 ${volume * 100}%, #4b5563 100%)`,
                         }}
                       />
                     </div>
@@ -1139,8 +1309,10 @@ const PodcastApp = () => {
 
         {/* 播客列表 */}
         <ScrollAnimation delay={0.4}>
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-2xl font-bold text-white mb-6">{t('library.title')}</h2>
+          <div className="mx-auto max-w-4xl">
+            <h2 className="text-foreground mb-6 text-2xl font-bold dark:text-white">
+              {t('library.title')}
+            </h2>
             <div className="space-y-4">
               {podcasts.length > 0 ? (
                 podcasts.map((podcast) => (
@@ -1149,23 +1321,27 @@ const PodcastApp = () => {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.5 }}
-                    className={`bg-gray-900/50 backdrop-blur-sm rounded-xl border transition-all duration-300 cursor-pointer ${
+                    className={`bg-muted/50 cursor-pointer rounded-xl border backdrop-blur-sm transition-all duration-300 dark:bg-gray-900/50 ${
                       currentPodcast?.id === podcast.id
                         ? 'border-primary bg-primary/10'
-                        : 'border-gray-600 hover:border-primary/50'
+                        : 'hover:border-primary/50 border-gray-600'
                     }`}
                     onClick={() => handlePlayPause(podcast)}
                   >
                     <div className="p-6">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary/70 rounded-lg flex items-center justify-center">
+                          <div className="from-primary to-primary/70 flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br">
                             <Headphones className="h-6 w-6 text-white" />
                           </div>
                           <div>
-                            <h3 className="text-lg font-semibold text-white">{podcast.title}</h3>
-                            <p className="text-gray-400 text-sm mb-1">{podcast.description}</p>
-                            <div className="flex items-center gap-4 text-xs text-gray-500">
+                            <h3 className="text-foreground text-lg font-semibold dark:text-white">
+                              {podcast.title}
+                            </h3>
+                            <p className="text-muted-foreground mb-1 text-sm dark:text-gray-400">
+                              {podcast.description}
+                            </p>
+                            <div className="text-muted-foreground flex items-center gap-4 text-xs dark:text-gray-500">
                               <span className="flex items-center gap-1">
                                 <Clock className="h-3 w-3" />
                                 {formatTime(podcast.duration)}
@@ -1174,7 +1350,11 @@ const PodcastApp = () => {
                                 {t(`mode.${podcast.mode}.name`)}
                               </span>
                               <span className="flex items-center gap-1">
-                                {podcast.createdDate.toLocaleDateString()} {podcast.createdDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                {podcast.createdDate.toLocaleDateString()}{' '}
+                                {podcast.createdDate.toLocaleTimeString([], {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
                               </span>
                             </div>
                           </div>
@@ -1195,10 +1375,14 @@ const PodcastApp = () => {
                   </motion.div>
                 ))
               ) : (
-                <div className="text-center py-16">
-                  <Headphones className="h-20 w-20 text-gray-600 mx-auto mb-6" />
-                  <h3 className="text-xl font-semibold text-white mb-4">{t('library.no_podcasts')}</h3>
-                  <p className="text-gray-400 mb-6">{t('library.start_creating')}</p>
+                <div className="py-16 text-center">
+                  <Headphones className="text-muted-foreground mx-auto mb-6 h-20 w-20 dark:text-gray-600" />
+                  <h3 className="text-foreground mb-4 text-xl font-semibold dark:text-white">
+                    {t('library.no_podcasts')}
+                  </h3>
+                  <p className="text-muted-foreground mb-6 dark:text-gray-400">
+                    {t('library.start_creating')}
+                  </p>
                 </div>
               )}
             </div>
@@ -1207,24 +1391,38 @@ const PodcastApp = () => {
 
         {/* 使用提示 */}
         <ScrollAnimation delay={0.5}>
-          <div className="max-w-4xl mx-auto mt-12">
-            <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-primary/20 p-6">
-              <h3 className="text-lg font-semibold text-white mb-4">{t('features.title')}</h3>
-              <div className="grid md:grid-cols-3 gap-4">
+          <div className="mx-auto mt-12 max-w-4xl">
+            <div className="border-primary/20 bg-muted/50 rounded-2xl border p-6 backdrop-blur-sm dark:bg-gray-900/50">
+              <h3 className="text-foreground mb-4 text-lg font-semibold dark:text-white">
+                {t('features.title')}
+              </h3>
+              <div className="grid gap-4 md:grid-cols-3">
                 <div className="text-center">
-                  <Upload className="h-8 w-8 text-primary mx-auto mb-2" />
-                  <p className="text-white font-medium mb-1">{t('features.multi_input.title')}</p>
-                  <p className="text-gray-400 text-sm">{t('features.multi_input.description')}</p>
+                  <Upload className="text-primary mx-auto mb-2 h-8 w-8" />
+                  <p className="text-foreground mb-1 font-medium dark:text-white">
+                    {t('features.multi_input.title')}
+                  </p>
+                  <p className="text-muted-foreground text-sm dark:text-gray-400">
+                    {t('features.multi_input.description')}
+                  </p>
                 </div>
                 <div className="text-center">
-                  <Sparkles className="h-8 w-8 text-primary mx-auto mb-2" />
-                  <p className="text-white font-medium mb-1">{t('features.ai_optimize.title')}</p>
-                  <p className="text-gray-400 text-sm">{t('features.ai_optimize.description')}</p>
+                  <Sparkles className="text-primary mx-auto mb-2 h-8 w-8" />
+                  <p className="text-foreground mb-1 font-medium dark:text-white">
+                    {t('features.ai_optimize.title')}
+                  </p>
+                  <p className="text-muted-foreground text-sm dark:text-gray-400">
+                    {t('features.ai_optimize.description')}
+                  </p>
                 </div>
                 <div className="text-center">
-                  <Headphones className="h-8 w-8 text-primary mx-auto mb-2" />
-                  <p className="text-white font-medium mb-1">{t('features.anytime.title')}</p>
-                  <p className="text-gray-400 text-sm">{t('features.anytime.description')}</p>
+                  <Headphones className="text-primary mx-auto mb-2 h-8 w-8" />
+                  <p className="text-foreground mb-1 font-medium dark:text-white">
+                    {t('features.anytime.title')}
+                  </p>
+                  <p className="text-muted-foreground text-sm dark:text-gray-400">
+                    {t('features.anytime.description')}
+                  </p>
                 </div>
               </div>
             </div>

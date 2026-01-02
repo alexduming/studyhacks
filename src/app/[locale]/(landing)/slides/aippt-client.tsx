@@ -1403,34 +1403,34 @@ export default function AIPPTClient({ initialPresentation }: AIPPTClientProps) {
 
   const renderOutlineStep = () => (
     <div className="bg-background mx-auto flex h-[calc(100vh-200px)] max-w-7xl overflow-hidden rounded-xl border shadow-2xl">
-      <div className="hidden w-1/3 flex-col border-r bg-black p-6 md:flex">
-        <h3 className="text-primary/70 mb-4 flex items-center gap-2 font-mono text-xs tracking-widest uppercase">
+      <div className="hidden w-1/3 flex-col border-r bg-muted/30 dark:bg-black p-6 md:flex">
+        <h3 className="text-primary/70 mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide">
           {isAnalyzing ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            <Sparkles className="h-3 w-3" />
+            <Sparkles className="h-4 w-4" />
           )}
           Generating...
         </h3>
         <div
           ref={logContainerRef}
-          className="custom-scrollbar flex-1 overflow-y-auto font-mono text-xs leading-relaxed whitespace-pre-wrap text-green-500/80"
+          className="custom-scrollbar flex-1 overflow-y-auto text-sm leading-relaxed whitespace-pre-wrap text-foreground/80 dark:text-green-500/80"
         >
           {isParsingFiles && parsingProgress ? (
             <div className="space-y-2">
-              <span className="animate-pulse text-yellow-500">
+              <span className="animate-pulse text-primary">
                 📸 {parsingProgress}
               </span>
-              <div className="text-green-700">
+              <div className="text-muted-foreground dark:text-green-700">
                 {t('input_step.analyzing_hint')}
                 <br />
                 {t('input_step.quality_hint')}
               </div>
             </div>
           ) : completion ? (
-            completion
+            <div className="text-foreground dark:text-green-500/80">{completion}</div>
           ) : (
-            <span className="animate-pulse text-green-900">
+            <span className="animate-pulse text-muted-foreground dark:text-green-900">
               Waiting for tokens...
             </span>
           )}
