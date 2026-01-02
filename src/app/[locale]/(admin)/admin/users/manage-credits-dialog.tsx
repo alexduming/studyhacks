@@ -27,8 +27,12 @@ import {
 } from '@/shared/components/ui/select';
 import { Textarea } from '@/shared/components/ui/textarea';
 
-const initialState = {
-  error: '',
+type ManageCreditsState = {
+  success: boolean;
+  error?: string;
+};
+
+const initialState: ManageCreditsState = {
   success: false,
 };
 

@@ -21,7 +21,15 @@ const manageCreditsSchema = z.object({
   reason: z.string().optional(),
 });
 
-export async function manageUserCredits(prevState: any, formData: FormData) {
+type ManageCreditsState = {
+  success: boolean;
+  error?: string;
+};
+
+export async function manageUserCredits(
+  _prevState: ManageCreditsState,
+  formData: FormData
+): Promise<ManageCreditsState> {
   // Use a fixed locale for admin actions logging or default
   // Ideally, we should get the locale from the request context if possible, 
   // but for server actions invoked from client, we focus on the logic.
@@ -29,13 +37,13 @@ export async function manageUserCredits(prevState: any, formData: FormData) {
   // 1. Permission Check
   // We check for both USERS_WRITE (modifying user state) and CREDITS_WRITE (modifying credits)
   try {
-     // Note: requirePermission throws if invalid. 
-     // We don't have easy access to redirectUrl here without knowing the current path,
-     // but we want to return an error object anyway, not redirect the whole page if it's an API call style action.
-     // So we wrap in try/catch.
-     await requirePermission({ code: PERMISSIONS.CREDITS_WRITE });
+    // Note: requirePermission throws if invalid.
+    // We don't have easy access to redirectUrl here without knowing the current path,
+    // but we want to return an error object anyway, not redirect the whole page if it's an API call style action.
+    // So we wrap in try/catch.
+    await requirePermission({ code: PERMISSIONS.CREDITS_WRITE });
   } catch (error) {
-     return { error: 'Permission denied' };
+    return { success: false, error: 'Permission denied' };
   }
 
   const data = {
@@ -48,7 +56,7 @@ export async function manageUserCredits(prevState: any, formData: FormData) {
   const validated = manageCreditsSchema.safeParse(data);
 
   if (!validated.success) {
-    return { error: 'Invalid input parameters' };
+    return { success: false, error: 'Invalid input parameters' };
   }
 
   const { userId, amount, type, reason } = validated.data;
@@ -81,7 +89,10 @@ export async function manageUserCredits(prevState: any, formData: FormData) {
     return { success: true };
   } catch (error: any) {
     console.error('Manage Credits Error:', error);
-    return { error: error.message || 'Failed to update credits' };
+    return {
+      success: false,
+      error: error.message || 'Failed to update credits',
+    };
   }
 }
 
