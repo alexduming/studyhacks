@@ -78,9 +78,12 @@ export async function savePodcast(data: {
 
     return {
       ...result,
+      description: result.description || undefined,
+      coverUrl: result.coverUrl || undefined,
+      outline: result.outline || undefined,
       speakerIds: result.speakerIds ? JSON.parse(result.speakerIds) : undefined,
       scripts: result.scripts ? JSON.parse(result.scripts) : undefined,
-    };
+    } as PodcastData;
   } catch (error) {
     console.error('保存播客失败:', error);
     throw new Error('Failed to save podcast');
