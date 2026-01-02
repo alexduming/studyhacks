@@ -2,76 +2,614 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Pause, SkipBack, SkipForward, Volume2, Upload, Mic, Headphones, Clock, Download, Share2, Sparkles } from 'lucide-react';
+import { 
+  Play, Pause, SkipBack, SkipForward, Volume2, Upload, Mic, 
+  Headphones, Clock, Download, Share2, Sparkles, Link as LinkIcon,
+  FileText, Zap, Users, MessageSquare, Globe, X
+} from 'lucide-react';
 
 import { Button } from '@/shared/components/ui/button';
 import { ScrollAnimation } from '@/shared/components/ui/scroll-animation';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
+// 播客模式类型
+type PodcastMode = 'quick' | 'deep' | 'debate';
+
+// 输入类型
+type InputType = 'text' | 'file' | 'link';
+
+// 音色配置
+interface VoiceConfig {
+  speaker_1: string;
+  speaker_2?: string;
+}
+
+// 播客数据接口
 interface Podcast {
-  id: number;
+  id: string;
   title: string;
   description: string;
   duration: number;
-  voiceType: 'professional' | 'friendly' | 'academic';
-  content: string;
+  mode: PodcastMode;
+  language: string;
+  audioUrl?: string;
   createdDate: Date;
   isPlaying?: boolean;
 }
 
+// 音色接口
+interface Speaker {
+  speakerId: string;
+  speakerName: string;
+  language: string;
+  gender?: string;
+  demoAudioUrl?: string;
+}
+
+/**
+ * 支持的平台Logo配置
+ * 根据 ListenHub 文档，支持常见的视频和文章平台
+ */
+const SUPPORTED_PLATFORMS = [
+  { name: 'YouTube', icon: '🎬', domain: 'youtube.com' },
+  { name: 'Bilibili', icon: '📺', domain: 'bilibili.com' },
+  { name: 'Twitter/X', icon: '𝕏', domain: 'twitter.com' },
+  { name: 'Medium', icon: '📝', domain: 'medium.com' },
+  { name: 'Reddit', icon: '🔴', domain: 'reddit.com' },
+  { name: '知乎', icon: '知', domain: 'zhihu.com' },
+  { name: '微信公众号', icon: '微', domain: 'mp.weixin.qq.com' },
+];
+
 const PodcastApp = () => {
   const t = useTranslations('podcast');
-  const [podcasts, setPodcasts] = useState<Podcast[]>([
-    {
-      id: 1,
-      title: "机器学习基础概念",
-      description: "深入浅出地介绍机器学习的核心概念，包括监督学习、无监督学习和强化学习的区别与应用。",
-      duration: 480, // 8分钟
-      voiceType: 'professional',
-      content: "欢迎来到今天的AI学习播客...",
-      createdDate: new Date(Date.now() - 86400000),
-      isPlaying: false
-    },
-    {
-      id: 2,
-      title: "深度学习入门指南",
-      description: "为初学者量身定制的深度学习入门指南，涵盖神经网络的基础知识和实际应用案例。",
-      duration: 720, // 12分钟
-      voiceType: 'friendly',
-      content: "大家好，今天我们来聊聊深度学习...",
-      createdDate: new Date(Date.now() - 172800000),
-      isPlaying: false
-    }
-  ]);
-
+  
+  // 添加自定义滚动条样式
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: rgba(55, 65, 81, 0.3);
+        border-radius: 3px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(139, 92, 246, 0.5);
+        border-radius: 3px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(139, 92, 246, 0.7);
+      }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+  
+  // ===== 状态管理 =====
+  // 播客生成相关
+  const [mode, setMode] = useState<PodcastMode>('deep');
+  const [language, setLanguage] = useState('zh');
+  const [inputType, setInputType] = useState<InputType>('text');
+  const [textContent, setTextContent] = useState('');
+  const [linkContent, setLinkContent] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [speakerCount, setSpeakerCount] = useState<'single' | 'dual'>('single');
+  const [voices, setVoices] = useState<VoiceConfig>({
+    speaker_1: 'CN-Man-Beijing-V2',
+    speaker_2: undefined,
+  });
+  
+  // 音色列表状态
+  const [availableSpeakers, setAvailableSpeakers] = useState<Speaker[]>([]);
+  const [isLoadingSpeakers, setIsLoadingSpeakers] = useState(false);
+  const [playingDemoId, setPlayingDemoId] = useState<string | null>(null); // 当前播放的试听音色ID
+  
+  // 生成状态
   const [isGenerating, setIsGenerating] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [volume, setVolume] = useState(0.7);
-  const [selectedVoice, setSelectedVoice] = useState<'professional' | 'friendly' | 'academic'>('professional');
-  const [inputText, setInputText] = useState('');
+  const [isQuerying, setIsQuerying] = useState(false);
+  const [currentEpisodeId, setCurrentEpisodeId] = useState<string | null>(null);
+  
+  // 播放器相关
+  const [podcasts, setPodcasts] = useState<Podcast[]>([]);
   const [currentPodcast, setCurrentPodcast] = useState<Podcast | null>(null);
-
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [volume, setVolume] = useState(0.7);
+  
   const audioRef = useRef<HTMLAudioElement>(null);
+  const demoAudioRef = useRef<HTMLAudioElement>(null); // 用于播放音色试听
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const queryIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // ===== 获取音色列表 =====
+  useEffect(() => {
+    const fetchSpeakers = async () => {
+      setIsLoadingSpeakers(true);
+      try {
+        const response = await fetch(`/api/ai/podcast/speakers?language=${language}`);
+        const data = await response.json();
+        
+        if (data.success && Array.isArray(data.speakers)) {
+          setAvailableSpeakers(data.speakers);
+          
+          // 如果获取到了音色，且当前选择的音色不在列表中，默认选中第一个
+          if (data.speakers.length > 0) {
+            const firstSpeaker = data.speakers[0].speakerId;
+            
+            setVoices(prev => {
+              // 检查当前 speaker_1 是否有效
+              const isSpeaker1Valid = data.speakers.some((s: Speaker) => s.speakerId === prev.speaker_1);
+              const newSpeaker1 = isSpeaker1Valid ? prev.speaker_1 : firstSpeaker;
+              
+              // 检查当前 speaker_2 是否有效（如果有的话）
+              let newSpeaker2 = prev.speaker_2;
+              if (prev.speaker_2) {
+                const isSpeaker2Valid = data.speakers.some((s: Speaker) => s.speakerId === prev.speaker_2);
+                newSpeaker2 = isSpeaker2Valid ? prev.speaker_2 : firstSpeaker;
+              }
+              
+              return {
+                speaker_1: newSpeaker1,
+                speaker_2: newSpeaker2
+              };
+            });
+          }
+        }
+      } catch (error) {
+        console.error('获取音色失败:', error);
+        // 如果失败，保留默认值或清空
+      } finally {
+        setIsLoadingSpeakers(false);
+      }
+    };
+
+    fetchSpeakers();
+  }, [language]);
+
+  // ===== 从数据库加载播客历史 =====
+  useEffect(() => {
+    const loadPodcasts = async () => {
+      try {
+        const response = await fetch('/api/podcast');
+        const data = await response.json();
+        
+        if (data.success && Array.isArray(data.podcasts)) {
+          const loadedPodcasts: Podcast[] = data.podcasts.map((p: any) => ({
+            id: p.id,
+            title: p.title,
+            description: p.description || '',
+            duration: p.duration || 0,
+            mode: p.mode as PodcastMode,
+            language: p.language,
+            audioUrl: p.audioUrl,
+            createdDate: new Date(p.createdAt),
+          }));
+          
+          setPodcasts(loadedPodcasts);
+        }
+      } catch (error) {
+        console.error('加载播客历史失败:', error);
+      }
+    };
+
+    loadPodcasts();
+  }, []); // 只在组件加载时执行一次
+
+  // ===== 播放器效果 =====
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
     const updateTime = () => setCurrentTime(audio.currentTime);
-    const updateDuration = () => setDuration(audio.duration);
+    const handleEnd = () => setIsPlaying(false);
 
     audio.addEventListener('timeupdate', updateTime);
-    audio.addEventListener('loadedmetadata', updateDuration);
+    audio.addEventListener('ended', handleEnd);
 
     return () => {
       audio.removeEventListener('timeupdate', updateTime);
-      audio.removeEventListener('loadedmetadata', updateDuration);
+      audio.removeEventListener('ended', handleEnd);
     };
   }, [currentPodcast]);
 
+  // 播放控制
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (isPlaying) {
+      audio.play().catch(err => {
+        console.error('播放失败:', err);
+        setIsPlaying(false);
+      });
+    } else {
+      audio.pause();
+    }
+  }, [isPlaying]);
+
+  // ===== 自动生成播客标题和摘要 =====
+  const generatePodcastTitle = (content: string): string => {
+    if (!content || content.trim().length === 0) {
+      return '未命名播客';
+    }
+    
+    // 移除多余的空格和换行
+    const cleanContent = content.trim().replace(/\s+/g, ' ');
+    
+    // 提取前30个字符作为标题
+    const title = cleanContent.substring(0, 30);
+    return title.length < cleanContent.length ? `${title}...` : title;
+  };
+
+  const generatePodcastDescription = (content: string): string => {
+    if (!content || content.trim().length === 0) {
+      return 'AI 生成的播客内容';
+    }
+    
+    // 移除多余的空格和换行
+    const cleanContent = content.trim().replace(/\s+/g, ' ');
+    
+    // 提取前100个字符作为摘要
+    const description = cleanContent.substring(0, 100);
+    return description.length < cleanContent.length ? `${description}...` : description;
+  };
+
+  // ===== 音色试听处理 =====
+  const handlePlayDemo = (speaker: Speaker) => {
+    if (!speaker.demoAudioUrl) {
+      toast.error('该音色暂无试听');
+      return;
+    }
+
+    const demoAudio = demoAudioRef.current;
+    if (!demoAudio) return;
+
+    // 如果正在播放同一个音色，则暂停
+    if (playingDemoId === speaker.speakerId) {
+      demoAudio.pause();
+      setPlayingDemoId(null);
+      return;
+    }
+
+    // 播放新的音色试听
+    demoAudio.src = speaker.demoAudioUrl;
+    demoAudio.play().catch((err) => {
+      console.error('播放试听失败:', err);
+      toast.error('播放试听失败');
+    });
+    setPlayingDemoId(speaker.speakerId);
+
+    // 播放结束后重置状态
+    demoAudio.onended = () => {
+      setPlayingDemoId(null);
+    };
+  };
+
+  // ===== 下载播客音频 =====
+  const handleDownload = async () => {
+    if (!currentPodcast?.audioUrl) {
+      toast.error('音频文件不存在');
+      return;
+    }
+
+    try {
+      // 创建一个临时的 a 标签来触发下载
+      const link = document.createElement('a');
+      link.href = currentPodcast.audioUrl;
+      link.download = `${currentPodcast.title || 'podcast'}.mp3`;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success('开始下载播客音频');
+    } catch (error) {
+      console.error('下载失败:', error);
+      toast.error('下载失败，请稍后重试');
+    }
+  };
+
+  // ===== 分享播客 =====
+  const handleShare = async () => {
+    if (!currentPodcast) {
+      toast.error('没有可分享的播客');
+      return;
+    }
+
+    const shareData = {
+      title: currentPodcast.title,
+      text: currentPodcast.description,
+      url: currentPodcast.audioUrl || window.location.href,
+    };
+
+    try {
+      // 检查是否支持 Web Share API（移动端和部分桌面浏览器）
+      if (navigator.share) {
+        await navigator.share(shareData);
+        toast.success('分享成功');
+      } else {
+        // 不支持 Web Share API，则复制链接到剪贴板
+        const shareText = `${currentPodcast.title}\n${currentPodcast.description}\n${currentPodcast.audioUrl || window.location.href}`;
+        await navigator.clipboard.writeText(shareText);
+        toast.success('链接已复制到剪贴板');
+      }
+    } catch (error: any) {
+      // 用户取消分享或出错
+      if (error.name !== 'AbortError') {
+        console.error('分享失败:', error);
+        // 如果复制也失败，尝试直接复制链接
+        try {
+          await navigator.clipboard.writeText(currentPodcast.audioUrl || window.location.href);
+          toast.success('链接已复制到剪贴板');
+        } catch (clipboardError) {
+          toast.error('分享失败，请手动复制链接');
+        }
+      }
+    }
+  };
+
+  // ===== 文件上传处理 =====
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // 验证文件类型
+      const allowedTypes = [
+        'application/pdf',
+        'text/plain',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/epub+zip',
+        'text/markdown',
+        'image/jpeg',
+        'image/jpg',
+        'image/png',
+        'image/webp',
+      ];
+      
+      if (!allowedTypes.includes(file.type)) {
+        toast.error(t('errors.invalid_format'));
+        return;
+      }
+      
+      // 验证文件大小 (10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(t('errors.file_too_large'));
+        return;
+      }
+      
+      setSelectedFile(file);
+      setInputType('file');
+    }
+  };
+
+  // ===== 查询播客状态 =====
+  const queryPodcastStatus = async (episodeId: string): Promise<boolean> => {
+    try {
+      const response = await fetch(`/api/ai/podcast?episodeId=${episodeId}`);
+      const data = await response.json();
+
+      if (!data.success && data.taskStatus !== 'success') {
+        if (data.taskStatus === 'failed') {
+          toast.error(t('generate.error'));
+          return true; // 停止轮询
+        }
+        return false; // 继续轮询
+      }
+
+      // 任务完成
+      if (data.taskResult?.audioUrl) {
+        // 优先使用 API 返回的 AI 生成标题，如果没有则使用自动生成的标题
+        const podcastTitle = data.taskResult.title || generatePodcastTitle(textContent);
+        // 优先使用 API 返回的 outline 作为描述，如果没有则使用自动生成的描述
+        const podcastDescription = data.taskResult.outline || generatePodcastDescription(textContent);
+        
+        const newPodcast: Podcast = {
+          id: episodeId,
+          title: podcastTitle,
+          description: podcastDescription,
+          duration: data.taskResult.duration || 120,
+          mode,
+          language,
+          audioUrl: data.taskResult.audioUrl,
+          createdDate: new Date(),
+        };
+
+        // 保存到数据库
+        try {
+          const speakerIds = [];
+          if (voices.speaker_1) speakerIds.push(voices.speaker_1);
+          if (voices.speaker_2) speakerIds.push(voices.speaker_2);
+
+          await fetch('/api/podcast', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              id: episodeId,
+              episodeId: episodeId,
+              title: podcastTitle,
+              description: podcastDescription,
+              audioUrl: data.taskResult.audioUrl,
+              duration: data.taskResult.duration || 120,
+              mode,
+              language,
+              speakerIds,
+              coverUrl: data.taskResult.cover,
+              outline: data.taskResult.outline,
+              scripts: data.taskResult.scripts,
+              status: 'completed',
+            }),
+          });
+          console.log('✅ 播客已保存到数据库');
+        } catch (error) {
+          console.error('保存播客到数据库失败:', error);
+          // 不阻止用户使用，只记录错误
+        }
+
+        setPodcasts(prev => [newPodcast, ...prev]);
+        setCurrentPodcast(newPodcast);
+        toast.success(t('generate.success'));
+        return true; // 停止轮询
+      }
+
+      return false; // 继续轮询
+    } catch (error) {
+      console.error('查询失败:', error);
+      return false; // 继续轮询
+    }
+  };
+
+  // 开始轮询（按照官方文档建议：等待 1 分钟后，每 10 秒轮询一次）
+  const startPolling = (episodeId: string) => {
+    setIsQuerying(true);
+    setCurrentEpisodeId(episodeId);
+    
+    // 清除之前的轮询
+    if (queryIntervalRef.current) {
+      clearInterval(queryIntervalRef.current);
+    }
+
+    // 等待 1 分钟后开始轮询
+    console.log('⏳ 等待 60 秒后开始轮询...');
+    toast.info('播客正在生成中，预计需要 1-2 分钟...');
+    
+    setTimeout(() => {
+      // 60 秒后首次查询
+      queryPodcastStatus(episodeId).then(shouldStop => {
+        if (shouldStop) {
+          setIsQuerying(false);
+          setIsGenerating(false);
+          setCurrentEpisodeId(null);
+          return;
+        }
+
+        // 设置轮询（每 10 秒查询一次）
+        queryIntervalRef.current = setInterval(async () => {
+          const shouldStop = await queryPodcastStatus(episodeId);
+          
+          if (shouldStop) {
+            if (queryIntervalRef.current) {
+              clearInterval(queryIntervalRef.current);
+              queryIntervalRef.current = null;
+            }
+            setIsQuerying(false);
+            setIsGenerating(false);
+            setCurrentEpisodeId(null);
+          }
+        }, 10000); // 每 10 秒查询一次
+      });
+    }, 60000); // 等待 60 秒
+  };
+
+  // 清理轮询
+  useEffect(() => {
+    return () => {
+      if (queryIntervalRef.current) {
+        clearInterval(queryIntervalRef.current);
+      }
+    };
+  }, []);
+
+  // ===== 生成播客 =====
+  const handleGeneratePodcast = async () => {
+    // 验证输入
+    if (inputType === 'text' && !textContent.trim()) {
+      toast.error(t('errors.no_content'));
+      return;
+    }
+    if (inputType === 'link' && !linkContent.trim()) {
+      toast.error(t('errors.no_content'));
+      return;
+    }
+    if (inputType === 'file' && !selectedFile) {
+      toast.error(t('errors.no_content'));
+      return;
+    }
+
+    // 验证音色选择
+    if (!voices.speaker_1) {
+      toast.error(t('errors.select_voices'));
+      return;
+    }
+    if (speakerCount === 'dual' && !voices.speaker_2) {
+      toast.error(t('errors.select_voices'));
+      return;
+    }
+
+    setIsGenerating(true);
+
+    try {
+      // 准备请求数据
+      const requestBody: any = {
+        mode,
+        language,
+        voices: speakerCount === 'dual' ? voices : { speaker_1: voices.speaker_1 },
+      };
+
+      // 根据输入类型添加内容
+      if (inputType === 'text') {
+        requestBody.content = textContent;
+      } else if (inputType === 'link') {
+        requestBody.link = linkContent;
+      } else if (inputType === 'file' && selectedFile) {
+        // 对于文件，需要先上传到服务器或转换为 base64
+        // 这里简化处理，实际应该上传到存储服务
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          const fileContent = e.target?.result as string;
+          requestBody.content = fileContent;
+          
+          // 发送请求
+          await sendGenerateRequest(requestBody);
+        };
+        reader.readAsText(selectedFile);
+        return;
+      }
+
+      // 发送请求
+      await sendGenerateRequest(requestBody);
+
+    } catch (error: any) {
+      console.error('生成播客失败:', error);
+      toast.error(error.message || t('generate.error'));
+      setIsGenerating(false);
+    }
+  };
+
+  // 发送生成请求
+  const sendGenerateRequest = async (requestBody: any) => {
+    const response = await fetch('/api/ai/podcast', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    const data = await response.json();
+
+    if (!data.success) {
+      if (data.insufficientCredits) {
+        toast.error(`${t('errors.insufficient_credits')}: ${data.requiredCredits} ${t('credits.required')}, ${data.remainingCredits} ${t('credits.remaining')}`);
+      } else if (data.notConfigured) {
+        toast.error(t('errors.not_configured'));
+      } else {
+        toast.error(data.error || t('generate.error'));
+      }
+      setIsGenerating(false);
+      return;
+    }
+
+    // 开始轮询查询状态
+    toast.info(t('generate.pending'));
+    startPolling(data.episodeId);
+  };
+
+  // ===== 播放控制函数 =====
   const handlePlayPause = (podcast?: Podcast) => {
     if (podcast) {
       if (currentPodcast?.id === podcast.id) {
@@ -84,13 +622,6 @@ const PodcastApp = () => {
     } else {
       setIsPlaying(!isPlaying);
     }
-  };
-
-  const handleGeneratePodcast = () => {
-    if (!inputText.trim()) return;
-
-    // 显示功能升级提示
-    toast.error('Podcast功能正在升级维护中，请稍后再试');
   };
 
   const formatTime = (seconds: number) => {
@@ -115,15 +646,22 @@ const PodcastApp = () => {
     }
   };
 
+  // 获取积分消耗
+  const getCreditsForMode = (m: PodcastMode) => {
+    const costs = { quick: 5, deep: 8, debate: 10 };
+    return costs[m];
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-950 via-primary/5 to-gray-950">
-      {/* 背景装饰：统一使用 primary 深浅光晕，去掉独立的蓝色大光斑 */}
+      {/* 背景装饰 */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 left-1/4 h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
         <div className="absolute bottom-1/4 right-1/4 h-96 w-96 rounded-full bg-primary/5 blur-3xl" />
       </div>
 
       <div className="relative z-10 container mx-auto px-4 py-24">
+        {/* 标题 */}
         <ScrollAnimation>
           <div className="text-center mb-12">
             <motion.div
@@ -131,7 +669,6 @@ const PodcastApp = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
             >
-              {/* 标题渐变：从白色到 primary，一致于 Hero 主色 */}
               <h1 className="bg-gradient-to-r from-white via-primary/80 to-primary/60 bg-clip-text text-4xl font-bold text-transparent md:text-5xl mb-6">
                 {t('title')}
               </h1>
@@ -148,60 +685,335 @@ const PodcastApp = () => {
             <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-primary/20 p-8">
               <h2 className="text-2xl font-bold text-white mb-6">{t('generate.title')}</h2>
 
-              {/* 文本输入区域 */}
+              {/* 模式选择 */}
               <div className="mb-6">
-                <label className="block text-white font-medium mb-3">{t('upload.title')}</label>
-                <textarea
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  placeholder={t('upload.drag_text')}
-                  className="w-full h-32 p-4 bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-primary focus:outline-none resize-none"
-                />
-              </div>
-
-              {/* 语音类型选择 */}
-              <div className="mb-6">
-                <label className="block text-white font-medium mb-3">{t('settings.voice_style.label')}</label>
-                <div className="grid grid-cols-3 gap-4">
-                  {[
-                    { type: 'professional', label: t('settings.voice_style.professional'), desc: '正式、清晰的播报风格' },
-                    { type: 'friendly', label: t('settings.voice_style.friendly'), desc: '轻松、自然的交谈风格' },
-                    { type: 'academic', label: t('settings.voice_style.academic'), desc: '严谨、专业的讲解风格' },
-                  ].map((voice) => (
+                <label className="block text-white font-medium mb-3">{t('mode.title')}</label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {(['quick', 'deep', 'debate'] as PodcastMode[]).map((m) => (
                     <button
-                      key={voice.type}
-                      onClick={() => setSelectedVoice(voice.type as any)}
+                      key={m}
+                      onClick={() => setMode(m)}
                       className={`p-4 rounded-lg border transition-all duration-300 text-left ${
-                        selectedVoice === voice.type
+                        mode === m
                           ? 'border-primary bg-primary/10'
                           : 'border-gray-600 bg-gray-800/50 hover:border-primary/50'
                       }`}
                     >
-                      <div className="flex items-center gap-2 mb-2">
-                        <Mic className="h-4 w-4 text-primary" />
-                        <span className="text-white font-medium">{voice.label}</span>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          {m === 'quick' && <Zap className="h-5 w-5 text-primary" />}
+                          {m === 'deep' && <FileText className="h-5 w-5 text-primary" />}
+                          {m === 'debate' && <MessageSquare className="h-5 w-5 text-primary" />}
+                          <span className="text-white font-medium">{t(`mode.${m}.name`)}</span>
+                        </div>
+                        <span className="text-xs text-gray-400">{t(`mode.${m}.credits`)}</span>
                       </div>
-                      <p className="text-gray-400 text-sm">{voice.desc}</p>
+                      <p className="text-gray-400 text-sm mb-1">{t(`mode.${m}.description`)}</p>
+                      <p className="text-gray-500 text-xs">{t(`mode.${m}.duration`)}</p>
                     </button>
                   ))}
+                </div>
+              </div>
+
+              {/* 输入区域 */}
+              <div className="mb-6">
+                <label className="block text-white font-medium mb-3">{t('upload.title')}</label>
+                
+                {/* 输入类型切换 */}
+                <div className="flex gap-2 mb-4">
+                  <Button
+                    variant={inputType === 'text' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setInputType('text')}
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    文本
+                  </Button>
+                  <Button
+                    variant={inputType === 'file' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setInputType('file')}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    文件
+                  </Button>
+                  <Button
+                    variant={inputType === 'link' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setInputType('link')}
+                  >
+                    <LinkIcon className="h-4 w-4 mr-2" />
+                    链接
+                  </Button>
+                </div>
+
+                {/* 文本输入 */}
+                {inputType === 'text' && (
+                  <textarea
+                    value={textContent}
+                    onChange={(e) => setTextContent(e.target.value)}
+                    placeholder={t('upload.drag_text')}
+                    className="w-full h-32 p-4 bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-primary focus:outline-none resize-none"
+                  />
+                )}
+
+                {/* 文件上传 */}
+                {inputType === 'file' && (
+                  <div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".pdf,.txt,.docx,.epub,.md,.jpg,.jpeg,.png,.webp"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-full h-32 p-4 bg-gray-800/50 border-2 border-dashed border-gray-600 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-primary transition-colors"
+                    >
+                      <Upload className="h-8 w-8 text-gray-400 mb-2" />
+                      {selectedFile ? (
+                        <div className="text-center">
+                          <p className="text-white">{selectedFile.name}</p>
+                          <p className="text-gray-400 text-sm">{(selectedFile.size / 1024).toFixed(2)} KB</p>
+                        </div>
+                      ) : (
+                        <div className="text-center">
+                          <p className="text-white">{t('upload.drag_text')}</p>
+                          <p className="text-gray-400 text-sm">{t('upload.supported_formats')}</p>
+                        </div>
+                      )}
+                    </div>
+                    {selectedFile && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedFile(null)}
+                        className="mt-2"
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        清除文件
+                      </Button>
+                    )}
+                  </div>
+                )}
+
+                {/* 链接输入 */}
+                {inputType === 'link' && (
+                  <div>
+                    <div className="relative">
+                      <LinkIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                      <input
+                        type="url"
+                        value={linkContent}
+                        onChange={(e) => setLinkContent(e.target.value)}
+                        placeholder={t('upload.paste_link')}
+                        className="w-full pl-10 pr-4 py-3 bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-primary focus:outline-none"
+                      />
+                    </div>
+                    {/* 支持的平台 */}
+                    <div className="mt-3">
+                      <p className="text-sm text-gray-400 mb-2">{t('upload.supported_platforms')}:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {SUPPORTED_PLATFORMS.map((platform) => (
+                          <div
+                            key={platform.name}
+                            className="px-3 py-1 bg-gray-800/50 rounded-full text-xs text-gray-300 flex items-center gap-1"
+                          >
+                            <span>{platform.icon}</span>
+                            <span>{platform.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 语言选择 */}
+              <div className="mb-6">
+                <label className="block text-white font-medium mb-3">
+                  <Globe className="inline h-4 w-4 mr-2" />
+                  {t('settings.language.label')}
+                </label>
+                <select
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  className="w-full p-3 bg-gray-800/50 border border-gray-600 rounded-lg text-white focus:border-primary focus:outline-none"
+                >
+                  {/* ListenHub API 只支持 en, zh, ja 三种语言 */}
+                  <option value="zh">{t('settings.language.zh')}</option>
+                  <option value="en">{t('settings.language.en')}</option>
+                  <option value="ja">{t('settings.language.ja')}</option>
+                </select>
+              </div>
+
+              {/* 人数和音色选择 */}
+              <div className="mb-6">
+                <label className="block text-white font-medium mb-3">
+                  <Users className="inline h-4 w-4 mr-2" />
+                  {t('settings.speakers.label')}
+                </label>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <button
+                    onClick={() => setSpeakerCount('single')}
+                    className={`p-3 rounded-lg border transition-all ${
+                      speakerCount === 'single'
+                        ? 'border-primary bg-primary/10'
+                        : 'border-gray-600 bg-gray-800/50 hover:border-primary/50'
+                    }`}
+                  >
+                    <span className="text-white">{t('settings.speakers.single')}</span>
+                  </button>
+                  <button
+                    onClick={() => setSpeakerCount('dual')}
+                    className={`p-3 rounded-lg border transition-all ${
+                      speakerCount === 'dual'
+                        ? 'border-primary bg-primary/10'
+                        : 'border-gray-600 bg-gray-800/50 hover:border-primary/50'
+                    }`}
+                  >
+                    <span className="text-white">{t('settings.speakers.dual')}</span>
+                  </button>
+                </div>
+
+                {/* 音色选择 - 卡片式设计 */}
+                <div className="space-y-4">
+                  {/* 音色 1 */}
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-3">
+                      <Mic className="inline h-3 w-3 mr-1" />
+                      {speakerCount === 'single' ? '选择音色' : '音色 1'}
+                      {isLoadingSpeakers && <span className="ml-2 text-xs text-gray-500">(加载中...)</span>}
+                    </label>
+                    <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                      {availableSpeakers.map((speaker) => {
+                        const isSelected = voices.speaker_1 === speaker.speakerId;
+                        const isPlaying = playingDemoId === speaker.speakerId;
+                        return (
+                          <div
+                            key={speaker.speakerId}
+                            onClick={() => setVoices({ ...voices, speaker_1: speaker.speakerId })}
+                            className={`relative p-3 rounded-lg border cursor-pointer transition-all ${
+                              isSelected
+                                ? 'border-primary bg-primary/10'
+                                : 'border-gray-600 bg-gray-800/50 hover:border-primary/50'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                  speaker.gender === 'male' ? 'bg-blue-500/20 text-blue-400' : 'bg-pink-500/20 text-pink-400'
+                                }`}>
+                                  {speaker.gender === 'male' ? '👨' : '👩'}
+                                </div>
+                                <span className="text-white text-sm font-medium">{speaker.speakerName}</span>
+                              </div>
+                              {speaker.demoAudioUrl && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handlePlayDemo(speaker);
+                                  }}
+                                  className={`p-1.5 rounded-full transition-all ${
+                                    isPlaying ? 'bg-primary text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                  }`}
+                                >
+                                  {isPlaying ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+                                </button>
+                              )}
+                            </div>
+                            {isSelected && (
+                              <div className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full"></div>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {availableSpeakers.length === 0 && !isLoadingSpeakers && (
+                        <div className="col-span-2 text-center text-gray-400 py-4">
+                          暂无可用音色
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 音色 2 (双人模式) */}
+                  {speakerCount === 'dual' && (
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-3">
+                        <Mic className="inline h-3 w-3 mr-1" />
+                        音色 2
+                        {isLoadingSpeakers && <span className="ml-2 text-xs text-gray-500">(加载中...)</span>}
+                      </label>
+                      <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                        {availableSpeakers.map((speaker) => {
+                          const isSelected = voices.speaker_2 === speaker.speakerId;
+                          const isPlaying = playingDemoId === speaker.speakerId;
+                          return (
+                            <div
+                              key={speaker.speakerId}
+                              onClick={() => setVoices({ ...voices, speaker_2: speaker.speakerId })}
+                              className={`relative p-3 rounded-lg border cursor-pointer transition-all ${
+                                isSelected
+                                  ? 'border-primary bg-primary/10'
+                                  : 'border-gray-600 bg-gray-800/50 hover:border-primary/50'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                    speaker.gender === 'male' ? 'bg-blue-500/20 text-blue-400' : 'bg-pink-500/20 text-pink-400'
+                                  }`}>
+                                    {speaker.gender === 'male' ? '👨' : '👩'}
+                                  </div>
+                                  <span className="text-white text-sm font-medium">{speaker.speakerName}</span>
+                                </div>
+                                {speaker.demoAudioUrl && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handlePlayDemo(speaker);
+                                    }}
+                                    className={`p-1.5 rounded-full transition-all ${
+                                      isPlaying ? 'bg-primary text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                    }`}
+                                  >
+                                    {isPlaying ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+                                  </button>
+                                )}
+                              </div>
+                              {isSelected && (
+                                <div className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full"></div>
+                              )}
+                            </div>
+                          );
+                        })}
+                        {availableSpeakers.length === 0 && !isLoadingSpeakers && (
+                          <div className="col-span-2 text-center text-gray-400 py-4">
+                            暂无可用音色
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* 生成按钮 */}
               <Button
                 onClick={handleGeneratePodcast}
-                disabled={!inputText.trim() || isGenerating}
+                disabled={isGenerating || isQuerying}
                 className="w-full bg-gradient-to-r from-primary to-primary/70 hover:from-primary/90 hover:to-primary/80 text-white py-4"
               >
-                {isGenerating ? (
+                {isGenerating || isQuerying ? (
                   <>
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
-                    AI正在生成播客...
+                    {isQuerying ? t('generate.querying') : t('generate.generating')}
                   </>
                 ) : (
                   <>
                     <Sparkles className="h-5 w-5 mr-2" />
-                    生成播客
+                    {t('generate.button')} ({getCreditsForMode(mode)} {t('credits.required')})
                   </>
                 )}
               </Button>
@@ -210,10 +1022,9 @@ const PodcastApp = () => {
         </ScrollAnimation>
 
         {/* 播客播放器 */}
-        {currentPodcast && (
+        {currentPodcast && currentPodcast.audioUrl && (
           <ScrollAnimation delay={0.3}>
             <div className="max-w-4xl mx-auto mb-12">
-              {/* 播放器整体背景：primary 深浅渐变，去掉蓝色终点，统一主色 */}
               <div className="bg-gradient-to-r from-primary/20 to-primary/5 rounded-2xl border border-primary/30 p-8">
                 <div className="flex items-center justify-between mb-6">
                   <div>
@@ -221,13 +1032,23 @@ const PodcastApp = () => {
                     <p className="text-gray-300">{currentPodcast.description}</p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Button variant="outline" size="sm" className="border-primary/30 text-primary/80">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="border-primary/30 text-primary/80 hover:bg-primary/10"
+                      onClick={handleDownload}
+                    >
                       <Download className="h-4 w-4 mr-2" />
-                      下载
+                      {t('player.download')}
                     </Button>
-                    <Button variant="outline" size="sm" className="border-primary/30 text-primary/80">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="border-primary/30 text-primary/80 hover:bg-primary/10"
+                      onClick={handleShare}
+                    >
                       <Share2 className="h-4 w-4 mr-2" />
-                      分享
+                      {t('player.share')}
                     </Button>
                   </div>
                 </div>
@@ -246,9 +1067,9 @@ const PodcastApp = () => {
                       max={currentPodcast.duration}
                       value={currentTime}
                       onChange={handleSeek}
-                      className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
+                      className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
                       style={{
-                        background: `linear-gradient(to right, #8b5cf6 0%, #8b5cf6 ${(currentTime / currentPodcast.duration) * 100}%, #4b5563 ${(currentTime / currentPodcast.duration) * 100}%, #4b5563 100%)`
+                        background: `linear-gradient(to right, rgb(139,92,246) 0%, rgb(139,92,246) ${(currentTime / currentPodcast.duration) * 100}%, #4b5563 ${(currentTime / currentPodcast.duration) * 100}%, #4b5563 100%)`
                       }}
                     />
                   </div>
@@ -294,7 +1115,6 @@ const PodcastApp = () => {
                         onChange={handleVolumeChange}
                         className="w-24 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
                         style={{
-                          // 使用 theme 主色对应的 oklch 紫（约等于 Tailwind 的 purple-500）来渲染已调节音量区
                           background: `linear-gradient(to right, rgb(139,92,246) 0%, rgb(139,92,246) ${volume * 100}%, #4b5563 ${volume * 100}%, #4b5563 100%)`
                         }}
                       />
@@ -302,10 +1122,10 @@ const PodcastApp = () => {
                   </div>
                 </div>
 
-                {/* 音频元素（隐藏） */}
+                {/* 音频元素 */}
                 <audio
                   ref={audioRef}
-                  src="/podcast-sample.mp3" // 示例音频文件
+                  src={currentPodcast.audioUrl}
                   onPlay={() => setIsPlaying(true)}
                   onPause={() => setIsPlaying(false)}
                 />
@@ -314,11 +1134,14 @@ const PodcastApp = () => {
           </ScrollAnimation>
         )}
 
+        {/* 音色试听音频元素 (隐藏) */}
+        <audio ref={demoAudioRef} className="hidden" />
+
         {/* 播客列表 */}
         <ScrollAnimation delay={0.4}>
           <div className="max-w-4xl mx-auto">
-            <h2 className="text-2xl font-bold text-white mb-6">我的播客库</h2>
-                    <div className="space-y-4">
+            <h2 className="text-2xl font-bold text-white mb-6">{t('library.title')}</h2>
+            <div className="space-y-4">
               {podcasts.length > 0 ? (
                 podcasts.map((podcast) => (
                   <motion.div
@@ -348,9 +1171,10 @@ const PodcastApp = () => {
                                 {formatTime(podcast.duration)}
                               </span>
                               <span className="flex items-center gap-1">
-                                <Mic className="h-3 w-3" />
-                                {podcast.voiceType === 'professional' ? '专业' :
-                                 podcast.voiceType === 'friendly' ? '友好' : '学术'}
+                                {t(`mode.${podcast.mode}.name`)}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                {podcast.createdDate.toLocaleDateString()} {podcast.createdDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                               </span>
                             </div>
                           </div>
@@ -373,8 +1197,8 @@ const PodcastApp = () => {
               ) : (
                 <div className="text-center py-16">
                   <Headphones className="h-20 w-20 text-gray-600 mx-auto mb-6" />
-                  <h3 className="text-xl font-semibold text-white mb-4">还没有播客</h3>
-                  <p className="text-gray-400 mb-6">开始创建您的第一个AI学习播客吧</p>
+                  <h3 className="text-xl font-semibold text-white mb-4">{t('library.no_podcasts')}</h3>
+                  <p className="text-gray-400 mb-6">{t('library.start_creating')}</p>
                 </div>
               )}
             </div>
@@ -385,22 +1209,22 @@ const PodcastApp = () => {
         <ScrollAnimation delay={0.5}>
           <div className="max-w-4xl mx-auto mt-12">
             <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-primary/20 p-6">
-              <h3 className="text-lg font-semibold text-white mb-4">使用提示</h3>
+              <h3 className="text-lg font-semibold text-white mb-4">{t('features.title')}</h3>
               <div className="grid md:grid-cols-3 gap-4">
                 <div className="text-center">
                   <Upload className="h-8 w-8 text-primary mx-auto mb-2" />
-                  <p className="text-white font-medium mb-1">支持多种内容</p>
-                  <p className="text-gray-400 text-sm">课程笔记、教材内容、文章等</p>
+                  <p className="text-white font-medium mb-1">{t('features.multi_input.title')}</p>
+                  <p className="text-gray-400 text-sm">{t('features.multi_input.description')}</p>
                 </div>
                 <div className="text-center">
                   <Sparkles className="h-8 w-8 text-primary mx-auto mb-2" />
-                  <p className="text-white font-medium mb-1">AI智能优化</p>
-                  <p className="text-gray-400 text-sm">自动优化语言和语调</p>
+                  <p className="text-white font-medium mb-1">{t('features.ai_optimize.title')}</p>
+                  <p className="text-gray-400 text-sm">{t('features.ai_optimize.description')}</p>
                 </div>
                 <div className="text-center">
                   <Headphones className="h-8 w-8 text-primary mx-auto mb-2" />
-                  <p className="text-white font-medium mb-1">随时随地学习</p>
-                  <p className="text-gray-400 text-sm">支持下载和离线收听</p>
+                  <p className="text-white font-medium mb-1">{t('features.anytime.title')}</p>
+                  <p className="text-gray-400 text-sm">{t('features.anytime.description')}</p>
                 </div>
               </div>
             </div>

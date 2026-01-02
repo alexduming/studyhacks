@@ -664,3 +664,36 @@ export const presentation = pgTable(
     index('idx_presentation_created_at').on(table.createdAt),
   ]
 );
+
+// Podcast table - stores AI generated podcasts
+export const podcast = pgTable(
+  'podcast',
+  {
+    id: text('id').primaryKey(), // episode_id from ListenHub
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    episodeId: text('episode_id').notNull(), // ListenHub episode ID
+    title: text('title').notNull(),
+    description: text('description'),
+    audioUrl: text('audio_url').notNull(),
+    duration: integer('duration').notNull(), // in seconds
+    mode: text('mode').notNull(), // quick, deep, debate
+    language: text('language').notNull(), // zh, en, ja
+    speakerIds: text('speaker_ids'), // JSON array of speaker IDs
+    coverUrl: text('cover_url'),
+    outline: text('outline'), // podcast outline
+    scripts: text('scripts'), // JSON array of podcast scripts
+    status: text('status').notNull().default('completed'), // pending, processing, completed, failed
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    index('idx_podcast_user').on(table.userId),
+    index('idx_podcast_created_at').on(table.createdAt),
+    index('idx_podcast_episode_id').on(table.episodeId),
+  ]
+);

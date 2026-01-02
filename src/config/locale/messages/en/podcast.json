@@ -1,58 +1,98 @@
 {
-  "title": "Study Podcasts",
-  "subtitle": "Transform your notes into engaging audio podcasts and learn on the go",
+  "title": "AI Podcast Generator",
+  "subtitle": "Explain Everything - Generate Professional Podcasts from Text, Files or Links",
   "upload": {
-    "title": "Convert Notes to Audio",
-    "subtitle": "Perfect for learning during commutes, workouts, or downtime",
-    "drag_text": "Drop your study files here or browse",
-    "supported_formats": "All formats: TXT, PDF, DOC, MD, or paste text directly",
+    "title": "Input Content",
+    "subtitle": "Support text, files or web links",
+    "drag_text": "Drop files here, or enter/paste text directly",
+    "paste_link": "Or paste a web link",
+    "supported_formats": "Supported: PDF, TXT, DOCX, EPUB, MD, JPG, JPEG, PNG, WEBP",
+    "supported_platforms": "Supported Platforms",
     "file_selected": "Selected: ",
-    "processing": "AI is creating your study podcast...",
-    "upload_button": "Choose Study Files"
+    "processing": "AI is creating your podcast...",
+    "upload_button": "Choose File"
+  },
+  "mode": {
+    "title": "Podcast Mode",
+    "quick": {
+      "name": "Quick",
+      "description": "Fast generation, efficiency first",
+      "duration": "1-2 minutes",
+      "features": "News briefs, time-sensitive content",
+      "credits": "5 credits"
+    },
+    "deep": {
+      "name": "Deep",
+      "description": "In-depth analysis, high quality",
+      "duration": "2-4 minutes",
+      "features": "Professional knowledge, deep analysis",
+      "credits": "8 credits"
+    },
+    "debate": {
+      "name": "Debate",
+      "description": "Dual-host debate format",
+      "duration": "2-4 minutes",
+      "features": "Opinion discussion, multi-angle analysis",
+      "credits": "10 credits"
+    }
   },
   "settings": {
     "title": "Podcast Settings",
-    "voice_style": {
-      "label": "Voice Style",
-      "professional": "Professional Narration",
-      "friendly": "Friendly Conversation",
-      "academic": "Academic Explanation"
-    },
-    "duration": {
-      "label": "Podcast Duration",
-      "short": "Short (3-5 minutes)",
-      "medium": "Medium (5-10 minutes)",
-      "long": "Detailed (10-15 minutes)"
-    },
     "language": {
       "label": "Podcast Language",
-      "chinese": "Chinese",
-      "english": "English"
+      "auto": "Auto Detect",
+      "zh": "Chinese",
+      "en": "English",
+      "ja": "Japanese",
+      "ko": "Korean",
+      "es": "Spanish",
+      "fr": "French",
+      "de": "German"
     },
-    "speed": {
-      "label": "Speech Speed",
-      "slow": "Slow",
-      "normal": "Normal",
-      "fast": "Fast"
+    "voices": {
+      "label": "Voice Selection",
+      "speaker1": "Speaker 1",
+      "speaker2": "Speaker 2 (Optional)",
+      "placeholder": "Select voice",
+      "custom": "Custom Cloned Voice",
+      "default": "Default Voice"
+    },
+    "speakers": {
+      "label": "Speakers",
+      "single": "Single Speaker",
+      "dual": "Dual Speakers"
     }
   },
   "generate": {
     "title": "Generate Podcast",
-    "button": "Start Generating Podcast",
+    "button": "Start Generating",
     "generating": "AI is generating podcast...",
+    "querying": "Querying podcast status...",
     "error": "Error generating podcast, please try again",
-    "success": "Podcast generated successfully!"
+    "success": "Podcast generated successfully!",
+    "pending": "Task created, processing...",
+    "processing": "AI is processing your podcast..."
   },
   "player": {
     "title": "Podcast Player",
     "play": "Play",
     "pause": "Pause",
     "stop": "Stop",
-    "download": "Download Audio",
-    "share": "Share Podcast",
-    "current_time": "Current Time",
-    "total_time": "Total Duration",
+    "skip_back": "Skip Back",
+    "skip_forward": "Skip Forward",
+    "download": "Download",
+    "share": "Share",
+    "current_time": "Current",
+    "total_time": "Duration",
+    "volume": "Volume",
     "no_audio": "No audio available, please generate a podcast first"
+  },
+  "library": {
+    "title": "My Podcast Library",
+    "subtitle": "All your previously generated podcasts",
+    "no_podcasts": "No podcasts yet",
+    "start_creating": "Start creating your first AI podcast",
+    "created": "Created on"
   },
   "history": {
     "title": "History",
@@ -64,40 +104,49 @@
     "regenerate": "Regenerate"
   },
   "features": {
-    "ai_script": {
-      "title": "AI Script Generation",
-      "description": "Intelligently generate conversational scripts suitable for podcasts"
+    "title": "Features",
+    "multi_input": {
+      "title": "Multiple Content Sources",
+      "description": "Course notes, textbooks, article links, etc."
     },
-    "multiple_voices": {
-      "title": "Multiple Voice Styles",
-      "description": "Choose from professional, friendly, academic and other styles"
+    "ai_optimize": {
+      "title": "AI Optimization",
+      "description": "Automatically optimize language and tone"
     },
-    "background_music": {
-      "title": "Background Music",
-      "description": "Automatically add suitable background music"
-    },
-    "export_options": {
-      "title": "Multiple Export Formats",
-      "description": "Support for MP3, WAV and other common audio formats"
+    "anytime": {
+      "title": "Learn Anytime",
+      "description": "Download and listen offline"
     }
   },
   "tips": {
-    "quality": "Tip: Higher quality uploaded notes result in better podcast quality",
-    "length": "Suggestion: Upload content under 2000 words for best results",
-    "format": "Format: Structured notes work better than plain text"
+    "title": "Usage Tips",
+    "quality": "Tip: Higher quality content results in better podcasts",
+    "length": "Suggestion: Content under 2000 words for best results",
+    "format": "Format: Structured content works better than plain text",
+    "platforms": "Links: Support common video and article platforms"
   },
   "buttons": {
     "cancel": "Cancel",
     "confirm": "Confirm",
     "reset": "Reset",
     "save": "Save",
-    "close": "Close"
+    "close": "Close",
+    "create": "Create"
   },
   "errors": {
     "upload_failed": "File upload failed",
     "generation_failed": "Podcast generation failed",
     "invalid_format": "Unsupported file format",
     "file_too_large": "File too large, please select a file smaller than 10MB",
-    "network_error": "Network error, please check connection"
+    "network_error": "Network error, please check connection",
+    "no_content": "Please enter content, upload a file or paste a link",
+    "insufficient_credits": "Insufficient credits",
+    "not_configured": "ListenHub not configured, please contact administrator",
+    "select_voices": "Please select at least one voice"
+  },
+  "credits": {
+    "required": "Required Credits",
+    "remaining": "Remaining Credits",
+    "used": "Credits Used"
   }
 }

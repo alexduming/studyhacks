@@ -120,4 +120,14 @@ export const envConfigs = {
   r2_endpoint: process.env.R2_ENDPOINT ?? '',
   // 可选：对外访问域名，比如 https://cdn.example.com/your-bucket
   r2_domain: process.env.R2_DOMAIN ?? '',
+
+  // ====== ListenHub Podcast 配置 ======
+  // 非程序员解释：
+  // - ListenHub 是专业的 AI 播客生成平台
+  // - 支持多种播客模式（速听、深度、辩论）
+  // - 支持多种语言和音色选择
+  // - API 文档：https://blog.listenhub.ai/openapi-docs
+  listenhub_enabled: process.env.LISTENHUB_ENABLED ?? 'false', // 是否启用 ListenHub
+  listenhub_api_key: process.env.LISTENHUB_API_KEY ?? '', // ListenHub API Key
+  listenhub_base_url: process.env.LISTENHUB_BASE_URL ?? 'https://api.marswave.ai', // ListenHub API 基础 URL
 };
