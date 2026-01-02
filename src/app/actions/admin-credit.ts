@@ -79,7 +79,7 @@ export async function manageUserCredits(
       await consumeCredits({
         userId,
         credits: amount,
-        scene: CreditTransactionScene.CONSUME, 
+        scene: CreditTransactionScene.PAYMENT,
         description: reason || 'Admin manual deduction',
       });
     }

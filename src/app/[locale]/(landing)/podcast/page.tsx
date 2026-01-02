@@ -13,7 +13,6 @@ import {
   Mic,
   Pause,
   Play,
-  Share2,
   SkipBack,
   SkipForward,
   Sparkles,
@@ -29,6 +28,10 @@ import { toast } from 'sonner';
 import { CreditsCost } from '@/shared/components/ai-elements/credits-display';
 import { Button } from '@/shared/components/ui/button';
 import { ScrollAnimation } from '@/shared/components/ui/scroll-animation';
+import {
+  PodcastDetailDialog,
+  type PodcastDetailData,
+} from '@/shared/components/podcast/podcast-detail-dialog';
 
 // 播客模式类型
 type PodcastMode = 'quick' | 'deep' | 'debate';
@@ -43,16 +46,15 @@ interface VoiceConfig {
 }
 
 // 播客数据接口
-interface Podcast {
-  id: string;
-  title: string;
+interface Podcast extends PodcastDetailData {
   description: string;
   duration: number;
   mode: PodcastMode;
   language: string;
   audioUrl?: string;
   createdDate: Date;
-  isPlaying?: boolean;
+  subtitlesUrl?: string;
+  audioStreamUrl?: string;
 }
 
 // 音色接口
@@ -136,6 +138,9 @@ const PodcastApp = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [volume, setVolume] = useState(0.7);
+  const [playerDuration, setPlayerDuration] = useState(0);
+  const [detailPodcast, setDetailPodcast] = useState<Podcast | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const demoAudioRef = useRef<HTMLAudioElement>(null); // 用于播放音色试听
@@ -212,6 +217,10 @@ const PodcastApp = () => {
             language: p.language,
             audioUrl: p.audioUrl,
             createdDate: new Date(p.createdAt),
+            outline: p.outline || '',
+            scripts: Array.isArray(p.scripts) ? p.scripts : [],
+            coverUrl: p.coverUrl || undefined,
+            subtitlesUrl: p.subtitlesUrl || undefined,
           }));
 
           setPodcasts(loadedPodcasts);
@@ -231,13 +240,18 @@ const PodcastApp = () => {
 
     const updateTime = () => setCurrentTime(audio.currentTime);
     const handleEnd = () => setIsPlaying(false);
+    const handleMetadata = () => {
+      setPlayerDuration(audio.duration || 0);
+    };
 
     audio.addEventListener('timeupdate', updateTime);
     audio.addEventListener('ended', handleEnd);
+    audio.addEventListener('loadedmetadata', handleMetadata);
 
     return () => {
       audio.removeEventListener('timeupdate', updateTime);
       audio.removeEventListener('ended', handleEnd);
+      audio.removeEventListener('loadedmetadata', handleMetadata);
     };
   }, [currentPodcast]);
 
@@ -255,6 +269,12 @@ const PodcastApp = () => {
       audio.pause();
     }
   }, [isPlaying]);
+
+  useEffect(() => {
+    if (currentPodcast?.duration) {
+      setPlayerDuration(currentPodcast.duration);
+    }
+  }, [currentPodcast?.id, currentPodcast?.duration]);
 
   // ===== 自动生成播客标题和摘要 =====
   const generatePodcastTitle = (content: string): string => {
@@ -663,12 +683,30 @@ const PodcastApp = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const getAudioDuration = async (url?: string) => {
+    if (!url) return 0;
+    return new Promise<number>((resolve) => {
+      const tempAudio = document.createElement('audio');
+      tempAudio.src = url;
+      tempAudio.preload = 'metadata';
+      tempAudio.addEventListener('loadedmetadata', () => {
+        resolve(tempAudio.duration || 0);
+      });
+      tempAudio.addEventListener('error', () => resolve(0));
+    });
+  };
+
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTime = parseFloat(e.target.value);
     setCurrentTime(newTime);
     if (audioRef.current) {
       audioRef.current.currentTime = newTime;
     }
+  };
+
+  const openPodcastDetails = (podcast: Podcast) => {
+    setDetailPodcast(podcast);
+    setIsDetailOpen(true);
   };
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -678,6 +716,12 @@ const PodcastApp = () => {
       audioRef.current.volume = newVolume;
     }
   };
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = volume;
+    }
+  }, [volume]);
 
   // 获取积分消耗
   const getCreditsForMode = (m: PodcastMode) => {
