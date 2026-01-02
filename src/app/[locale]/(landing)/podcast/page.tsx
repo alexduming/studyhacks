@@ -26,12 +26,12 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import { CreditsCost } from '@/shared/components/ai-elements/credits-display';
-import { Button } from '@/shared/components/ui/button';
-import { ScrollAnimation } from '@/shared/components/ui/scroll-animation';
 import {
   PodcastDetailDialog,
   type PodcastDetailData,
 } from '@/shared/components/podcast/podcast-detail-dialog';
+import { Button } from '@/shared/components/ui/button';
+import { ScrollAnimation } from '@/shared/components/ui/scroll-animation';
 
 // 播客模式类型
 type PodcastMode = 'quick' | 'deep' | 'debate';
@@ -276,6 +276,12 @@ const PodcastApp = () => {
     }
   }, [currentPodcast?.id, currentPodcast?.duration]);
 
+  useEffect(() => {
+    if (playerDuration > 0 && currentTime > playerDuration) {
+      setCurrentTime(playerDuration);
+    }
+  }, [playerDuration, currentTime]);
+
   // ===== 自动生成播客标题和摘要 =====
   const generatePodcastTitle = (content: string): string => {
     if (!content || content.trim().length === 0) {
@@ -337,21 +343,26 @@ const PodcastApp = () => {
   };
 
   // ===== 下载播客音频 =====
-  const handleDownload = async () => {
-    if (!currentPodcast?.audioUrl) {
+  const downloadPodcastAudio = async (podcast: Podcast) => {
+    if (!podcast.audioUrl) {
       toast.error('音频文件不存在');
       return;
     }
 
     try {
-      // 创建一个临时的 a 标签来触发下载
+      // 使用 fetch 获取音频文件 blob，避免直接跳转
+      const response = await fetch(podcast.audioUrl);
+      if (!response.ok) throw new Error('Download failed');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = currentPodcast.audioUrl;
-      link.download = `${currentPodcast.title || 'podcast'}.mp3`;
-      link.target = '_blank';
+      link.href = url;
+      link.download = `${podcast.title || 'podcast'}.mp3`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
 
       toast.success('开始下载播客音频');
     } catch (error) {
@@ -360,47 +371,13 @@ const PodcastApp = () => {
     }
   };
 
-  // ===== 分享播客 =====
-  const handleShare = async () => {
+  const handleDownload = async () => {
     if (!currentPodcast) {
-      toast.error('没有可分享的播客');
+      toast.error('音频文件不存在');
       return;
     }
-
-    const shareData = {
-      title: currentPodcast.title,
-      text: currentPodcast.description,
-      url: currentPodcast.audioUrl || window.location.href,
-    };
-
-    try {
-      // 检查是否支持 Web Share API（移动端和部分桌面浏览器）
-      if (navigator.share) {
-        await navigator.share(shareData);
-        toast.success('分享成功');
-      } else {
-        // 不支持 Web Share API，则复制链接到剪贴板
-        const shareText = `${currentPodcast.title}\n${currentPodcast.description}\n${currentPodcast.audioUrl || window.location.href}`;
-        await navigator.clipboard.writeText(shareText);
-        toast.success('链接已复制到剪贴板');
-      }
-    } catch (error: any) {
-      // 用户取消分享或出错
-      if (error.name !== 'AbortError') {
-        console.error('分享失败:', error);
-        // 如果复制也失败，尝试直接复制链接
-        try {
-          await navigator.clipboard.writeText(
-            currentPodcast.audioUrl || window.location.href
-          );
-          toast.success('链接已复制到剪贴板');
-        } catch (clipboardError) {
-          toast.error('分享失败，请手动复制链接');
-        }
-      }
-    }
+    downloadPodcastAudio(currentPodcast);
   };
-
   // ===== 文件上传处理 =====
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -450,22 +427,32 @@ const PodcastApp = () => {
 
       // 任务完成
       if (data.taskResult?.audioUrl) {
-        // 优先使用 API 返回的 AI 生成标题，如果没有则使用自动生成的标题
         const podcastTitle =
           data.taskResult.title || generatePodcastTitle(textContent);
-        // 优先使用 API 返回的 outline 作为描述，如果没有则使用自动生成的描述
+        const outlineText = data.taskResult.outline || '';
         const podcastDescription =
-          data.taskResult.outline || generatePodcastDescription(textContent);
+          outlineText || generatePodcastDescription(textContent);
+        const resolvedDuration =
+          (typeof data.taskResult.duration === 'number' &&
+          data.taskResult.duration > 0
+            ? data.taskResult.duration
+            : await getAudioDuration(data.taskResult.audioUrl)) || 0;
+        const roundedDuration = Math.round(resolvedDuration);
 
         const newPodcast: Podcast = {
           id: episodeId,
           title: podcastTitle,
           description: podcastDescription,
-          duration: data.taskResult.duration || 120,
+          duration: roundedDuration,
           mode,
           language,
           audioUrl: data.taskResult.audioUrl,
           createdDate: new Date(),
+          outline: outlineText,
+          scripts: data.taskResult.scripts || [],
+          coverUrl: data.taskResult.cover || undefined,
+          subtitlesUrl: data.taskResult.subtitlesUrl || undefined,
+          audioStreamUrl: data.taskResult.audioStreamUrl || undefined,
         };
 
         // 保存到数据库
@@ -485,12 +472,12 @@ const PodcastApp = () => {
               title: podcastTitle,
               description: podcastDescription,
               audioUrl: data.taskResult.audioUrl,
-              duration: data.taskResult.duration || 120,
+              duration: roundedDuration,
               mode,
               language,
               speakerIds,
               coverUrl: data.taskResult.cover,
-              outline: data.taskResult.outline,
+              outline: outlineText,
               scripts: data.taskResult.scripts,
               status: 'completed',
             }),
@@ -501,8 +488,12 @@ const PodcastApp = () => {
           // 不阻止用户使用，只记录错误
         }
 
-        setPodcasts((prev) => [newPodcast, ...prev]);
+        setPodcasts((prev) => [
+          newPodcast,
+          ...prev.filter((podcast) => podcast.id !== episodeId),
+        ]);
         setCurrentPodcast(newPodcast);
+        setPlayerDuration(roundedDuration);
         toast.success(t('generate.success'));
         return true; // 停止轮询
       }
@@ -1236,16 +1227,23 @@ const PodcastApp = () => {
           <ScrollAnimation delay={0.3}>
             <div className="mx-auto mb-12 max-w-4xl">
               <div className="from-primary/20 to-primary/5 border-primary/30 dark:from-primary/20 dark:to-primary/5 rounded-2xl border bg-gradient-to-r p-8">
-                <div className="mb-6 flex items-center justify-between">
-                  <div>
+                <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div className="flex-1">
                     <h3 className="text-foreground mb-2 text-2xl font-bold dark:text-white">
                       {currentPodcast.title}
                     </h3>
-                    <p className="text-muted-foreground dark:text-gray-300">
+                    <p className="text-muted-foreground line-clamp-2 text-sm leading-relaxed dark:text-gray-300">
                       {currentPodcast.description}
                     </p>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-shrink-0 items-center gap-3">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => openPodcastDetails(currentPodcast)}
+                    >
+                      {t('library.view_details')}
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
@@ -1254,15 +1252,6 @@ const PodcastApp = () => {
                     >
                       <Download className="mr-2 h-4 w-4" />
                       {t('player.download')}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-primary/30 text-primary/80 hover:bg-primary/10"
-                      onClick={handleShare}
-                    >
-                      <Share2 className="mr-2 h-4 w-4" />
-                      {t('player.share')}
                     </Button>
                   </div>
                 </div>
@@ -1273,17 +1262,25 @@ const PodcastApp = () => {
                   <div className="mb-4">
                     <div className="text-muted-foreground mb-2 flex justify-between text-sm dark:text-gray-400">
                       <span>{formatTime(currentTime)}</span>
-                      <span>{formatTime(currentPodcast.duration)}</span>
+                      <span>{formatTime(playerDuration)}</span>
                     </div>
                     <input
                       type="range"
                       min="0"
-                      max={currentPodcast.duration}
+                      max={playerDuration > 0 ? playerDuration : 1}
                       value={currentTime}
                       onChange={handleSeek}
                       className="bg-muted h-2 w-full cursor-pointer appearance-none rounded-lg dark:bg-gray-700"
                       style={{
-                        background: `linear-gradient(to right, rgb(139,92,246) 0%, rgb(139,92,246) ${(currentTime / currentPodcast.duration) * 100}%, #4b5563 ${(currentTime / currentPodcast.duration) * 100}%, #4b5563 100%)`,
+                        background: `linear-gradient(to right, rgb(139,92,246) 0%, rgb(139,92,246) ${
+                          playerDuration > 0
+                            ? (currentTime / playerDuration) * 100
+                            : 0
+                        }%, #4b5563 ${
+                          playerDuration > 0
+                            ? (currentTime / playerDuration) * 100
+                            : 0
+                        }%, #4b5563 100%)`,
                       }}
                     />
                   </div>
@@ -1365,35 +1362,33 @@ const PodcastApp = () => {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.5 }}
-                    className={`bg-muted/50 cursor-pointer rounded-xl border backdrop-blur-sm transition-all duration-300 dark:bg-gray-900/50 ${
+                    className={`bg-muted/50 rounded-xl border backdrop-blur-sm transition-all duration-300 dark:bg-gray-900/50 ${
                       currentPodcast?.id === podcast.id
                         ? 'border-primary bg-primary/10'
                         : 'hover:border-primary/50 border-gray-600'
                     }`}
-                    onClick={() => handlePlayPause(podcast)}
+                    onClick={() => openPodcastDetails(podcast)}
                   >
-                    <div className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="from-primary to-primary/70 flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br">
+                    <div className="space-y-4 p-6">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex flex-1 items-start gap-4">
+                          <div className="from-primary to-primary/70 flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br">
                             <Headphones className="h-6 w-6 text-white" />
                           </div>
-                          <div>
+                          <div className="min-w-0 space-y-2">
                             <h3 className="text-foreground text-lg font-semibold dark:text-white">
                               {podcast.title}
                             </h3>
-                            <p className="text-muted-foreground mb-1 text-sm dark:text-gray-400">
+                            <p className="text-muted-foreground line-clamp-2 text-sm leading-relaxed dark:text-gray-400">
                               {podcast.description}
                             </p>
-                            <div className="text-muted-foreground flex items-center gap-4 text-xs dark:text-gray-500">
+                            <div className="text-muted-foreground flex flex-wrap items-center gap-4 text-xs dark:text-gray-500">
                               <span className="flex items-center gap-1">
                                 <Clock className="h-3 w-3" />
                                 {formatTime(podcast.duration)}
                               </span>
-                              <span className="flex items-center gap-1">
-                                {t(`mode.${podcast.mode}.name`)}
-                              </span>
-                              <span className="flex items-center gap-1">
+                              <span>{t(`mode.${podcast.mode}.name`)}</span>
+                              <span>
                                 {podcast.createdDate.toLocaleDateString()}{' '}
                                 {podcast.createdDate.toLocaleTimeString([], {
                                   hour: '2-digit',
@@ -1405,7 +1400,11 @@ const PodcastApp = () => {
                         </div>
                         <Button
                           variant="ghost"
-                          size="sm"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePlayPause(podcast);
+                          }}
                           className="text-primary hover:text-primary/80"
                         >
                           {currentPodcast?.id === podcast.id && isPlaying ? (
@@ -1413,6 +1412,29 @@ const PodcastApp = () => {
                           ) : (
                             <Play className="h-5 w-5" />
                           )}
+                        </Button>
+                      </div>
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openPodcastDetails(podcast);
+                          }}
+                        >
+                          {t('library.view_details')}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            downloadPodcastAudio(podcast);
+                          }}
+                        >
+                          <Download className="mr-2 h-4 w-4" />
+                          {t('player.download')}
                         </Button>
                       </div>
                     </div>
@@ -1473,6 +1495,12 @@ const PodcastApp = () => {
           </div>
         </ScrollAnimation>
       </div>
+
+      <PodcastDetailDialog
+        open={isDetailOpen}
+        onOpenChange={setIsDetailOpen}
+        podcast={detailPodcast}
+      />
     </div>
   );
 };

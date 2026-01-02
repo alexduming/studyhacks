@@ -97,7 +97,8 @@
     "subtitle": "All your previously generated podcasts",
     "no_podcasts": "No podcasts yet",
     "start_creating": "Start creating your first AI podcast",
-    "created": "Created on"
+    "created": "Created on",
+    "view_details": "View details"
   },
   "history": {
     "title": "History",

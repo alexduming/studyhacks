@@ -97,7 +97,8 @@
     "subtitle": "您之前生成的所有播客",
     "no_podcasts": "还没有播客",
     "start_creating": "开始创建您的第一个AI播客吧",
-    "created": "创建于"
+    "created": "创建于",
+    "view_details": "查看详情"
   },
   "history": {
     "title": "历史记录",

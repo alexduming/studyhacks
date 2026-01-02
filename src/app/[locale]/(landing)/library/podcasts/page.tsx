@@ -2,28 +2,39 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Music, Play, Pause, Clock, Download, Share2, Trash2, Headphones } from 'lucide-react';
+import { Music, Play, Pause, Clock, Download, Trash2, Headphones } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import { useTranslations } from 'next-intl';
+import {
+  PodcastDetailDialog,
+  type PodcastDetailData,
+} from '@/shared/components/podcast/podcast-detail-dialog';
 
-interface Podcast {
-  id: string;
-  title: string;
+interface Podcast extends PodcastDetailData {
   description: string;
   audioUrl: string;
   duration: number;
   mode: 'quick' | 'deep' | 'debate';
   language: string;
-  createdAt: string;
+  createdDate: Date;
 }
 
 export default function PodcastsPage() {
+  const t = useTranslations('podcast');
   const [podcasts, setPodcasts] = useState<Podcast[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPodcast, setCurrentPodcast] = useState<Podcast | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [detailPodcast, setDetailPodcast] = useState<Podcast | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
+
+  const handleOpenDetails = (podcast: Podcast) => {
+    setDetailPodcast(podcast);
+    setIsDetailOpen(true);
+  };
 
   // 加载播客列表
   useEffect(() => {
@@ -37,7 +48,20 @@ export default function PodcastsPage() {
       const data = await response.json();
 
       if (data.success && Array.isArray(data.podcasts)) {
-        setPodcasts(data.podcasts);
+        const mapped: Podcast[] = data.podcasts.map((p: any) => ({
+          id: p.id,
+          title: p.title,
+          description: p.description || '',
+          audioUrl: p.audioUrl,
+          duration: p.duration || 0,
+          mode: p.mode,
+          language: p.language,
+          createdDate: new Date(p.createdAt),
+          outline: p.outline || '',
+          scripts: Array.isArray(p.scripts) ? p.scripts : [],
+          coverUrl: p.coverUrl || undefined,
+        }));
+        setPodcasts(mapped);
       }
     } catch (error) {
       console.error('加载播客失败:', error);
@@ -89,29 +113,6 @@ export default function PodcastsPage() {
     toast.success('开始下载');
   };
 
-  // 分享
-  const handleShare = async (podcast: Podcast) => {
-    const shareData = {
-      title: podcast.title,
-      text: podcast.description,
-      url: podcast.audioUrl,
-    };
-
-    try {
-      if (navigator.share) {
-        await navigator.share(shareData);
-        toast.success('分享成功');
-      } else {
-        await navigator.clipboard.writeText(podcast.audioUrl);
-        toast.success('链接已复制到剪贴板');
-      }
-    } catch (error: any) {
-      if (error.name !== 'AbortError') {
-        toast.error('分享失败');
-      }
-    }
-  };
-
   // 删除
   const handleDelete = async (podcastId: string) => {
     if (!confirm('确定要删除这个播客吗？')) return;
@@ -147,16 +148,15 @@ export default function PodcastsPage() {
   };
 
   // 格式化日期
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+const formatDate = (date: Date) => {
+  return date.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
 
   // 模式标签
   const getModeLabel = (mode: string) => {
@@ -223,65 +223,81 @@ export default function PodcastsPage() {
             className={`rounded-xl border bg-card p-6 transition-all hover:shadow-lg ${
               currentPodcast?.id === podcast.id ? 'border-primary bg-primary/5' : ''
             }`}
+            onClick={() => handleOpenDetails(podcast)}
           >
-            <div className="flex items-start justify-between gap-4">
-              {/* 左侧：播放按钮和信息 */}
-              <div className="flex flex-1 items-start gap-4">
-                <button
-                  onClick={() => handlePlayPause(podcast)}
-                  className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105"
-                >
-                  {currentPodcast?.id === podcast.id && isPlaying ? (
-                    <Pause className="h-5 w-5" />
-                  ) : (
-                    <Play className="h-5 w-5 ml-0.5" />
-                  )}
-                </button>
+            <div className="flex flex-col gap-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-1 items-start gap-4">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePlayPause(podcast);
+                    }}
+                    className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105"
+                  >
+                    {currentPodcast?.id === podcast.id && isPlaying ? (
+                      <Pause className="h-5 w-5" />
+                    ) : (
+                      <Play className="ml-0.5 h-5 w-5" />
+                    )}
+                  </button>
 
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-semibold mb-1 truncate">{podcast.title}</h3>
-                  <p className="text-muted-foreground text-sm mb-2 line-clamp-2">
-                    {podcast.description}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {formatTime(podcast.duration)}
-                    </span>
-                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-primary">
-                      {getModeLabel(podcast.mode)}
-                    </span>
-                    <span>{formatDate(podcast.createdAt)}</span>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="mb-1 truncate text-lg font-semibold">
+                      {podcast.title}
+                    </h3>
+                    <p className="text-muted-foreground mb-2 line-clamp-2 text-sm">
+                      {podcast.description}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {formatTime(podcast.duration)}
+                      </span>
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-primary">
+                        {getModeLabel(podcast.mode)}
+                      </span>
+                      <span>{formatDate(podcast.createdDate)}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* 右侧：操作按钮 */}
-              <div className="flex items-center gap-2">
+                <div className="flex flex-shrink-0 items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDownload(podcast);
+                    }}
+                    title="下载"
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(podcast.id);
+                    }}
+                    title="删除"
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
-                  onClick={() => handleDownload(podcast)}
-                  title="下载"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenDetails(podcast);
+                  }}
                 >
-                  <Download className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleShare(podcast)}
-                  title="分享"
-                >
-                  <Share2 className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleDelete(podcast.id)}
-                  title="删除"
-                  className="text-destructive hover:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4" />
+                  {t('library.view_details')}
                 </Button>
               </div>
             </div>
@@ -291,6 +307,12 @@ export default function PodcastsPage() {
 
       {/* 隐藏的音频元素 */}
       <audio ref={audioRef} onEnded={() => setIsPlaying(false)} />
+
+      <PodcastDetailDialog
+        open={isDetailOpen}
+        onOpenChange={setIsDetailOpen}
+        podcast={detailPodcast}
+      />
     </div>
   );
 }
