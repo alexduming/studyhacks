@@ -208,20 +208,30 @@ const PodcastApp = () => {
         const data = await response.json();
 
         if (data.success && Array.isArray(data.podcasts)) {
-          const loadedPodcasts: Podcast[] = data.podcasts.map((p: any) => ({
-            id: p.id,
-            title: p.title,
-            description: p.description || '',
-            duration: p.duration || 0,
-            mode: p.mode as PodcastMode,
-            language: p.language,
-            audioUrl: p.audioUrl,
-            createdDate: new Date(p.createdAt),
-            outline: p.outline || '',
-            scripts: Array.isArray(p.scripts) ? p.scripts : [],
-            coverUrl: p.coverUrl || undefined,
-            subtitlesUrl: p.subtitlesUrl || undefined,
-          }));
+          const loadedPodcasts: Podcast[] = await Promise.all(
+            data.podcasts.map(async (p: any) => {
+              let resolvedDuration = p.duration || 0;
+              if (!resolvedDuration && p.audioUrl) {
+                resolvedDuration = Math.round(
+                  await getAudioDuration(p.audioUrl)
+                );
+              }
+              return {
+                id: p.id,
+                title: p.title,
+                description: p.description || '',
+                duration: resolvedDuration,
+                mode: p.mode as PodcastMode,
+                language: p.language,
+                audioUrl: p.audioUrl,
+                createdDate: new Date(p.createdAt),
+                outline: p.outline || '',
+                scripts: Array.isArray(p.scripts) ? p.scripts : [],
+                coverUrl: p.coverUrl || undefined,
+                subtitlesUrl: p.subtitlesUrl || undefined,
+              };
+            })
+          );
 
           setPodcasts(loadedPodcasts);
         }

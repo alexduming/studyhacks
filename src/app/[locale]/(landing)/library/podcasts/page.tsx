@@ -1,16 +1,25 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Music, Play, Pause, Clock, Download, Trash2, Headphones } from 'lucide-react';
-import { Button } from '@/shared/components/ui/button';
-import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import {
+  Clock,
+  Download,
+  Headphones,
+  Music,
+  Pause,
+  Play,
+  Trash2,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
+
 import {
   PodcastDetailDialog,
   type PodcastDetailData,
 } from '@/shared/components/podcast/podcast-detail-dialog';
+import { Button } from '@/shared/components/ui/button';
 
 interface Podcast extends PodcastDetailData {
   description: string;
@@ -48,19 +57,31 @@ export default function PodcastsPage() {
       const data = await response.json();
 
       if (data.success && Array.isArray(data.podcasts)) {
-        const mapped: Podcast[] = data.podcasts.map((p: any) => ({
-          id: p.id,
-          title: p.title,
-          description: p.description || '',
-          audioUrl: p.audioUrl,
-          duration: p.duration || 0,
-          mode: p.mode,
-          language: p.language,
-          createdDate: new Date(p.createdAt),
-          outline: p.outline || '',
-          scripts: Array.isArray(p.scripts) ? p.scripts : [],
-          coverUrl: p.coverUrl || undefined,
-        }));
+        const mapped: Podcast[] = await Promise.all(
+          data.podcasts.map(async (p: any) => {
+            const baseDuration = p.duration || 0;
+            let resolvedDuration = baseDuration;
+            if (!baseDuration && p.audioUrl) {
+              resolvedDuration = Math.round(
+                await fetchAudioDuration(p.audioUrl)
+              );
+            }
+
+            return {
+              id: p.id,
+              title: p.title,
+              description: p.description || '',
+              audioUrl: p.audioUrl,
+              duration: resolvedDuration,
+              mode: p.mode,
+              language: p.language,
+              createdDate: new Date(p.createdAt),
+              outline: p.outline || '',
+              scripts: Array.isArray(p.scripts) ? p.scripts : [],
+              coverUrl: p.coverUrl || undefined,
+            };
+          })
+        );
         setPodcasts(mapped);
       }
     } catch (error) {
@@ -147,16 +168,29 @@ export default function PodcastsPage() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const fetchAudioDuration = async (url?: string) => {
+    if (!url) return 0;
+    return new Promise<number>((resolve) => {
+      const audio = document.createElement('audio');
+      audio.src = url;
+      audio.preload = 'metadata';
+      audio.addEventListener('loadedmetadata', () => {
+        resolve(audio.duration || 0);
+      });
+      audio.addEventListener('error', () => resolve(0));
+    });
+  };
+
   // 格式化日期
-const formatDate = (date: Date) => {
-  return date.toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
 
   // 模式标签
   const getModeLabel = (mode: string) => {
@@ -172,7 +206,7 @@ const formatDate = (date: Date) => {
     return (
       <div className="flex items-center justify-center py-24">
         <div className="text-center">
-          <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent"></div>
+          <div className="border-primary mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-r-transparent"></div>
           <p className="text-muted-foreground">加载中...</p>
         </div>
       </div>
@@ -202,7 +236,9 @@ const formatDate = (date: Date) => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">我的播客库</h1>
-          <p className="text-muted-foreground mt-2">共 {podcasts.length} 个播客</p>
+          <p className="text-muted-foreground mt-2">
+            共 {podcasts.length} 个播客
+          </p>
         </div>
         <Link href="/podcast">
           <Button>
@@ -220,8 +256,10 @@ const formatDate = (date: Date) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: index * 0.05 }}
-            className={`rounded-xl border bg-card p-6 transition-all hover:shadow-lg ${
-              currentPodcast?.id === podcast.id ? 'border-primary bg-primary/5' : ''
+            className={`bg-card rounded-xl border p-6 transition-all hover:shadow-lg ${
+              currentPodcast?.id === podcast.id
+                ? 'border-primary bg-primary/5'
+                : ''
             }`}
             onClick={() => handleOpenDetails(podcast)}
           >
@@ -233,7 +271,7 @@ const formatDate = (date: Date) => {
                       e.stopPropagation();
                       handlePlayPause(podcast);
                     }}
-                    className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105"
+                    className="bg-primary text-primary-foreground flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full transition-transform hover:scale-105"
                   >
                     {currentPodcast?.id === podcast.id && isPlaying ? (
                       <Pause className="h-5 w-5" />
@@ -249,12 +287,12 @@ const formatDate = (date: Date) => {
                     <p className="text-muted-foreground mb-2 line-clamp-2 text-sm">
                       {podcast.description}
                     </p>
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                    <div className="text-muted-foreground flex flex-wrap items-center gap-3 text-xs">
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
                         {formatTime(podcast.duration)}
                       </span>
-                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-primary">
+                      <span className="bg-primary/10 text-primary rounded-full px-2 py-0.5">
                         {getModeLabel(podcast.mode)}
                       </span>
                       <span>{formatDate(podcast.createdDate)}</span>

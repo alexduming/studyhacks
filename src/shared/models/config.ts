@@ -37,12 +37,14 @@ export async function saveConfigs(configs: Record<string, string>) {
   });
 
   // 使得缓存失效，下次请求重新获取最新配置
+  // @ts-expect-error revalidateTag definition might mismatch in some next versions
   revalidateTag('system-configs');
   return result;
 }
 
 export async function addConfig(newConfig: NewConfig) {
   const [result] = await db().insert(systemConfig).values(newConfig).returning();
+  // @ts-expect-error revalidateTag definition might mismatch in some next versions
   revalidateTag('system-configs');
   return result;
 }
