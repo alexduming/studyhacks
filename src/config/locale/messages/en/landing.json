@@ -49,6 +49,12 @@
               "description": "Create infographics from your notes and documents",
               "url": "/infographic",
               "icon": "Image"
+            },
+            {
+              "title": "AI Slides Generator",
+              "description": "Generate professional presentations with AI",
+              "url": "/slides",
+              "icon": "Presentation"
             }
           ]
         },
@@ -64,21 +70,10 @@
       "show_name": true,
       "show_credits": true,
       "show_sign_out": true,
-      "items": [
-        {
-          "title": "Billing",
-          "url": "/settings/billing",
-          "icon": "CreditCard"
-        },
-        {
-          "title": "Activity",
-          "url": "/activity",
-          "icon": "Activity"
-        }
-      ]
+      "items": []
     },
     "show_sign": true,
-    "show_theme": false,
+    "show_theme": true,
     "show_locale": true
   },
   "hero": {

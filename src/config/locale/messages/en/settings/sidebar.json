@@ -23,6 +23,11 @@
         "icon": "Coins"
       },
       {
+        "title": "Invite Friends",
+        "url": "/settings/invitation",
+        "icon": "Users"
+      },
+      {
         "title": "API Keys",
         "url": "/settings/apikeys",
         "icon": "RiKeyLine"
@@ -32,9 +37,9 @@
   "top_nav": {
     "items": [
       {
-        "title": "Activity",
-        "url": "/activity",
-        "icon": "Activity"
+        "title": "Library",
+        "url": "/library",
+        "icon": "Library"
       },
       {
         "title": "Settings",

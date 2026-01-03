@@ -18,6 +18,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
+import { useTheme } from 'next-themes';
 import { toast } from 'sonner';
 
 import { CreditsCost } from '@/shared/components/ai-elements/credits-display';
@@ -73,6 +74,7 @@ const AINoteTaker = ({
   const locale = useLocale();
   const router = useRouter();
   const { user, fetchUserCredits } = useAppContext();
+  const { theme, resolvedTheme } = useTheme();
 
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -116,10 +118,10 @@ const AINoteTaker = ({
    * - 这样用户可以实时看到自己还剩多少积分
    */
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
       fetchUserCredits();
     }
-  }, [user]);
+  }, [user?.id]);
 
   const handleFileUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
@@ -176,7 +178,10 @@ const AINoteTaker = ({
           // 积分不足的特殊处理
           if (result.insufficientCredits) {
             toast.error(
-              `积分不足！需要 ${result.requiredCredits} 积分，当前仅有 ${result.remainingCredits} 积分`
+              t('errors.insufficient_credits', {
+                required: result.requiredCredits,
+                remaining: result.remainingCredits,
+              })
             );
           } else {
             toast.error(result.error || t('errors.generation_failed'));
@@ -281,11 +286,14 @@ const AINoteTaker = ({
 
       // 使用 html-to-image 将指定 DOM 转成 PNG
       // 说明：
-      // - backgroundColor：兜底背景色，避免透明背景在某些设备上看起来发灰
+      // - backgroundColor：根据当前主题动态设置背景色，light 模式使用白色，dark 模式使用深色
       // - pixelRatio：用屏幕像素比，导出更清晰的图片（长图依然能看清细节）
+      const isDark = resolvedTheme === 'dark' || theme === 'dark';
+      const backgroundColor = isDark ? '#020617' : '#ffffff'; // light 模式使用白色，dark 模式使用深色
+
       const dataUrl = await toPng(node, {
         cacheBust: true,
-        backgroundColor: '#020617', // 近似当前深色背景（Tailwind 的 bg-slate-950）
+        backgroundColor,
         pixelRatio:
           typeof window !== 'undefined' && window.devicePixelRatio
             ? window.devicePixelRatio
@@ -347,7 +355,7 @@ const AINoteTaker = ({
         // 检查是否是升级维护提示
         if (result.upgrading) {
           setDialogOpen(false);
-          toast.error('Podcast功能正在升级维护中，请稍后再试');
+          toast.error(t('errors.podcast_upgrading'));
         } else {
           setDialogError(result.error || t('notes.dialog.error'));
         }
@@ -375,7 +383,7 @@ const AINoteTaker = ({
   const renderDialogBody = () => {
     if (dialogLoading) {
       return (
-        <div className="flex flex-col items-center justify-center gap-3 py-10 text-center text-gray-300">
+        <div className="text-muted-foreground flex flex-col items-center justify-center gap-3 py-10 text-center dark:text-gray-300">
           <Loader2 className="text-primary h-6 w-6 animate-spin" />
           <p>{t('notes.dialog.loading')}</p>
         </div>
@@ -388,7 +396,7 @@ const AINoteTaker = ({
 
     if (dialogType === 'podcast') {
       return (
-        <ScrollArea className="border-primary/20 h-80 rounded border bg-gray-900/60 p-4">
+        <ScrollArea className="border-primary/20 bg-muted/60 h-80 rounded border p-4 dark:bg-gray-900/60">
           <StudyNotesViewer content={podcastResult} />
         </ScrollArea>
       );
@@ -421,10 +429,10 @@ const AINoteTaker = ({
     <section
       className={
         isEmbedded
-          ? // 嵌入首页：保持深色渐变，但不占满整屏，也不使用 fixed 背景
-            'relative bg-gradient-to-b from-gray-950/95 via-gray-950/90 to-gray-950/98 py-16'
-          : // 原有单页模式：整屏高度 + 顶到底渐变
-            'via-primary/5 min-h-screen bg-gradient-to-b from-gray-950 to-gray-950'
+          ? // 嵌入首页：背景根据主题自动切换，light 模式使用浅色，dark 模式使用深色
+            'from-background/95 via-muted/90 to-background/98 relative bg-gradient-to-b py-16 dark:from-gray-950/95 dark:via-gray-950/90 dark:to-gray-950/98'
+          : // 原有单页模式：背景根据主题自动切换，light 模式使用浅色，dark 模式使用深色
+            'via-primary/5 from-background to-muted min-h-screen bg-gradient-to-b dark:from-gray-950 dark:to-gray-950'
       }
     >
       {/* 背景装饰：full 模式用 fixed 光晕，embedded 模式用更轻量的绝对定位光晕，避免影响整页滚动 */}
@@ -464,7 +472,7 @@ const AINoteTaker = ({
               <h1 className="via-primary/80 to-primary/60 mb-6 bg-gradient-to-r from-white bg-clip-text text-4xl font-bold text-transparent md:text-5xl">
                 {t('title')}
               </h1>
-              <p className="mx-auto max-w-3xl text-lg text-gray-300 md:text-xl">
+              <p className="text-muted-foreground mx-auto max-w-3xl text-lg md:text-xl dark:text-gray-300">
                 {t('subtitle')}
               </p>
             </motion.div>
@@ -475,7 +483,7 @@ const AINoteTaker = ({
         <ScrollAnimation delay={0.2}>
           <div className="mx-auto max-w-4xl">
             <div className="mb-8 flex justify-center">
-              <div className="border-primary/20 inline-flex rounded-lg border bg-gray-900/50 p-1 backdrop-blur-sm">
+              <div className="border-primary/20 bg-muted/50 inline-flex rounded-lg border p-1 backdrop-blur-sm dark:bg-gray-900/50">
                 {tabs.map((tab) => {
                   const Icon = tab.icon;
                   return (
@@ -486,7 +494,7 @@ const AINoteTaker = ({
                         activeTab === tab.id
                           ? // 选中标签：统一使用 primary 渐变，而不是 primary + 纯蓝
                             'from-primary to-primary/70 bg-gradient-to-r text-white shadow-lg'
-                          : 'hover:bg-primary/10 text-gray-400 hover:text-white'
+                          : 'hover:bg-primary/10 text-muted-foreground hover:text-foreground dark:text-gray-400 dark:hover:text-white'
                       }`}
                     >
                       <Icon className="h-4 w-4" />
@@ -503,7 +511,7 @@ const AINoteTaker = ({
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="border-primary/20 rounded-2xl border bg-gray-900/50 p-8 backdrop-blur-sm"
+                className="border-primary/20 bg-muted/50 rounded-2xl border p-8 backdrop-blur-sm dark:bg-gray-900/50"
               >
                 <div className="text-center">
                   {/* 主图标区域：改为 primary 单色渐变，贴合 turbo 主题主色 */}
@@ -511,17 +519,19 @@ const AINoteTaker = ({
                     <Upload className="h-12 w-12 text-white" />
                   </div>
 
-                  <h3 className="mb-4 text-2xl font-bold text-white">
+                  <h3 className="text-foreground mb-4 text-2xl font-bold dark:text-white">
                     {t('upload.title')}
                   </h3>
-                  <p className="mb-8 text-gray-400">{t('upload.subtitle')}</p>
+                  <p className="text-muted-foreground mb-8 dark:text-gray-400">
+                    {t('upload.subtitle')}
+                  </p>
 
                   {/* 语言选择器 */}
                   <div className="mb-6 flex flex-col items-center justify-center gap-4">
                     <div className="flex items-center gap-3">
                       <label
                         htmlFor="output-language-select"
-                        className="text-sm font-medium text-gray-300"
+                        className="text-foreground/70 text-sm font-medium dark:text-gray-300"
                       >
                         {t('upload.output_language')}:
                       </label>
@@ -532,11 +542,11 @@ const AINoteTaker = ({
                       >
                         <SelectTrigger
                           id="output-language-select"
-                          className="border-primary/30 hover:border-primary/50 w-[280px] bg-gray-800/50 text-white"
+                          className="border-primary/30 hover:border-primary/50 bg-background/50 text-foreground w-[280px] dark:bg-gray-800/50 dark:text-white"
                         >
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent className="border-primary/30 bg-gray-900">
+                        <SelectContent className="border-primary/30 bg-background dark:bg-gray-900">
                           <SelectItem value="auto">
                             {t('languages.auto')}
                           </SelectItem>
@@ -576,8 +586,8 @@ const AINoteTaker = ({
 
                     {/* 主题色选择器 */}
                     <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium text-gray-300">
-                        Theme Color:
+                      <span className="text-foreground/70 text-sm font-medium dark:text-gray-300">
+                        {t('upload.theme_color')}:
                       </span>
                       <div className="flex gap-2">
                         {presetColors.map((preset) => (
@@ -595,7 +605,7 @@ const AINoteTaker = ({
                           />
                         ))}
                         {/* 自定义颜色输入 */}
-                        <div className="relative flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border border-gray-600 bg-gray-800">
+                        <div className="border-border bg-muted relative flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border dark:border-gray-600 dark:bg-gray-800">
                           <input
                             type="color"
                             value={customThemeColor || '#6535F6'}
@@ -654,7 +664,6 @@ const AINoteTaker = ({
                       ) : (
                         <>
                           <CreditsCost credits={3} />
-                          <Upload className="mr-2 h-5 w-5" />
                           {t('upload.upload_button')}
                         </>
                       )}
@@ -667,12 +676,12 @@ const AINoteTaker = ({
                       {
                         icon: FileAudio,
                         label: t('upload.audio_files'),
-                        desc: 'MP3, WAV, M4A',
+                        desc: t('upload.audio_formats'),
                       },
                       {
                         icon: FileVideo,
                         label: t('upload.video_files'),
-                        desc: 'MP4, MOV, AVI',
+                        desc: t('upload.video_formats'),
                       },
                       {
                         icon: FileText,
@@ -682,7 +691,7 @@ const AINoteTaker = ({
                       {
                         icon: FileText,
                         label: t('upload.text_docs'),
-                        desc: 'DOC, TXT, MD',
+                        desc: t('upload.text_formats'),
                       },
                     ].map((type, idx) => {
                       const Icon = type.icon;
@@ -691,8 +700,12 @@ const AINoteTaker = ({
                           <div className="bg-primary/10 mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-lg">
                             <Icon className="text-primary h-6 w-6" />
                           </div>
-                          <p className="font-medium text-white">{type.label}</p>
-                          <p className="text-sm text-gray-500">{type.desc}</p>
+                          <p className="text-foreground font-medium dark:text-white">
+                            {type.label}
+                          </p>
+                          <p className="text-muted-foreground text-sm dark:text-gray-500">
+                            {type.desc}
+                          </p>
                         </div>
                       );
                     })}
@@ -707,22 +720,22 @@ const AINoteTaker = ({
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="border-primary/20 rounded-2xl border bg-gray-900/50 p-8 backdrop-blur-sm"
+                className="border-primary/20 bg-muted/50 rounded-2xl border p-8 backdrop-blur-sm dark:bg-gray-900/50"
               >
                 <div className="text-center">
                   <div className="from-primary to-primary/70 mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-2xl bg-gradient-to-br">
                     <Mic className="h-12 w-12 text-white" />
                   </div>
 
-                  <h3 className="mb-4 text-2xl font-bold text-white">
+                  <h3 className="text-foreground mb-4 text-2xl font-bold dark:text-white">
                     {t('record.title')}
                   </h3>
-                  <p className="mb-8 text-gray-400">{t('record.subtitle')}</p>
+                  <p className="text-muted-foreground mb-8 dark:text-gray-400">
+                    {t('record.subtitle')}
+                  </p>
 
                   <Button
-                    onClick={() =>
-                      toast.error('录音功能正在升级维护中，请稍后再试')
-                    }
+                    onClick={() => toast.error(t('record.upgrading_message'))}
                     className="from-primary hover:from-primary/90 to-primary/70 hover:to-primary/80 bg-gradient-to-r px-8 py-4 text-lg text-white"
                   >
                     <Mic className="mr-2 h-5 w-5" />
@@ -730,8 +743,8 @@ const AINoteTaker = ({
                   </Button>
 
                   <div className="mt-8 text-sm text-gray-500">
-                    <p>支持最长60分钟的连续录音</p>
-                    <p>自动降噪和语音识别优化</p>
+                    <p>{t('record.max_duration')}</p>
+                    <p>{t('record.features')}</p>
                   </div>
                 </div>
               </motion.div>
@@ -743,10 +756,10 @@ const AINoteTaker = ({
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="border-primary/20 rounded-2xl border bg-gray-900/50 p-8 backdrop-blur-sm"
+                className="border-primary/20 bg-muted/50 rounded-2xl border p-8 backdrop-blur-sm dark:bg-gray-900/50"
               >
                 <div className="mb-6 flex items-center justify-between">
-                  <h3 className="text-2xl font-bold text-white">
+                  <h3 className="text-foreground text-2xl font-bold dark:text-white">
                     {t('notes.title')}
                   </h3>
                   <div className="flex gap-3">
@@ -800,7 +813,7 @@ const AINoteTaker = ({
                 ) : generatedNotes ? (
                   <div
                     ref={notesContainerRef}
-                    className="rounded-lg bg-gray-800/50 p-6 text-base leading-relaxed text-gray-200"
+                    className="bg-background text-foreground rounded-lg p-6 text-base leading-relaxed dark:bg-gray-800/50 dark:text-gray-200"
                   >
                     <StudyNotesViewer
                       content={generatedNotes}
@@ -809,8 +822,10 @@ const AINoteTaker = ({
                   </div>
                 ) : (
                   <div className="py-12 text-center">
-                    <Brain className="mx-auto mb-4 h-16 w-16 text-gray-600" />
-                    <p className="text-gray-500">{t('notes.no_notes')}</p>
+                    <Brain className="text-muted-foreground mx-auto mb-4 h-16 w-16 dark:text-gray-600" />
+                    <p className="text-muted-foreground dark:text-gray-500">
+                      {t('notes.no_notes')}
+                    </p>
                   </div>
                 )}
 
@@ -864,7 +879,7 @@ const AINoteTaker = ({
           }
         }}
       >
-        <DialogContent className="border-primary/30 bg-gray-950/95 text-white">
+        <DialogContent className="border-primary/30 bg-background text-foreground dark:bg-gray-950/95 dark:text-white">
           <DialogHeader>
             <DialogTitle>{getDialogTitles().title}</DialogTitle>
             <DialogDescription className="text-gray-400">

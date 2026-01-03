@@ -130,8 +130,13 @@ export async function POST(req: Request) {
     }
 
     // get payment interval
-    const paymentInterval: PaymentInterval =
+    let paymentInterval: PaymentInterval =
       pricingItem.interval || PaymentInterval.ONE_TIME;
+
+    // Special handling for CNY payments (Alipay/WeChat): force one-time payment
+    if (checkoutCurrency.toLowerCase() === 'cny') {
+      paymentInterval = PaymentInterval.ONE_TIME;
+    }
 
     // get payment type
     const paymentType =

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+
+import {
+  consumeCredits,
+  getRemainingCredits,
+  refundCredits,
+} from '@/shared/models/credit';
 import { getUserInfo } from '@/shared/models/user';
-import { consumeCredits, getRemainingCredits } from '@/shared/models/credit';
 
 // 使用 Node.js 运行时，保证可以安全调用外部 API 并使用环境变量
 export const runtime = 'nodejs';
@@ -23,8 +28,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const {
       content,
-      aspectRatio = '1:1',
-      resolution = '1K',
+      aspectRatio = '1:1', // 与前端页面和 generate-with-fallback API 保持一致
+      resolution = '1K', // 与前端页面和 generate-with-fallback API 保持一致
       outputFormat = 'png',
     } = body || {};
 
@@ -101,7 +106,15 @@ export async function POST(request: NextRequest) {
     }
 
     // 默认提示词，按照你的要求拼接用户的内容
-    const prompt = `Create an educational infographic explaining the provided file or text. You select some typical visual elements. Style: Flat vector. Labels in the language the same as provided information.\n\nContent:\n${content}`;
+    const prompt = `Create an educational infographic explaining the provided file or text. You select some typical visual elements. Style: Flat vector.
+IMPORTANT: The text labels inside the infographic MUST be in the SAME LANGUAGE as the provided content.
+- If the content is in English, use English labels.
+- If the content is in Chinese, use Chinese labels.
+- If the content is in another language, use that language.
+Do NOT translate the content.
+
+Content:
+${content}`;
 
     const payload = {
       model: 'nano-banana-pro',
@@ -131,6 +144,18 @@ export async function POST(request: NextRequest) {
       console.error('  - API URL:', `${KIE_BASE_URL}/jobs/createTask`);
       console.error('  - 请求 payload:', JSON.stringify(payload, null, 2));
 
+      // 自动退还积分
+      try {
+        console.log(`💰 生成失败，自动退还用户 ${requiredCredits} 积分`);
+        await refundCredits({
+          userId: user.id,
+          credits: requiredCredits,
+          description: 'Refund for failed Infographic generation',
+        });
+      } catch (refundError) {
+        console.error('Failed to refund credits:', refundError);
+      }
+
       return NextResponse.json(
         {
           success: false,
@@ -158,6 +183,18 @@ export async function POST(request: NextRequest) {
       console.error('  - code:', data.code);
       console.error('  - message:', data.message || data.msg);
       console.error('  - 完整响应:', JSON.stringify(data, null, 2));
+
+      // 自动退还积分
+      try {
+        console.log(`💰 生成失败，自动退还用户 ${requiredCredits} 积分`);
+        await refundCredits({
+          userId: user.id,
+          credits: requiredCredits,
+          description: 'Refund for failed Infographic generation',
+        });
+      } catch (refundError) {
+        console.error('Failed to refund credits:', refundError);
+      }
 
       return NextResponse.json(
         {

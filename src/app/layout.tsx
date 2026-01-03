@@ -1,6 +1,6 @@
 import '@/config/style/global.css';
 
-import { JetBrains_Mono, Merriweather, Outfit } from 'next/font/google';
+// import { JetBrains_Mono, Merriweather, Outfit } from 'next/font/google';
 import { getLocale, setRequestLocale } from 'next-intl/server';
 import NextTopLoader from 'nextjs-toploader';
 
@@ -12,6 +12,24 @@ import { getAnalyticsService } from '@/shared/services/analytics';
 import { getCustomerService } from '@/shared/services/customer_service';
 
 // Outfit 字体 - 统一主题字体
+// 暂时禁用 Google Fonts 以解决中国地区构建和访问问题。
+// 使用系统默认字体栈 (System UI) 替代，速度最快且无外部依赖。
+const outfit = {
+  variable: '--font-sans',
+  style: { fontFamily: 'system-ui, sans-serif' },
+};
+
+const merriweather = {
+  variable: '--font-serif',
+  style: { fontFamily: 'Georgia, serif' },
+};
+
+const jetbrainsMono = {
+  variable: '--font-mono',
+  style: { fontFamily: 'Consolas, monospace' },
+};
+
+/*
 const outfit = Outfit({
   subsets: ['latin'],
   weight: ['100', '200', '300', '400', '500', '600', '700', '800', '900'],
@@ -28,6 +46,7 @@ const jetbrainsMono = JetBrains_Mono({
   subsets: ['latin'],
   variable: '--font-mono',
 });
+*/
 
 export default async function RootLayout({
   children,

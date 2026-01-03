@@ -1,4 +1,66 @@
 {
   "title": "AI Infographic Generator",
-  "subtitle": "Upload your course materials, notes, or text and instantly generate clear flat-vector educational infographics."
+  "subtitle": "Upload your notes，pictures or text and instantly generate clear infographics.",
+  "form": {
+    "input_title": "Input learning content",
+    "textarea_placeholder": "Paste your study notes, key points or course content here.",
+    "aspect_ratio_label": "Infographic aspect ratio",
+    "resolution_label": "Resolution",
+    "format_label": "Output format"
+  },
+  "upload": {
+    "loading": "Reading file...",
+    "button_label": "Read content from file (PDF / Word / TXT)",
+    "button_label_batch": "Upload Files (Batch Supported)",
+    "hint": "You can also paste or edit the content to be converted in the text area below.",
+    "hint_batch": "Supports PDF, DOCX, TXT, images, etc.",
+    "file_info": "Loaded content from \"{fileName}\". The text in the box below will be used to generate the infographic.",
+    "file_read_error": "Failed to read file content. Please ensure the file is not corrupted and is in a supported format.",
+    "files_selected": "Selected {count} files",
+    "files_selected_toast": "Selected {count} files: {types}",
+    "file_type_images": "{count} images",
+    "file_type_pdfs": "{count} PDFs",
+    "file_type_docs": "{count} documents",
+    "file_type_others": "{count} other files",
+    "processing_files": "Processing {count} files...",
+    "recognizing_images": "Recognizing {count} images...",
+    "processing_file": "Processing file {current}/{total}: {fileName}...",
+    "processing_single_file": "Processing file: {fileName}...",
+    "file_header": "=== File {index}: {fileName} ===",
+    "parse_file_failed": "Failed to parse file {fileName}:",
+    "parse_failed_message": "[Parse failed: {error}]",
+    "extracted_content_header": "=== Content extracted from uploaded files ===",
+    "file_count": "{count} files",
+    "separator": ", "
+  },
+  "actions": {
+    "clear": "Clear content",
+    "generate": "Generate infographic",
+    "generating": "AI is creating the infographic task..."
+  },
+  "result": {
+    "title": "Generation result",
+    "empty_title": "No result yet",
+    "empty_desc": "Infographics will appear here.",
+    "empty_hint": "Tip: generation may take a few seconds. Please wait for the image to finish loading.",
+    "loading": "AI is generating the infographic, please wait...",
+    "image_title": "Infographic {index}",
+    "download": "Download image",
+    "click_to_enlarge": "Click the image to view it in large size",
+    "generating": "Generating...",
+    "status_preparing": "Preparing resources...",
+    "status_drawing": "AI is drawing...",
+    "status_refining": "Refining details..."
+  },
+  "modal": {
+    "image_alt": "Enlarged infographic preview"
+  },
+  "errors": {
+    "no_content": "Please upload a file or paste the knowledge content you want to convert first.",
+    "generate_failed": "Failed to generate infographic. Please try again later.",
+    "unknown": "An unknown error occurred while generating the infographic. Please try again later.",
+    "poll_failed": "An error occurred while querying the infographic result. Please try again later.",
+    "timeout": "Infographic generation timeout. Please try again later.",
+    "generation_failed": "Infographic generation failed. Please try again later."
+  }
 }

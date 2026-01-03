@@ -78,7 +78,7 @@
         "is_featured": true,
         "tip": "Unlimited AI tools, study smarter",
         "button": {
-          "title": "Start Free Trial",
+          "title": "Upgrade to Plus",
           "url": "/#pricing",
           "icon": "RiFlashlightFill"
         },
@@ -87,7 +87,16 @@
         "credits": 600,
         "valid_days": 30,
         "group": "monthly",
-        "plan_name": "Plus"
+        "plan_name": "Plus",
+        "cn_amount": 6900,
+        "currencies": [
+          {
+            "currency": "CNY",
+            "amount": 6900,
+            "price": "¥69.00",
+            "original_price": ""
+          }
+        ]
       },
       {
         "title": "Pro",
@@ -120,7 +129,16 @@
         "credits": 2000,
         "valid_days": 30,
         "group": "monthly",
-        "plan_name": "Pro"
+        "plan_name": "Pro",
+        "cn_amount": 13900,
+        "currencies": [
+          {
+            "currency": "CNY",
+            "amount": 13900,
+            "price": "¥139.00",
+            "original_price": ""
+          }
+        ]
       },
       {
         "title": "Free",
@@ -178,7 +196,7 @@
         "is_featured": true,
         "tip": "Annual subscription, study smarter and save money",
         "button": {
-          "title": "Start Free Trial",
+          "title": "Upgrade to Plus",
           "url": "/#pricing",
           "icon": "RiFlashlightFill"
         },
@@ -227,6 +245,8 @@
   },
   "page": {
     "current_plan": "Current Plan",
-    "processing": "Processing"
+    "processing": "Processing",
+    "or_pay_with": "WeChat Pay 👉",
+    "wechat_alipay": "WeChat Pay"
   }
 }

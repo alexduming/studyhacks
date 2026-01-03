@@ -98,7 +98,7 @@ export function Header({ header }: { header: HeaderType }) {
             <NavigationMenuItem key={idx} value={item.title || ''}>
               {item.children && item.children.length > 0 ? (
                 <>
-                  <NavigationMenuTrigger className="flex flex-row items-center gap-2 text-sm text-gray-300 transition-colors hover:text-white">
+                  <NavigationMenuTrigger className="flex flex-row items-center gap-2 text-sm text-foreground/70 dark:text-gray-300 transition-colors hover:text-foreground dark:hover:text-white">
                     {item.icon && (
                       <SmartIcon
                         name={item.icon as string}
@@ -140,7 +140,7 @@ export function Header({ header }: { header: HeaderType }) {
                       'flex flex-row items-center gap-2 text-sm transition-colors',
                       item.is_active || pathname.endsWith(item.url as string)
                         ? 'text-primary'
-                        : 'text-gray-300 hover:text-white'
+                        : 'text-foreground/70 dark:text-gray-300 hover:text-foreground dark:hover:text-white'
                     )}
                   >
                     {item.icon && <SmartIcon name={item.icon as string} />}
@@ -176,7 +176,7 @@ export function Header({ header }: { header: HeaderType }) {
               >
                 {item.children && item.children.length > 0 ? (
                   <>
-                    <AccordionTrigger className="data-[state=open]:bg-muted flex items-center justify-between px-4 py-3 text-lg text-gray-300 **:!font-normal">
+                    <AccordionTrigger className="data-[state=open]:bg-muted flex items-center justify-between px-4 py-3 text-lg text-foreground/70 dark:text-gray-300 **:!font-normal">
                       {item.title}
                     </AccordionTrigger>
                     <AccordionContent className="pb-5">
@@ -186,7 +186,7 @@ export function Header({ header }: { header: HeaderType }) {
                             <Link
                               href={subItem.url || ''}
                               onClick={closeMenu}
-                              className="grid grid-cols-[auto_1fr] items-center gap-2.5 px-4 py-2 text-gray-300 transition-colors hover:text-white"
+                              className="grid grid-cols-[auto_1fr] items-center gap-2.5 px-4 py-2 text-foreground/70 dark:text-gray-300 transition-colors hover:text-foreground dark:hover:text-white"
                             >
                               <div
                                 aria-hidden
@@ -207,7 +207,7 @@ export function Header({ header }: { header: HeaderType }) {
                   <Link
                     href={item.url || ''}
                     onClick={closeMenu}
-                    className="data-[state=open]:bg-muted flex items-center justify-between px-4 py-3 text-lg text-gray-300 transition-colors **:!font-normal hover:text-white"
+                    className="data-[state=open]:bg-muted flex items-center justify-between px-4 py-3 text-lg text-foreground/70 dark:text-gray-300 transition-colors **:!font-normal hover:text-foreground dark:hover:text-white"
                   >
                     {item.title}
                   </Link>
@@ -261,9 +261,15 @@ export function Header({ header }: { header: HeaderType }) {
         <div
           className={cn(
             'absolute inset-x-0 top-0 z-50 h-18 border-transparent ring-1 ring-transparent transition-all duration-300',
-            'in-data-scrolled:border-primary/20 in-data-scrolled:border-b in-data-scrolled:bg-gray-950/90 in-data-scrolled:backdrop-blur-md',
-            'has-data-[state=open]:ring-primary/20 has-data-[state=open]:h-[calc(var(--navigation-menu-viewport-height)+3.4rem)] has-data-[state=open]:border-b has-data-[state=open]:bg-gray-950/95 has-data-[state=open]:shadow-lg has-data-[state=open]:shadow-black/20 has-data-[state=open]:backdrop-blur-md',
-            'max-lg:h-14 max-lg:overflow-hidden max-lg:border-b max-lg:in-data-[state=active]:h-screen max-lg:in-data-[state=active]:bg-gray-950/90 max-lg:in-data-[state=active]:backdrop-blur-md'
+            // 滚动时的样式：light 模式使用浅色背景，dark 模式使用深色背景
+            'in-data-scrolled:border-primary/20 in-data-scrolled:border-b in-data-scrolled:bg-background/90 in-data-scrolled:backdrop-blur-md',
+            'in-data-scrolled:dark:bg-gray-950/90',
+            // 菜单打开时的样式：light 模式使用浅色背景，dark 模式使用深色背景
+            'has-data-[state=open]:ring-primary/20 has-data-[state=open]:h-[calc(var(--navigation-menu-viewport-height)+3.4rem)] has-data-[state=open]:border-b has-data-[state=open]:bg-background/95 has-data-[state=open]:shadow-lg has-data-[state=open]:shadow-black/20 has-data-[state=open]:backdrop-blur-md',
+            'has-data-[state=open]:dark:bg-gray-950/95',
+            // 移动端菜单打开时的样式：light 模式使用浅色背景，dark 模式使用深色背景
+            'max-lg:h-14 max-lg:overflow-hidden max-lg:border-b max-lg:in-data-[state=active]:h-screen max-lg:in-data-[state=active]:bg-background/90 max-lg:in-data-[state=active]:backdrop-blur-md',
+            'max-lg:in-data-[state=active]:dark:bg-gray-950/90'
           )}
         >
           <div className="container">
@@ -280,7 +286,7 @@ export function Header({ header }: { header: HeaderType }) {
                   aria-label={
                     isMobileMenuOpen == true ? 'Close Menu' : 'Open Menu'
                   }
-                  className="relative z-20 -m-2.5 -mr-3 block cursor-pointer p-2.5 text-gray-300 transition-colors hover:text-white lg:hidden"
+                  className="relative z-20 -m-2.5 -mr-3 block cursor-pointer p-2.5 text-foreground/70 dark:text-gray-300 transition-colors hover:text-foreground dark:hover:text-white lg:hidden"
                 >
                   <Menu className="m-auto size-5 duration-200 in-data-[state=active]:scale-0 in-data-[state=active]:rotate-180 in-data-[state=active]:opacity-0" />
                   <X className="absolute inset-0 m-auto size-5 scale-0 -rotate-180 opacity-0 duration-200 in-data-[state=active]:scale-100 in-data-[state=active]:rotate-0 in-data-[state=active]:opacity-100" />

@@ -547,7 +547,7 @@ export const StudyNotesViewer = React.forwardRef<HTMLDivElement, StudyNotesViewe
                 'rounded-2xl border p-8 md:p-10 backdrop-blur-sm',
                 isDark
                   ? 'border-gray-800/50 bg-gradient-to-br from-gray-900/80 via-gray-900/60 to-gray-900/40'
-                  : 'border-gray-200 bg-gradient-to-br from-gray-50/90 via-white/80 to-gray-50/60'
+                  : 'border-gray-200 bg-white'
               )}
             >
               <div
@@ -593,7 +593,7 @@ export const StudyNotesViewer = React.forwardRef<HTMLDivElement, StudyNotesViewe
                         : 'min-h-[300px]',
                       isDark
                         ? 'border-gray-800/50 bg-gradient-to-br from-gray-900/60 via-gray-900/40 to-gray-900/20'
-                        : 'border-gray-200/50 bg-gradient-to-br from-white/90 via-gray-50/70 to-white/50'
+                        : 'border-gray-200/50 bg-white'
                     )}
                     style={{
                       borderColor: themeColor ? `${themeColor}33` : undefined, // 20% opacity border

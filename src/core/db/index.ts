@@ -76,7 +76,7 @@ export function db() {
       },
     });
 
-    dbInstance = drizzle({ client });
+    dbInstance = drizzle(client);
     return dbInstance;
   }
 
@@ -100,7 +100,7 @@ export function db() {
     },
   });
 
-  return drizzle({ client: serverlessClient });
+  return drizzle(serverlessClient);
 }
 
 // Optional: Function to close database connection (useful for testing or graceful shutdown)

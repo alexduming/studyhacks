@@ -160,7 +160,6 @@ export async function assignPermissionToRole(
   const [result] = await db()
     .insert(rolePermission)
     .values({
-      id: getUuid(),
       roleId,
       permissionId,
     })
@@ -201,7 +200,6 @@ export async function assignPermissionsToRole(
       .insert(rolePermission)
       .values(
         permissionIds.map((permissionId) => ({
-          id: getUuid(),
           roleId,
           permissionId,
         }))

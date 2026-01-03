@@ -10,6 +10,8 @@ import { getUserRoles } from '@/shared/services/rbac';
 import { Crumb, Search } from '@/shared/types/blocks/common';
 import { type Table } from '@/shared/types/blocks/table';
 
+import { ManageCreditsDialog } from './manage-credits-dialog';
+
 export default async function AdminUsersPage({
   params,
   searchParams,
@@ -55,6 +57,7 @@ export default async function AdminUsersPage({
     title: t('list.search.email.title'),
     placeholder: t('list.search.email.placeholder'),
     value: email,
+    withButton: true,
   };
 
   const table: Table = {
@@ -97,7 +100,16 @@ export default async function AdminUsersPage({
         callback: async (item: User) => {
           const credits = await getRemainingCredits(item.id);
 
-          return <div className="text-green-500">{credits}</div>;
+          return (
+            <div className="flex items-center gap-2">
+              <div className="text-green-500">{credits}</div>
+              <ManageCreditsDialog
+                userId={item.id}
+                userName={item.name}
+                currentCredits={credits}
+              />
+            </div>
+          );
         },
       },
       { name: 'createdAt', title: t('fields.created_at'), type: 'time' },

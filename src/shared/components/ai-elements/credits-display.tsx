@@ -29,7 +29,7 @@ export function CreditsCost({
   className?: string;
 }) {
   return (
-    <span className={`pointer-events-none flex items-center px-2 py-1 bg-white/20 rounded text-sm font-medium mr-2 ${className}`}>
+    <span className={`pointer-events-none flex items-center px-2 py-1 bg-white/0 rounded text-sm font-medium mr-2 ${className}`}>
       <Sparkles className="h-4 w-4 mr-1" />
       {credits}
     </span>
