@@ -36,6 +36,23 @@ export interface PodcastData {
   updatedAt: Date;
 }
 
+type DbPodcast = typeof podcast.$inferSelect;
+
+function normalizePodcast(record: DbPodcast): PodcastData {
+  return {
+    ...record,
+    description: record.description || undefined,
+    speakerIds: record.speakerIds ? JSON.parse(record.speakerIds) : undefined,
+    coverUrl: record.coverUrl || undefined,
+    outline: record.outline || undefined,
+    scripts: record.scripts
+      ? (JSON.parse(record.scripts) as PodcastData['scripts'])
+      : undefined,
+    mode: record.mode as PodcastData['mode'],
+    status: record.status as PodcastData['status'],
+  };
+}
+
 /**
  * 保存播客到数据库
  */
@@ -76,14 +93,7 @@ export async function savePodcast(data: {
       })
       .returning();
 
-    return {
-      ...result,
-      description: result.description || undefined,
-      coverUrl: result.coverUrl || undefined,
-      outline: result.outline || undefined,
-      speakerIds: result.speakerIds ? JSON.parse(result.speakerIds) : undefined,
-      scripts: result.scripts ? JSON.parse(result.scripts) : undefined,
-    } as PodcastData;
+    return normalizePodcast(result);
   } catch (error) {
     console.error('保存播客失败:', error);
     throw new Error('Failed to save podcast');
@@ -109,14 +119,7 @@ export async function getUserPodcasts(
       .limit(options?.limit || 50)
       .offset(options?.offset || 0);
 
-    return results.map((p) => ({
-      ...p,
-      description: p.description || undefined,
-      speakerIds: p.speakerIds ? JSON.parse(p.speakerIds) : undefined,
-      coverUrl: p.coverUrl || undefined,
-      outline: p.outline || undefined,
-      scripts: p.scripts ? JSON.parse(p.scripts) : undefined,
-    }));
+    return results.map((p) => normalizePodcast(p));
   } catch (error) {
     console.error('获取播客列表失败:', error);
     throw new Error('Failed to get user podcasts');
@@ -141,14 +144,7 @@ export async function getPodcastById(
       return null;
     }
 
-    return {
-      ...result,
-      description: result.description || undefined,
-      speakerIds: result.speakerIds ? JSON.parse(result.speakerIds) : undefined,
-      coverUrl: result.coverUrl || undefined,
-      outline: result.outline || undefined,
-      scripts: result.scripts ? JSON.parse(result.scripts) : undefined,
-    };
+    return normalizePodcast(result);
   } catch (error) {
     console.error('获取播客失败:', error);
     throw new Error('Failed to get podcast');
