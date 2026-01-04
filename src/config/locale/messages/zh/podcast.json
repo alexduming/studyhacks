@@ -100,7 +100,31 @@
     "created": "创建于",
     "view_details": "查看详情",
     "open_library": "打开资料库",
-    "link_description": "集中管理、播放和下载历史播客内容"
+    "link_description": "集中管理、播放和下载历史播客内容",
+    "total_count": "共 {count} 个播客",
+    "empty_title": "播客库为空",
+    "empty_description": "您还没有生成任何播客。开始创建内容来构建您的播客库。",
+    "create_button": "生成新播客",
+    "back_to_list": "返回播客库"
+  },
+  "libraryPage": {
+    "loading": "加载中...",
+    "delete_confirm": "确定要删除这个播客吗？",
+    "audio_missing": "音频文件不存在",
+    "download_start": "开始下载",
+    "download_fail": "下载失败，请稍后重试",
+    "delete_success": "删除成功",
+    "delete_fail": "删除失败",
+    "load_fail": "加载播客列表失败",
+    "close_player": "关闭播放器",
+    "skip_back": "后退10秒",
+    "skip_forward": "前进10秒",
+    "no_audio": "暂无音频可播放",
+    "not_found": "未找到该播客"
+  },
+  "libraryDetail": {
+    "outline_tab": "大纲笔记",
+    "script_tab": "完整脚本"
   },
   "history": {
     "title": "历史记录",

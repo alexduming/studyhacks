@@ -100,7 +100,31 @@
     "created": "Created on",
     "view_details": "View details",
     "open_library": "Open Library",
-    "link_description": "Manage, replay, and download every podcast in one place"
+    "link_description": "Manage, replay, and download every podcast in one place",
+    "total_count": "Total {count} podcasts",
+    "empty_title": "Library is empty",
+    "empty_description": "You haven’t generated any podcasts yet. Start creating to build your library.",
+    "create_button": "Create new podcast",
+    "back_to_list": "Back to library"
+  },
+  "libraryPage": {
+    "loading": "Loading...",
+    "delete_confirm": "Are you sure you want to delete this podcast?",
+    "audio_missing": "Audio file not found",
+    "download_start": "Starting download",
+    "download_fail": "Download failed, please try again later",
+    "delete_success": "Deleted successfully",
+    "delete_fail": "Delete failed",
+    "load_fail": "Failed to load podcast list",
+    "close_player": "Close player",
+    "skip_back": "Skip back 10s",
+    "skip_forward": "Skip forward 10s",
+    "no_audio": "No audio available",
+    "not_found": "Podcast not found"
+  },
+  "libraryDetail": {
+    "outline_tab": "Outline",
+    "script_tab": "Script"
   },
   "history": {
     "title": "History",

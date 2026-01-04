@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Calendar } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import { MiniPodcastPlayer } from '@/shared/components/podcast/mini-podcast-player';
@@ -82,6 +83,8 @@ export default function PodcastDetailPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
+  const t = useTranslations('podcast');
+  const locale = useLocale();
   const [podcast, setPodcast] = useState<PodcastData | null>(null);
   const [loading, setLoading] = useState(true);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -104,12 +107,12 @@ export default function PodcastDetailPage() {
             createdDate: new Date(data.podcast.createdAt),
           });
         } else {
-          toast.error('未找到该播客');
+          toast.error(t('libraryPage.not_found'));
           router.push('/library/podcasts');
         }
       } catch (error) {
         console.error('加载播客详情失败:', error);
-        toast.error('加载失败');
+        toast.error(t('libraryPage.load_fail'));
       } finally {
         setLoading(false);
       }
@@ -224,9 +227,9 @@ export default function PodcastDetailPage() {
 
   const getModeLabel = (mode: string) => {
     const map: Record<string, string> = {
-      quick: '速听',
-      deep: '深度',
-      debate: '辩论',
+      quick: t('mode.quick.name'),
+      deep: t('mode.deep.name'),
+      debate: t('mode.debate.name'),
     };
     return map[mode] || mode;
   };
@@ -252,7 +255,7 @@ export default function PodcastDetailPage() {
             onClick={() => router.push('/library/podcasts')}
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
-            返回播客库
+            {t('library.back_to_list')}
           </Button>
 
           <div className="space-y-4">
@@ -261,19 +264,29 @@ export default function PodcastDetailPage() {
                 variant="secondary"
                 className="rounded-md px-2 py-1 font-medium"
               >
-                {podcast.mode === 'quick' && '⚡ 速听'}
-                {podcast.mode === 'deep' && '📖 深度'}
-                {podcast.mode === 'debate' && '💬 辩论'}
+                {(
+                  {
+                    quick: `⚡ ${t('mode.quick.name')}`,
+                    deep: `📖 ${t('mode.deep.name')}`,
+                    debate: `💬 ${t('mode.debate.name')}`,
+                  } as Record<string, string>
+                )[podcast.mode] ?? t('mode.quick.name')}
               </Badge>
               <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
                 <Calendar className="h-3.5 w-3.5" />
-                <span>{podcast.createdDate.toLocaleDateString()}</span>
+                <span>{podcast.createdDate.toLocaleDateString(locale)}</span>
               </div>
             </div>
 
             <h1 className="text-3xl leading-tight font-bold tracking-tight sm:text-4xl">
               {podcast.title}
             </h1>
+
+            {podcast.description && (
+              <p className="text-muted-foreground text-lg">
+                {podcast.description}
+              </p>
+            )}
           </div>
         </div>
 
@@ -293,6 +306,8 @@ export default function PodcastDetailPage() {
                   onSeek={handleSeek}
                   onSkip={handleSkip}
                   onPlaybackRateChange={handlePlaybackRateChange}
+                  skipBackLabel={t('libraryPage.skip_back')}
+                  skipForwardLabel={t('libraryPage.skip_forward')}
                   className="w-full bg-transparent"
                 />
               </div>
@@ -300,7 +315,7 @@ export default function PodcastDetailPage() {
             </>
           ) : (
             <div className="border-border/40 bg-muted/30 text-muted-foreground rounded-2xl border p-6 text-center text-sm">
-              暂无音频可播放
+              {t('libraryPage.no_audio')}
             </div>
           )}
         </div>
@@ -316,14 +331,14 @@ export default function PodcastDetailPage() {
               className="data-[state=active]:bg-background rounded-md px-6 text-sm font-medium data-[state=active]:shadow-sm"
               disabled={!podcast.outline}
             >
-              大纲笔记
+              {t('libraryDetail.outline_tab')}
             </TabsTrigger>
             <TabsTrigger
               value="scripts"
               className="data-[state=active]:bg-background rounded-md px-6 text-sm font-medium data-[state=active]:shadow-sm"
               disabled={!podcast.scripts?.length}
             >
-              完整脚本
+              {t('libraryDetail.script_tab')}
             </TabsTrigger>
           </TabsList>
 

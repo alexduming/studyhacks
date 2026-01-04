@@ -17,6 +17,9 @@ interface MiniPodcastPlayerProps {
   onSkip: (delta: number) => void;
   onPlaybackRateChange: (rate: number) => void;
   onClose?: () => void;
+  skipBackLabel?: string;
+  skipForwardLabel?: string;
+  closeLabel?: string;
   className?: string;
 }
 
@@ -38,6 +41,9 @@ export function MiniPodcastPlayer({
   onSkip,
   onPlaybackRateChange,
   onClose,
+  skipBackLabel = 'Skip back 10s',
+  skipForwardLabel = 'Skip forward 10s',
+  closeLabel = 'Close',
   className,
 }: MiniPodcastPlayerProps) {
   const safeDuration = useMemo(() => (duration > 0 ? duration : 1), [duration]);
@@ -109,7 +115,7 @@ export function MiniPodcastPlayer({
             size="icon"
             className="h-9 w-9 text-muted-foreground transition-colors hover:text-foreground"
             onClick={() => onSkip(-10)}
-            title="后退10秒"
+            title={skipBackLabel}
           >
             <div className="flex flex-col items-center justify-center gap-0.5">
               <RotateCcw className="h-4 w-4" />
@@ -122,7 +128,7 @@ export function MiniPodcastPlayer({
             size="icon"
             className="h-9 w-9 text-muted-foreground transition-colors hover:text-foreground"
             onClick={() => onSkip(10)}
-            title="前进10秒"
+            title={skipForwardLabel}
           >
             <div className="flex flex-col items-center justify-center gap-0.5">
               <RotateCw className="h-4 w-4" />
@@ -151,6 +157,7 @@ export function MiniPodcastPlayer({
             size="icon"
             className="h-8 w-8 text-muted-foreground transition-colors hover:text-foreground sm:hidden"
             onClick={onClose}
+            title={closeLabel}
           >
             <X className="h-4 w-4" />
           </Button>

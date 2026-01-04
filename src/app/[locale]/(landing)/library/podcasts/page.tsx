@@ -17,7 +17,7 @@ import {
   Zap,
   type LucideIcon,
 } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import { MiniPodcastPlayer } from '@/shared/components/podcast/mini-podcast-player';
@@ -61,6 +61,7 @@ const getCardVisual = (mode: Podcast['mode']) =>
 export default function PodcastsPage() {
   const router = useRouter();
   const t = useTranslations('podcast');
+  const locale = useLocale();
   const [podcasts, setPodcasts] = useState<Podcast[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPodcast, setCurrentPodcast] = useState<Podcast | null>(null);
@@ -69,6 +70,9 @@ export default function PodcastsPage() {
   const [currentTime, setCurrentTime] = useState(0);
   const [playerDuration, setPlayerDuration] = useState(0);
   const [playbackRate, setPlaybackRate] = useState(1);
+  const skipBackLabel = t('libraryPage.skip_back');
+  const skipForwardLabel = t('libraryPage.skip_forward');
+  const closePlayerLabel = t('libraryPage.close_player');
 
   // 加载播客列表
   useEffect(() => {
@@ -113,7 +117,7 @@ export default function PodcastsPage() {
       }
     } catch (error) {
       console.error('加载播客失败:', error);
-      toast.error('加载播客列表失败');
+      toast.error(t('libraryPage.load_fail'));
     } finally {
       setLoading(false);
     }
@@ -194,7 +198,7 @@ export default function PodcastsPage() {
   // 下载
   const downloadPodcastAudio = async (podcast: PodcastDetailData) => {
     if (!podcast.audioUrl) {
-      toast.error('音频文件不存在');
+      toast.error(t('libraryPage.audio_missing'));
       return;
     }
     try {
@@ -209,16 +213,16 @@ export default function PodcastsPage() {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      toast.success('开始下载');
+      toast.success(t('libraryPage.download_start'));
     } catch (error) {
       console.error('下载失败:', error);
-      toast.error('下载失败，请稍后重试');
+      toast.error(t('libraryPage.download_fail'));
     }
   };
 
   // 删除
   const handleDelete = async (podcastId: string) => {
-    if (!confirm('确定要删除这个播客吗？')) return;
+    if (!confirm(t('libraryPage.delete_confirm'))) return;
 
     try {
       const response = await fetch(`/api/podcast?id=${podcastId}`, {
@@ -233,13 +237,13 @@ export default function PodcastsPage() {
           setCurrentPodcast(null);
           setIsPlaying(false);
         }
-        toast.success('删除成功');
+        toast.success(t('libraryPage.delete_success'));
       } else {
-        toast.error(data.error || '删除失败');
+        toast.error(data.error || t('libraryPage.delete_fail'));
       }
     } catch (error) {
       console.error('删除失败:', error);
-      toast.error('删除失败');
+      toast.error(t('libraryPage.delete_fail'));
     }
   };
 
@@ -290,7 +294,7 @@ export default function PodcastsPage() {
 
   // 格式化日期
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString('zh-CN', {
+    return date.toLocaleDateString(locale, {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -302,9 +306,9 @@ export default function PodcastsPage() {
   // 模式标签
   const getModeLabel = (mode: string) => {
     const labels: Record<string, string> = {
-      quick: '速听',
-      deep: '深度',
-      debate: '辩论',
+      quick: t('mode.quick.name'),
+      deep: t('mode.deep.name'),
+      debate: t('mode.debate.name'),
     };
     return labels[mode] || mode;
   };
@@ -318,7 +322,9 @@ export default function PodcastsPage() {
       <div className="flex items-center justify-center py-20">
         <div className="text-center">
           <div className="border-primary mb-3 inline-block h-6 w-6 animate-spin rounded-full border-2 border-solid border-r-transparent"></div>
-          <p className="text-muted-foreground text-sm">加载中...</p>
+          <p className="text-muted-foreground text-sm">
+            {t('libraryPage.loading')}
+          </p>
         </div>
       </div>
     );
@@ -331,15 +337,15 @@ export default function PodcastsPage() {
           <Music className="text-muted-foreground h-6 w-6" />
         </div>
         <h3 className="text-foreground mb-1.5 text-lg font-semibold">
-          播客库为空
+          {t('library.empty_title')}
         </h3>
         <p className="text-muted-foreground mb-5 max-w-sm text-sm leading-relaxed">
-          您还没有生成任何播客。开始创建内容来构建您的播客库。
+          {t('library.empty_description')}
         </p>
         <Link href="/podcast">
           <Button size="sm" variant="default">
             <Headphones className="mr-2 h-4 w-4" />
-            生成新播客
+            {t('library.create_button')}
           </Button>
         </Link>
       </div>
@@ -352,16 +358,16 @@ export default function PodcastsPage() {
       <div className="flex items-start justify-between">
         <div className="space-y-1">
           <h1 className="text-foreground text-2xl font-semibold tracking-tight">
-            我的播客库
+            {t('library.title')}
           </h1>
           <p className="text-muted-foreground text-sm">
-            共 {podcasts.length} 个播客
+            {t('library.total_count', { count: podcasts.length })}
           </p>
         </div>
         <Link href="/podcast">
           <Button size="sm" className="gap-2">
             <Headphones className="h-4 w-4" />
-            生成新播客
+            {t('library.create_button')}
           </Button>
         </Link>
       </div>
@@ -479,6 +485,9 @@ export default function PodcastsPage() {
             onSkip={handleSkip}
             onPlaybackRateChange={handlePlaybackRateChange}
             onClose={() => setCurrentPodcast(null)}
+            skipBackLabel={skipBackLabel}
+            skipForwardLabel={skipForwardLabel}
+            closeLabel={closePlayerLabel}
             className="w-full bg-transparent"
           />
         </div>
