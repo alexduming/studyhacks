@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 
-import { getUserInfo } from '@/shared/models/user';
-import { consumeCredits, getRemainingCredits } from '@/shared/models/credit';
 import { envConfigs } from '@/config';
-import { ListenHubProvider, PodcastGenerateOptions, AIMediaType } from '@/extensions/ai';
+import {
+  AIMediaType,
+  ListenHubProvider,
+  PodcastGenerateOptions,
+} from '@/extensions/ai';
+import { consumeCredits, getRemainingCredits } from '@/shared/models/credit';
+import { getUserInfo } from '@/shared/models/user';
 
 /**
  * 非程序员解释：
@@ -69,7 +73,8 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Podcast feature is not enabled. Please contact administrator.',
+          error:
+            'Podcast feature is not enabled. Please contact administrator.',
           notEnabled: true,
         },
         { status: 503 }
@@ -81,7 +86,8 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          error: 'ListenHub API key is not configured. Please add LISTENHUB_API_KEY to .env.local',
+          error:
+            'ListenHub API key is not configured. Please add LISTENHUB_API_KEY to .env.local',
           notConfigured: true,
         },
         { status: 503 }
@@ -130,7 +136,13 @@ export async function POST(request: Request) {
         credits: requiredCredits,
         scene: 'ai_podcast',
         description: `AI Podcast - ${mode} mode`,
-        metadata: JSON.stringify({ mode, language, hasContent: !!content, hasFileUrl: !!file_url, hasLink: !!link }),
+        metadata: JSON.stringify({
+          mode,
+          language,
+          hasContent: !!content,
+          hasFileUrl: !!file_url,
+          hasLink: !!link,
+        }),
       });
     } catch (creditError: any) {
       console.error('Failed to consume credits:', creditError);
@@ -207,7 +219,6 @@ export async function POST(request: Request) {
       creditsUsed: requiredCredits,
       remainingCredits: remainingCredits - requiredCredits,
     });
-
   } catch (error: any) {
     console.error('API /api/ai/podcast error:', error);
 
@@ -305,7 +316,6 @@ export async function GET(request: Request) {
       taskInfo: result.taskInfo,
       taskResult: result.taskResult,
     });
-
   } catch (error: any) {
     console.error('API /api/ai/podcast GET error:', error);
 

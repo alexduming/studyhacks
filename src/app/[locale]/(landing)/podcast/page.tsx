@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Clock,
@@ -210,11 +211,29 @@ const PodcastApp = () => {
         if (data.success && Array.isArray(data.podcasts)) {
           const loadedPodcasts: Podcast[] = await Promise.all(
             data.podcasts.map(async (p: any) => {
+              // 优先从音频文件获取实际时长
+              // 如果数据库中的值是默认值120（2分钟）或0，则重新获取实际时长
               let resolvedDuration = p.duration || 0;
-              if (!resolvedDuration && p.audioUrl) {
-                resolvedDuration = Math.round(
-                  await getAudioDuration(p.audioUrl)
-                );
+              if (p.audioUrl) {
+                // 如果数据库中的值是默认值120或0，尝试从音频文件获取实际时长
+                if (!resolvedDuration || resolvedDuration === 120) {
+                  try {
+                    const actualDuration = await getAudioDuration(p.audioUrl);
+                    if (actualDuration > 0) {
+                      resolvedDuration = Math.round(actualDuration);
+                    } else {
+                      // 如果获取失败，保持数据库中的值（或使用默认值120）
+                      resolvedDuration = resolvedDuration || 120;
+                    }
+                  } catch (error) {
+                    // 如果获取出错，使用数据库中的值
+                    console.warn(`获取播客 ${p.id} 的时长失败:`, error);
+                    resolvedDuration = resolvedDuration || 120;
+                  }
+                }
+              } else {
+                // 如果没有音频URL，使用数据库中的值或默认值
+                resolvedDuration = resolvedDuration || 120;
               }
               return {
                 id: p.id,
@@ -353,7 +372,7 @@ const PodcastApp = () => {
   };
 
   // ===== 下载播客音频 =====
-  const downloadPodcastAudio = async (podcast: Podcast) => {
+  const downloadPodcastAudio = async (podcast: PodcastDetailData) => {
     if (!podcast.audioUrl) {
       toast.error('音频文件不存在');
       return;
@@ -1358,109 +1377,30 @@ const PodcastApp = () => {
         {/* 音色试听音频元素 (隐藏) */}
         <audio ref={demoAudioRef} className="hidden" />
 
-        {/* 播客列表 */}
+        {/* 资料库入口 */}
         <ScrollAnimation delay={0.4}>
           <div className="mx-auto max-w-4xl">
-            <h2 className="text-foreground mb-6 text-2xl font-bold dark:text-white">
-              {t('library.title')}
-            </h2>
-            <div className="space-y-4">
-              {podcasts.length > 0 ? (
-                podcasts.map((podcast) => (
-                  <motion.div
-                    key={podcast.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.5 }}
-                    className={`bg-muted/50 rounded-xl border backdrop-blur-sm transition-all duration-300 dark:bg-gray-900/50 ${
-                      currentPodcast?.id === podcast.id
-                        ? 'border-primary bg-primary/10'
-                        : 'hover:border-primary/50 border-gray-600'
-                    }`}
-                    onClick={() => openPodcastDetails(podcast)}
-                  >
-                    <div className="space-y-4 p-6">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex flex-1 items-start gap-4">
-                          <div className="from-primary to-primary/70 flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br">
-                            <Headphones className="h-6 w-6 text-white" />
-                          </div>
-                          <div className="min-w-0 space-y-2">
-                            <h3 className="text-foreground text-lg font-semibold dark:text-white">
-                              {podcast.title}
-                            </h3>
-                            <p className="text-muted-foreground line-clamp-2 text-sm leading-relaxed dark:text-gray-400">
-                              {podcast.description}
-                            </p>
-                            <div className="text-muted-foreground flex flex-wrap items-center gap-4 text-xs dark:text-gray-500">
-                              <span className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {formatTime(podcast.duration)}
-                              </span>
-                              <span>{t(`mode.${podcast.mode}.name`)}</span>
-                              <span>
-                                {podcast.createdDate.toLocaleDateString()}{' '}
-                                {podcast.createdDate.toLocaleTimeString([], {
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handlePlayPause(podcast);
-                          }}
-                          className="text-primary hover:text-primary/80"
-                        >
-                          {currentPodcast?.id === podcast.id && isPlaying ? (
-                            <Pause className="h-5 w-5" />
-                          ) : (
-                            <Play className="h-5 w-5" />
-                          )}
-                        </Button>
-                      </div>
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openPodcastDetails(podcast);
-                          }}
-                        >
-                          {t('library.view_details')}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            downloadPodcastAudio(podcast);
-                          }}
-                        >
-                          <Download className="mr-2 h-4 w-4" />
-                          {t('player.download')}
-                        </Button>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))
-              ) : (
-                <div className="py-16 text-center">
-                  <Headphones className="text-muted-foreground mx-auto mb-6 h-20 w-20 dark:text-gray-600" />
-                  <h3 className="text-foreground mb-4 text-xl font-semibold dark:text-white">
-                    {t('library.no_podcasts')}
-                  </h3>
-                  <p className="text-muted-foreground mb-6 dark:text-gray-400">
-                    {t('library.start_creating')}
-                  </p>
-                </div>
-              )}
+            <div className="border-primary/20 bg-card/70 flex flex-col gap-4 rounded-3xl border p-6 shadow-sm backdrop-blur md:flex-row md:items-center md:justify-between">
+              <div className="flex-1 text-center md:text-left">
+                <p className="text-primary/80 text-xs tracking-wide uppercase">
+                  {t('library.subtitle')}
+                </p>
+                <h3 className="text-foreground mt-1 text-2xl font-semibold dark:text-white">
+                  {t('library.title')}
+                </h3>
+                <p className="text-muted-foreground mt-2 text-sm dark:text-gray-300">
+                  {t('library.link_description')}
+                </p>
+              </div>
+              <Button
+                asChild
+                size="lg"
+                className="from-primary to-primary/80 bg-gradient-to-r text-white shadow-lg"
+              >
+                <Link href="/library/podcasts">
+                  {t('library.open_library')}
+                </Link>
+              </Button>
             </div>
           </div>
         </ScrollAnimation>
@@ -1510,6 +1450,7 @@ const PodcastApp = () => {
         open={isDetailOpen}
         onOpenChange={setIsDetailOpen}
         podcast={detailPodcast}
+        onDownloadAudio={downloadPodcastAudio}
       />
     </div>
   );

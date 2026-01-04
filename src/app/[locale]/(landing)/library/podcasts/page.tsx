@@ -2,23 +2,26 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
-  Clock,
+  BookOpenCheck,
   Download,
   Headphones,
+  MessageSquare,
   Music,
   Pause,
   Play,
+  Sparkles,
   Trash2,
+  Zap,
+  type LucideIcon,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
-import {
-  PodcastDetailDialog,
-  type PodcastDetailData,
-} from '@/shared/components/podcast/podcast-detail-dialog';
+import { MiniPodcastPlayer } from '@/shared/components/podcast/mini-podcast-player';
+import { type PodcastDetailData } from '@/shared/components/podcast/podcast-detail-dialog';
 import { Button } from '@/shared/components/ui/button';
 
 interface Podcast extends PodcastDetailData {
@@ -30,20 +33,42 @@ interface Podcast extends PodcastDetailData {
   createdDate: Date;
 }
 
+const ICON_VARIANTS: Record<
+  Podcast['mode'] | 'default',
+  { Icon: LucideIcon; gradient: string }
+> = {
+  quick: {
+    Icon: Zap,
+    gradient: 'from-amber-500/25 via-orange-500/20 to-rose-500/20',
+  },
+  deep: {
+    Icon: BookOpenCheck,
+    gradient: 'from-sky-500/20 via-blue-500/20 to-indigo-500/25',
+  },
+  debate: {
+    Icon: MessageSquare,
+    gradient: 'from-emerald-500/20 via-teal-500/20 to-cyan-500/20',
+  },
+  default: {
+    Icon: Sparkles,
+    gradient: 'from-slate-500/15 via-slate-600/15 to-slate-700/15',
+  },
+};
+
+const getCardVisual = (mode: Podcast['mode']) =>
+  ICON_VARIANTS[mode] || ICON_VARIANTS.default;
+
 export default function PodcastsPage() {
+  const router = useRouter();
   const t = useTranslations('podcast');
   const [podcasts, setPodcasts] = useState<Podcast[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPodcast, setCurrentPodcast] = useState<Podcast | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [detailPodcast, setDetailPodcast] = useState<Podcast | null>(null);
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
-
-  const handleOpenDetails = (podcast: Podcast) => {
-    setDetailPodcast(podcast);
-    setIsDetailOpen(true);
-  };
+  const [currentTime, setCurrentTime] = useState(0);
+  const [playerDuration, setPlayerDuration] = useState(0);
+  const [playbackRate, setPlaybackRate] = useState(1);
 
   // 加载播客列表
   useEffect(() => {
@@ -59,9 +84,11 @@ export default function PodcastsPage() {
       if (data.success && Array.isArray(data.podcasts)) {
         const mapped: Podcast[] = await Promise.all(
           data.podcasts.map(async (p: any) => {
-            const baseDuration = p.duration || 0;
-            let resolvedDuration = baseDuration;
-            if (!baseDuration && p.audioUrl) {
+            let resolvedDuration = p.duration || 0;
+            const shouldFetch =
+              (!resolvedDuration || resolvedDuration === 120) && p.audioUrl;
+
+            if (shouldFetch) {
               resolvedDuration = Math.round(
                 await fetchAudioDuration(p.audioUrl)
               );
@@ -95,43 +122,98 @@ export default function PodcastsPage() {
   // 播放/暂停
   const handlePlayPause = (podcast: Podcast) => {
     if (currentPodcast?.id === podcast.id) {
-      if (isPlaying) {
-        audioRef.current?.pause();
-        setIsPlaying(false);
-      } else {
-        audioRef.current?.play();
-        setIsPlaying(true);
-      }
+      setIsPlaying((prev) => !prev);
     } else {
       setCurrentPodcast(podcast);
+      setCurrentTime(0);
+      setPlayerDuration(podcast.duration || 0);
       setIsPlaying(true);
     }
   };
 
-  // 监听音频播放状态
+  // 同步音频源
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !currentPodcast) return;
+    audio.src = currentPodcast.audioUrl;
+    audio.currentTime = 0;
+    setCurrentTime(0);
+    setPlayerDuration(currentPodcast.duration || 0);
+  }, [currentPodcast?.id]);
+
+  // 播放状态与时间更新
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !currentPodcast) return;
 
-    audio.src = currentPodcast.audioUrl;
     if (isPlaying) {
-      audio.play().catch((err) => {
-        console.error('播放失败:', err);
-        setIsPlaying(false);
-      });
+      audio
+        .play()
+        .then(() => {
+          /* noop */
+        })
+        .catch((err) => {
+          console.error('播放失败:', err);
+          setIsPlaying(false);
+        });
+    } else {
+      audio.pause();
     }
-  }, [currentPodcast, isPlaying]);
+  }, [isPlaying, currentPodcast]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const updateDuration = () => {
+      if (audio.duration && !Number.isNaN(audio.duration)) {
+        setPlayerDuration(audio.duration);
+      }
+    };
+
+    const updateTime = () => setCurrentTime(audio.currentTime);
+    const handleEnded = () => setIsPlaying(false);
+
+    audio.addEventListener('loadedmetadata', updateDuration);
+    audio.addEventListener('timeupdate', updateTime);
+    audio.addEventListener('ended', handleEnded);
+
+    return () => {
+      audio.removeEventListener('loadedmetadata', updateDuration);
+      audio.removeEventListener('timeupdate', updateTime);
+      audio.removeEventListener('ended', handleEnded);
+    };
+  }, [currentPodcast?.audioUrl]);
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.playbackRate = playbackRate;
+    }
+  }, [playbackRate]);
 
   // 下载
-  const handleDownload = (podcast: Podcast) => {
-    const link = document.createElement('a');
-    link.href = podcast.audioUrl;
-    link.download = `${podcast.title}.mp3`;
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success('开始下载');
+  const downloadPodcastAudio = async (podcast: PodcastDetailData) => {
+    if (!podcast.audioUrl) {
+      toast.error('音频文件不存在');
+      return;
+    }
+    try {
+      const response = await fetch(podcast.audioUrl);
+      if (!response.ok) throw new Error('download failed');
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${podcast.title || 'podcast'}.mp3`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success('开始下载');
+    } catch (error) {
+      console.error('下载失败:', error);
+      toast.error('下载失败，请稍后重试');
+    }
   };
 
   // 删除
@@ -164,8 +246,33 @@ export default function PodcastsPage() {
   // 格式化时间
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
+    const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleSeek = (value: number) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.currentTime = value;
+    setCurrentTime(value);
+  };
+
+  const handleSkip = (delta: number) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const target = Math.max(
+      0,
+      Math.min(audio.currentTime + delta, playerDuration)
+    );
+    audio.currentTime = target;
+    setCurrentTime(target);
+  };
+
+  const handlePlaybackRateChange = (value: number) => {
+    setPlaybackRate(value);
+    if (audioRef.current) {
+      audioRef.current.playbackRate = value;
+    }
   };
 
   const fetchAudioDuration = async (url?: string) => {
@@ -202,12 +309,16 @@ export default function PodcastsPage() {
     return labels[mode] || mode;
   };
 
+  const handleCardClick = (podcast: Podcast) => {
+    router.push(`/library/podcasts/${podcast.id}`);
+  };
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24">
+      <div className="flex items-center justify-center py-20">
         <div className="text-center">
-          <div className="border-primary mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-r-transparent"></div>
-          <p className="text-muted-foreground">加载中...</p>
+          <div className="border-primary mb-3 inline-block h-6 w-6 animate-spin rounded-full border-2 border-solid border-r-transparent"></div>
+          <p className="text-muted-foreground text-sm">加载中...</p>
         </div>
       </div>
     );
@@ -215,142 +326,166 @@ export default function PodcastsPage() {
 
   if (podcasts.length === 0) {
     return (
-      <div className="bg-muted/10 flex flex-col items-center justify-center rounded-lg border border-dashed py-24 text-center">
-        <div className="bg-muted mb-4 rounded-full p-4">
-          <Music className="text-muted-foreground h-8 w-8" />
+      <div className="border-border/50 bg-muted/20 flex flex-col items-center justify-center rounded-xl border border-dashed py-20 text-center">
+        <div className="bg-muted mb-3 flex h-14 w-14 items-center justify-center rounded-full">
+          <Music className="text-muted-foreground h-6 w-6" />
         </div>
-        <h3 className="mb-2 text-xl font-semibold capitalize">播客库</h3>
-        <p className="text-muted-foreground mb-6 max-w-md">
+        <h3 className="text-foreground mb-1.5 text-lg font-semibold">
+          播客库为空
+        </h3>
+        <p className="text-muted-foreground mb-5 max-w-sm text-sm leading-relaxed">
           您还没有生成任何播客。开始创建内容来构建您的播客库。
         </p>
         <Link href="/podcast">
-          <Button variant="outline">生成新播客</Button>
+          <Button size="sm" variant="default">
+            <Headphones className="mr-2 h-4 w-4" />
+            生成新播客
+          </Button>
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24">
       {/* 标题 */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">我的播客库</h1>
-          <p className="text-muted-foreground mt-2">
+      <div className="flex items-start justify-between">
+        <div className="space-y-1">
+          <h1 className="text-foreground text-2xl font-semibold tracking-tight">
+            我的播客库
+          </h1>
+          <p className="text-muted-foreground text-sm">
             共 {podcasts.length} 个播客
           </p>
         </div>
         <Link href="/podcast">
-          <Button>
-            <Headphones className="mr-2 h-4 w-4" />
+          <Button size="sm" className="gap-2">
+            <Headphones className="h-4 w-4" />
             生成新播客
           </Button>
         </Link>
       </div>
 
       {/* 播客列表 */}
-      <div className="grid gap-4">
-        {podcasts.map((podcast, index) => (
-          <motion.div
-            key={podcast.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: index * 0.05 }}
-            className={`bg-card rounded-xl border p-6 transition-all hover:shadow-lg ${
-              currentPodcast?.id === podcast.id
-                ? 'border-primary bg-primary/5'
-                : ''
-            }`}
-            onClick={() => handleOpenDetails(podcast)}
-          >
-            <div className="flex flex-col gap-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex flex-1 items-start gap-4">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handlePlayPause(podcast);
-                    }}
-                    className="bg-primary text-primary-foreground flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full transition-transform hover:scale-105"
-                  >
-                    {currentPodcast?.id === podcast.id && isPlaying ? (
-                      <Pause className="h-5 w-5" />
-                    ) : (
-                      <Play className="ml-0.5 h-5 w-5" />
-                    )}
-                  </button>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {podcasts.map((podcast, index) => {
+          const isActive = currentPodcast?.id === podcast.id;
+          const { Icon, gradient } = getCardVisual(podcast.mode);
+          const gradientClass = `bg-gradient-to-br ${gradient}`;
 
-                  <div className="min-w-0 flex-1">
-                    <h3 className="mb-1 truncate text-lg font-semibold">
-                      {podcast.title}
-                    </h3>
-                    <p className="text-muted-foreground mb-2 line-clamp-2 text-sm">
-                      {podcast.description}
-                    </p>
-                    <div className="text-muted-foreground flex flex-wrap items-center gap-3 text-xs">
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {formatTime(podcast.duration)}
-                      </span>
-                      <span className="bg-primary/10 text-primary rounded-full px-2 py-0.5">
-                        {getModeLabel(podcast.mode)}
-                      </span>
-                      <span>{formatDate(podcast.createdDate)}</span>
+          return (
+            <motion.div
+              key={podcast.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: index * 0.05 }}
+              className={`group bg-card/50 rounded-2xl border p-5 shadow-sm backdrop-blur-sm transition-all hover:shadow-md ${
+                isActive
+                  ? 'border-primary/30 ring-primary/20 ring-1'
+                  : 'border-border/50 hover:border-border'
+              }`}
+              onClick={() => handleCardClick(podcast)}
+            >
+              <div className="space-y-4">
+                <div
+                  className={`${gradientClass} group/cover relative overflow-hidden rounded-xl p-4`}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-background/10 flex h-10 w-10 items-center justify-center rounded-lg backdrop-blur-sm">
+                        <Icon className="text-foreground/90 h-5 w-5" />
+                      </div>
+                      <div className="text-left">
+                        <div className="text-foreground/90 text-lg font-semibold tabular-nums">
+                          {formatTime(podcast.duration)}
+                        </div>
+                      </div>
                     </div>
+                  </div>
+                  <div className="mt-3 flex items-center justify-end gap-1.5">
+                    <Button
+                      size="icon"
+                      variant="secondary"
+                      className="bg-background/90 text-foreground hover:bg-background pointer-events-auto h-8 w-8 rounded-lg shadow-sm backdrop-blur transition-all"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePlayPause(podcast);
+                      }}
+                    >
+                      {isActive && isPlaying ? (
+                        <Pause className="h-3.5 w-3.5" />
+                      ) : (
+                        <Play className="h-3.5 w-3.5" />
+                      )}
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="bg-background/80 text-foreground/70 hover:bg-background hover:text-foreground pointer-events-auto h-8 w-8 rounded-lg shadow-sm backdrop-blur transition-all"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        await downloadPodcastAudio(podcast);
+                      }}
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="bg-background/70 text-destructive/80 hover:bg-background hover:text-destructive pointer-events-auto h-8 w-8 rounded-lg shadow-sm backdrop-blur transition-all"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        await handleDelete(podcast.id);
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
                 </div>
 
-                <div className="flex flex-shrink-0 items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDownload(podcast);
-                    }}
-                    title="下载"
-                  >
-                    <Download className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(podcast.id);
-                    }}
-                    title="删除"
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                <div className="space-y-2.5 px-1">
+                  <h3 className="text-foreground group-hover:text-primary cursor-pointer text-base leading-snug font-semibold transition-colors">
+                    {podcast.title}
+                  </h3>
+                  <p className="text-muted-foreground group-hover:text-foreground/80 line-clamp-2 cursor-pointer text-sm leading-relaxed transition-colors">
+                    {podcast.description}
+                  </p>
+                  <div className="text-muted-foreground flex flex-wrap items-center gap-2 pt-1 text-xs">
+                    <span className="bg-primary/8 text-primary rounded-md px-2 py-1 font-medium">
+                      {getModeLabel(podcast.mode)}
+                    </span>
+                    <span className="text-muted-foreground/70">
+                      {formatDate(podcast.createdDate)}
+                    </span>
+                  </div>
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleOpenDetails(podcast);
-                  }}
-                >
-                  {t('library.view_details')}
-                </Button>
-              </div>
-            </div>
-          </motion.div>
-        ))}
+            </motion.div>
+          );
+        })}
       </div>
+
+      {currentPodcast && currentPodcast.audioUrl && (
+        <div className="border-border/40 bg-background/80 hover:bg-background/90 hover:shadow-primary/5 fixed bottom-6 left-1/2 z-50 w-[95%] max-w-3xl -translate-x-1/2 rounded-2xl border p-0 shadow-2xl backdrop-blur-xl transition-all duration-300">
+          <MiniPodcastPlayer
+            title={currentPodcast.title}
+            modeLabel={getModeLabel(currentPodcast.mode)}
+            currentTime={currentTime}
+            duration={playerDuration}
+            isPlaying={isPlaying}
+            playbackRate={playbackRate}
+            onPlayToggle={() => setIsPlaying((prev) => !prev)}
+            onSeek={handleSeek}
+            onSkip={handleSkip}
+            onPlaybackRateChange={handlePlaybackRateChange}
+            onClose={() => setCurrentPodcast(null)}
+            className="w-full bg-transparent"
+          />
+        </div>
+      )}
 
       {/* 隐藏的音频元素 */}
       <audio ref={audioRef} onEnded={() => setIsPlaying(false)} />
-
-      <PodcastDetailDialog
-        open={isDetailOpen}
-        onOpenChange={setIsDetailOpen}
-        podcast={detailPodcast}
-      />
     </div>
   );
 }

@@ -98,7 +98,9 @@
     "no_podcasts": "No podcasts yet",
     "start_creating": "Start creating your first AI podcast",
     "created": "Created on",
-    "view_details": "View details"
+    "view_details": "View details",
+    "open_library": "Open Library",
+    "link_description": "Manage, replay, and download every podcast in one place"
   },
   "history": {
     "title": "History",
