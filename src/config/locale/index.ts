@@ -57,5 +57,11 @@ export const localeMessagesPaths = [
   'library/sidebar',
   'library/ai-tasks',
   'library/chats',
+  'library/notes',
+  'library/note-editor',
+  'library/presentations',
+  'library/infographics',
+  'library/flashcards',
+  'library/quizzes',
   'aippt',
 ];

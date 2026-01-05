@@ -1,0 +1,21 @@
+{
+  "title": "信息图库",
+  "subtitle": "集中查看并下载你生成过的所有 AI 信息图设计。",
+  "buttons": {
+    "new": "生成信息图",
+    "empty": "创建信息图"
+  },
+  "empty": {
+    "title": "暂时还没有信息图",
+    "description": "你生成的信息图会展示在这里，点击下方按钮生成第一张作品。",
+    "button": "生成信息图"
+  },
+  "card": {
+    "download": "下载",
+    "downloading": "正在下载...",
+    "previewAlt": "信息图预览",
+    "dialogTitle": "信息图全屏预览",
+    "dialogAlt": "完整信息图预览图"
+  }
+}
+

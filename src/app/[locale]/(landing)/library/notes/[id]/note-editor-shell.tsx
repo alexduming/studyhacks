@@ -28,6 +28,7 @@ import {
   Underline as UnderlineIcon,
   X,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
 import { toast } from 'sonner';
 import TurndownService from 'turndown';
@@ -42,7 +43,6 @@ import {
   DialogTitle,
 } from '@/shared/components/ui/dialog';
 import { Input } from '@/shared/components/ui/input';
-import { Label } from '@/shared/components/ui/label';
 import { renderMarkdownToHtml } from '@/shared/lib/note-format';
 
 type SerializableNote = {
@@ -68,6 +68,7 @@ interface NoteEditorShellProps {
 
 export function NoteEditorShell({ locale, initialNote }: NoteEditorShellProps) {
   const { theme, resolvedTheme } = useTheme();
+  const t = useTranslations('library.note-editor');
   const initialHtml = useMemo(
     () => initialNote.html || renderMarkdownToHtml(initialNote.markdown),
     [initialNote.html, initialNote.markdown]
@@ -126,9 +127,9 @@ export function NoteEditorShell({ locale, initialNote }: NoteEditorShellProps) {
         wordCount: data.note.wordCount,
       }));
       setIsDirty(false);
-      toast.success('保存成功，预览已更新');
+      toast.success(t('toast.saveSuccess'));
     } catch (error: any) {
-      const message = error?.message || '保存失败，请稍后重试';
+      const message = error?.message || t('toast.saveFail');
       setSaveError(message);
       toast.error(message);
     } finally {
@@ -193,24 +194,41 @@ export function NoteEditorShell({ locale, initialNote }: NoteEditorShellProps) {
 
   const exportAsImage = async () => {
     if (!previewRef.current) {
-      toast.error('预览区域未找到');
+      toast.error(t('toast.previewMissing'));
       return;
     }
 
     try {
       setIsExporting(true);
-      toast.info('正在生成图片，请稍候...');
+      toast.info(t('toast.generating'));
 
       const node = previewRef.current;
       const isDark = resolvedTheme === 'dark' || theme === 'dark';
       // 使用当前背景色，避免透明背景导致阅读困难
       const backgroundColor = isDark ? '#020617' : '#ffffff';
 
+      // 获取内容的真实滚动高度
+      const scrollHeight = node.scrollHeight;
+
       const dataUrl = await toPng(node, {
         cacheBust: true,
         backgroundColor,
-        // 固定为 1 以确保导出宽度等于 CSS 宽度，不受设备像素比影响
-        pixelRatio: 1,
+        // 使用 2 倍图保证文字清晰
+        pixelRatio: 2,
+        // 锁定 CSS 宽度为 800px (导出后为 1600px，适合手机阅读)
+        width: 800,
+        // 锁定高度为完整内容高度
+        height: scrollHeight,
+        // 强制样式：清除 margin，确保高度自动撑开，移除滚动裁剪
+        style: {
+          margin: '0',
+          height: 'auto',
+          minHeight: `${scrollHeight}px`,
+          maxHeight: 'none',
+          overflow: 'visible',
+          // 增加底部内边距，防止高度计算误差导致底部内容被裁剪
+          paddingBottom: '40px',
+        },
       });
 
       const link = document.createElement('a');
@@ -220,10 +238,10 @@ export function NoteEditorShell({ locale, initialNote }: NoteEditorShellProps) {
       link.click();
       document.body.removeChild(link);
 
-      toast.success('图片已保存到本地');
+      toast.success(t('toast.exportSuccess'));
     } catch (error: any) {
       console.error('Export error:', error);
-      toast.error('导出图片失败：' + error.message);
+      toast.error(t('toast.exportFail', { message: error.message }));
     } finally {
       setIsExporting(false);
     }
@@ -299,14 +317,20 @@ export function NoteEditorShell({ locale, initialNote }: NoteEditorShellProps) {
             </Button>
           </Link>
           <div className="space-y-1">
-            <h1 className="text-lg leading-none font-semibold">编辑笔记</h1>
+            <h1 className="text-lg leading-none font-semibold">
+              {t('header.title')}
+            </h1>
             <div className="text-muted-foreground flex items-center gap-2 text-xs">
-              <span>{noteMeta.wordCount} 字</span>
+              <span>
+                {t('header.wordCount', { count: noteMeta.wordCount })}
+              </span>
               <span>·</span>
               <span>
                 {lastSavedAt
-                  ? '已保存 ' + lastSavedAt.toLocaleTimeString()
-                  : '尚未保存'}
+                  ? t('status.saved', {
+                      time: lastSavedAt.toLocaleTimeString(),
+                    })
+                  : t('status.unsaved')}
               </span>
             </div>
           </div>
@@ -320,22 +344,22 @@ export function NoteEditorShell({ locale, initialNote }: NoteEditorShellProps) {
           <Button
             variant="outline"
             onClick={() => setIsFullscreen(true)}
-            title="全屏预览与导出"
+            title={t('buttons.previewTooltip')}
           >
             <Eye className="mr-2 h-4 w-4" />
-            预览
+            {t('buttons.preview')}
           </Button>
 
           <Button onClick={manualSave} disabled={isSaving || !isDirty}>
             {isSaving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                保存中...
+                {t('buttons.saving')}
               </>
             ) : (
               <>
                 <Save className="mr-2 h-4 w-4" />
-                保存更改
+                {t('buttons.save')}
               </>
             )}
           </Button>
@@ -349,7 +373,7 @@ export function NoteEditorShell({ locale, initialNote }: NoteEditorShellProps) {
             id="note-title"
             value={title}
             onChange={(event) => handleTitleChange(event.target.value)}
-            placeholder="无标题笔记"
+            placeholder={t('placeholders.title')}
             className="placeholder:text-muted-foreground/50 h-auto border-none px-0 text-2xl font-bold shadow-none focus-visible:ring-0 md:text-3xl"
           />
 
@@ -370,36 +394,36 @@ export function NoteEditorShell({ locale, initialNote }: NoteEditorShellProps) {
                 handleHeadingChange(Number(event.target.value))
               }
             >
-              <option value={0}>正文</option>
-              <option value={1}>H1</option>
-              <option value={2}>H2</option>
-              <option value={3}>H3</option>
+              <option value={0}>{t('toolbar.paragraph')}</option>
+              <option value={1}>{t('toolbar.heading1')}</option>
+              <option value={2}>{t('toolbar.heading2')}</option>
+              <option value={3}>{t('toolbar.heading3')}</option>
             </select>
             <ToolbarButton
               active={!!editor?.isActive('bold')}
               onClick={() => editor?.chain().focus().toggleBold().run()}
-              label="加粗"
+              label={t('toolbar.bold')}
             >
               <Bold className="h-4 w-4" />
             </ToolbarButton>
             <ToolbarButton
               active={!!editor?.isActive('italic')}
               onClick={() => editor?.chain().focus().toggleItalic().run()}
-              label="斜体"
+              label={t('toolbar.italic')}
             >
               <Italic className="h-4 w-4" />
             </ToolbarButton>
             <ToolbarButton
               active={!!editor?.isActive('underline')}
               onClick={() => editor?.chain().focus().toggleUnderline().run()}
-              label="下划线"
+              label={t('toolbar.underline')}
             >
               <UnderlineIcon className="h-4 w-4" />
             </ToolbarButton>
             <ToolbarButton
               active={!!editor?.isActive('blockquote')}
               onClick={() => editor?.chain().focus().toggleBlockquote().run()}
-              label="引用块"
+              label={t('toolbar.blockquote')}
             >
               <Quote className="h-4 w-4" />
             </ToolbarButton>
@@ -412,7 +436,7 @@ export function NoteEditorShell({ locale, initialNote }: NoteEditorShellProps) {
                   applyColor(event.target.value);
                 }}
                 className="h-6 w-6 cursor-pointer rounded border bg-transparent p-0"
-                title="文字颜色"
+                title={t('toolbar.color')}
               />
             </div>
           </div>
@@ -422,7 +446,7 @@ export function NoteEditorShell({ locale, initialNote }: NoteEditorShellProps) {
               <EditorContent editor={editor} />
             ) : (
               <div className="text-muted-foreground py-8 text-sm">
-                编辑器加载中...
+                {t('labels.editorLoading')}
               </div>
             )}
           </div>
@@ -431,10 +455,10 @@ export function NoteEditorShell({ locale, initialNote }: NoteEditorShellProps) {
 
       {/* 全屏预览 Dialog */}
       <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
-        <DialogContent className="flex h-[95vh] w-full max-w-[95vw] flex-col gap-0 p-0 sm:max-w-[95vw] md:max-w-[90vw] lg:max-w-[1400px]">
+        <DialogContent className="flex h-[95vh] w-full max-w-[95vw] flex-col gap-0 p-0 sm:max-w-[95vw] md:max-w-[900px] lg:max-w-[950px]">
           <DialogHeader className="flex flex-shrink-0 flex-row items-center justify-between space-y-0 border-b p-4">
             <div className="flex items-center gap-4">
-              <DialogTitle>预览模式</DialogTitle>
+              <DialogTitle>{t('labels.previewDialog')}</DialogTitle>
               <span className="text-muted-foreground hidden text-sm sm:inline-block">
                 {title}
               </span>
@@ -451,17 +475,21 @@ export function NoteEditorShell({ locale, initialNote }: NoteEditorShellProps) {
                 ) : (
                   <Download className="mr-2 h-4 w-4" />
                 )}
-                保存为图片
+                {t('buttons.export')}
               </Button>
             </div>
           </DialogHeader>
 
-          <div className="bg-muted/30 flex-1 overflow-y-auto p-4 md:p-8">
+          <div className="bg-muted/30 flex flex-1 justify-center overflow-y-auto p-4 md:p-8">
             <div
               ref={previewRef}
-              className="bg-background mx-auto min-h-full w-full max-w-[800px] rounded-xl p-8 shadow-sm md:p-12"
+              className="bg-background min-h-full w-full max-w-[800px] rounded-xl p-6 shadow-sm md:p-8"
             >
-              <StudyNotesViewer content={markdown} className="max-w-none" />
+              <StudyNotesViewer
+                content={markdown}
+                className="max-w-none"
+                disableAnimation
+              />
             </div>
           </div>
         </DialogContent>

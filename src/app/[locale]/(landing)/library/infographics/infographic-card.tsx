@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { Clock, Download, Image as ImageIcon, ZoomIn } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { Button } from '@/shared/components/ui/button';
 import {
@@ -30,6 +31,7 @@ export function InfographicCard({
   prompt,
   formattedDate,
 }: InfographicCardProps) {
+  const t = useTranslations('library.infographics');
   const [isOpen, setIsOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
 
@@ -74,7 +76,7 @@ export function InfographicCard({
             {imageUrl ? (
               <Image
                 src={imageUrl}
-                alt="Infographic preview"
+                alt={t('card.previewAlt')}
                 fill
                 unoptimized
                 className="object-cover transition-transform group-hover:scale-105"
@@ -113,7 +115,7 @@ export function InfographicCard({
               className="h-8 w-8 hover:text-foreground z-10"
               onClick={handleDownload}
               disabled={!imageUrl || isDownloading}
-              title="Download"
+              title={t('card.download')}
             >
               <Download className="h-4 w-4" />
             </Button>
@@ -122,7 +124,7 @@ export function InfographicCard({
       </DialogTrigger>
 
       <DialogContent className="max-w-5xl w-[90vw] p-0 overflow-hidden bg-transparent border-none shadow-none focus:outline-none">
-        <DialogTitle className="sr-only">Infographic Full View</DialogTitle>
+        <DialogTitle className="sr-only">{t('card.dialogTitle')}</DialogTitle>
         <div className="relative w-full flex flex-col items-center justify-center">
            {imageUrl && (
              <div className="relative bg-background/95 backdrop-blur rounded-lg shadow-2xl overflow-hidden border">
@@ -135,7 +137,7 @@ export function InfographicCard({
                     */}
                    <img 
                       src={imageUrl} 
-                      alt="Full Infographic" 
+                      alt={t('card.dialogAlt')} 
                       className="max-h-[80vh] w-auto max-w-[90vw] object-contain block"
                    />
                 </div>
@@ -149,7 +151,7 @@ export function InfographicCard({
                       variant="default"
                    >
                      <Download className="mr-2 h-4 w-4" />
-                     {isDownloading ? 'Downloading...' : 'Download'}
+                     {isDownloading ? t('card.downloading') : t('card.download')}
                    </Button>
                 </div>
              </div>

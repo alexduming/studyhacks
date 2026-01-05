@@ -15,6 +15,7 @@ interface StudyNotesViewerProps {
   content: string;
   className?: string;
   themeColor?: string; // 用户自定义的主题色
+  disableAnimation?: boolean;
 }
 
 interface ParsedSection {
@@ -318,9 +319,21 @@ const parseStudyNotes = (content: string): ParsedNotes => {
  * 滚动动画组件 - 模仿 Apple 官网的动效
  * 元素进入视口时触发动画
  */
-const ScrollReveal = ({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) => {
+const ScrollReveal = ({
+  children,
+  delay = 0,
+  disabled = false,
+}: {
+  children: React.ReactNode;
+  delay?: number;
+  disabled?: boolean;
+}) => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: '-100px' });
+
+  if (disabled) {
+    return <div>{children}</div>;
+  }
 
   return (
     <motion.div
@@ -394,7 +407,7 @@ const getSectionIcon = (index: number) => {
  * - 完全响应式设计
  */
 export const StudyNotesViewer = React.forwardRef<HTMLDivElement, StudyNotesViewerProps>(
-  ({ content, className, themeColor }, ref) => {
+  ({ content, className, themeColor, disableAnimation }, ref) => {
     // 获取当前主题（深色/浅色）
     const { theme, resolvedTheme } = useTheme();
     // 判断是否为深色模式（考虑系统主题）
@@ -493,7 +506,7 @@ export const StudyNotesViewer = React.forwardRef<HTMLDivElement, StudyNotesViewe
       >
         {/* 标题区域：超大字体，Bento Grid 风格 */}
         {parsed.title && (
-          <ScrollReveal>
+          <ScrollReveal disabled={disableAnimation}>
             <motion.div
               className={cn(
                 'rounded-2xl p-6 md:p-10 relative overflow-hidden',
@@ -541,7 +554,7 @@ export const StudyNotesViewer = React.forwardRef<HTMLDivElement, StudyNotesViewe
 
         {/* 简介/概述区域：增大字体和间距 */}
         {introExists && (
-          <ScrollReveal delay={0.1}>
+          <ScrollReveal delay={0.1} disabled={disableAnimation}>
             <motion.div
               className={cn(
                 'rounded-2xl border p-8 md:p-10 backdrop-blur-sm',
@@ -579,7 +592,11 @@ export const StudyNotesViewer = React.forwardRef<HTMLDivElement, StudyNotesViewe
               const isLargeCard = index % 4 === 2;
               
               return (
-                <ScrollReveal key={`${section.title}-${index}`} delay={0.1 * (index + 1)}>
+                <ScrollReveal
+                  key={`${section.title}-${index}`}
+                  delay={0.1 * (index + 1)}
+                  disabled={disableAnimation}
+                >
                   <motion.div
                     whileHover={{
                       scale: 1.01,
@@ -674,7 +691,7 @@ export const StudyNotesViewer = React.forwardRef<HTMLDivElement, StudyNotesViewe
           </div>
         ) : (
           // 如果没有章节结构，直接渲染原始 Markdown 内容
-          <ScrollReveal>
+          <ScrollReveal disabled={disableAnimation}>
             <motion.div className="text-base md:text-lg">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}

@@ -1,23 +1,15 @@
 import Link from 'next/link';
 import { Image as ImageIcon } from 'lucide-react';
+import { getTranslations } from 'next-intl/server';
 
 import { getUserInfographicTasksAction } from '@/app/actions/ai_task';
 import { Button } from '@/shared/components/ui/button';
 import { InfographicCard } from './infographic-card';
 
-/**
- * 信息图历史列表页面（/library/infographics）
- *
- * 非程序员解释：
- * - 这个页面会读取你在“AI 信息图生成器”里发起过的任务（数据来自 ai_task 表）
- * - 每一条记录会展示：生成时间、生成提示词、预览图封面、下载按钮
- * - 卡片可点击放大查看预览图
- */
 export default async function InfographicsPage() {
-  // 从后端读取当前用户最近的 Infographic 任务
+  const t = await getTranslations('library.infographics');
   const tasks = await getUserInfographicTasksAction();
 
-  // 没有任何任务时，展示一个友好的空状态，引导用户去生成第一张信息图
   if (!tasks || tasks.length === 0) {
     return (
       <div className="bg-muted/10 flex flex-col items-center justify-center rounded-lg border border-dashed py-24 text-center">
@@ -25,14 +17,13 @@ export default async function InfographicsPage() {
           <ImageIcon className="text-muted-foreground h-8 w-8" />
         </div>
         <h3 className="mb-2 text-xl font-semibold capitalize">
-          Infographics Library
+          {t('empty.title')}
         </h3>
         <p className="text-muted-foreground mb-6 max-w-md">
-          Your generated infographics will appear here. Start creating new
-          content to build your library.
+          {t('empty.description')}
         </p>
         <Link href="/infographic">
-          <Button variant="outline">Generate New Infographics</Button>
+          <Button variant="outline">{t('empty.button')}</Button>
         </Link>
       </div>
     );
@@ -40,19 +31,21 @@ export default async function InfographicsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">My Infographics</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-semibold">{t('title')}</h2>
+          <p className="text-muted-foreground text-sm">{t('subtitle')}</p>
+        </div>
         <Link href="/infographic">
           <Button variant="outline">
             <ImageIcon className="mr-2 h-4 w-4" />
-            Generate New Infographics
+            {t('buttons.new')}
           </Button>
         </Link>
       </div>
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {tasks.map((task) => {
-          // 尝试从 taskResult 中解析出图片 URL
           let firstImageUrl: string | null = null;
           try {
             if (task.taskResult) {
@@ -65,7 +58,6 @@ export default async function InfographicsPage() {
             firstImageUrl = null;
           }
 
-          // 格式化时间
           const formattedDate = task.createdAt
             ? new Date(task.createdAt).toLocaleString()
             : '';
