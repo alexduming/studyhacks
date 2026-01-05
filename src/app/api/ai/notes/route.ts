@@ -3,6 +3,13 @@ import { NextResponse } from 'next/server';
 import OpenRouterService from '@/shared/services/openrouter';
 import { getUserInfo } from '@/shared/models/user';
 import { consumeCredits, getRemainingCredits } from '@/shared/models/credit';
+import { createNoteDocument } from '@/shared/models/note-document';
+import {
+  countWords,
+  extractSummary,
+  extractTitle,
+  renderMarkdownToHtml,
+} from '@/shared/lib/note-format';
 
 /**
  * 非程序员解释：
@@ -119,8 +126,34 @@ export async function POST(request: Request) {
       outputLanguage,
     });
 
-    // 这里直接把 service 的返回透传给前端，保证前端改动最小。
-    return NextResponse.json(result);
+    if (!result.success || !result.notes) {
+      return NextResponse.json(result, { status: 500 });
+    }
+
+    // --- 将 AI 结果持久化到 note_document，方便在 /library/notes 中继续编辑 ---
+    const detectedTitle = extractTitle(result.notes, fileName || 'AI Note');
+    const summary = extractSummary(result.notes);
+    const html = renderMarkdownToHtml(result.notes);
+    const words =
+      result.metadata?.wordCount ?? countWords(result.notes || '');
+
+    const noteRecord = await createNoteDocument({
+      userId: user.id,
+      title: detectedTitle,
+      markdown: result.notes,
+      html,
+      summary,
+      language: outputLanguage === 'auto' ? null : outputLanguage,
+      sourceType: type,
+      sourceName: fileName || null,
+      wordCount: words,
+      status: 'draft',
+    });
+
+    return NextResponse.json({
+      ...result,
+      note: noteRecord,
+    });
   } catch (error: any) {
     console.error('API /api/ai/notes error:', error);
 

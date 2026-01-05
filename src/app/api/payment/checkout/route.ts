@@ -6,6 +6,10 @@ import {
   PaymentPrice,
   PaymentType,
 } from '@/extensions/payment';
+import {
+  diffPlanCredits,
+  getCanonicalPlanInfo,
+} from '@/shared/config/pricing-guard';
 import { getSnowId, getUuid } from '@/shared/lib/hash';
 import { respData, respErr } from '@/shared/lib/resp';
 import { getAllConfigs } from '@/shared/models/config';
@@ -238,6 +242,16 @@ export async function POST(req: Request) {
     const currentTime = new Date();
 
     // build order info
+    const canonicalPlan = getCanonicalPlanInfo(pricingItem.product_id);
+    if (!canonicalPlan) {
+      return respErr('unsupported pricing product');
+    }
+
+    const diffWarn = diffPlanCredits(pricingItem);
+    if (diffWarn) {
+      console.warn(diffWarn);
+    }
+
     const order: NewOrder = {
       id: getUuid(),
       orderNo: orderNo,
@@ -255,8 +269,8 @@ export async function POST(req: Request) {
       productName: pricingItem.product_name,
       description: pricingItem.description,
       callbackUrl: callbackUrl,
-      creditsAmount: pricingItem.credits,
-      creditsValidDays: pricingItem.valid_days,
+      creditsAmount: canonicalPlan.credits,
+      creditsValidDays: canonicalPlan.valid_days,
       planName: pricingItem.plan_name || '',
       paymentProductId: paymentProductId,
     };

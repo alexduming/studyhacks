@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { toPng } from 'html-to-image';
@@ -14,6 +15,7 @@ import {
   FileVideo,
   Loader2,
   Mic,
+  PenSquare,
   Upload,
   Zap,
 } from 'lucide-react';
@@ -75,6 +77,9 @@ const AINoteTaker = ({
   const router = useRouter();
   const { user, fetchUserCredits } = useAppContext();
   const { theme, resolvedTheme } = useTheme();
+  const localePrefix = locale ? `/${locale}` : '';
+  const withLocale = (path: string) =>
+    localePrefix ? `${localePrefix}${path}` : path;
 
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -84,6 +89,8 @@ const AINoteTaker = ({
   const [outputLanguage, setOutputLanguage] = useState<string>('auto');
   // 自定义主题色，默认为空，表示使用系统默认的 purple
   const [customThemeColor, setCustomThemeColor] = useState<string>('');
+  // 保存生成的笔记 ID，用于显示跳转按钮
+  const [savedNoteId, setSavedNoteId] = useState<string | null>(null);
 
   // 预设主题色列表
   const presetColors = [
@@ -131,6 +138,7 @@ const AINoteTaker = ({
       setUploadedFile(file);
       setIsProcessing(true);
       setError('');
+      setSavedNoteId(null);
 
       try {
         // 读取文件内容（支持 txt / pdf / docx 等）
@@ -173,6 +181,11 @@ const AINoteTaker = ({
             fetchUserCredits();
           }
           toast.success(t('notes.generation_success'));
+          
+          // 保存笔记 ID，但不自动跳转，允许用户先预览
+          if (result.note?.id) {
+            setSavedNoteId(result.note.id);
+          }
         } else {
           // 失败：保存错误信息，并同样切到"笔记"标签页，让用户能立刻看到错误原因
           // 积分不足的特殊处理
@@ -253,9 +266,8 @@ const AINoteTaker = ({
       })
     );
 
-    const targetPath =
-      feature === 'flashcards' ? `/${locale}/flashcards` : `/${locale}/quiz`;
-    router.push(targetPath);
+    const targetPath = feature === 'flashcards' ? '/flashcards' : '/quiz';
+    router.push(withLocale(targetPath));
   };
 
   /**
@@ -411,7 +423,8 @@ const AINoteTaker = ({
 
   const tabs = [
     { id: 'upload', label: t('tabs.upload'), icon: Upload },
-    { id: 'record', label: t('tabs.record'), icon: Mic },
+    // 暂时移除录音功能，因为尚未实现 STT
+    // { id: 'record', label: t('tabs.record'), icon: Mic },
     { id: 'notes', label: t('tabs.notes'), icon: Brain },
   ];
 
@@ -640,7 +653,8 @@ const AINoteTaker = ({
                     id="ai-note-file-input"
                     ref={fileInputRef}
                     type="file"
-                    accept="audio/*,video/*,.pdf,.doc,.docx,.txt"
+                    // 暂时移除音视频支持：accept="audio/*,video/*,.pdf,.doc,.docx,.txt"
+                    accept=".pdf,.doc,.docx,.txt"
                     onChange={handleFileUpload}
                     className="hidden"
                   />
@@ -671,8 +685,9 @@ const AINoteTaker = ({
                   </Button>
 
                   {/* 支持的文件类型 */}
-                  <div className="mt-12 grid grid-cols-2 gap-4 md:grid-cols-4">
+                  <div className="mt-12 grid grid-cols-2 gap-4 md:grid-cols-2 max-w-2xl mx-auto">
                     {[
+                      /* 暂时隐藏音视频支持
                       {
                         icon: FileAudio,
                         label: t('upload.audio_files'),
@@ -683,6 +698,7 @@ const AINoteTaker = ({
                         label: t('upload.video_files'),
                         desc: t('upload.video_formats'),
                       },
+                      */
                       {
                         icon: FileText,
                         label: t('upload.pdf_docs'),
@@ -827,6 +843,25 @@ const AINoteTaker = ({
                       {t('notes.no_notes')}
                     </p>
                   </div>
+                )}
+
+                {/* 如果有已保存的笔记 ID，显示编辑按钮 */}
+                {savedNoteId && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-6 flex justify-center"
+                  >
+                    <Link href={withLocale(`/library/notes/${savedNoteId}`)}>
+                      <Button 
+                        size="lg" 
+                        className="shadow-lg shadow-primary/20 bg-primary hover:bg-primary/90 text-white font-semibold px-8 h-12 rounded-full"
+                      >
+                        <PenSquare className="mr-2 h-5 w-5" />
+                        前往编辑器润色
+                      </Button>
+                    </Link>
+                  </motion.div>
                 )}
 
                 {/* AI工具栏 */}

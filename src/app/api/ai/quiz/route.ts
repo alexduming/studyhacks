@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 
-import OpenRouterService from '@/shared/services/openrouter';
-import { getUserInfo } from '@/shared/models/user';
+import { AIMediaType, AITaskStatus } from '@/extensions/ai';
+import { createAITaskRecordOnly } from '@/shared/models/ai_task';
 import { consumeCredits, getRemainingCredits } from '@/shared/models/credit';
+import { getUserInfo } from '@/shared/models/user';
+import OpenRouterService from '@/shared/services/openrouter';
 
 /**
  * 非程序员解释：
@@ -99,6 +101,35 @@ export async function POST(request: Request) {
       Array.isArray(questionTypes) ? questionTypes : undefined
     );
 
+    if (result.success) {
+      try {
+        await createAITaskRecordOnly({
+          userId: user.id,
+          mediaType: AIMediaType.TEXT,
+          provider: 'OpenRouter',
+          model: 'openrouter',
+          prompt: `AI Quiz preview: ${content.slice(0, 120)}`,
+          options: JSON.stringify({
+            questionCount:
+              typeof questionCount === 'number' ? questionCount : 5,
+            questionTypes: Array.isArray(questionTypes)
+              ? questionTypes
+              : undefined,
+          }),
+          scene: 'ai_quiz',
+          costCredits: requiredCredits,
+          status: AITaskStatus.SUCCESS,
+          taskInfo: JSON.stringify({ status: 'SUCCESS' }),
+          taskResult: JSON.stringify({
+            questions: result.questions,
+            metadata: result.metadata,
+          }),
+        });
+      } catch (logError) {
+        console.error('[Quiz] Failed to record history:', logError);
+      }
+    }
+
     return NextResponse.json(result);
   } catch (error: any) {
     console.error('API /api/ai/quiz error:', error);
@@ -116,5 +147,3 @@ export async function POST(request: Request) {
     );
   }
 }
-
-

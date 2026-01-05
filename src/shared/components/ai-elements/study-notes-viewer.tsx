@@ -38,44 +38,44 @@ const createMarkdownComponents = (
   isDark: boolean,
   themeColor?: string
 ): React.ComponentProps<typeof ReactMarkdown>['components'] => ({
-  // 一级标题：超大字体，突出核心要点
+  // 一级标题：调整字号，更紧凑
   h1: ({ children }) => (
     <h1
       className={cn(
-        'mt-8 mb-6 text-5xl md:text-6xl font-bold leading-tight',
+        'mt-8 mb-6 text-3xl md:text-4xl font-bold leading-tight',
         isDark ? 'text-white' : 'text-gray-900'
       )}
     >
       {children}
     </h1>
   ),
-  // 二级标题：大字体，用于章节标题
+  // 二级标题：调整字号
   h2: ({ children }) => (
     <h2
       className={cn(
-        'mt-8 mb-4 text-3xl md:text-4xl font-bold leading-tight',
+        'mt-8 mb-4 text-2xl md:text-3xl font-bold leading-tight',
         isDark ? 'text-white' : 'text-gray-900'
       )}
     >
       {children}
     </h2>
   ),
-  // 三级标题：中等字体，用于子章节
+  // 三级标题：调整字号
   h3: ({ children }) => (
     <h3
       className={cn(
-        'mt-6 mb-3 text-2xl md:text-3xl font-semibold leading-tight',
+        'mt-6 mb-3 text-xl md:text-2xl font-semibold leading-tight',
         isDark ? 'text-gray-100' : 'text-gray-900'
       )}
     >
       {children}
     </h3>
   ),
-  // 四级标题：正常字体
+  // 四级标题：调整字号
   h4: ({ children }) => (
     <h4
       className={cn(
-        'mt-5 mb-2 text-xl md:text-2xl font-semibold leading-tight',
+        'mt-5 mb-2 text-lg md:text-xl font-semibold leading-tight',
         isDark ? 'text-gray-200' : 'text-gray-800'
       )}
     >
@@ -486,7 +486,7 @@ export const StudyNotesViewer = React.forwardRef<HTMLDivElement, StudyNotesViewe
       <div
         ref={ref}
         className={cn(
-          'study-notes-viewer w-full max-w-5xl mx-auto space-y-8 md:space-y-12',
+          'study-notes-viewer w-full max-w-7xl mx-auto space-y-8 md:space-y-12',
           className
         )}
         style={dynamicStyle} // 尝试注入变量，虽然可能不完全生效
@@ -496,7 +496,7 @@ export const StudyNotesViewer = React.forwardRef<HTMLDivElement, StudyNotesViewe
           <ScrollReveal>
             <motion.div
               className={cn(
-                'rounded-2xl p-8 md:p-12 relative overflow-hidden',
+                'rounded-2xl p-6 md:p-10 relative overflow-hidden',
                 // 深色主题：使用高亮色透明度渐变，制造科技感
                 isDark
                   ? 'border border-primary/30'
@@ -520,7 +520,7 @@ export const StudyNotesViewer = React.forwardRef<HTMLDivElement, StudyNotesViewe
               />
               <p
                 className={cn(
-                  'text-sm md:text-base uppercase tracking-widest font-medium mb-4 relative z-10',
+                  'text-xs md:text-sm uppercase tracking-widest font-medium mb-4 relative z-10',
                   !themeColor && (isDark ? 'text-primary/80' : 'text-primary/70')
                 )}
                 style={{ color: themeColor ? themeColor : undefined, opacity: themeColor ? 0.8 : undefined }}
@@ -529,7 +529,7 @@ export const StudyNotesViewer = React.forwardRef<HTMLDivElement, StudyNotesViewe
               </p>
               <h1
                 className={cn(
-                  'text-4xl md:text-6xl lg:text-7xl font-bold leading-tight relative z-10',
+                  'text-3xl md:text-5xl font-bold leading-tight relative z-10',
                   isDark ? 'text-white' : 'text-gray-900'
                 )}
               >
@@ -611,12 +611,12 @@ export const StudyNotesViewer = React.forwardRef<HTMLDivElement, StudyNotesViewe
                     />
                     
                     {/* 章节标题和序号：超大视觉元素 + 专业图标 */}
-                    <div className="flex items-start gap-6 mb-8 relative z-10">
+                    <div className="flex items-start gap-4 mb-6 relative z-10">
                       {/* 超大序号 */}
                       <div className="flex-shrink-0">
                         <div
                           className={cn(
-                            'text-6xl md:text-8xl font-bold leading-none',
+                            'text-4xl md:text-6xl font-bold leading-none',
                             !themeColor && 'bg-gradient-to-br from-primary/40 via-primary/30 to-primary/20 bg-clip-text text-transparent'
                           )}
                           style={themeColor ? {
@@ -633,7 +633,7 @@ export const StudyNotesViewer = React.forwardRef<HTMLDivElement, StudyNotesViewe
                       <div className="flex-1 pt-2 flex items-start justify-between gap-4">
                         <h2
                           className={cn(
-                            'text-3xl md:text-4xl lg:text-5xl font-bold leading-tight mb-4',
+                            'text-2xl md:text-3xl font-bold leading-tight mb-4',
                             isDark ? 'text-white' : 'text-gray-900'
                           )}
                         >

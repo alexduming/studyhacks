@@ -82,6 +82,20 @@ const QuizApp = () => {
   const [usedHints, setUsedHints] = useState<Set<number>>(new Set());
   const transferAutoGenerateRef = useRef(false);
 
+  /**
+   * 非程序员解释：
+   * - 下列样式常量把“卡片 / 浮层 / 选项”等基础组件统一成可同时适配浅色与深色的主题皮肤。
+   * - 这样我们只维护一份类名即可，避免 light 模式出现“白底白字”或“黑底黑字”看不清的问题。
+   */
+  const surfaceCardClass =
+    'rounded-2xl border border-border/70 bg-card/90 text-card-foreground shadow-xl backdrop-blur-sm dark:border-gray-800 dark:bg-gray-900/70';
+  const mutedPanelClass =
+    'rounded-lg border border-border/60 bg-muted/70 text-foreground dark:border-gray-700 dark:bg-gray-800/60';
+  const modalPanelClass =
+    'max-h-[80vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-border/70 bg-popover p-8 text-popover-foreground shadow-2xl dark:border-gray-800 dark:bg-gray-900/90';
+  const optionBaseClass =
+    'w-full rounded-lg border border-border/70 bg-muted/70 p-4 text-left text-foreground transition-all duration-300 hover:border-primary/50 hover:bg-primary/5 dark:border-gray-700 dark:bg-gray-800/60';
+
   const currentQuestion = questions[currentQuestionIndex];
 
   useEffect(() => {
@@ -371,7 +385,7 @@ const QuizApp = () => {
       case 'hard':
         return 'text-red-400';
       default:
-        return 'text-gray-400';
+        return 'text-muted-foreground';
     }
   };
 
@@ -396,44 +410,42 @@ const QuizApp = () => {
               <h1 className="via-primary/80 to-primary/60 mb-6 bg-gradient-to-r from-white bg-clip-text text-4xl font-bold text-transparent md:text-5xl">
                 {t('title')}
               </h1>
-              <p className="text-muted-foreground mb-8 text-lg dark:text-gray-300">
+              <p className="text-muted-foreground mb-8 text-lg">
                 {t('subtitle')}
               </p>
 
               {questions.length > 0 && (
-                <div className="border-primary/20 bg-muted/50 mb-8 rounded-2xl border p-8 backdrop-blur-sm dark:bg-gray-900/50">
-                  <h3 className="text-foreground mb-6 text-xl font-semibold dark:text-white">
+                <div className={`${surfaceCardClass} mb-8`}>
+                  <h3 className="text-foreground mb-6 text-xl font-semibold">
                     测验信息
                   </h3>
                   <div className="grid gap-6 text-left md:grid-cols-2">
                     <div>
-                      <p className="text-muted-foreground mb-2 dark:text-gray-400">
+                      <p className="text-muted-foreground mb-2">
                         {t('stats.total_questions')}
                       </p>
-                      <p className="text-foreground text-lg font-medium dark:text-white">
+                      <p className="text-foreground text-lg font-medium">
                         {questions.length} 题
                       </p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground mb-2 dark:text-gray-400">
+                      <p className="text-muted-foreground mb-2">
                         {t('stats.time_spent')}
                       </p>
-                      <p className="text-foreground text-lg font-medium dark:text-white">
+                      <p className="text-foreground text-lg font-medium">
                         {Math.ceil(questions.length * 2)} 分钟
                       </p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground mb-2 dark:text-gray-400">
+                      <p className="text-muted-foreground mb-2">
                         {t('question.multiple_choice')},{' '}
                         {t('question.true_false')}, {t('question.fill_blank')}
                       </p>
-                      <p className="text-foreground text-lg font-medium dark:text-white"></p>
+                      <p className="text-foreground text-lg font-medium"></p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground mb-2 dark:text-gray-400">
-                        智能提示
-                      </p>
-                      <p className="text-foreground text-lg font-medium dark:text-white">
+                      <p className="text-muted-foreground mb-2">智能提示</p>
+                      <p className="text-foreground text-lg font-medium">
                         每题提供学习提示
                       </p>
                     </div>
@@ -468,16 +480,16 @@ const QuizApp = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+              className="bg-background/80 fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm dark:bg-black/70"
               onClick={() => setShowGenerateForm(false)}
             >
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 onClick={(e) => e.stopPropagation()}
-                className="border-primary/20 bg-background max-h-[80vh] w-full max-w-3xl overflow-y-auto rounded-2xl border p-8 dark:bg-gray-900"
+                className={modalPanelClass}
               >
-                <h3 className="text-foreground mb-6 text-2xl font-bold dark:text-white">
+                <h3 className="text-foreground mb-6 text-2xl font-bold">
                   生成 AI 测验
                 </h3>
                 {/* 文件上传入口：可以直接从课件 / 笔记文件生成测验 */}
@@ -514,7 +526,7 @@ const QuizApp = () => {
                       )}
                     </label>
                   </Button>
-                  <span className="text-muted-foreground text-xs dark:text-gray-400">
+                  <span className="text-muted-foreground text-xs">
                     也可以直接在下方粘贴或编辑要生成测验的内容
                   </span>
                 </div>
@@ -528,13 +540,13 @@ const QuizApp = () => {
 
                 <div className="mb-6 grid gap-4 md:grid-cols-2">
                   <div>
-                    <label className="text-foreground mb-3 block font-medium dark:text-white">
+                    <label className="text-foreground mb-3 block font-medium">
                       测验题目数量
                     </label>
                     <select
                       value={questionCount}
                       onChange={(e) => setQuestionCount(Number(e.target.value))}
-                      className="focus:border-primary border-border bg-background/50 text-foreground w-full rounded-lg border p-3 focus:outline-none dark:border-gray-600 dark:bg-gray-800/50 dark:text-white"
+                      className="border-border bg-card/80 text-foreground focus:border-primary w-full rounded-lg border p-3 focus:outline-none dark:border-gray-700 dark:bg-gray-900/60"
                     >
                       <option value={3}>3 题</option>
                       <option value={5}>5 题</option>
@@ -543,7 +555,7 @@ const QuizApp = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="text-foreground mb-3 block font-medium dark:text-white">
+                    <label className="text-foreground mb-3 block font-medium">
                       预计用时（分钟）
                     </label>
                     <input
@@ -558,14 +570,14 @@ const QuizApp = () => {
                             : Number(e.target.value)
                         )
                       }
-                      className="focus:border-primary border-border bg-background/50 text-foreground w-full rounded-lg border p-3 focus:outline-none dark:border-gray-600 dark:bg-gray-800/50 dark:text-white"
+                      className="border-border bg-card/80 text-foreground focus:border-primary w-full rounded-lg border p-3 focus:outline-none dark:border-gray-700 dark:bg-gray-900/60"
                     />
                   </div>
                 </div>
 
                 {/* 题型选择 */}
                 <div className="mb-6">
-                  <label className="mb-3 block font-medium text-white">
+                  <label className="text-foreground mb-3 block font-medium">
                     题型选择
                   </label>
                   <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -575,7 +587,7 @@ const QuizApp = () => {
                       className={`rounded-lg border p-3 transition-all ${
                         selectedQuestionTypes.includes('all')
                           ? 'border-primary bg-primary/10 text-primary'
-                          : 'hover:border-primary/50 border-border bg-background/50 text-foreground/70 dark:border-gray-600 dark:bg-gray-800/50 dark:text-gray-300'
+                          : 'border-border/70 bg-muted/60 text-foreground/70 hover:border-primary/60 hover:bg-primary/5 transition-all dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-200'
                       }`}
                     >
                       全部题型
@@ -603,7 +615,7 @@ const QuizApp = () => {
                       className={`rounded-lg border p-3 transition-all ${
                         selectedQuestionTypes.includes('multiple-choice')
                           ? 'border-primary bg-primary/10 text-primary'
-                          : 'hover:border-primary/50 border-border bg-background/50 text-foreground/70 dark:border-gray-600 dark:bg-gray-800/50 dark:text-gray-300'
+                          : 'border-border/70 bg-muted/60 text-foreground/70 hover:border-primary/60 hover:bg-primary/5 transition-all dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-200'
                       }`}
                     >
                       选择题
@@ -628,7 +640,7 @@ const QuizApp = () => {
                       className={`rounded-lg border p-3 transition-all ${
                         selectedQuestionTypes.includes('true-false')
                           ? 'border-primary bg-primary/10 text-primary'
-                          : 'hover:border-primary/50 border-border bg-background/50 text-foreground/70 dark:border-gray-600 dark:bg-gray-800/50 dark:text-gray-300'
+                          : 'border-border/70 bg-muted/60 text-foreground/70 hover:border-primary/60 hover:bg-primary/5 transition-all dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-200'
                       }`}
                     >
                       判断题
@@ -653,7 +665,7 @@ const QuizApp = () => {
                       className={`rounded-lg border p-3 transition-all ${
                         selectedQuestionTypes.includes('fill-blank')
                           ? 'border-primary bg-primary/10 text-primary'
-                          : 'hover:border-primary/50 border-border bg-background/50 text-foreground/70 dark:border-gray-600 dark:bg-gray-800/50 dark:text-gray-300'
+                          : 'border-border/70 bg-muted/60 text-foreground/70 hover:border-primary/60 hover:bg-primary/5 transition-all dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-200'
                       }`}
                     >
                       填空题
@@ -665,7 +677,7 @@ const QuizApp = () => {
                   value={quizContent}
                   onChange={(e) => setQuizContent(e.target.value)}
                   placeholder="粘贴您的学习笔记、课程内容或任何想要转换为测验的文本..."
-                  className="focus:border-primary border-border bg-background/50 text-foreground placeholder-muted-foreground mb-4 h-48 w-full resize-none rounded-lg border p-4 focus:outline-none dark:border-gray-600 dark:bg-gray-800/50 dark:text-white dark:placeholder-gray-400"
+                  className="border-border bg-card/80 text-foreground placeholder-muted-foreground focus:border-primary mb-4 h-48 w-full resize-none rounded-lg border p-4 focus:outline-none dark:border-gray-700 dark:bg-gray-900/60"
                 />
                 {generationError && (
                   <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3">
@@ -680,7 +692,7 @@ const QuizApp = () => {
                       setQuizContent('');
                     }}
                     variant="outline"
-                    className="border-border text-foreground/70 hover:border-foreground/50 dark:border-gray-600 dark:text-gray-300 dark:hover:border-gray-500"
+                    className="border-border text-foreground/70 hover:border-foreground/60"
                   >
                     取消
                   </Button>
@@ -731,37 +743,29 @@ const QuizApp = () => {
                 {t('results.title')}
               </h1>
 
-              <div className="border-primary/20 bg-muted/50 mb-8 rounded-2xl border p-8 backdrop-blur-sm dark:bg-gray-900/50">
+              <div className={`${surfaceCardClass} mb-8`}>
                 <div className="mb-8 text-center">
-                  <div className="text-foreground mb-2 text-6xl font-bold dark:text-white">
+                  <div className="text-foreground mb-2 text-6xl font-bold">
                     {score.percentage}%
                   </div>
-                  <p className="text-muted-foreground dark:text-gray-400">
-                    您的得分
-                  </p>
+                  <p className="text-muted-foreground">您的得分</p>
                 </div>
 
                 <div className="mb-8 grid gap-6 md:grid-cols-3">
                   <div>
-                    <p className="text-muted-foreground mb-2 dark:text-gray-400">
-                      正确答案
-                    </p>
+                    <p className="text-muted-foreground mb-2">正确答案</p>
                     <p className="text-xl font-medium text-green-400">
                       {score.correct}/{score.total}
                     </p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground mb-2 dark:text-gray-400">
-                      平均用时
-                    </p>
+                    <p className="text-muted-foreground mb-2">平均用时</p>
                     <p className="text-primary text-xl font-medium">
                       {score.averageTime}秒
                     </p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground mb-2 dark:text-gray-400">
-                      使用提示
-                    </p>
+                    <p className="text-muted-foreground mb-2">使用提示</p>
                     <p className="text-xl font-medium text-yellow-400">
                       {score.totalHintsUsed}次
                     </p>
@@ -770,7 +774,7 @@ const QuizApp = () => {
 
                 {/* 详细答案 */}
                 <div className="space-y-4 text-left">
-                  <h3 className="text-foreground mb-4 text-lg font-semibold dark:text-white">
+                  <h3 className="text-foreground mb-4 text-lg font-semibold">
                     答题详情
                   </h3>
                   {userAnswers.map((answer, idx) => {
@@ -778,7 +782,10 @@ const QuizApp = () => {
                       (q) => q.id === answer.questionId
                     );
                     return (
-                      <div key={idx} className="rounded-lg bg-gray-800/50 p-4">
+                      <div
+                        key={idx}
+                        className={`${mutedPanelClass} border-none p-4`}
+                      >
                         <div className="flex items-start gap-3">
                           {answer.isCorrect ? (
                             <CheckCircle className="mt-1 h-5 w-5 flex-shrink-0 text-green-400" />
@@ -786,11 +793,11 @@ const QuizApp = () => {
                             <XCircle className="mt-1 h-5 w-5 flex-shrink-0 text-red-400" />
                           )}
                           <div className="flex-1">
-                            <p className="font-medium text-white">
+                            <p className="text-foreground font-medium">
                               {question?.question}
                             </p>
                             {!answer.isCorrect && (
-                              <p className="mt-1 text-sm text-gray-400">
+                              <p className="text-muted-foreground mt-1 text-sm">
                                 正确答案:{' '}
                                 {question?.options
                                   ? question.options[
@@ -840,7 +847,7 @@ const QuizApp = () => {
         {/* 进度条 */}
         <div className="mx-auto mb-8 max-w-4xl">
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-sm text-gray-400">
+            <span className="text-muted-foreground text-sm">
               问题 {currentQuestionIndex + 1} / {questions.length}
             </span>
             <span
@@ -853,7 +860,7 @@ const QuizApp = () => {
                   : '困难'}
             </span>
           </div>
-          <div className="h-2 w-full rounded-full bg-gray-700">
+          <div className="bg-muted/60 h-2 w-full rounded-full dark:bg-gray-800/70">
             <div
               className="from-primary to-primary/70 h-2 rounded-full bg-gradient-to-r transition-all duration-300"
               style={{
@@ -870,7 +877,7 @@ const QuizApp = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="border-primary/20 rounded-2xl border bg-gray-900/50 p-8 backdrop-blur-sm"
+              className={`${surfaceCardClass} p-8`}
             >
               {/* 题目 */}
               <div className="mb-8">
@@ -880,7 +887,7 @@ const QuizApp = () => {
                     {currentQuestion.topic}
                   </span>
                 </div>
-                <h2 className="mb-2 text-2xl font-bold text-white">
+                <h2 className="text-foreground mb-2 text-2xl font-bold">
                   {currentQuestion.question}
                 </h2>
               </div>
@@ -918,16 +925,16 @@ const QuizApp = () => {
                         key={idx}
                         onClick={() => handleAnswerSelect(idx)}
                         disabled={showResult}
-                        className={`w-full rounded-lg border p-4 text-left transition-all duration-300 ${
+                        className={`${optionBaseClass} ${
                           shouldShowCorrect
-                            ? 'border-green-500 bg-green-500/10'
+                            ? 'border-green-500 bg-green-500/10 text-green-600 dark:text-green-300'
                             : shouldShowWrong
-                              ? 'border-red-500 bg-red-500/10'
+                              ? 'border-red-500 bg-red-500/10 text-red-500 dark:text-red-300'
                               : shouldShowNeutral
-                                ? 'border-gray-600 bg-gray-800/50'
-                                : selectedAnswer === idx
+                                ? 'border-border/70 text-muted-foreground bg-transparent'
+                                : isUserSelected
                                   ? 'border-primary bg-primary/10'
-                                  : 'hover:border-primary/50 hover:bg-primary/5 border-gray-600 bg-gray-800/50'
+                                  : ''
                         }`}
                       >
                         <div className="flex items-center gap-3">
@@ -938,10 +945,10 @@ const QuizApp = () => {
                                 : shouldShowWrong
                                   ? 'border-red-500 bg-red-500'
                                   : shouldShowNeutral
-                                    ? 'border-gray-500'
-                                    : selectedAnswer === idx
+                                    ? 'border-border/70'
+                                    : isUserSelected
                                       ? 'border-primary bg-primary'
-                                      : 'border-gray-500'
+                                      : 'border-border/60'
                             }`}
                           >
                             {shouldShowCorrect && (
@@ -950,21 +957,11 @@ const QuizApp = () => {
                             {shouldShowWrong && (
                               <XCircle className="h-4 w-4 text-white" />
                             )}
-                            {!showResult && selectedAnswer === idx && (
+                            {!showResult && isUserSelected && (
                               <div className="h-2 w-2 rounded-full bg-white" />
                             )}
                           </div>
-                          <span
-                            className={
-                              shouldShowCorrect
-                                ? 'text-green-400'
-                                : shouldShowWrong
-                                  ? 'text-red-400'
-                                  : 'text-white'
-                            }
-                          >
-                            {option}
-                          </span>
+                          <span className="font-medium">{option}</span>
                         </div>
                       </button>
                     );
@@ -998,16 +995,16 @@ const QuizApp = () => {
                           key={idx}
                           onClick={() => handleAnswerSelect(idx)}
                           disabled={showResult}
-                          className={`rounded-lg border p-4 transition-all duration-300 ${
+                          className={`${optionBaseClass} text-center ${
                             showResult
                               ? isCorrectAnswer
-                                ? 'border-green-500 bg-green-500/10'
+                                ? 'border-green-500 bg-green-500/10 text-green-600 dark:text-green-300'
                                 : isUserSelected && !userAnsweredCorrectly
-                                  ? 'border-red-500 bg-red-500/10'
-                                  : 'border-gray-600 bg-gray-800/50'
-                              : selectedAnswer === idx
+                                  ? 'border-red-500 bg-red-500/10 text-red-500 dark:text-red-300'
+                                  : 'border-border/70 text-muted-foreground bg-transparent'
+                              : isUserSelected
                                 ? 'border-primary bg-primary/10'
-                                : 'hover:border-primary/50 hover:bg-primary/5 border-gray-600 bg-gray-800/50'
+                                : ''
                           }`}
                         >
                           <div className="flex items-center justify-center gap-2">
@@ -1019,19 +1016,7 @@ const QuizApp = () => {
                               !userAnsweredCorrectly && (
                                 <XCircle className="h-5 w-5 text-red-400" />
                               )}
-                            <span
-                              className={
-                                showResult && isCorrectAnswer
-                                  ? 'text-green-400'
-                                  : showResult &&
-                                      isUserSelected &&
-                                      !userAnsweredCorrectly
-                                    ? 'text-red-400'
-                                    : 'text-white'
-                              }
-                            >
-                              {option}
-                            </span>
+                            <span className="font-medium">{option}</span>
                           </div>
                         </button>
                       );
@@ -1046,13 +1031,13 @@ const QuizApp = () => {
                     onChange={(e) => handleAnswerSelect(e.target.value)}
                     disabled={showResult}
                     placeholder="请输入答案..."
-                    className={`w-full rounded-lg border bg-gray-800/50 p-4 transition-all duration-300 ${
+                    className={`bg-card/80 text-foreground w-full rounded-lg border p-4 transition-all duration-300 focus:outline-none dark:bg-gray-900/60 ${
                       showResult
                         ? selectedAnswer === currentQuestion.correctAnswer
                           ? 'border-green-500'
                           : 'border-red-500'
-                        : 'focus:border-primary border-gray-600'
-                    } text-white`}
+                        : 'border-border focus:border-primary'
+                    }`}
                   />
                 )}
               </div>
@@ -1140,16 +1125,16 @@ const QuizApp = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+            className="bg-background/80 fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm dark:bg-black/70"
             onClick={() => setShowGenerateForm(false)}
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               onClick={(e) => e.stopPropagation()}
-              className="border-primary/20 max-h-[80vh] w-full max-w-3xl overflow-y-auto rounded-2xl border bg-gray-900 p-8"
+              className={modalPanelClass}
             >
-              <h3 className="mb-6 text-2xl font-bold text-white">
+              <h3 className="text-foreground mb-6 text-2xl font-bold">
                 生成 AI 测验
               </h3>
               {/* 文件上传入口：可以直接从课件 / 笔记文件生成测验 */}
@@ -1186,7 +1171,7 @@ const QuizApp = () => {
                     )}
                   </label>
                 </Button>
-                <span className="text-xs text-gray-400">
+                <span className="text-muted-foreground text-xs">
                   也可以直接在下方粘贴或编辑要生成测验的内容
                 </span>
               </div>
@@ -1200,13 +1185,13 @@ const QuizApp = () => {
 
               <div className="mb-6 grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="mb-3 block font-medium text-white">
+                  <label className="text-foreground mb-3 block font-medium">
                     测验题目数量
                   </label>
                   <select
                     value={questionCount}
                     onChange={(e) => setQuestionCount(Number(e.target.value))}
-                    className="focus:border-primary w-full rounded-lg border border-gray-600 bg-gray-800/50 p-3 text-white focus:outline-none"
+                    className="border-border bg-card/80 text-foreground focus:border-primary w-full rounded-lg border p-3 focus:outline-none dark:border-gray-700 dark:bg-gray-900/60"
                   >
                     <option value={3}>3 题</option>
                     <option value={5}>5 题</option>
@@ -1215,7 +1200,7 @@ const QuizApp = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="mb-3 block font-medium text-white">
+                  <label className="text-foreground mb-3 block font-medium">
                     预计用时（分钟）
                   </label>
                   <input
@@ -1230,14 +1215,14 @@ const QuizApp = () => {
                           : Number(e.target.value)
                       )
                     }
-                    className="focus:border-primary w-full rounded-lg border border-gray-600 bg-gray-800/50 p-3 text-white focus:outline-none"
+                    className="border-border bg-card/80 text-foreground focus:border-primary w-full rounded-lg border p-3 focus:outline-none dark:border-gray-700 dark:bg-gray-900/60"
                   />
                 </div>
               </div>
 
               {/* 题型选择 */}
               <div className="mb-6">
-                <label className="mb-3 block font-medium text-white">
+                <label className="text-foreground mb-3 block font-medium">
                   题型选择
                 </label>
                 <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -1247,7 +1232,7 @@ const QuizApp = () => {
                     className={`rounded-lg border p-3 transition-all ${
                       selectedQuestionTypes.includes('all')
                         ? 'border-primary bg-primary/10 text-primary'
-                        : 'hover:border-primary/50 border-gray-600 bg-gray-800/50 text-gray-300'
+                        : 'border-border/70 bg-muted/60 text-foreground/70 hover:border-primary/60 hover:bg-primary/5 transition-all dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-200'
                     }`}
                   >
                     全部题型
@@ -1272,7 +1257,7 @@ const QuizApp = () => {
                     className={`rounded-lg border p-3 transition-all ${
                       selectedQuestionTypes.includes('multiple-choice')
                         ? 'border-primary bg-primary/10 text-primary'
-                        : 'hover:border-primary/50 border-gray-600 bg-gray-800/50 text-gray-300'
+                        : 'border-border/70 bg-muted/60 text-foreground/70 hover:border-primary/60 hover:bg-primary/5 transition-all dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-200'
                     }`}
                   >
                     选择题
@@ -1297,7 +1282,7 @@ const QuizApp = () => {
                     className={`rounded-lg border p-3 transition-all ${
                       selectedQuestionTypes.includes('true-false')
                         ? 'border-primary bg-primary/10 text-primary'
-                        : 'hover:border-primary/50 border-gray-600 bg-gray-800/50 text-gray-300'
+                        : 'border-border/70 bg-muted/60 text-foreground/70 hover:border-primary/60 hover:bg-primary/5 transition-all dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-200'
                     }`}
                   >
                     判断题
@@ -1322,7 +1307,7 @@ const QuizApp = () => {
                     className={`rounded-lg border p-3 transition-all ${
                       selectedQuestionTypes.includes('fill-blank')
                         ? 'border-primary bg-primary/10 text-primary'
-                        : 'hover:border-primary/50 border-gray-600 bg-gray-800/50 text-gray-300'
+                        : 'border-border/70 bg-muted/60 text-foreground/70 hover:border-primary/60 hover:bg-primary/5 transition-all dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-200'
                     }`}
                   >
                     填空题
@@ -1333,7 +1318,7 @@ const QuizApp = () => {
                 value={quizContent}
                 onChange={(e) => setQuizContent(e.target.value)}
                 placeholder="粘贴您的学习笔记、课程内容或任何想要转换为测验的文本..."
-                className="focus:border-primary mb-4 h-48 w-full resize-none rounded-lg border border-gray-600 bg-gray-800/50 p-4 text-white placeholder-gray-400 focus:outline-none"
+                className="border-border bg-card/80 text-foreground placeholder-muted-foreground focus:border-primary mb-4 h-48 w-full resize-none rounded-lg border p-4 focus:outline-none dark:border-gray-700 dark:bg-gray-900/60"
               />
               {generationError && (
                 <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3">
@@ -1348,7 +1333,7 @@ const QuizApp = () => {
                     setQuizContent('');
                   }}
                   variant="outline"
-                  className="border-gray-600 text-gray-300 hover:border-gray-500"
+                  className="border-border text-foreground/70 hover:border-foreground/60"
                 >
                   取消
                 </Button>

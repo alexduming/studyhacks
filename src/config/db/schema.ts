@@ -697,3 +697,32 @@ export const podcast = pgTable(
     index('idx_podcast_episode_id').on(table.episodeId),
   ]
 );
+
+export const noteDocument = pgTable(
+  'note_document',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    language: text('language').default('auto'),
+    sourceType: text('source_type'),
+    sourceName: text('source_name'),
+    tags: text('tags'), // JSON 数组字符串，记录用户自定义标签
+    markdown: text('markdown').notNull(),
+    html: text('html'),
+    summary: text('summary'),
+    wordCount: integer('word_count').default(0),
+    status: text('status').notNull().default('draft'), // draft, published, archived
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    index('idx_note_document_user').on(table.userId),
+    index('idx_note_document_created_at').on(table.createdAt),
+  ]
+);
