@@ -4,18 +4,10 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FileText, Loader2, PenSquare } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
-import { Badge } from '@/shared/components/ui/badge';
 import { Button } from '@/shared/components/ui/button';
 import { cn } from '@/shared/lib/utils';
-
-function formatPreview(text: string, maxLength = 160) {
-  if (!text) return '暂无预览内容';
-  const trimmed = text.replace(/\s+/g, ' ').trim();
-  return trimmed.length > maxLength
-    ? `${trimmed.slice(0, maxLength)}...`
-    : trimmed;
-}
 
 type NoteDocument = {
   id: string;
@@ -35,6 +27,7 @@ export default function NotesLibraryPage({
 }: {
   params: Promise<NotesPageParams> | NotesPageParams;
 }) {
+  const t = useTranslations('library.notes');
   const [locale, setLocale] = useState<string | undefined>();
   const [notes, setNotes] = useState<NoteDocument[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,6 +37,9 @@ export default function NotesLibraryPage({
   useEffect(() => {
     Promise.resolve(params).then((p) => setLocale(p?.locale));
   }, [params]);
+
+  const previewFallback = t('list.previewEmpty');
+  const errorFallback = t('errors.fetchFailed');
 
   useEffect(() => {
     async function fetchNotes() {
@@ -57,21 +53,28 @@ export default function NotesLibraryPage({
             router.push('/signin');
             return;
           }
-          throw new Error(data.error || 'Failed to fetch notes');
+          throw new Error(data.error || errorFallback);
         }
 
         setNotes(data.notes || []);
       } catch (err: any) {
-        setError(err.message);
+        setError(err.message || errorFallback);
       } finally {
         setLoading(false);
       }
     }
 
     fetchNotes();
-  }, [router]);
+  }, [router, errorFallback]);
 
   const withLocale = (path: string) => (locale ? `/${locale}${path}` : path);
+  const formatPreview = (text: string, maxLength = 160) => {
+    if (!text) return previewFallback;
+    const trimmed = text.replace(/\s+/g, ' ').trim();
+    return trimmed.length > maxLength
+      ? `${trimmed.slice(0, maxLength)}...`
+      : trimmed;
+  };
 
   if (loading) {
     return (
@@ -85,7 +88,9 @@ export default function NotesLibraryPage({
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <div className="text-destructive text-center">
-          <p className="mb-2 text-lg font-semibold">加载失败</p>
+          <p className="mb-2 text-lg font-semibold">
+            {t('errors.fetchFailed')}
+          </p>
           <p className="text-sm">{error}</p>
         </div>
       </div>
@@ -96,15 +101,13 @@ export default function NotesLibraryPage({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold">AI Notes Library</h2>
-          <p className="text-muted-foreground text-sm">
-            随时回到这里继续编辑你的 AI 笔记，或把它们用于其他学习工具。
-          </p>
+          <h2 className="text-2xl font-semibold">{t('title')}</h2>
+          <p className="text-muted-foreground text-sm">{t('subtitle')}</p>
         </div>
         <Link href={withLocale('/ai-note-taker')}>
           <Button>
             <PenSquare className="mr-2 h-4 w-4" />
-            新建笔记
+            {t('buttons.new')}
           </Button>
         </Link>
       </div>
@@ -115,13 +118,13 @@ export default function NotesLibraryPage({
             <FileText className="text-muted-foreground h-8 w-8" />
           </div>
           <h3 className="mb-2 text-xl font-semibold capitalize">
-            Notes Library
+            {t('empty.title')}
           </h3>
           <p className="text-muted-foreground mb-6 max-w-md">
-            你生成的笔记会显示在这里，点击下方按钮开始创建第一篇 AI 笔记。
+            {t('empty.description')}
           </p>
           <Link href={withLocale('/ai-note-taker')}>
-            <Button variant="outline">生成新笔记</Button>
+            <Button variant="outline">{t('empty.button')}</Button>
           </Link>
         </div>
       ) : (
@@ -151,7 +154,7 @@ export default function NotesLibraryPage({
                 </p>
                 <div className="text-muted-foreground mt-4 flex items-center text-xs">
                   <FileText className="mr-1 h-4 w-4" />
-                  {note.wordCount} 字
+                  {t('list.wordCount', { count: note.wordCount })}
                 </div>
               </div>
             </Link>

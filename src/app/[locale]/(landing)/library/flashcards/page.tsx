@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Layers } from 'lucide-react';
+import { getTranslations } from 'next-intl/server';
 
 import { getAITasks } from '@/shared/models/ai_task';
 import { getUserInfo } from '@/shared/models/user';
@@ -52,6 +53,7 @@ export default async function FlashcardsPage({
 }: {
   params: { locale: string };
 }) {
+  const t = await getTranslations('library.flashcards');
   const user = await getUserInfo();
   if (!user) {
     notFound();
@@ -63,15 +65,13 @@ export default async function FlashcardsPage({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold">Flashcards Library</h2>
-          <p className="text-muted-foreground text-sm">
-            查看所有 AI 生成的闪卡，快速复习任意学习材料。
-          </p>
+          <h2 className="text-2xl font-semibold">{t('title')}</h2>
+          <p className="text-muted-foreground text-sm">{t('subtitle')}</p>
         </div>
         <Link href={`/${params.locale}/flashcards`}>
           <Button variant="outline">
             <Layers className="mr-2 h-4 w-4" />
-            继续生成闪卡
+            {t('buttons.new')}
           </Button>
         </Link>
       </div>
@@ -82,13 +82,13 @@ export default async function FlashcardsPage({
             <Layers className="text-muted-foreground h-8 w-8" />
           </div>
           <h3 className="mb-2 text-xl font-semibold capitalize">
-            Flashcards Library
+            {t('empty.title')}
           </h3>
           <p className="text-muted-foreground mb-6 max-w-md">
-            还没有历史记录，去上传一份资料尝试生成吧。
+            {t('empty.description')}
           </p>
           <Link href={`/${params.locale}/flashcards`}>
-            <Button variant="outline">生成新闪卡</Button>
+            <Button variant="outline">{t('empty.button')}</Button>
           </Link>
         </div>
       ) : (
@@ -97,7 +97,7 @@ export default async function FlashcardsPage({
             <Card key={record.id} className="flex h-full flex-col">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between text-base font-medium">
-                  <span>闪卡组 · {record.count} 张</span>
+                  <span>{t('cards.groupTitle', { count: record.count })}</span>
                   <span className="text-muted-foreground text-xs">
                     {new Date(record.createdAt).toLocaleString()}
                   </span>
@@ -105,18 +105,19 @@ export default async function FlashcardsPage({
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
                 {record.flashcards.length === 0 ? (
-                  <p className="text-muted-foreground">
-                    解析记录为空，可以前往生成页重新触发一次。
-                  </p>
+                  <p className="text-muted-foreground">{t('cards.empty')}</p>
                 ) : (
                   record.flashcards.slice(0, 4).map((card, index) => (
                     <div
                       key={`${record.id}-${index}`}
                       className="rounded-lg border p-3"
                     >
-                      <p className="font-semibold">Q{index + 1}: {card.front}</p>
+                      <p className="font-semibold">
+                        {t('cards.questionLabel', { index: index + 1 })}:{' '}
+                        {card.front}
+                      </p>
                       <p className="text-muted-foreground mt-2">
-                        A: {card.back}
+                        {t('cards.answerLabel')} {card.back}
                       </p>
                       {card.difficulty && (
                         <p className="text-xs text-primary mt-1 uppercase">
@@ -128,7 +129,9 @@ export default async function FlashcardsPage({
                 )}
                 {record.flashcards.length > 4 && (
                   <p className="text-muted-foreground text-xs">
-                    ... 还有 {record.flashcards.length - 4} 张闪卡，可在生成时下载原始 JSON。
+                    {t('cards.remaining', {
+                      count: record.flashcards.length - 4,
+                    })}
                   </p>
                 )}
               </CardContent>

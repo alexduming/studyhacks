@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Activity } from 'lucide-react';
+import { getTranslations } from 'next-intl/server';
 
 import { getAITasks } from '@/shared/models/ai_task';
 import { getUserInfo } from '@/shared/models/user';
@@ -52,6 +53,7 @@ export default async function QuizzesPage({
 }: {
   params: { locale: string };
 }) {
+  const t = await getTranslations('library.quizzes');
   const user = await getUserInfo();
   if (!user) {
     notFound();
@@ -63,15 +65,13 @@ export default async function QuizzesPage({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold">Quizzes Library</h2>
-          <p className="text-muted-foreground text-sm">
-            回顾你生成过的所有测验题，随时下载或复制到题库工具中。
-          </p>
+          <h2 className="text-2xl font-semibold">{t('title')}</h2>
+          <p className="text-muted-foreground text-sm">{t('subtitle')}</p>
         </div>
         <Link href={`/${params.locale}/quiz`}>
           <Button variant="outline">
             <Activity className="mr-2 h-4 w-4" />
-            继续生成测验
+            {t('buttons.new')}
           </Button>
         </Link>
       </div>
@@ -82,13 +82,13 @@ export default async function QuizzesPage({
             <Activity className="text-muted-foreground h-8 w-8" />
           </div>
           <h3 className="mb-2 text-xl font-semibold capitalize">
-            Quizzes Library
+            {t('empty.title')}
           </h3>
           <p className="text-muted-foreground mb-6 max-w-md">
-            目前还没有测验题记录，上传资料即可生成首套自测试题。
+            {t('empty.description')}
           </p>
           <Link href={`/${params.locale}/quiz`}>
-            <Button variant="outline">生成新测验</Button>
+            <Button variant="outline">{t('empty.button')}</Button>
           </Link>
         </div>
       ) : (
@@ -97,7 +97,7 @@ export default async function QuizzesPage({
             <Card key={record.id} className="flex h-full flex-col">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between text-base font-medium">
-                  <span>测验组 · {record.count} 题</span>
+                  <span>{t('cards.groupTitle', { count: record.count })}</span>
                   <span className="text-muted-foreground text-xs">
                     {new Date(record.createdAt).toLocaleString()}
                   </span>
@@ -105,9 +105,7 @@ export default async function QuizzesPage({
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
                 {record.questions.length === 0 ? (
-                  <p className="text-muted-foreground">
-                    解析记录为空，可以回到测验页重新生成。
-                  </p>
+                  <p className="text-muted-foreground">{t('cards.empty')}</p>
                 ) : (
                   record.questions.slice(0, 3).map((question, index) => (
                     <div
@@ -115,16 +113,17 @@ export default async function QuizzesPage({
                       className="rounded-lg border p-3"
                     >
                       <p className="font-semibold">
-                        Q{index + 1}: {question.question}
+                        {t('cards.questionLabel', { index: index + 1 })}:{' '}
+                        {question.question}
                       </p>
                       {typeof question.correctAnswer !== 'undefined' && (
                         <p className="text-muted-foreground mt-2">
-                          正确答案：{String(question.correctAnswer)}
+                          {t('cards.answerLabel')} {String(question.correctAnswer)}
                         </p>
                       )}
                       {question.explanation && (
                         <p className="text-xs text-primary mt-1">
-                          解析：{question.explanation}
+                          {t('cards.explanationLabel')} {question.explanation}
                         </p>
                       )}
                     </div>
@@ -132,7 +131,9 @@ export default async function QuizzesPage({
                 )}
                 {record.questions.length > 3 && (
                   <p className="text-muted-foreground text-xs">
-                    ... 还有 {record.questions.length - 3} 道题，稍后支持导出为 CSV/QTI。
+                    {t('cards.remaining', {
+                      count: record.questions.length - 3,
+                    })}
                   </p>
                 )}
               </CardContent>
