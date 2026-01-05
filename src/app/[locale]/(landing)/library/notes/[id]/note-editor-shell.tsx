@@ -49,6 +49,7 @@ type SerializableNote = {
   id: string;
   title: string;
   markdown: string;
+  html: string | null;
   summary: string | null;
   language: string | null;
   tags: string[];
@@ -241,7 +242,8 @@ export function NoteEditorShell({ locale, initialNote }: NoteEditorShellProps) {
       editor.chain().focus().setParagraph().run();
       return;
     }
-    editor.chain().focus().setHeading({ level }).run();
+    // Tiptap 的 setHeading 只接受 1-6 作为 level，这里显式转换类型
+    editor.chain().focus().setHeading({ level: level as 1 | 2 | 3 | 4 | 5 | 6 }).run();
   };
 
   const applyColor = (color: string) => {
