@@ -9,6 +9,12 @@ import {
   useState,
 } from 'react';
 import Link from 'next/link';
+import Color from '@tiptap/extension-color';
+import TextStyle from '@tiptap/extension-text-style';
+import Underline from '@tiptap/extension-underline';
+import { EditorContent, useEditor } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import { toPng } from 'html-to-image';
 import {
   ArrowLeft,
   Bold,
@@ -22,28 +28,22 @@ import {
   Underline as UnderlineIcon,
   X,
 } from 'lucide-react';
-import { EditorContent, useEditor } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import Underline from '@tiptap/extension-underline';
-import TextStyle from '@tiptap/extension-text-style';
-import Color from '@tiptap/extension-color';
-import TurndownService from 'turndown';
-import { toPng } from 'html-to-image';
 import { useTheme } from 'next-themes';
+import { toast } from 'sonner';
+import TurndownService from 'turndown';
 
 import { StudyNotesViewer } from '@/shared/components/ai-elements/study-notes-viewer';
 import { Button } from '@/shared/components/ui/button';
 import { Card } from '@/shared/components/ui/card';
-import { Input } from '@/shared/components/ui/input';
-import { Label } from '@/shared/components/ui/label';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/shared/components/ui/dialog';
+import { Input } from '@/shared/components/ui/input';
+import { Label } from '@/shared/components/ui/label';
 import { renderMarkdownToHtml } from '@/shared/lib/note-format';
-import { toast } from 'sonner';
 
 type SerializableNote = {
   id: string;
@@ -99,53 +99,50 @@ export function NoteEditorShell({ locale, initialNote }: NoteEditorShellProps) {
     })
   );
 
+  const persistChanges = useCallback(async () => {
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      const response = await fetch(`/api/library/notes/${initialNote.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title,
+          markdown,
+        }),
+      });
 
-  const persistChanges = useCallback(
-    async () => {
-      setIsSaving(true);
-      setSaveError(null);
-      try {
-        const response = await fetch(`/api/library/notes/${initialNote.id}`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            title,
-            markdown,
-          }),
-        });
-
-        const data = await response.json();
-        if (!response.ok || !data.success) {
-          throw new Error(data.error || 'Failed to save note');
-        }
-
-        setLastSavedAt(new Date(data.note.updatedAt));
-        setNoteMeta((prev) => ({
-          ...prev,
-          updatedAt: data.note.updatedAt,
-          wordCount: data.note.wordCount,
-        }));
-        setIsDirty(false);
-        toast.success('保存成功，预览已更新');
-      } catch (error: any) {
-        const message = error?.message || '保存失败，请稍后重试';
-        setSaveError(message);
-        toast.error(message);
-      } finally {
-        setIsSaving(false);
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to save note');
       }
-    },
-    [initialNote.id, markdown, title]
-  );
 
+      setLastSavedAt(new Date(data.note.updatedAt));
+      setNoteMeta((prev) => ({
+        ...prev,
+        updatedAt: data.note.updatedAt,
+        wordCount: data.note.wordCount,
+      }));
+      setIsDirty(false);
+      toast.success('保存成功，预览已更新');
+    } catch (error: any) {
+      const message = error?.message || '保存失败，请稍后重试';
+      setSaveError(message);
+      toast.error(message);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [initialNote.id, markdown, title]);
 
   useEffect(() => {
     setTitle(initialNote.title);
     setMarkdown(initialNote.markdown);
     setEditorHtml(initialHtml);
-    setLastSavedAt(initialNote.updatedAt ? new Date(initialNote.updatedAt) : null);
+    setLastSavedAt(
+      initialNote.updatedAt ? new Date(initialNote.updatedAt) : null
+    );
     setNoteMeta({
       createdAt: initialNote.createdAt,
       updatedAt: initialNote.updatedAt,
@@ -203,7 +200,7 @@ export function NoteEditorShell({ locale, initialNote }: NoteEditorShellProps) {
     try {
       setIsExporting(true);
       toast.info('正在生成图片，请稍候...');
-      
+
       const node = previewRef.current;
       const isDark = resolvedTheme === 'dark' || theme === 'dark';
       // 使用当前背景色，避免透明背景导致阅读困难
@@ -212,9 +209,8 @@ export function NoteEditorShell({ locale, initialNote }: NoteEditorShellProps) {
       const dataUrl = await toPng(node, {
         cacheBust: true,
         backgroundColor,
-        pixelRatio: typeof window !== 'undefined' && window.devicePixelRatio
-          ? window.devicePixelRatio
-          : 2,
+        // 固定为 1 以确保导出宽度等于 CSS 宽度，不受设备像素比影响
+        pixelRatio: 1,
       });
 
       const link = document.createElement('a');
@@ -233,8 +229,7 @@ export function NoteEditorShell({ locale, initialNote }: NoteEditorShellProps) {
     }
   };
 
-  const withLocale = (path: string) =>
-    locale ? `/${locale}${path}` : path;
+  const withLocale = (path: string) => (locale ? `/${locale}${path}` : path);
 
   const handleHeadingChange = (level: number) => {
     if (!editor) return;
@@ -243,7 +238,11 @@ export function NoteEditorShell({ locale, initialNote }: NoteEditorShellProps) {
       return;
     }
     // Tiptap 的 setHeading 只接受 1-6 作为 level，这里显式转换类型
-    editor.chain().focus().setHeading({ level: level as 1 | 2 | 3 | 4 | 5 | 6 }).run();
+    editor
+      .chain()
+      .focus()
+      .setHeading({ level: level as 1 | 2 | 3 | 4 | 5 | 6 })
+      .run();
   };
 
   const applyColor = (color: string) => {
@@ -255,7 +254,6 @@ export function NoteEditorShell({ locale, initialNote }: NoteEditorShellProps) {
     setTitle(value);
     setIsDirty(true);
   };
-
 
   const ToolbarButton = ({
     active,
@@ -274,27 +272,26 @@ export function NoteEditorShell({ locale, initialNote }: NoteEditorShellProps) {
       onClick={onClick}
       className={
         active
-          ? 'inline-flex h-8 items-center justify-center rounded-md border border-primary bg-primary/10 px-2 text-sm font-medium text-primary'
-          : 'inline-flex h-8 items-center justify-center rounded-md border border-transparent px-2 text-sm font-medium text-muted-foreground hover:text-foreground'
+          ? 'border-primary bg-primary/10 text-primary inline-flex h-8 items-center justify-center rounded-md border px-2 text-sm font-medium'
+          : 'text-muted-foreground hover:text-foreground inline-flex h-8 items-center justify-center rounded-md border border-transparent px-2 text-sm font-medium'
       }
     >
       {children}
     </button>
   );
 
-  const headingValue =
-    editor?.isActive('heading', { level: 1 })
-      ? 1
-      : editor?.isActive('heading', { level: 2 })
-        ? 2
-        : editor?.isActive('heading', { level: 3 })
-          ? 3
-          : 0;
+  const headingValue = editor?.isActive('heading', { level: 1 })
+    ? 1
+    : editor?.isActive('heading', { level: 2 })
+      ? 2
+      : editor?.isActive('heading', { level: 3 })
+        ? 3
+        : 0;
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="mx-auto max-w-5xl space-y-6">
       {/* 顶部操作栏 */}
-      <div className="flex flex-wrap items-center justify-between gap-3 sticky top-0 z-20 bg-background/95 backdrop-blur py-4 border-b">
+      <div className="bg-background/95 sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 border-b py-4 backdrop-blur">
         <div className="flex items-center gap-3">
           <Link href={withLocale('/library/notes')}>
             <Button variant="ghost" size="icon">
@@ -302,29 +299,33 @@ export function NoteEditorShell({ locale, initialNote }: NoteEditorShellProps) {
             </Button>
           </Link>
           <div className="space-y-1">
-            <h1 className="text-lg font-semibold leading-none">编辑笔记</h1>
-            <div className="text-xs text-muted-foreground flex items-center gap-2">
+            <h1 className="text-lg leading-none font-semibold">编辑笔记</h1>
+            <div className="text-muted-foreground flex items-center gap-2 text-xs">
               <span>{noteMeta.wordCount} 字</span>
               <span>·</span>
-              <span>{lastSavedAt ? '已保存 ' + lastSavedAt.toLocaleTimeString() : '尚未保存'}</span>
+              <span>
+                {lastSavedAt
+                  ? '已保存 ' + lastSavedAt.toLocaleTimeString()
+                  : '尚未保存'}
+              </span>
             </div>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-2">
-           {saveError && (
-            <span className="text-destructive text-sm mr-2">{saveError}</span>
+          {saveError && (
+            <span className="text-destructive mr-2 text-sm">{saveError}</span>
           )}
-          
-          <Button 
-            variant="outline" 
+
+          <Button
+            variant="outline"
             onClick={() => setIsFullscreen(true)}
             title="全屏预览与导出"
           >
             <Eye className="mr-2 h-4 w-4" />
             预览
           </Button>
-          
+
           <Button onClick={manualSave} disabled={isSaving || !isDirty}>
             {isSaving ? (
               <>
@@ -341,7 +342,7 @@ export function NoteEditorShell({ locale, initialNote }: NoteEditorShellProps) {
         </div>
       </div>
 
-      <Card className="flex flex-col space-y-6 p-6 md:p-8 min-h-[80vh]">
+      <Card className="flex min-h-[80vh] flex-col space-y-6 p-6 md:p-8">
         {/* 标题和元数据区域 */}
         <div className="space-y-4">
           <Input
@@ -349,10 +350,10 @@ export function NoteEditorShell({ locale, initialNote }: NoteEditorShellProps) {
             value={title}
             onChange={(event) => handleTitleChange(event.target.value)}
             placeholder="无标题笔记"
-            className="text-2xl md:text-3xl font-bold border-none shadow-none px-0 h-auto focus-visible:ring-0 placeholder:text-muted-foreground/50"
+            className="placeholder:text-muted-foreground/50 h-auto border-none px-0 text-2xl font-bold shadow-none focus-visible:ring-0 md:text-3xl"
           />
-          
-          <div className="flex items-center gap-4 text-sm text-muted-foreground border-b pb-4">
+
+          <div className="text-muted-foreground flex items-center gap-4 border-b pb-4 text-sm">
             <div className="flex items-center gap-1">
               <span>{new Date(noteMeta.createdAt).toLocaleDateString()}</span>
             </div>
@@ -360,67 +361,67 @@ export function NoteEditorShell({ locale, initialNote }: NoteEditorShellProps) {
         </div>
 
         {/* 编辑器区域 */}
-        <div className="flex-1 flex flex-col">
-          <div className="sticky top-[73px] z-10 flex flex-wrap items-center gap-2 border-b bg-background/95 backdrop-blur py-2 mb-4">
-             <select
-                  className="h-8 rounded-md border bg-transparent px-2 text-sm"
-                  value={headingValue}
-                  onChange={(event) =>
-                    handleHeadingChange(Number(event.target.value))
-                  }
-                >
-                  <option value={0}>正文</option>
-                  <option value={1}>H1</option>
-                  <option value={2}>H2</option>
-                  <option value={3}>H3</option>
-                </select>
-                <ToolbarButton
-                  active={!!editor?.isActive('bold')}
-                  onClick={() => editor?.chain().focus().toggleBold().run()}
-                  label="加粗"
-                >
-                  <Bold className="h-4 w-4" />
-                </ToolbarButton>
-                <ToolbarButton
-                  active={!!editor?.isActive('italic')}
-                  onClick={() => editor?.chain().focus().toggleItalic().run()}
-                  label="斜体"
-                >
-                  <Italic className="h-4 w-4" />
-                </ToolbarButton>
-                <ToolbarButton
-                  active={!!editor?.isActive('underline')}
-                  onClick={() => editor?.chain().focus().toggleUnderline().run()}
-                  label="下划线"
-                >
-                  <UnderlineIcon className="h-4 w-4" />
-                </ToolbarButton>
-                <ToolbarButton
-                  active={!!editor?.isActive('blockquote')}
-                  onClick={() => editor?.chain().focus().toggleBlockquote().run()}
-                  label="引用块"
-                >
-                  <Quote className="h-4 w-4" />
-                </ToolbarButton>
-                <div className="flex items-center gap-1 ml-auto md:ml-0">
-                  <input
-                    type="color"
-                    value={textColor}
-                    onChange={(event) => {
-                      setTextColor(event.target.value);
-                      applyColor(event.target.value);
-                    }}
-                    className="h-6 w-6 cursor-pointer rounded border bg-transparent p-0"
-                    title="文字颜色"
-                  />
-                </div>
+        <div className="flex flex-1 flex-col">
+          <div className="bg-background/95 sticky top-[73px] z-10 mb-4 flex flex-wrap items-center gap-2 border-b py-2 backdrop-blur">
+            <select
+              className="h-8 rounded-md border bg-transparent px-2 text-sm"
+              value={headingValue}
+              onChange={(event) =>
+                handleHeadingChange(Number(event.target.value))
+              }
+            >
+              <option value={0}>正文</option>
+              <option value={1}>H1</option>
+              <option value={2}>H2</option>
+              <option value={3}>H3</option>
+            </select>
+            <ToolbarButton
+              active={!!editor?.isActive('bold')}
+              onClick={() => editor?.chain().focus().toggleBold().run()}
+              label="加粗"
+            >
+              <Bold className="h-4 w-4" />
+            </ToolbarButton>
+            <ToolbarButton
+              active={!!editor?.isActive('italic')}
+              onClick={() => editor?.chain().focus().toggleItalic().run()}
+              label="斜体"
+            >
+              <Italic className="h-4 w-4" />
+            </ToolbarButton>
+            <ToolbarButton
+              active={!!editor?.isActive('underline')}
+              onClick={() => editor?.chain().focus().toggleUnderline().run()}
+              label="下划线"
+            >
+              <UnderlineIcon className="h-4 w-4" />
+            </ToolbarButton>
+            <ToolbarButton
+              active={!!editor?.isActive('blockquote')}
+              onClick={() => editor?.chain().focus().toggleBlockquote().run()}
+              label="引用块"
+            >
+              <Quote className="h-4 w-4" />
+            </ToolbarButton>
+            <div className="ml-auto flex items-center gap-1 md:ml-0">
+              <input
+                type="color"
+                value={textColor}
+                onChange={(event) => {
+                  setTextColor(event.target.value);
+                  applyColor(event.target.value);
+                }}
+                className="h-6 w-6 cursor-pointer rounded border bg-transparent p-0"
+                title="文字颜色"
+              />
+            </div>
           </div>
-          
-          <div className="flex-1 min-h-[500px]">
+
+          <div className="min-h-[500px] flex-1">
             {editor ? (
               <EditorContent editor={editor} />
             ) : (
-              <div className="text-muted-foreground text-sm py-8">
+              <div className="text-muted-foreground py-8 text-sm">
                 编辑器加载中...
               </div>
             )}
@@ -430,11 +431,11 @@ export function NoteEditorShell({ locale, initialNote }: NoteEditorShellProps) {
 
       {/* 全屏预览 Dialog */}
       <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
-        <DialogContent className="max-w-[95vw] sm:max-w-[95vw] md:max-w-[90vw] lg:max-w-[1400px] w-full h-[95vh] flex flex-col p-0 gap-0">
-          <DialogHeader className="p-4 border-b flex-shrink-0 flex flex-row items-center justify-between space-y-0">
+        <DialogContent className="flex h-[95vh] w-full max-w-[95vw] flex-col gap-0 p-0 sm:max-w-[95vw] md:max-w-[90vw] lg:max-w-[1400px]">
+          <DialogHeader className="flex flex-shrink-0 flex-row items-center justify-between space-y-0 border-b p-4">
             <div className="flex items-center gap-4">
               <DialogTitle>预览模式</DialogTitle>
-              <span className="text-sm text-muted-foreground hidden sm:inline-block">
+              <span className="text-muted-foreground hidden text-sm sm:inline-block">
                 {title}
               </span>
             </div>
@@ -454,11 +455,11 @@ export function NoteEditorShell({ locale, initialNote }: NoteEditorShellProps) {
               </Button>
             </div>
           </DialogHeader>
-          
-          <div className="flex-1 overflow-y-auto bg-muted/30 p-4 md:p-8">
-            <div 
-              ref={previewRef} 
-              className="bg-background rounded-xl shadow-sm min-h-full w-full max-w-[1372px] mx-auto p-8 md:p-12"
+
+          <div className="bg-muted/30 flex-1 overflow-y-auto p-4 md:p-8">
+            <div
+              ref={previewRef}
+              className="bg-background mx-auto min-h-full w-full max-w-[800px] rounded-xl p-8 shadow-sm md:p-12"
             >
               <StudyNotesViewer content={markdown} className="max-w-none" />
             </div>
@@ -468,4 +469,3 @@ export function NoteEditorShell({ locale, initialNote }: NoteEditorShellProps) {
     </div>
   );
 }
-
