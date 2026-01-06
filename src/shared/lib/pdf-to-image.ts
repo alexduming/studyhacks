@@ -40,7 +40,9 @@ export async function convertPdfToImages(file: File, maxPages: number = 5): Prom
       canvas.width = viewport.width;
 
       // 渲染页面到 Canvas
+      // pdfjs-dist v5.x 需要同时提供 canvas 和 canvasContext
       await page.render({
+        canvas: canvas,
         canvasContext: context,
         viewport: viewport,
       }).promise;
