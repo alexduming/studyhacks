@@ -8,7 +8,7 @@ export class DeepSeekService {
   private constructor() {
     /**
      * DeepSeek 官方 API 服务
-     * 
+     *
      * 配置方式：
      * 在 .env.local 或 Vercel 环境变量中设置 DEEPSEEK_API_KEY
      */
@@ -82,29 +82,35 @@ export class DeepSeekService {
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${this.apiKey}`,
+            Authorization: `Bearer ${this.apiKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             // 使用 deepseek-chat (V3)
             // 原因：deepseek-reasoner (R1) 包含思考过程，响应较慢，容易导致 Vercel Serverless 函数超时 (60s)
             // V3 在文本摘要和格式化任务上表现已经非常出色
-            model: 'deepseek-chat', 
+            model: 'deepseek-chat',
             messages: [
-              ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
+              ...(systemPrompt
+                ? [{ role: 'system', content: systemPrompt }]
+                : []),
               { role: 'user', content: prompt },
             ],
             temperature: 0.7,
             max_tokens: 8192, // DeepSeek V3 最大支持 8K 输出
-            stream: false
+            stream: false,
           }),
         }
       );
 
       if (!response.ok) {
         let errorText = '';
-        try { errorText = await response.text(); } catch {}
-        throw new Error(`DeepSeek API Error (${response.status}): ${errorText}`);
+        try {
+          errorText = await response.text();
+        } catch {}
+        throw new Error(
+          `DeepSeek API Error (${response.status}): ${errorText}`
+        );
       }
 
       const data = await response.json();
@@ -122,7 +128,8 @@ export class DeepSeekService {
     if (!content || content.trim().length === 0) return 'en';
     const chineseCharCount = (content.match(/[\u4e00-\u9fff]/g) || []).length;
     const totalCharCount = content.replace(/\s/g, '').length;
-    if (totalCharCount > 0 && chineseCharCount / totalCharCount > 0.3) return 'zh';
+    if (totalCharCount > 0 && chineseCharCount / totalCharCount > 0.3)
+      return 'zh';
     return 'en';
   }
 
@@ -130,7 +137,17 @@ export class DeepSeekService {
    * 生成笔记 - 迁移自 OpenRouterService
    * 使用 DeepSeek 官方模型
    */
-  async generateNotes(input: GenerateNotesParams): Promise<AIResponse<string>> {
+  async generateNotes(input: GenerateNotesParams): Promise<{
+    success: boolean;
+    notes?: string;
+    error?: string;
+    metadata?: {
+      wordCount: number;
+      type: string;
+      fileName?: string;
+      generatedAt: string;
+    };
+  }> {
     let targetLanguage = input.outputLanguage || 'auto';
     if (targetLanguage === 'auto') {
       targetLanguage = this.detectLanguage(input.content);
@@ -304,15 +321,14 @@ Please start generating notes:`;
           fileName: input.fileName,
           generatedAt: new Date().toISOString(),
         },
-      } as any;
+      };
     } catch (error: any) {
       console.error('Error generating notes with DeepSeek:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'DeepSeek API Error',
         notes: '',
-      } as any;
+      };
     }
   }
 }
-
