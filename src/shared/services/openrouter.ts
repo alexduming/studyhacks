@@ -313,6 +313,70 @@ export class OpenRouterService {
   }
 
   /**
+   * Perform OCR on an image using Vision Model
+   * 使用视觉模型识别图片中的文字
+   */
+  async ocrImage(imageUrl: string): Promise<string> {
+    try {
+      if (!this.apiKey) {
+        throw new Error('OpenRouter API Key not configured');
+      }
+
+      // 使用 Qwen 2.5 VL (性价比高且稳定) - 与 AIPPT 保持一致
+      // 避免使用实验性免费模型，确保生产环境稳定性
+      const model = 'qwen/qwen2.5-vl-32b-instruct';
+
+      const response = await this.fetchWithRetry(
+        `${this.baseURL}/chat/completions`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'http://localhost:3000',
+            'X-Title': 'StudyHacks OCR',
+          },
+          body: JSON.stringify({
+            model: model,
+            messages: [
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'text',
+                    // 使用更清晰的 System Prompt
+                    text: 'Extract all text content from this image. Preserve the original text structure, formatting, and language. Output only the extracted text without any additional comments, explanations, or formatting.',
+                  },
+                  {
+                    type: 'image_url',
+                    image_url: {
+                      url: imageUrl,
+                    },
+                  },
+                ],
+              },
+            ],
+            // 增加 max_tokens 防止截断
+            max_tokens: 4000,
+          }),
+        },
+        3,
+        60000
+      );
+
+      if (!response.ok) {
+        throw new Error(`OCR request failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.choices[0]?.message?.content || '';
+    } catch (error) {
+      console.error('[OpenRouter] OCR failed:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Generate notes from various input sources (audio, video, PDF, text)
    * 生成笔记，支持指定输出语言
    */

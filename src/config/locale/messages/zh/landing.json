@@ -78,8 +78,8 @@
   },
   "hero": {
     "id": "hero",
-    "title": "你唯一需要的AI笔记助手",
-    "highlight_text": "AI笔记助手",
+    "title": "你唯一需要的AI学习助手",
+    "highlight_text": "AI学习助手",
     "description": "将 PDF、视频、讲座和音频转换为智能笔记。<br/>生成闪卡、测验和学习指南，让学习比以往更快。",
     "announcement": {
       "badge": "新功能",

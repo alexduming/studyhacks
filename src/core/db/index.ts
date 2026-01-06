@@ -58,10 +58,10 @@ export function db() {
     client = postgres(databaseUrl, {
       prepare: false,
       max: 10, // Maximum connections in pool
-      idle_timeout: 30, // Idle connection timeout (seconds)
+      idle_timeout: 120, // 增加到 120秒，防止 AI 生成期间连接因空闲被断开
       // 开发环境：5秒超时，快速失败（避免首页卡顿）
-      // 生产环境：10秒超时（给网络波动留出缓冲）
-      connect_timeout: isDevelopment ? 5 : 10,
+      // 生产环境：20秒超时（给网络波动留出缓冲）
+      connect_timeout: isDevelopment ? 10 : 20,
       // 添加连接重试配置
       max_lifetime: 60 * 30, // 连接最大生命周期：30分钟
       // 针对 Supabase 连接池的优化
@@ -87,10 +87,10 @@ export function db() {
   const serverlessClient = postgres(databaseUrl, {
     prepare: false,
     max: 1, // Use single connection in serverless
-    idle_timeout: 20,
+    idle_timeout: 60, // 增加到 60秒
     // 开发环境：5秒超时，快速失败
-    // 生产环境：10秒超时
-    connect_timeout: isDevelopment ? 5 : 10,
+    // 生产环境：20秒超时
+    connect_timeout: isDevelopment ? 10 : 20,
     max_lifetime: 60 * 10, // Serverless 模式：连接最大生命周期10分钟
     connection: {
       application_name: 'study-app-serverless',

@@ -44,6 +44,9 @@
     "copy_success": "笔记内容已复制，直接粘贴即可分享。",
     "copy_error": "复制失败，请重试或手动选择文本。",
     "generation_success": "笔记生成成功！",
+    "ocr_processing": "检测到扫描版 PDF，正在进行智能识别 (OCR)...",
+    "ocr_complete": "OCR 识别完成，正在生成笔记...",
+    "ocr_failed": "OCR 智能识别失败",
     "dialog": {
       "flashcards_title": "AI 生成的闪卡",
       "flashcards_desc": "根据当前笔记自动提炼问答卡片，适合复习背诵",
@@ -103,7 +106,10 @@
     "unsupported_format": "不支持的文件格式",
     "generation_failed": "笔记生成失败，请重试",
     "insufficient_credits": "积分不足！需要 {required} 积分，当前仅有 {remaining} 积分",
-    "podcast_upgrading": "Podcast功能正在升级维护中，请稍后再试"
+    "podcast_upgrading": "Podcast功能正在升级维护中，请稍后再试",
+    "ocr_conversion_failed": "PDF 转换图片失败",
+    "ocr_no_text": "OCR 未能识别出有效文字",
+    "unknown_error": "未知错误"
   },
   "status": {
     "uploading": "上传中...",

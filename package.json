@@ -127,6 +127,7 @@
     "nextjs-toploader": "^3.9.17",
     "overtype": "^1.2.6",
     "pdf-parse": "^1.1.4",
+    "pdfjs-dist": "^5.4.530",
     "postgres": "^3.4.7",
     "pptxgenjs": "^4.0.1",
     "react": "19.2.0",

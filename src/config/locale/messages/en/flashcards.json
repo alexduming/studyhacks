@@ -54,6 +54,7 @@
     "en": "English output"
   },
   "quick_actions": {
+    "library": "Flashcards Library",
     "ai_generate": "AI Generate Flashcards",
     "reset_progress": "Reset Progress",
     "view_stats": "View Stats"
@@ -65,5 +66,15 @@
   "errors": {
     "generation_failed": "Error generating flashcards",
     "invalid_content": "Invalid content, please re-enter"
+  },
+  "history": {
+    "loading": "Loading your saved deck…",
+    "load_success": "Deck ready — {count} cards loaded.",
+    "load_error": "Unable to open this deck. Please try again or regenerate it.",
+    "load_empty": "This deck has no cards. Generate a new one to keep studying.",
+    "banner": "{count} cards loaded from history · generated at {time}",
+    "clear": "Switch deck",
+    "fallback_front": "Card {index}",
+    "fallback_back": "Answer {index}"
   }
 }

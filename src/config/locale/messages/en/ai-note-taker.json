@@ -44,6 +44,9 @@
     "copy_success": "Notes copied.",
     "copy_error": "Copy failed. Please try again.",
     "generation_success": "Notes generated successfully!",
+    "ocr_processing": "Scanned PDF detected, performing OCR recognition...",
+    "ocr_complete": "OCR recognition completed, generating notes...",
+    "ocr_failed": "OCR recognition failed",
     "dialog": {
       "flashcards_title": "AI Flashcards",
       "flashcards_desc": "Question-answer cards distilled from your notes for quick review.",
@@ -103,7 +106,10 @@
     "unsupported_format": "Unsupported file format",
     "generation_failed": "Note generation failed, please try again",
     "insufficient_credits": "Insufficient credits! Need {required} credits, but only {remaining} credits available",
-    "podcast_upgrading": "Podcast feature is under maintenance, please try again later"
+    "podcast_upgrading": "Podcast feature is under maintenance, please try again later",
+    "ocr_conversion_failed": "PDF conversion to images failed",
+    "ocr_no_text": "OCR failed to extract any text",
+    "unknown_error": "Unknown error"
   },
   "status": {
     "uploading": "Uploading...",

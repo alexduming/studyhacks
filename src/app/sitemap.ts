@@ -1,0 +1,239 @@
+import type { MetadataRoute } from 'next';
+import path from 'node:path';
+import { promises as fs } from 'node:fs';
+
+import { envConfigs } from '@/config';
+import { defaultLocale, locales } from '@/config/locale';
+
+type ChangeFrequency = NonNullable<
+  MetadataRoute.Sitemap[number]['changeFrequency']
+>;
+type Priority = NonNullable<MetadataRoute.Sitemap[number]['priority']>;
+
+type StaticRoute = {
+  path: string;
+  changeFrequency: ChangeFrequency;
+  priority: Priority;
+};
+
+type ContentRoute = StaticRoute & {
+  locale: string;
+  lastModified: string;
+};
+
+const PROJECT_ROOT = process.cwd();
+
+/**
+ * 非程序员解释：
+ * - Search Console 只需要一个 `/sitemap.xml` 地址，我们让 Next.js 在服务端实时生成
+ * - `STATIC_MARKETING_ROUTES` 维护首页、功能页等“固定”链接；文档、博客等内容页会自动扫描 MDX 文件生成
+ * - 以后新增 mdx 文档或博客，无需再手动维护 sitemap，只要有对应文件就会自动更新
+ */
+const STATIC_MARKETING_ROUTES: StaticRoute[] = [
+  { path: '/', changeFrequency: 'daily', priority: 1 },
+  { path: '/ai-note-taker', changeFrequency: 'weekly', priority: 0.9 },
+  { path: '/flashcards', changeFrequency: 'weekly', priority: 0.9 },
+  { path: '/quiz', changeFrequency: 'weekly', priority: 0.9 },
+  { path: '/slides', changeFrequency: 'weekly', priority: 0.9 },
+  { path: '/infographic', changeFrequency: 'weekly', priority: 0.85 },
+  { path: '/podcast', changeFrequency: 'weekly', priority: 0.85 },
+  { path: '/pricing', changeFrequency: 'weekly', priority: 0.8 },
+  { path: '/collaboration', changeFrequency: 'monthly', priority: 0.7 },
+  { path: '/showcases', changeFrequency: 'monthly', priority: 0.7 },
+  { path: '/sync', changeFrequency: 'monthly', priority: 0.65 },
+  { path: '/ai-audio-generator', changeFrequency: 'monthly', priority: 0.7 },
+  { path: '/ai-chatbot', changeFrequency: 'monthly', priority: 0.7 },
+  { path: '/ai-image-generator', changeFrequency: 'monthly', priority: 0.7 },
+  { path: '/ai-music-generator', changeFrequency: 'monthly', priority: 0.7 },
+  { path: '/ai-video-generator', changeFrequency: 'monthly', priority: 0.7 },
+  { path: '/blog', changeFrequency: 'daily', priority: 0.8 },
+];
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const baseUrl = envConfigs.app_url.replace(/\/$/, '');
+  const generatedAt = new Date().toISOString();
+
+  const sitemapEntries: MetadataRoute.Sitemap = [];
+
+  // 生成营销页：保证中英文都有条目
+  locales.forEach((locale) => {
+    STATIC_MARKETING_ROUTES.forEach((route) => {
+      sitemapEntries.push(
+        createEntry({
+          baseUrl,
+          locale,
+          path: route.path,
+          changeFrequency: route.changeFrequency,
+          priority: route.priority,
+          lastModified: generatedAt,
+        })
+      );
+    });
+  });
+
+  const [blogRoutes, legalPageRoutes, docsRoutes] = await Promise.all([
+    collectContentRoutes({
+      rootDir: path.join(PROJECT_ROOT, 'content', 'posts'),
+      routePrefix: '/blog',
+      changeFrequency: 'weekly',
+      priority: 0.6,
+    }),
+    collectContentRoutes({
+      rootDir: path.join(PROJECT_ROOT, 'content', 'pages'),
+      routePrefix: '/',
+      changeFrequency: 'yearly',
+      priority: 0.4,
+    }),
+    collectContentRoutes({
+      rootDir: path.join(PROJECT_ROOT, 'content', 'docs'),
+      routePrefix: '/docs',
+      changeFrequency: 'monthly',
+      priority: 0.5,
+    }),
+  ]);
+
+  [...blogRoutes, ...legalPageRoutes, ...docsRoutes].forEach((route) => {
+    sitemapEntries.push(
+      createEntry({
+        baseUrl,
+        ...route,
+      })
+    );
+  });
+
+  return deduplicateEntries(sitemapEntries);
+}
+
+function createEntry({
+  baseUrl,
+  locale,
+  path: pathname,
+  lastModified,
+  changeFrequency,
+  priority,
+}: {
+  baseUrl: string;
+  locale: string;
+  path: string;
+  lastModified: string;
+  changeFrequency: ChangeFrequency;
+  priority: Priority;
+}): MetadataRoute.Sitemap[number] {
+  const normalizedPath =
+    pathname === '/' ? '' : pathname.startsWith('/') ? pathname : `/${pathname}`;
+  const localePrefix =
+    locale === defaultLocale ? '' : `/${locale.replace(/^\//, '')}`;
+
+  return {
+    url: `${baseUrl}${localePrefix}${normalizedPath}`,
+    lastModified,
+    changeFrequency,
+    priority,
+  };
+}
+
+async function collectContentRoutes({
+  rootDir,
+  routePrefix,
+  changeFrequency,
+  priority,
+}: {
+  rootDir: string;
+  routePrefix: string;
+  changeFrequency: ChangeFrequency;
+  priority: Priority;
+}): Promise<ContentRoute[]> {
+  // 非程序员解释：这段只是“扫描 mdx 文件夹，顺势带上更新时间”，不会影响业务逻辑
+  if (!(await directoryExists(rootDir))) {
+    return [];
+  }
+
+  const files = await readMdxFiles(rootDir);
+  const routes: ContentRoute[] = [];
+
+  for (const filePath of files) {
+    const relativePath = path
+      .relative(rootDir, filePath)
+      .replace(/\\/g, '/');
+
+    const locale = relativePath.endsWith('.zh.mdx') ? 'zh' : defaultLocale;
+    const slug = normalizeSlug(relativePath);
+    const normalizedRoute = buildRoutePath(routePrefix, slug);
+    const stats = await fs.stat(filePath);
+
+    routes.push({
+      locale,
+      path: normalizedRoute,
+      lastModified: stats.mtime.toISOString(),
+      changeFrequency,
+      priority,
+    });
+  }
+
+  return routes;
+}
+
+async function directoryExists(dir: string): Promise<boolean> {
+  try {
+    await fs.access(dir);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function readMdxFiles(dir: string): Promise<string[]> {
+  const dirents = await fs.readdir(dir, { withFileTypes: true });
+  const files = await Promise.all(
+    dirents.map(async (dirent) => {
+      const fullPath = path.join(dir, dirent.name);
+      if (dirent.isDirectory()) {
+        return readMdxFiles(fullPath);
+      }
+
+      return fullPath.endsWith('.mdx') ? [fullPath] : [];
+    })
+  );
+
+  return files.flat();
+}
+
+function normalizeSlug(relativePath: string): string {
+  const withoutLocale = relativePath
+    .replace(/\.zh\.mdx$/, '')
+    .replace(/\.mdx$/, '');
+  const segments = withoutLocale.split('/').filter(Boolean);
+
+  if (segments[segments.length - 1] === 'index') {
+    segments.pop();
+  }
+
+  return segments.join('/');
+}
+
+function buildRoutePath(prefix: string, slug: string): string {
+  if (!slug) {
+    return prefix;
+  }
+
+  if (prefix === '/') {
+    return `/${slug}`;
+  }
+
+  return `${prefix}/${slug}`.replace(/\/{2,}/g, '/');
+}
+
+function deduplicateEntries(
+  entries: MetadataRoute.Sitemap
+): MetadataRoute.Sitemap {
+  const seen = new Set<string>();
+
+  return entries.filter((entry) => {
+    if (seen.has(entry.url)) {
+      return false;
+    }
+    seen.add(entry.url);
+    return true;
+  });
+}
+

@@ -5,3 +5,5 @@ Disallow: /terms-of-service
 Disallow: /settings/*
 Disallow: /library/*
 Disallow: /admin/*
+# Sitemap 指向 Search Console 读取的网站地图（给非程序员看的备注）
+Sitemap: https://www.studyhacks.ai/sitemap.xml

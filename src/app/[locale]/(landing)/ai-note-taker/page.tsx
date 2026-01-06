@@ -142,19 +142,72 @@ const AINoteTaker = ({
 
       try {
         // 读取文件内容（支持 txt / pdf / docx 等）
-        const fileContent = await readLearningFileContent(file);
+        let fileContent = '';
 
-        /**
-         * 调用后端 API 生成笔记（替代在前端直接 new OpenRouterService）：
-         *
-         * 非程序员解释：
-         * - 之前的做法：浏览器里直接拿着 OpenRouter 的密钥去请求第三方 AI 服务，
-         *   这样虽然能用，但密钥很容易在浏览器开发者工具中被看到 → 不安全。
-         * - 现在的做法：浏览器只请求我们自己的网站接口 /api/ai/notes，
-         *   真正去请求 OpenRouter 的动作放在服务器里完成，密钥只保存在服务器环境变量中。
-         *
-         * 对你来说，使用方式几乎不变：只不过从「调本地 service」换成了「调后端接口」。
-         */
+        try {
+          fileContent = await readLearningFileContent(file);
+        } catch (readError: any) {
+          if (readError.code === 'NEEDS_OCR') {
+            // 触发 OCR 流程
+            toast.info(t('notes.ocr_processing'), {
+              duration: 5000,
+            });
+
+            try {
+              // 动态导入 PDF 转图库
+              const { convertPdfToImages } = await import(
+                '@/shared/lib/pdf-to-image'
+              );
+              // 限制前5页，防止超时
+              const images = await convertPdfToImages(file, 5);
+
+              if (images.length === 0) {
+                throw new Error(
+                  t('errors.ocr_conversion_failed') ||
+                    'PDF conversion to images failed'
+                );
+              }
+
+              let ocrText = '';
+              const total = images.length;
+
+              // 串行处理 OCR，避免并发过高
+              for (let i = 0; i < total; i++) {
+                // 这里可以加一个简单的进度提示，但 toast 更新比较麻烦，暂略
+                const res = await fetch('/api/ai/ocr', {
+                  method: 'POST',
+                  body: JSON.stringify({ image: images[i] }),
+                });
+
+                if (!res.ok) continue;
+
+                const data = await res.json();
+                if (data.success && data.text) {
+                  ocrText += `[Page ${i + 1}]\n${data.text}\n\n`;
+                }
+              }
+
+              if (!ocrText.trim()) {
+                throw new Error(
+                  t('errors.ocr_no_text') || 'OCR failed to extract any text'
+                );
+              }
+
+              fileContent = ocrText;
+              toast.success(t('notes.ocr_complete'));
+            } catch (ocrError: any) {
+              console.error('OCR Process failed:', ocrError);
+              const errorMessage =
+                ocrError.message ||
+                t('errors.unknown_error') ||
+                'Unknown error';
+              throw new Error(`${t('notes.ocr_failed')}: ${errorMessage}`);
+            }
+          } else {
+            throw readError;
+          }
+        }
+
         const response = await fetch('/api/ai/notes', {
           method: 'POST',
           headers: {
@@ -181,7 +234,7 @@ const AINoteTaker = ({
             fetchUserCredits();
           }
           toast.success(t('notes.generation_success'));
-          
+
           // 保存笔记 ID，但不自动跳转，允许用户先预览
           if (result.note?.id) {
             setSavedNoteId(result.note.id);
@@ -685,7 +738,7 @@ const AINoteTaker = ({
                   </Button>
 
                   {/* 支持的文件类型 */}
-                  <div className="mt-12 grid grid-cols-2 gap-4 md:grid-cols-2 max-w-2xl mx-auto">
+                  <div className="mx-auto mt-12 grid max-w-2xl grid-cols-2 gap-4 md:grid-cols-2">
                     {[
                       /* 暂时隐藏音视频支持
                       {
@@ -847,15 +900,15 @@ const AINoteTaker = ({
 
                 {/* 如果有已保存的笔记 ID，显示编辑按钮 */}
                 {savedNoteId && (
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="mt-6 flex justify-center"
                   >
                     <Link href={withLocale(`/library/notes/${savedNoteId}`)}>
-                      <Button 
-                        size="lg" 
-                        className="shadow-lg shadow-primary/20 bg-primary hover:bg-primary/90 text-white font-semibold px-8 h-12 rounded-full"
+                      <Button
+                        size="lg"
+                        className="shadow-primary/20 bg-primary hover:bg-primary/90 h-12 rounded-full px-8 font-semibold text-white shadow-lg"
                       >
                         <PenSquare className="mr-2 h-5 w-5" />
                         前往编辑器润色

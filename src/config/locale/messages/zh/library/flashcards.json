@@ -15,7 +15,10 @@
     "questionLabel": "第{index}题",
     "answerLabel": "A:",
     "empty": "解析记录为空，可以前往生成页重新触发一次。",
-    "remaining": "... 还有 {count} 张闪卡，可在生成时下载原始 JSON。"
+    "remaining": "... 还有 {count} 张闪卡。",
+    "actions": {
+      "resume": "打开这组闪卡",
+      "resumeHint": "点击后即可复习全部 {count} 张卡片"
+    }
   }
 }
-
