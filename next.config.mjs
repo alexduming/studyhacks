@@ -29,6 +29,33 @@ const nextConfig = {
       },
     ],
   },
+  // 配置 CORS 头，告知浏览器只允许特定域名访问
+  async headers() {
+    return [
+      {
+        source: '/api/:path*',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Origin',
+            // 注意：标准的 Access-Control-Allow-Origin 只能是一个域名或 *。
+            // 如果你需要支持多个域名，通常需要使用 Middleware 动态设置。
+            // 这里我们为了简单兼容，如果未设置 ALLOWED_ORIGINS，默认允许所有（*），
+            // 但我们在 API 路由代码中已经做了 checkApiOrigin 的严格逻辑检查，所以这里宽容一点没关系。
+            // 建议：在 Vercel 环境变量中设置 ALLOWED_ORIGINS 为你的主域名。
+            value: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',')[0] : '*',
+          },
+          {
+            key: 'Access-Control-Allow-Methods',
+            value: 'GET, POST, PUT, DELETE, OPTIONS',
+          },
+          {
+            key: 'Access-Control-Allow-Headers',
+            value: 'Content-Type, Authorization',
+          },
+        ],
+      },
+    ];
+  },
   async redirects() {
     // 说明（给非程序员看的注释）：
     // - 这里配置的是“旧地址自动跳到新地址”的规则（301 重定向）

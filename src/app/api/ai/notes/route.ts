@@ -6,6 +6,7 @@ import {
   extractTitle,
   renderMarkdownToHtml,
 } from '@/shared/lib/note-format';
+import { checkApiOrigin } from '@/shared/lib/security';
 import { consumeCredits, getRemainingCredits } from '@/shared/models/credit';
 import { createNoteDocument } from '@/shared/models/note-document';
 import { getUserInfo } from '@/shared/models/user';
@@ -35,6 +36,12 @@ export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
+  // 🛡️ 安全检查：验证请求来源
+  const securityCheck = checkApiOrigin(request);
+  if (!securityCheck.valid && securityCheck.response) {
+    return securityCheck.response;
+  }
+
   try {
     const body = await request.json();
 
