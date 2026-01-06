@@ -20,11 +20,11 @@ export function checkApiOrigin(request: Request): {
   // 默认包含 localhost 以免开发环境报错
   const envAllowed = process.env.ALLOWED_ORIGINS || '';
   const defaultAllowed = ['http://localhost:3000'];
-  
+
   const allowedOrigins = [
     ...defaultAllowed,
-    ...envAllowed.split(',').filter(Boolean)
-  ].map(url => url.trim());
+    ...envAllowed.split(',').filter(Boolean),
+  ].map((url) => url.trim());
 
   // 2. 获取请求的 Origin 或 Referer
   const origin = request.headers.get('origin');
@@ -37,8 +37,8 @@ export function checkApiOrigin(request: Request): {
     // 这里的逻辑可以根据需要调整。如果你有移动端 App 或服务端调用，可能需要特定 Header 验证。
     // 目前为了安全，如果不是从浏览器来的（无 Origin/Referer），且不是开发环境，我们记录警告。
     if (process.env.NODE_ENV === 'production') {
-       // 可选：拦截无来源请求
-       // return { valid: false, response: NextResponse.json({ error: 'Missing Origin' }, { status: 403 }) };
+      // 可选：拦截无来源请求
+      // return { valid: false, response: NextResponse.json({ error: 'Missing Origin' }, { status: 403 }) };
     }
     return { valid: true };
   }
@@ -58,7 +58,8 @@ export function checkApiOrigin(request: Request): {
       response: NextResponse.json(
         {
           success: false,
-          error: 'Unauthorized Origin: Access is restricted to allowed domains.',
+          error:
+            'Unauthorized Origin: Access is restricted to allowed domains.',
         },
         { status: 403 }
       ),
@@ -67,4 +68,3 @@ export function checkApiOrigin(request: Request): {
 
   return { valid: true };
 }
-
