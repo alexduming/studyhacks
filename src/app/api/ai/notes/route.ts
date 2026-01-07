@@ -1,8 +1,16 @@
 import { NextResponse } from 'next/server';
 
-import OpenRouterService from '@/shared/services/openrouter';
-import { getUserInfo } from '@/shared/models/user';
+import {
+  countWords,
+  extractSummary,
+  extractTitle,
+  renderMarkdownToHtml,
+} from '@/shared/lib/note-format';
+import { checkApiOrigin } from '@/shared/lib/security';
 import { consumeCredits, getRemainingCredits } from '@/shared/models/credit';
+import { createNoteDocument } from '@/shared/models/note-document';
+import { getUserInfo } from '@/shared/models/user';
+import { DeepSeekService } from '@/shared/services/deepseek';
 
 /**
  * 非程序员解释：
@@ -28,6 +36,12 @@ export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
+  // 🛡️ 安全检查：验证请求来源
+  const securityCheck = checkApiOrigin(request);
+  if (!securityCheck.valid && securityCheck.response) {
+    return securityCheck.response;
+  }
+
   try {
     const body = await request.json();
 
@@ -54,7 +68,7 @@ export async function POST(request: Request) {
 
     /**
      * 积分验证和消耗逻辑
-     * 
+     *
      * 非程序员解释：
      * - 在生成笔记之前，先检查用户是否有足够的积分（需要3积分）
      * - 如果积分不足，返回错误提示，不执行AI生成
@@ -110,7 +124,8 @@ export async function POST(request: Request) {
     }
 
     // 积分消耗成功，执行AI生成
-    const aiService = OpenRouterService.getInstance();
+    // 切换到 DeepSeek 官方 API
+    const aiService = DeepSeekService.getInstance();
 
     const result = await aiService.generateNotes({
       content,
@@ -119,8 +134,43 @@ export async function POST(request: Request) {
       outputLanguage,
     });
 
-    // 这里直接把 service 的返回透传给前端，保证前端改动最小。
-    return NextResponse.json(result);
+    if (!result.success || !result.notes) {
+      return NextResponse.json(result, { status: 500 });
+    }
+
+    // --- 将 AI 结果持久化到 note_document，方便在 /library/notes 中继续编辑 ---
+    const detectedTitle = extractTitle(result.notes, fileName || 'AI Note');
+    const summary = extractSummary(result.notes);
+    const html = renderMarkdownToHtml(result.notes);
+    const words = result.metadata?.wordCount ?? countWords(result.notes || '');
+
+    let noteRecord = null;
+    let saveError = null;
+
+    try {
+      noteRecord = await createNoteDocument({
+        userId: user.id,
+        title: detectedTitle,
+        markdown: result.notes,
+        html,
+        summary,
+        language: outputLanguage === 'auto' ? null : outputLanguage,
+        sourceType: type,
+        sourceName: fileName || null,
+        wordCount: words,
+        status: 'draft',
+      });
+    } catch (dbError) {
+      console.error('Failed to save note to database:', dbError);
+      // 即使保存失败，也不阻断流程，确保用户能看到生成的笔记
+      saveError = 'Failed to auto-save note';
+    }
+
+    return NextResponse.json({
+      ...result,
+      note: noteRecord,
+      saveError,
+    });
   } catch (error: any) {
     console.error('API /api/ai/notes error:', error);
 
@@ -136,5 +186,3 @@ export async function POST(request: Request) {
     );
   }
 }
-
-

@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { Search as SearchIcon } from 'lucide-react';
 
+import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Search as SearchType } from '@/shared/types/blocks/common';
 
@@ -16,11 +18,9 @@ export function Search({ search }: { search: SearchType }) {
       return;
     }
 
-    setValue(value);
+    // setValue(value); // This is redundant as onChange sets it
 
     const params = new URLSearchParams(searchParams.toString());
-
-    params.set(search.name, value);
 
     if (value) {
       params.set(search.name, value);
@@ -51,6 +51,11 @@ export function Search({ search }: { search: SearchType }) {
         onKeyDown={onKeyDown}
         className="w-full"
       />
+      {search.withButton && (
+        <Button onClick={handleSearch} size="icon" variant="outline">
+          <SearchIcon className="h-4 w-4" />
+        </Button>
+      )}
     </div>
   );
 }

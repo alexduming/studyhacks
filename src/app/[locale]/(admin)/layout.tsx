@@ -23,7 +23,7 @@ export default async function AdminLayout({
   // 检查用户是否有管理员访问权限
   // 如果没有权限，会重定向到无权限页面
   await requireAdminAccess({
-    redirectUrl: `/${locale}/no-permission`, // 修复：使用完整的本地化路径
+    redirectUrl: '/no-permission', // 修复：使用通用路径，让 redirect 函数处理本地化
     locale: locale || '',
   });
 

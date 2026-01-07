@@ -1,0 +1,51 @@
+{
+  "title": "我的资料库",
+  "nav": {
+    "items": [
+      {
+        "title": "演示文稿",
+        "url": "/library/presentations",
+        "icon": "Presentation"
+      },
+      {
+        "title": "笔记",
+        "url": "/library/notes",
+        "icon": "FileText"
+      },
+      {
+        "title": "闪卡",
+        "url": "/library/flashcards",
+        "icon": "Brain"
+      },
+      {
+        "title": "测验",
+        "url": "/library/quizzes",
+        "icon": "Target"
+      },
+      {
+        "title": "信息图",
+        "url": "/library/infographics",
+        "icon": "Image"
+      },
+      {
+        "title": "播客",
+        "url": "/library/podcasts",
+        "icon": "Headphones"
+      }
+    ]
+  },
+  "top_nav": {
+    "items": [
+      {
+        "title": "资料库",
+        "url": "/library",
+        "icon": "Library"
+      },
+      {
+        "title": "设置",
+        "url": "/settings",
+        "icon": "Settings"
+      }
+    ]
+  }
+}

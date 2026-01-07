@@ -208,6 +208,18 @@ export async function getSettingGroups() {
       tab: 'ai',
     },
     {
+      name: 'together',
+      title: 'Together AI',
+      description: `Custom <a href="https://together.ai" class="text-primary" target="_blank">Together AI</a> settings`,
+      tab: 'ai',
+    },
+    {
+      name: 'novita',
+      title: 'Novita AI',
+      description: `Custom <a href="https://novita.ai" class="text-primary" target="_blank">Novita AI</a> settings`,
+      tab: 'ai',
+    },
+    {
       name: 'adsense',
       title: t('groups.adsense'),
       description: 'custom your adsense settings',
@@ -617,6 +629,24 @@ export async function getSettings() {
       placeholder: 'xxx',
       group: 'kie',
       tip: 'Kie API Key is used to access the Kie API',
+      tab: 'ai',
+    },
+    {
+      name: 'together_api_key',
+      title: 'Together AI API Key',
+      type: 'password',
+      placeholder: 'xxx',
+      group: 'together',
+      tip: 'Together AI API Key - Fast and affordable image generation (Recommended as fallback)',
+      tab: 'ai',
+    },
+    {
+      name: 'novita_api_key',
+      title: 'Novita AI API Key',
+      type: 'password',
+      placeholder: 'xxx',
+      group: 'novita',
+      tip: 'Novita AI API Key - Most affordable image generation service',
       tab: 'ai',
     },
     {

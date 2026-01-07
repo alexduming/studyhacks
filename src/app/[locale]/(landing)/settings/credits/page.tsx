@@ -1,10 +1,8 @@
 import { getTranslations } from 'next-intl/server';
 
 import { Empty } from '@/shared/blocks/common';
-import { PanelCard } from '@/shared/blocks/panel';
 import { TableCard } from '@/shared/blocks/table';
 import {
-  Credit,
   CreditStatus,
   CreditTransactionType,
   getCredits,
@@ -14,6 +12,8 @@ import {
 import { getUserInfo } from '@/shared/models/user';
 import { Tab } from '@/shared/types/blocks/common';
 import { type Table } from '@/shared/types/blocks/table';
+
+import { RedeemCard } from './redeem-card';
 
 export default async function CreditsPage({
   searchParams,
@@ -30,6 +30,20 @@ export default async function CreditsPage({
   }
 
   const t = await getTranslations('settings.credits');
+  // Temporary translations for new features until added to locale files
+  const tRedeem = {
+    title: t('view.title'),
+    purchase: t('view.buttons.purchase'),
+    redeem: 'Redeem Code', // 兑换积分
+    redeem_title: 'Redeem Credits', // 使用兑换码
+    redeem_desc: 'Enter your redemption code below to claim your credits.', // 请输入兑换码领取积分
+    code_label: 'Redemption Code', // 兑换码
+    code_placeholder: 'XXXX-XXXX-XXXX-XXXX',
+    cancel: 'Cancel', // 取消
+    confirm: 'Confirm', // 确认
+    success: 'Credits redeemed successfully!', // 兑换成功
+    error: 'Invalid or expired code.', // 兑换码无效或已过期
+  };
 
   const total = await getCreditsCount({
     transactionType: type as CreditTransactionType,
@@ -119,22 +133,7 @@ export default async function CreditsPage({
 
   return (
     <div className="space-y-8">
-      <PanelCard
-        title={t('view.title')}
-        buttons={[
-          {
-            title: t('view.buttons.purchase'),
-            url: '/pricing',
-            target: '_blank',
-            icon: 'Coins',
-          },
-        ]}
-        className="max-w-md"
-      >
-        <div className="text-primary text-3xl font-bold">
-          {remainingCredits}
-        </div>
-      </PanelCard>
+      <RedeemCard remainingCredits={remainingCredits} t={tRedeem} />
       <TableCard title={t('list.title')} tabs={tabs} table={table} />
     </div>
   );

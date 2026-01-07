@@ -99,9 +99,12 @@ function isRetryableAuthError(error: any): boolean {
     'EPIPE',
     'ECONNABORTED',
     'CONNECT_TIMEOUT',
+    '504', // Gateway Timeout
+    '502', // Bad Gateway
+    '503', // Service Unavailable
   ];
 
-  if (retryableCodes.includes(errorCode)) {
+  if (retryableCodes.includes(errorCode) || retryableCodes.includes(String(statusCode))) {
     return true;
   }
 
@@ -118,6 +121,12 @@ function isRetryableAuthError(error: any): boolean {
     'timeout',
     'network',
     'internal server error',
+    'fetch failed',
+    'socket',
+    'closed',
+    'hang up',
+    'upstream',
+    'busy',
   ];
 
   const lowerMessage = errorMessage.toLowerCase();
@@ -143,6 +152,7 @@ export async function getUserInfo() {
     // 如果是可重试的错误，尝试重试一次
     if (isRetryableAuthError(error)) {
       try {
+        console.log('[User] 第一次获取用户信息失败，准备重试:', error);
         // 等待 500ms 后重试一次
         await new Promise((resolve) => setTimeout(resolve, 500));
         const signUser = await getSignUser();
@@ -171,35 +181,49 @@ export async function getUserCredits(userId: string) {
  * 获取已登录用户（内部方法）
  * 非程序员解释：
  * - 这是实际调用认证系统的方法
- * - 如果数据库连接有问题，可能会抛出错误
- * - 调用者应该使用 getUserInfo() 而不是直接调用这个方法
+ * - 修正：现在内部集成了重试机制和错误捕获，避免抛出异常导致页面崩溃
  */
 export async function getSignUser() {
-  try {
+  // 定义内部获取函数
+  const fetchSession = async () => {
     const auth = await getAuth();
-    const session = await auth.api.getSession({
+    return await auth.api.getSession({
       headers: await headers(),
     });
+  };
 
+  try {
+    const session = await fetchSession();
     return session?.user;
   } catch (error) {
-    // 记录详细错误信息，便于排查
+    // 记录详细错误信息
     const errorMessage =
       error instanceof Error ? error.message : String(error);
     const errorCode = (error as any)?.code || '';
     const statusCode = (error as any)?.statusCode || (error as any)?.status;
 
-    // 只在开发环境显示详细错误
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('[Auth] getSession 失败:', {
-        message: errorMessage,
-        code: errorCode,
-        statusCode,
-      });
+    console.warn('[Auth] getSession 第一次尝试失败:', {
+      message: errorMessage,
+      code: errorCode,
+      statusCode,
+    });
+
+    // 如果是可重试的错误，尝试重试一次
+    if (isRetryableAuthError(error)) {
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        const session = await fetchSession();
+        return session?.user;
+      } catch (retryError) {
+        console.warn('[Auth] getSession 重试也失败:', retryError);
+        // 重试失败，为了页面稳定性，返回 null 而不是抛出
+        return null;
+      }
     }
 
-    // 重新抛出错误，让调用者决定如何处理
-    throw error;
+    // 如果不可重试或重试失败，吞掉错误返回 null
+    // 这样即使 Auth 服务挂了，网站至少还能访问（虽然是未登录状态）
+    return null;
   }
 }
 

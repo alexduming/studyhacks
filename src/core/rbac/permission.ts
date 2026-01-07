@@ -160,15 +160,27 @@ export async function requireAllPermissions({
   if (!user) {
     if (redirectUrl) {
       redirect({ href: redirectUrl, locale: locale || '' });
+      return; // 确保函数不会继续执行
     }
     throw new PermissionDeniedError('User not authenticated');
   }
 
-  const allowed = await hasAllPermissions(user.id, codes);
+  // 检查用户是否有所有权限
+  // 注意：hasAllPermissions 会检查每个权限，包括通配符 '*' 权限
+  let allowed = false;
+  try {
+    allowed = await hasAllPermissions(user.id, codes);
+  } catch (error) {
+    // 如果权限检查失败（比如数据库错误），记录错误但不抛出
+    // 这样可以避免页面崩溃
+    console.error('[权限检查] hasAllPermissions 失败:', error);
+    allowed = false;
+  }
 
   if (!allowed) {
     if (redirectUrl) {
       redirect({ href: redirectUrl, locale: locale || '' });
+      return; // 确保函数不会继续执行
     }
     throw new PermissionDeniedError(
       `All of these permissions required: ${codes.join(', ')}`
@@ -263,22 +275,24 @@ export async function requireAdminAccess({
 
   // 检查用户是否有管理员权限（需要查询数据库）
   // 注意：如果数据库连接慢，这里可能会等待较长时间
+  let allowed = false;
   try {
-    const allowed = await canAccessAdmin(user.id);
-
-    // 如果用户没有管理员权限，重定向到无权限页面
-    if (!allowed) {
-      // 如果提供了重定向 URL，使用它；否则使用默认的无权限页面
-      const targetUrl = redirectUrl || '/no-permission';
-      redirect({ href: targetUrl, locale: locale || '' });
-      return; // 确保函数不会继续执行
-    }
+    allowed = await canAccessAdmin(user.id);
   } catch (error) {
     // 如果数据库查询失败（比如连接超时），记录错误并重定向到登录页
     // 这样可以避免页面卡死，用户需要重新登录
     console.error('[权限检查] 数据库查询失败，重定向到登录页:', error);
     redirect({ href: '/sign-in', locale: locale || '' });
     return;
+  }
+
+  // 如果用户没有管理员权限，重定向到无权限页面
+  // 将重定向逻辑移出 try-catch 块，防止 redirect 抛出的 NEXT_REDIRECT 错误被捕获
+  if (!allowed) {
+    // 如果提供了重定向 URL，使用它；否则使用默认的无权限页面
+    const targetUrl = redirectUrl || '/no-permission';
+    redirect({ href: targetUrl, locale: locale || '' });
+    return; // 确保函数不会继续执行
   }
 }
 

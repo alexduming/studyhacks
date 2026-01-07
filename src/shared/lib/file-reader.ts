@@ -53,6 +53,16 @@ export const readLearningFileContent = async (file: File): Promise<string> => {
 
       // 检查 HTTP 响应状态
       if (!response.ok) {
+        // 如果是 422 且标记了 needsOCR，抛出特殊错误供前端处理
+        if (response.status === 422) {
+          const errorData = await response.json();
+          if (errorData.needsOCR) {
+            const error = new Error('PDF needs OCR');
+            (error as any).code = 'NEEDS_OCR';
+            throw error;
+          }
+        }
+
         // Response 的 body 只能读取一次，这里克隆一份做兜底解析
         const fallbackResponse = response.clone();
         let errorMessage = `PDF 解析失败：HTTP ${response.status}`;

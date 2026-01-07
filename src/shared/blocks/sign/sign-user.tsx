@@ -118,11 +118,20 @@ export function SignUser({
               </Fragment>
             ))}
 
+            {/* My Library - For Everyone */}
+            <DropdownMenuItem asChild>
+              <Link className="w-full cursor-pointer" href="/library">
+                <LayoutDashboard />
+                {t('my_library')}
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+
             {user.isAdmin && (
               <>
                 <DropdownMenuItem asChild>
                   <Link className="w-full cursor-pointer" href="/admin">
-                    <LayoutDashboard />
+                    <User className="h-4 w-4" />
                     {t('admin_title')}
                   </Link>
                 </DropdownMenuItem>

@@ -1,0 +1,116 @@
+{
+  "title": "AI PPT 生成器",
+  "steps": {
+    "input": "分析内容",
+    "outline": "编辑大纲",
+    "style": "选择风格",
+    "result": "生成结果"
+  },
+  "input_step": {
+    "hero_title": "AI 演示文稿生成器",
+    "hero_subtitle": "几秒钟内将您的想法转化为精美的幻灯片",
+    "title": "您想演示什么内容？",
+    "tabs": {
+      "text": "主题 / 文本",
+      "pdf": "上传文件"
+    },
+    "placeholder": "描述您的演示主题或在此粘贴内容...",
+    "drop_hint": "拖放文件到此处上传",
+    "upload_hint": "点击上传 PDF/DOCX/TXT/图片",
+    "upload_subhint": "我们将为您提取文本",
+    "attach": "添加附件",
+    "slide_count": "生成页数",
+    "button_analyze": "开始分析",
+    "analyzing": "分析内容中...",
+    "file_type_images": "{count}张图片",
+    "file_type_pdfs": "{count}个PDF",
+    "file_type_docs": "{count}个文档",
+    "file_type_others": "{count}个其他文件",
+    "files_selected": "已选择 {count} 张图片",
+    "files_selected_batch": "已选择 {count} 个文件：{types}",
+    "separator": "、",
+    "processing_files": "正在处理 {count} 个文件...",
+    "recognizing_images": "正在识别 {count} 张图片...",
+    "processing_file": "正在处理文件 {current}/{total}: {fileName}...",
+    "processing_single_file": "正在处理文件: {fileName}...",
+    "file_header": "=== 文件 {index}: {fileName} ===",
+    "parse_failed_message": "[解析失败: {error}]",
+    "extracted_content_header": "=== 从上传文件中提取的内容 ===",
+    "analyzing_hint": "⏳ 正在使用 AI 识别图片中的文字...",
+    "quality_hint": "💡 提示：清晰的图片识别效果更好",
+    "analyzing_content": "正在分析内容并构建大纲...",
+    "waiting_analysis": "等待分析..."
+  },
+  "outline_step": {
+    "title": "审查和编辑大纲",
+    "description": "在生成视觉效果之前调整幻灯片标题和要点。",
+    "slide_title": "标题",
+    "slide_content": "内容要点",
+    "add_slide": "添加幻灯片",
+    "remove_slide": "移除",
+    "button_next": "下一步：选择风格"
+  },
+  "style_step": {
+    "title": "选择视觉风格",
+    "subtitle": "选择预设风格或上传您自己的参考图",
+    "custom_upload": "自定义参考图片",
+    "upload_limit_hint": "最多 8 张图片",
+    "button_generate": "开始生成",
+    "generating": "正在创建您的演示文稿...",
+    "settings": {
+      "ratio": "画面比例",
+      "resolution": "分辨率",
+      "content_enhancement": {
+        "label": "内容增强",
+        "on_desc": "智能扩充内容并优化排版",
+        "off_desc": "严格遵循大纲内容"
+      },
+      "prompt_enhancement": {
+        "label": "提示词增强",
+        "on_desc": "包含详细风格指令",
+        "off_desc": "仅参考图片风格，更具创意"
+      },
+      "language": "输出语言",
+      "language_auto": "自动（跟随输入）",
+      "language_zh": "简体中文",
+      "language_en": "英文"
+    },
+    "presentation_settings": "演示文稿设置"
+  },
+  "result_step": {
+    "title": "您的演示文稿已准备就绪",
+    "download_all": "下载全部",
+    "download_pptx": "导出 PPTX",
+    "download_images": "下载图片包 (ZIP)",
+    "download_success": "下载成功！",
+    "download_failed": "下载失败",
+    "downloading": "正在打包图片...",
+    "generating_pptx": "正在生成PPTX文件...",
+    "pptx_downloaded": "PPTX文件下载成功！",
+    "pptx_failed": "生成PPTX文件失败",
+    "no_images": "没有可下载的图片",
+    "no_slides": "没有可导出的幻灯片",
+    "back_home": "新建演示",
+    "preview": "预览",
+    "download": "下载",
+    "download_partial": "部分图片下载成功 ({success}/{total})",
+    "zip_creation_failed": "创建ZIP文件失败",
+    "download_all_failed": "所有图片下载失败，可能是CORS问题",
+    "status": {
+      "pending": "等待中",
+      "generating": "绘制中...",
+      "failed": "失败"
+    }
+  },
+  "errors": {
+    "input_required": "请输入内容或上传文件",
+    "upload_limit": "最多上传 8 张图片",
+    "upload_failed": "图片上传失败",
+    "invalid_outline": "生成大纲失败，请重试",
+    "no_task_id": "无法启动生成任务",
+    "generation_failed": "生成失败",
+    "timeout": "生成超时",
+    "general_failed": "发生错误",
+    "insufficient_credits": "积分不足。需要: {required}, 剩余: {remaining}"
+  }
+}
