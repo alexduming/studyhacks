@@ -1,10 +1,10 @@
 /**
  * 修复 Super Admin 角色权限分配问题
- * 
+ *
  * 问题描述：
  * - 用户有 super_admin 角色，但没有权限
  * - 这是因为 super_admin 角色没有正确关联到 '*' 权限
- * 
+ *
  * 使用方法：
  *   npx tsx scripts/fix-super-admin-permissions.ts
  */
@@ -12,11 +12,7 @@
 import { and, eq, sql } from 'drizzle-orm';
 
 import { db } from '@/core/db';
-import {
-  permission,
-  role,
-  rolePermission,
-} from '@/config/db/schema';
+import { permission, role, rolePermission } from '@/config/db/schema';
 import { getUuid } from '@/shared/lib/hash';
 
 async function fixSuperAdminPermissions() {
@@ -36,7 +32,9 @@ async function fixSuperAdminPermissions() {
       process.exit(1);
     }
 
-    console.log(`   ✅ 找到角色: ${superAdminRole.name} (ID: ${superAdminRole.id})\n`);
+    console.log(
+      `   ✅ 找到角色: ${superAdminRole.name} (ID: ${superAdminRole.id})\n`
+    );
 
     // 2. 查找或创建 '*' 权限
     console.log('🔐 查找或创建 "*" 权限...');
@@ -101,7 +99,7 @@ async function fixSuperAdminPermissions() {
       // 注意：根据错误信息，数据库中的 role_permission 表有 id 字段
       // 但 schema 定义中没有，所以我们需要使用原始 SQL
       const permissionId = getUuid();
-      
+
       // 先检查是否已存在，避免重复插入
       const [existing] = await db()
         .select()
@@ -112,7 +110,7 @@ async function fixSuperAdminPermissions() {
             eq(rolePermission.permissionId, wildcardPermission.id)
           )
         );
-      
+
       if (!existing) {
         // 使用原始 SQL 插入，因为表有 id 和 updated_at 字段但 schema 中没有定义
         await db().execute(
@@ -136,7 +134,9 @@ async function fixSuperAdminPermissions() {
       .innerJoin(permission, eq(rolePermission.permissionId, permission.id))
       .where(eq(rolePermission.roleId, superAdminRole.id));
 
-    console.log(`   📊 super_admin 角色现在拥有 ${rolePermissions.length} 个权限：`);
+    console.log(
+      `   📊 super_admin 角色现在拥有 ${rolePermissions.length} 个权限：`
+    );
     rolePermissions.forEach((perm) => {
       console.log(`      - ${perm.code} (${perm.title})`);
     });
@@ -167,4 +167,3 @@ fixSuperAdminPermissions()
     console.error(error);
     process.exit(1);
   });
-
