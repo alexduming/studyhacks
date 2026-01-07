@@ -164,9 +164,13 @@ export async function POST(request: NextRequest) {
 
         // 3.3 获取该计划的月度积分额度
         const planInfo = getCanonicalPlanInfo(sub.productId || '');
-        if (!planInfo) {
+        if (
+          !planInfo ||
+          typeof planInfo.credits !== 'number' ||
+          planInfo.credits <= 0
+        ) {
           console.warn(
-            `⚠️ 订阅 ${sub.subscriptionNo} 的产品 ${sub.productId} 未找到对应积分配置，跳过`
+            `⚠️ 订阅 ${sub.subscriptionNo} 的产品 ${sub.productId} 未找到对应积分配置或积分无效，跳过`
           );
           skippedCount++;
           continue;
