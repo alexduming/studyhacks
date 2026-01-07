@@ -12,9 +12,9 @@ const CANONICAL_PLAN_MAP: Record<
   'free': { credits: 10, valid_days: 30 },
   'plus-monthly': { credits: 600, valid_days: 30 },
   'pro-monthly': { credits: 2000, valid_days: 30 },
-  'free-yearly': { credits: 120, valid_days: 365 },
-  'plus-yearly': { credits: 7200, valid_days: 365 },
-  'pro-yearly': { credits: 24000, valid_days: 365 },
+  'free-yearly': { credits: 10, valid_days: 30 },
+  'plus-yearly': { credits: 600, valid_days: 30 },
+  'pro-yearly': { credits: 2000, valid_days: 30 },
 };
 
 export function getCanonicalPlanInfo(productId?: string) {

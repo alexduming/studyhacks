@@ -167,8 +167,8 @@
         },
         "product_id": "free-yearly",
         "product_name": "StudyHacks Free Plan Yearly",
-        "credits": 120,
-        "valid_days": 365,
+        "credits": 10,
+        "valid_days": 30,
         "group": "yearly",
         "plan_name": "Free"
       },
@@ -202,8 +202,8 @@
         },
         "product_id": "plus-yearly",
         "product_name": "StudyHacks Plus Yearly",
-        "credits": 7200,
-        "valid_days": 365,
+        "credits": 600,
+        "valid_days": 30,
         "group": "yearly",
         "plan_name": "Plus"
       },
@@ -236,8 +236,8 @@
         },
         "product_id": "pro-yearly",
         "product_name": "StudyHacks Pro Yearly",
-        "credits": 24000,
-        "valid_days": 365,
+        "credits": 2000,
+        "valid_days": 30,
         "group": "yearly",
         "plan_name": "Pro"
       }

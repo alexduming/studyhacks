@@ -22,5 +22,10 @@
       "maxDuration": 30
     }
   },
-  "crons": []
+  "crons": [
+    {
+      "path": "/api/cron/subscription-credits",
+      "schedule": "0 0 * * *"
+    }
+  ]
 }
