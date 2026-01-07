@@ -6,10 +6,10 @@ import { credit, subscription } from '@/config/db/schema';
 import { getCanonicalPlanInfo } from '@/shared/config/pricing-guard';
 import { getSnowId, getUuid } from '@/shared/lib/hash';
 import {
+  createCredit,
   CreditStatus,
   CreditTransactionScene,
   CreditTransactionType,
-  createCredit,
 } from '@/shared/models/credit';
 import { SubscriptionStatus } from '@/shared/models/subscription';
 
@@ -76,9 +76,7 @@ export async function POST(request: NextRequest) {
         )
       );
 
-    console.log(
-      `📊 找到 ${activeYearlySubscriptions.length} 个活跃年度订阅`
-    );
+    console.log(`📊 找到 ${activeYearlySubscriptions.length} 个活跃年度订阅`);
 
     if (activeYearlySubscriptions.length === 0) {
       return NextResponse.json({
@@ -301,4 +299,3 @@ export async function GET(request: NextRequest) {
     creditsValidity: '30 days from distribution date',
   });
 }
-
