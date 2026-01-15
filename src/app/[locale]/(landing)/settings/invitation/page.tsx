@@ -252,53 +252,65 @@ export default function InvitationPage() {
       </Card>
 
       {/* 邀请记录 */}
-      {invitations.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('invitation_records.title')}</CardTitle>
-            <CardDescription>
-              {t('invitation_records.description')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('invitation_records.title')}</CardTitle>
+          <CardDescription>
+            {t('invitation_records.description')}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {invitations.length === 0 ? (
+            <div className="text-muted-foreground py-8 text-center">
+              {t('invitation_records.waiting_registration')}
+            </div>
+          ) : (
             <div className="space-y-4">
               {invitations.map((invitation) => (
                 <div
                   key={invitation.id}
-                  className="flex items-center justify-between border-b pb-4 last:border-0"
+                  className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0"
                 >
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">
-                      {invitation.inviteeEmail ||
-                        t('invitation_records.waiting_registration')}
-                    </p>
-                    <p className="text-muted-foreground text-xs">
-                      {invitation.status === 'accepted'
-                        ? `${t('invitation_records.accepted_time')}: ${formatDate(invitation.acceptedAt)}`
-                        : `${t('invitation_records.created_time')}: ${formatDate(invitation.createdAt)}`}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">
+                        {invitation.inviteeEmail ||
+                          t('invitation_records.waiting_registration')}
+                      </p>
+                      <Badge
+                        variant={
+                          invitation.status === 'accepted'
+                            ? 'default'
+                            : invitation.status === 'pending'
+                              ? 'secondary'
+                              : 'outline'
+                        }
+                      >
+                        {invitation.status === 'accepted'
+                          ? t('invitation_records.status_accepted')
+                          : invitation.status === 'pending'
+                            ? t('invitation_records.status_pending')
+                            : t('invitation_records.status_expired')}
+                      </Badge>
+                    </div>
+                    <p className="text-muted-foreground mt-1 text-sm">
+                      {t('invitation_records.created_time')}:{' '}
+                      {formatDate(invitation.createdAt)}
+                      {invitation.acceptedAt && (
+                        <>
+                          {' | '}
+                          {t('invitation_records.accepted_time')}:{' '}
+                          {formatDate(invitation.acceptedAt)}
+                        </>
+                      )}
                     </p>
                   </div>
-                  <Badge
-                    variant={
-                      invitation.status === 'accepted'
-                        ? 'default'
-                        : invitation.status === 'pending'
-                          ? 'secondary'
-                          : 'outline'
-                    }
-                  >
-                    {invitation.status === 'accepted'
-                      ? t('invitation_records.status_accepted')
-                      : invitation.status === 'pending'
-                        ? t('invitation_records.status_pending')
-                        : t('invitation_records.status_expired')}
-                  </Badge>
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

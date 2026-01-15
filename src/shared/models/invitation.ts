@@ -100,6 +100,24 @@ export async function getInvitationById(id: string): Promise<Invitation | null> 
 }
 
 /**
+ * 根据被邀请人ID查询邀请信息
+ */
+export async function getInvitationByInviteeId(inviteeId: string): Promise<Invitation | null> {
+  const [result] = await db()
+    .select()
+    .from(invitation)
+    .where(
+      and(
+        eq(invitation.inviteeId, inviteeId),
+        eq(invitation.status, InvitationStatus.ACCEPTED)
+      )
+    )
+    .limit(1);
+
+  return result || null;
+}
+
+/**
  * 更新邀请码信息
  * 
  * 非程序员解释：

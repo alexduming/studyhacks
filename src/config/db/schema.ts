@@ -608,6 +608,9 @@ export const redemptionCode = pgTable(
     id: text('id').primaryKey(),
     code: text('code').unique().notNull(),
     credits: integer('credits').notNull(),
+    type: text('type').notNull().default('credits'), // credits, membership
+    planId: text('plan_id'),
+    membershipDays: integer('membership_days'),
     status: text('status').notNull().default('active'), // active, used
     userId: text('user_id'),
     usedAt: timestamp('used_at'),
@@ -724,5 +727,62 @@ export const noteDocument = pgTable(
   (table) => [
     index('idx_note_document_user').on(table.userId),
     index('idx_note_document_created_at').on(table.createdAt),
+  ]
+);
+
+// Commission table - records affiliate commissions
+export const commission = pgTable(
+  'commission',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }), // Beneficiary (Inviter)
+    orderId: text('order_id')
+      .notNull()
+      .references(() => order.id, { onDelete: 'cascade' }), // Source Order
+    amount: integer('amount').notNull(), // Amount in cents
+    currency: text('currency').notNull(),
+    status: text('status').notNull().default('pending'), // pending, paid (available for withdraw), cancelled
+    type: text('type').notNull().default('one_time'), // one_time, recurring
+    rate: text('rate'), // '50%' or '$50'
+    description: text('description'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    index('idx_commission_user').on(table.userId),
+    index('idx_commission_order').on(table.orderId),
+    index('idx_commission_status').on(table.status),
+    index('idx_commission_created_at').on(table.createdAt),
+  ]
+);
+
+// Withdrawal table - records withdrawal requests
+export const withdrawal = pgTable(
+  'withdrawal',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    amount: integer('amount').notNull(), // Amount in cents
+    currency: text('currency').notNull(),
+    status: text('status').notNull().default('pending'), // pending, approved, rejected, paid
+    method: text('method').notNull(), // paypal, bank_transfer
+    account: text('account').notNull(), // account details (JSON or string)
+    note: text('note'), // admin note or user note
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+    processedAt: timestamp('processed_at'), // when admin processed
+  },
+  (table) => [
+    index('idx_withdrawal_user').on(table.userId),
+    index('idx_withdrawal_status').on(table.status),
+    index('idx_withdrawal_created_at').on(table.createdAt),
   ]
 );

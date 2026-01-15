@@ -114,15 +114,20 @@ CRITICAL RULE:
 - If the input is in Chinese, ALL titles and content in the output JSON MUST be in Chinese.
 - If the input is in English, output in English.
 - Do NOT translate unless explicitly asked.
+- **The first slide MUST be a COVER PAGE.** It should only contain a Main Title (title) and a Subtitle (content). The content field for the first slide should be short and act as a subtitle or tagline (e.g. "Presentation by [Name]" or "Date"). It MUST NOT contain bullet points.
 
 Each slide object must have:
 - 'title': The title of the slide.
-- 'content': Key points (bullet points separated by \\n).
+- 'content': Key points (bullet points separated by \\n). For the first slide (Cover), this is just the subtitle string.
 
 Output ONLY the JSON array. Do not include markdown formatting like \`\`\`json or \`\`\`.
 
 Example Output:
 [
+  {
+    "title": "Presentation Title",
+    "content": "Subtitle or Tagline"
+  },
   {
     "title": "Slide Title",
     "content": "Point 1\\nPoint 2"

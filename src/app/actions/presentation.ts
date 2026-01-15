@@ -77,6 +77,70 @@ export async function updatePresentationAction(
 }
 
 /**
+ * 🎯 原子化更新单张幻灯片的图片 URL
+ * 解决后台上传 R2 后无法回写数据库的问题
+ */
+export async function updateSlideImageAction(
+  presentationId: string,
+  slideId: string,
+  newImageUrl: string
+) {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: 'Unauthorized' };
+
+  try {
+    return await db().transaction(async (tx) => {
+      // 1. 获取当前记录
+      const [record] = await tx
+        .select()
+        .from(presentation)
+        .where(
+          and(eq(presentation.id, presentationId), eq(presentation.userId, user.id))
+        )
+        .limit(1);
+
+      if (!record || !record.content) return { success: false, error: 'Not found' };
+
+      // 2. 解析并更新内容
+      const slides = JSON.parse(record.content);
+      if (!Array.isArray(slides)) return { success: false, error: 'Invalid content' };
+
+      let changed = false;
+      const nextSlides = slides.map((s: any) => {
+        if (s.id === slideId) {
+          changed = true;
+          return { ...s, imageUrl: newImageUrl, status: 'completed' };
+        }
+        return s;
+      });
+
+      if (!changed) return { success: false, error: 'Slide not found' };
+
+      // 3. 更新数据库
+      const updateData: any = {
+        content: JSON.stringify(nextSlides),
+        updatedAt: new Date(),
+      };
+
+      // 如果是第一张图，同步更新封面
+      if (nextSlides[0]?.id === slideId) {
+        updateData.thumbnailUrl = newImageUrl;
+      }
+
+      await tx
+        .update(presentation)
+        .set(updateData)
+        .where(eq(presentation.id, presentationId));
+
+      return { success: true };
+    });
+  } catch (error) {
+    console.error('[DB] 原子化更新 Slide 失败:', error);
+    return { success: false };
+  }
+}
+
+/**
  * Get user's presentations list
  */
 export async function getUserPresentationsAction() {
@@ -91,7 +155,75 @@ export async function getUserPresentationsAction() {
     .where(eq(presentation.userId, user.id))
     .orderBy(desc(presentation.createdAt));
 
-  return results;
+  // 🎯 修复历史记录显示问题：
+  // - 如果 content 里已经有图片链接，但状态仍是 generating/pending，就自动修正为 completed
+  // - 如果 thumbnailUrl 为空，就尝试从 content 里找第一张图作为封面
+  // 这样用户在 /library/presentations 里就能看到真实封面和完成状态
+  const patchedResults: typeof results = [];
+
+  for (const item of results) {
+    let nextContent = item.content;
+    let nextThumbnail = item.thumbnailUrl;
+    let shouldUpdate = false;
+
+    if (item.content) {
+      try {
+        const slides = JSON.parse(item.content);
+        if (Array.isArray(slides)) {
+          let hasChange = false;
+
+          const normalizedSlides = slides.map((slide: any) => {
+            // 如果已经有图片，就强制标记为 completed（避免历史记录一直显示“生成中”）
+            if (
+              slide?.imageUrl &&
+              (slide.status === 'pending' || slide.status === 'generating')
+            ) {
+              hasChange = true;
+              return { ...slide, status: 'completed' };
+            }
+            return slide;
+          });
+
+          // 如果封面为空，尝试从内容中取第一张有图的页面
+          if (!nextThumbnail) {
+            const firstImage = normalizedSlides.find(
+              (slide: any) => slide?.imageUrl
+            )?.imageUrl;
+            if (firstImage) {
+              nextThumbnail = firstImage;
+              shouldUpdate = true;
+            }
+          }
+
+          if (hasChange) {
+            nextContent = JSON.stringify(normalizedSlides);
+            shouldUpdate = true;
+          }
+        }
+      } catch {
+        // content 不是合法 JSON，忽略，避免影响其他记录
+      }
+    }
+
+    if (shouldUpdate) {
+      await db()
+        .update(presentation)
+        .set({
+          content: nextContent,
+          thumbnailUrl: nextThumbnail,
+          updatedAt: new Date(),
+        })
+        .where(eq(presentation.id, item.id));
+    }
+
+    patchedResults.push({
+      ...item,
+      content: nextContent,
+      thumbnailUrl: nextThumbnail,
+    });
+  }
+
+  return patchedResults;
 }
 
 /**
@@ -109,7 +241,67 @@ export async function getPresentationAction(id: string) {
     .where(and(eq(presentation.id, id), eq(presentation.userId, user.id)))
     .limit(1);
 
-  return result[0];
+  const record = result[0];
+  if (!record) return record;
+
+  let nextContent = record.content;
+  let nextThumbnail = record.thumbnailUrl;
+  let shouldUpdate = false;
+
+  if (record.content) {
+    try {
+      const slides = JSON.parse(record.content);
+      if (Array.isArray(slides)) {
+        let hasChange = false;
+
+        const normalizedSlides = slides.map((slide: any) => {
+          // 如果已经有图片，就强制标记为 completed（避免详情页一直显示“生成中”）
+          if (
+            slide?.imageUrl &&
+            (slide.status === 'pending' || slide.status === 'generating')
+          ) {
+            hasChange = true;
+            return { ...slide, status: 'completed' };
+          }
+          return slide;
+        });
+
+        if (!nextThumbnail) {
+          const firstImage = normalizedSlides.find(
+            (slide: any) => slide?.imageUrl
+          )?.imageUrl;
+          if (firstImage) {
+            nextThumbnail = firstImage;
+            shouldUpdate = true;
+          }
+        }
+
+        if (hasChange) {
+          nextContent = JSON.stringify(normalizedSlides);
+          shouldUpdate = true;
+        }
+      }
+    } catch {
+      // content 不是合法 JSON，忽略，避免影响读取
+    }
+  }
+
+  if (shouldUpdate) {
+    await db()
+      .update(presentation)
+      .set({
+        content: nextContent,
+        thumbnailUrl: nextThumbnail,
+        updatedAt: new Date(),
+      })
+      .where(eq(presentation.id, record.id));
+  }
+
+  return {
+    ...record,
+    content: nextContent,
+    thumbnailUrl: nextThumbnail,
+  };
 }
 
 /**

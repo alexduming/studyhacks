@@ -30,6 +30,7 @@ export const localeMessagesPaths = [
   'showcases',
   'blog',
   'pricing',
+  'affiliates', // Added affiliate messages
   'settings/sidebar',
   'settings/profile',
   'settings/security',

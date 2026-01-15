@@ -78,6 +78,9 @@ export default async function CreateCreditPage({
       handler: async (data) => {
         'use server';
 
+        const { logAuditEvent, AuditActionType, validateDescription } = await import('@/shared/services/audit-log');
+        const { getUserInfo } = await import('@/shared/models/user');
+
         const email = data.get('email') as string;
         const type = data.get('type') as string;
         const amount = Number(data.get('amount'));
@@ -87,6 +90,12 @@ export default async function CreateCreditPage({
           throw new Error('Missing required fields');
         }
 
+        // 验证描述字段（生产环境禁止测试关键词）
+        const validation = validateDescription(description);
+        if (!validation.valid) {
+          throw new Error(validation.error);
+        }
+
         // Find user by email
         const users = await getUsers({ email: email.trim() });
         if (!users || users.length === 0) {
@@ -94,9 +103,13 @@ export default async function CreateCreditPage({
         }
         const user = users[0];
 
+        // 获取操作人信息（用于审计日志）
+        const operator = await getUserInfo();
+
         if (type === 'grant') {
+          const creditId = getUuid();
           await createCredit({
-            id: getUuid(),
+            id: creditId,
             userId: user.id,
             userEmail: user.email,
             transactionNo: getSnowId(),
@@ -107,12 +120,46 @@ export default async function CreateCreditPage({
             description: description,
             status: CreditStatus.ACTIVE,
           });
+
+          // 记录审计日志
+          await logAuditEvent({
+            actionType: AuditActionType.CREDIT_GRANT,
+            targetType: 'credit',
+            targetId: creditId,
+            description: `管理员通过创建页面发放积分: ${amount} 积分给用户 ${user.email}`,
+            metadata: {
+              operatorId: operator?.id,
+              operatorEmail: operator?.email,
+              targetUserId: user.id,
+              targetUserEmail: user.email,
+              amount,
+              description,
+              source: 'admin_credits_create_page',
+            },
+          });
         } else if (type === 'consume') {
           await consumeCredits({
             userId: user.id,
             credits: amount,
             scene: CreditTransactionScene.AWARD,
             description: description,
+          });
+
+          // 记录审计日志
+          await logAuditEvent({
+            actionType: AuditActionType.CREDIT_CONSUME,
+            targetType: 'user',
+            targetId: user.id,
+            description: `管理员通过创建页面扣除积分: ${amount} 积分从用户 ${user.email}`,
+            metadata: {
+              operatorId: operator?.id,
+              operatorEmail: operator?.email,
+              targetUserId: user.id,
+              targetUserEmail: user.email,
+              amount,
+              description,
+              source: 'admin_credits_create_page',
+            },
           });
         }
 

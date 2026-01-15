@@ -1,4 +1,4 @@
-import { and, count, desc, eq, sql } from 'drizzle-orm';
+import { and, count, desc, eq, or, sql } from 'drizzle-orm';
 
 import { db } from '@/core/db';
 import { aiTask, credit } from '@/config/db/schema';
@@ -10,6 +10,7 @@ import { consumeCredits, CreditStatus } from './credit';
 
 export type AITask = typeof aiTask.$inferSelect & {
   user?: User;
+  transactionNo?: string;
 };
 export type NewAITask = typeof aiTask.$inferInsert;
 export type UpdateAITask = Partial<Omit<NewAITask, 'id' | 'createdAt'>>;
@@ -150,25 +151,39 @@ export async function getAITasksCount({
   mediaType,
   provider,
   scene,
+  search,
 }: {
   userId?: string;
   status?: string;
   mediaType?: string;
   provider?: string;
   scene?: string;
+  search?: string;
 }): Promise<number> {
-  const [result] = await db()
+  const query = db()
     .select({ count: count() })
     .from(aiTask)
-    .where(
-      and(
-        userId ? eq(aiTask.userId, userId) : undefined,
-        mediaType ? eq(aiTask.mediaType, mediaType) : undefined,
-        provider ? eq(aiTask.provider, provider) : undefined,
-        status ? eq(aiTask.status, status) : undefined,
-        scene ? eq(aiTask.scene, scene) : undefined
+    .leftJoin(credit, eq(aiTask.creditId, credit.id));
+
+  const whereConditions = [
+    userId ? eq(aiTask.userId, userId) : undefined,
+    mediaType ? eq(aiTask.mediaType, mediaType) : undefined,
+    provider ? eq(aiTask.provider, provider) : undefined,
+    status ? eq(aiTask.status, status) : undefined,
+    scene ? eq(aiTask.scene, scene) : undefined,
+  ];
+
+  if (search) {
+    whereConditions.push(
+      or(
+        eq(aiTask.id, search),
+        eq(aiTask.taskId, search),
+        eq(credit.transactionNo, search)
       )
     );
+  }
+
+  const [result] = await query.where(and(...whereConditions.filter(Boolean)));
 
   return result?.count || 0;
 }
@@ -182,6 +197,7 @@ export async function getAITasks({
   page = 1,
   limit = 30,
   getUser = false,
+  search,
 }: {
   userId?: string;
   status?: string;
@@ -191,26 +207,57 @@ export async function getAITasks({
   page?: number;
   limit?: number;
   getUser?: boolean;
+  search?: string;
 }): Promise<AITask[]> {
-  const result = await db()
-    .select()
-    .from(aiTask)
-    .where(
-      and(
-        userId ? eq(aiTask.userId, userId) : undefined,
-        mediaType ? eq(aiTask.mediaType, mediaType) : undefined,
-        provider ? eq(aiTask.provider, provider) : undefined,
-        status ? eq(aiTask.status, status) : undefined,
-        scene ? eq(aiTask.scene, scene) : undefined
+  const whereConditions = [
+    userId ? eq(aiTask.userId, userId) : undefined,
+    mediaType ? eq(aiTask.mediaType, mediaType) : undefined,
+    provider ? eq(aiTask.provider, provider) : undefined,
+    status ? eq(aiTask.status, status) : undefined,
+    scene ? eq(aiTask.scene, scene) : undefined,
+  ];
+
+  if (search) {
+    whereConditions.push(
+      or(
+        eq(aiTask.id, search),
+        eq(aiTask.taskId, search),
+        eq(credit.transactionNo, search)
       )
-    )
+    );
+  }
+
+  const result = await db()
+    .select({
+      id: aiTask.id,
+      userId: aiTask.userId,
+      taskId: aiTask.taskId,
+      mediaType: aiTask.mediaType,
+      provider: aiTask.provider,
+      model: aiTask.model,
+      prompt: aiTask.prompt,
+      options: aiTask.options,
+      status: aiTask.status,
+      taskInfo: aiTask.taskInfo,
+      taskResult: aiTask.taskResult,
+      costCredits: aiTask.costCredits,
+      scene: aiTask.scene,
+      creditId: aiTask.creditId,
+      createdAt: aiTask.createdAt,
+      updatedAt: aiTask.updatedAt,
+      deletedAt: aiTask.deletedAt,
+      transactionNo: credit.transactionNo,
+    })
+    .from(aiTask)
+    .leftJoin(credit, eq(aiTask.creditId, credit.id))
+    .where(and(...whereConditions.filter(Boolean)))
     .orderBy(desc(aiTask.createdAt))
     .limit(limit)
     .offset((page - 1) * limit);
 
   if (getUser) {
-    return appendUserToResult(result);
+    return appendUserToResult(result) as unknown as AITask[];
   }
 
-  return result;
+  return result as unknown as AITask[];
 }

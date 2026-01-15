@@ -42,7 +42,9 @@ const nextConfig = {
             // 这里我们为了简单兼容，如果未设置 ALLOWED_ORIGINS，默认允许所有（*），
             // 但我们在 API 路由代码中已经做了 checkApiOrigin 的严格逻辑检查，所以这里宽容一点没关系。
             // 建议：在 Vercel 环境变量中设置 ALLOWED_ORIGINS 为你的主域名。
-            value: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',')[0] : '*',
+            value: process.env.ALLOWED_ORIGINS
+              ? process.env.ALLOWED_ORIGINS.split(',')[0]
+              : '*',
           },
           {
             key: 'Access-Control-Allow-Methods',
@@ -84,7 +86,7 @@ const nextConfig = {
   },
   experimental: {
     serverActions: {
-      bodySizeLimit: '10mb',
+      bodySizeLimit: '50mb',
     },
     // 禁用 Turbopack 文件系统缓存（解决 Windows 上的并发写入错误）
     // 这会导致首次编译稍慢，但可以避免 "Persisting failed" 错误

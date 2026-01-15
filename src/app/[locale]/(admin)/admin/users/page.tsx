@@ -5,12 +5,13 @@ import { Header, Main, MainHeader } from '@/shared/blocks/dashboard';
 import { TableCard } from '@/shared/blocks/table';
 import { Badge } from '@/shared/components/ui/badge';
 import { getRemainingCredits } from '@/shared/models/credit';
-import { getUsers, getUsersCount, User } from '@/shared/models/user';
+import { getUsers, getUsersCount, User, getUserMembership } from '@/shared/models/user';
 import { getUserRoles } from '@/shared/services/rbac';
 import { Crumb, Search } from '@/shared/types/blocks/common';
 import { type Table } from '@/shared/types/blocks/table';
 
 import { ManageCreditsDialog } from './manage-credits-dialog';
+import { ManageMembershipDialog } from './manage-membership-dialog';
 
 export default async function AdminUsersPage({
   params,
@@ -67,10 +68,46 @@ export default async function AdminUsersPage({
       {
         name: 'image',
         title: t('fields.avatar'),
-        type: 'image',
-        placeholder: '-',
+        callback: async (item: User) => {
+          const membership = await getUserMembership(item.id);
+          return (
+            <Avatar 
+              isVip={membership.level === 'plus' || membership.level === 'pro'} 
+              vipLevel={membership.level as 'plus' | 'pro'}
+            >
+              <AvatarImage src={item.image || ''} alt={item.name || ''} />
+              <AvatarFallback>{item.name?.charAt(0) || 'U'}</AvatarFallback>
+            </Avatar>
+          );
+        },
       },
       { name: 'email', title: t('fields.email'), type: 'copy' },
+      {
+        name: 'membership',
+        title: 'Membership',
+        callback: async (item: User) => {
+          const membership = await getUserMembership(item.id);
+          
+          const colors = {
+            free: 'bg-slate-500',
+            plus: 'bg-blue-500',
+            pro: 'bg-purple-500',
+          };
+
+          return (
+            <div className="flex items-center gap-2">
+              <Badge className={`${colors[membership.level]} text-white`}>
+                {membership.level.toUpperCase()}
+              </Badge>
+              <ManageMembershipDialog
+                userId={item.id}
+                userName={item.name}
+                currentLevel={membership.level}
+              />
+            </div>
+          );
+        },
+      },
       {
         name: 'roles',
         title: t('fields.roles'),

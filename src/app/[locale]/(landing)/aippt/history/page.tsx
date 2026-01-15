@@ -52,7 +52,7 @@ export default async function HistoryPage() {
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {presentations.map((item) => (
-            <Link key={item.id} href={`/aippt?id=${item.id}`}>
+            <Link key={item.id} href={`/slides2?id=${item.id}`}>
               <Card className="hover:border-primary h-full overflow-hidden transition-all hover:shadow-md">
                 <div className="bg-muted relative aspect-video w-full">
                   {item.thumbnailUrl ? (

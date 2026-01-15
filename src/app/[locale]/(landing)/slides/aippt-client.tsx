@@ -9,6 +9,7 @@ import {
   parseFileAction,
   parseMultipleImagesAction,
   queryKieTaskWithFallbackAction,
+  refundCreditsAction,
 } from '@/app/actions/aippt';
 import {
   createPresentationAction,
@@ -37,7 +38,7 @@ import { useTranslations } from 'next-intl';
 import { flushSync } from 'react-dom';
 import { toast } from 'sonner';
 
-import { PPT_RATIOS, PPT_SIZES, PPT_STYLES } from '@/config/aippt';
+import { PPT_RATIOS, PPT_SIZES, PPT_STYLES } from '@/config/aippt-slides2';
 import { CreditsCost } from '@/shared/components/ai-elements/credits-display';
 import { Button } from '@/shared/components/ui/button';
 import { Card } from '@/shared/components/ui/card';
@@ -103,8 +104,18 @@ export default function AIPPTClient({ initialPresentation }: AIPPTClientProps) {
         try {
           const data = await getPresentationAction(presentationId);
           if (data && data.content) {
-            const parsedSlides = JSON.parse(data.content);
-            setSlides(parsedSlides);
+            const parsed = JSON.parse(data.content);
+            const normalized = Array.isArray(parsed)
+              ? parsed.map((s: any) => ({
+                  ...s,
+                  status:
+                    s.imageUrl &&
+                    (s.status === 'pending' || s.status === 'generating')
+                      ? 'completed'
+                      : s.status,
+                }))
+              : parsed;
+            setSlides(normalized);
             setCurrentStep('result');
             if (data.styleId) setSelectedStyleId(data.styleId);
           }
@@ -137,7 +148,19 @@ export default function AIPPTClient({ initialPresentation }: AIPPTClientProps) {
   const [slides, setSlides] = useState<SlideData[]>(() => {
     if (initialPresentation?.content) {
       try {
-        return JSON.parse(initialPresentation.content);
+        const parsed = JSON.parse(initialPresentation.content);
+        if (Array.isArray(parsed)) {
+          // 🎯 鲁棒性增强：修复状态不一致问题。如果已经有图片，状态应该是已完成
+          return parsed.map((s: any) => ({
+            ...s,
+            status:
+              s.imageUrl &&
+              (s.status === 'pending' || s.status === 'generating')
+                ? 'completed'
+                : s.status,
+          }));
+        }
+        return parsed;
       } catch (e) {
         console.error('Failed to parse initial presentation content', e);
         return [];
@@ -900,10 +923,24 @@ export default function AIPPTClient({ initialPresentation }: AIPPTClientProps) {
       }
 
       console.log(
-        `🚀 启用负载均衡：${slides.length} 张图片将由 Replicate 和 KIE 并行处理`
+        `🚀 启用一致性锚定生成：${slides.length} 张图片（首张作为视觉锚定）`
       );
 
-      const promises = slides.map(async (slide, index) => {
+      // ============================================================
+      // 🎯 一致性锚定机制 (Consistency Anchoring)
+      // ============================================================
+      // 策略：先单独生成第一张PPT，然后将其作为"视觉锚"传递给后续生成
+      // 这样可以确保所有PPT的标题位置、字体、配色保持一致
+      // ============================================================
+
+      const totalSlides = slides.length;
+
+      // 单张PPT的生成函数
+      const generateSingleSlide = async (
+        slide: (typeof slides)[0],
+        index: number,
+        anchorImageUrl?: string
+      ) => {
         try {
           flushSync(() => {
             setSlides((prev) =>
@@ -920,6 +957,7 @@ export default function AIPPTClient({ initialPresentation }: AIPPTClientProps) {
 
           const finalPrompt = `Slide Title: "${slide.title}"\n\nKey Content:\n${slide.content}`;
 
+          // 🎯 传递Deck上下文信息，包含当前页码和锚定图片
           const taskData = await createKieTaskWithFallbackAction({
             prompt: finalPrompt,
             styleId: selectedStyleId || undefined,
@@ -931,6 +969,12 @@ export default function AIPPTClient({ initialPresentation }: AIPPTClientProps) {
             isPromptEnhancedMode,
             outputLanguage,
             refundCredits: resolution === '4K' ? 12 : 6,
+            // 🎯 关键：传递Deck上下文
+            deckContext: {
+              currentSlide: index + 1, // 从1开始计数
+              totalSlides,
+              anchorImageUrl, // 第一张生成后会传递此值
+            },
           });
 
           if (!taskData.task_id) throw new Error(t('errors.no_task_id'));
@@ -995,6 +1039,8 @@ export default function AIPPTClient({ initialPresentation }: AIPPTClientProps) {
               provider: taskData.provider,
               fallbackUsed: taskData.fallbackUsed,
             };
+
+            return resultUrl; // 返回URL用于锚定
           } else {
             throw new Error(t('errors.timeout'));
           }
@@ -1010,10 +1056,43 @@ export default function AIPPTClient({ initialPresentation }: AIPPTClientProps) {
           });
 
           localSlides[index] = { ...localSlides[index], status: 'failed' };
-        }
-      });
 
-      await Promise.all(promises);
+          // 🎯 修复：单页生成失败自动退费
+          const costPerSlide = resolution === '4K' ? 12 : 6;
+          console.log(`💰 单页生成失败，尝试退还 ${costPerSlide} 积分...`);
+          try {
+            await refundCreditsAction({
+              credits: costPerSlide,
+              description: `退还失败页面的积分: ${slide.title || '未命名页面'}`,
+            });
+            // 不在循环里弹太多 toast，静默退费或在最后统一提示
+            console.log(`✅ 已退还 ${costPerSlide} 积分 (Slide: ${slide.title})`);
+          } catch (refundError) {
+            console.error('Failed to refund credits for failed slide:', refundError);
+          }
+
+          return null;
+        }
+      };
+
+      // 🎯 第一阶段：生成第一张PPT作为视觉锚定
+      console.log('📌 第一阶段：生成首张PPT作为视觉锚定...');
+      const firstSlideUrl = await generateSingleSlide(slides[0], 0);
+
+      // 🎯 第二阶段：并行生成剩余PPT，传递锚定图片
+      if (slides.length > 1) {
+        console.log(
+          `📌 第二阶段：并行生成剩余 ${slides.length - 1} 张PPT（使用首张作为锚定）`
+        );
+        const remainingPromises = slides.slice(1).map((slide, idx) =>
+          generateSingleSlide(
+            slide,
+            idx + 1,
+            firstSlideUrl || undefined // 传递第一张的URL作为锚定
+          )
+        );
+        await Promise.all(remainingPromises);
+      }
 
       if (presentationId) {
         let finalSlides: SlideData[] = [];

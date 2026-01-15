@@ -265,11 +265,25 @@ export async function requireAdminAccess({
   redirectUrl?: string;
   locale?: string;
 }): Promise<void> {
-  const user = await getSignUser();
+  // 使用 throwError: true 以便我们可以捕获数据库连接错误
+  // 这样可以避免因为数据库错误（而不是未登录）导致的无限循环重定向
+  let user;
+  try {
+    user = await getSignUser({ throwError: true });
+  } catch (error) {
+    console.error('[Admin Access] Failed to check auth session:', error);
+    // 如果是系统级错误（如数据库挂了），我们不应该重定向到登录页
+    // 因为登录页也依赖数据库，会导致用户无法登录且不知道原因
+    // 抛出错误让 global-error.tsx 或 error.tsx 处理
+    throw new Error('System unavailable: Failed to verify session');
+  }
 
   // 如果用户未登录，重定向到登录页
   if (!user) {
-    redirect({ href: '/sign-in', locale: locale || '' });
+    // 防止死循环：带上 callbackUrl，并添加 error 参数
+    // 强制跳转到登录页，并确保客户端清除可能存在的无效状态
+    const loginUrl = '/sign-in?error=session_expired&callbackUrl=/admin';
+    redirect({ href: loginUrl, locale: locale || '' });
     return; // 确保函数不会继续执行
   }
 
@@ -281,9 +295,9 @@ export async function requireAdminAccess({
   } catch (error) {
     // 如果数据库查询失败（比如连接超时），记录错误并重定向到登录页
     // 这样可以避免页面卡死，用户需要重新登录
-    console.error('[权限检查] 数据库查询失败，重定向到登录页:', error);
-    redirect({ href: '/sign-in', locale: locale || '' });
-    return;
+    console.error('[权限检查] 数据库查询失败:', error);
+    // 这里抛出错误，而不是重定向，避免死循环
+    throw new Error('System unavailable: Failed to check permissions');
   }
 
   // 如果用户没有管理员权限，重定向到无权限页面

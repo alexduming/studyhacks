@@ -58,7 +58,10 @@ export function SignUser({
               variant="ghost"
               className="relative h-10 w-10 rounded-full p-0"
             >
-              <Avatar>
+              <Avatar 
+                isVip={user.membership?.level === 'plus' || user.membership?.level === 'pro'} 
+                vipLevel={user.membership?.level as 'plus' | 'pro'}
+              >
                 <AvatarImage src={user.image || ''} alt={user.name || ''} />
                 <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
               </Avatar>

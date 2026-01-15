@@ -3,21 +3,30 @@ import { count, desc, eq, inArray } from 'drizzle-orm';
 
 import { getAuth } from '@/core/auth';
 import { db } from '@/core/db';
-import { user } from '@/config/db/schema';
+import { user, subscription } from '@/config/db/schema';
 
 import { Permission, Role } from '../services/rbac';
 import { getRemainingCredits } from './credit';
+import { SubscriptionStatus } from './subscription';
 
 export interface UserCredits {
   remainingCredits: number;
   expiresAt: Date | null;
 }
 
+export type UserMembership = {
+  level: 'free' | 'plus' | 'pro';
+  planName?: string;
+  expiresAt?: Date | null;
+  status?: string;
+};
+
 export type User = typeof user.$inferSelect & {
   isAdmin?: boolean;
   credits?: UserCredits;
   roles?: Role[];
   permissions?: Permission[];
+  membership?: UserMembership;
 };
 export type NewUser = typeof user.$inferInsert;
 export type UpdateUser = Partial<Omit<NewUser, 'id' | 'createdAt' | 'email'>>;
@@ -178,12 +187,46 @@ export async function getUserCredits(userId: string) {
 }
 
 /**
+ * Get user membership information
+ */
+export async function getUserMembership(userId: string): Promise<UserMembership> {
+  const [activeSub] = await db()
+    .select()
+    .from(subscription)
+    .where(
+      eq(subscription.userId, userId)
+    )
+    .orderBy(desc(subscription.createdAt))
+    .limit(1);
+
+  if (!activeSub || ![SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING, SubscriptionStatus.PENDING_CANCEL].includes(activeSub.status as SubscriptionStatus)) {
+    return { level: 'free' };
+  }
+
+  const productId = activeSub.productId?.toLowerCase() || '';
+  let level: 'free' | 'plus' | 'pro' = 'free';
+
+  if (productId.includes('pro')) {
+    level = 'pro';
+  } else if (productId.includes('plus') || productId.includes('student')) {
+    level = 'plus';
+  }
+
+  return {
+    level,
+    planName: activeSub.planName || activeSub.productName || level.toUpperCase(),
+    expiresAt: activeSub.currentPeriodEnd,
+    status: activeSub.status,
+  };
+}
+
+/**
  * 获取已登录用户（内部方法）
  * 非程序员解释：
  * - 这是实际调用认证系统的方法
  * - 修正：现在内部集成了重试机制和错误捕获，避免抛出异常导致页面崩溃
  */
-export async function getSignUser() {
+export async function getSignUser(options?: { throwError?: boolean }) {
   // 定义内部获取函数
   const fetchSession = async () => {
     const auth = await getAuth();
@@ -216,9 +259,17 @@ export async function getSignUser() {
         return session?.user;
       } catch (retryError) {
         console.warn('[Auth] getSession 重试也失败:', retryError);
+        
+        if (options?.throwError) {
+          throw retryError;
+        }
         // 重试失败，为了页面稳定性，返回 null 而不是抛出
         return null;
       }
+    }
+
+    if (options?.throwError) {
+      throw error;
     }
 
     // 如果不可重试或重试失败，吞掉错误返回 null

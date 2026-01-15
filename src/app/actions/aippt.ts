@@ -4,8 +4,13 @@
 import { fal } from '@fal-ai/client';
 import mammoth from 'mammoth';
 import pdf from 'pdf-parse';
+import Replicate from 'replicate';
 
-import { PPT_STYLES } from '@/config/aippt';
+import {
+  generateAnchorPrompt,
+  generateVisualSpecPrompt,
+  PPT_STYLES,
+} from '@/config/aippt-slides2';
 import {
   consumeCredits,
   getRemainingCredits,
@@ -302,6 +307,66 @@ export async function parseMultipleImagesAction(
 }
 
 /**
+ * Parse public webpage link into clean text.
+ * 非程序员解释：
+ * - 这个函数会访问用户粘贴的网页链接
+ * - 自动去掉脚本、样式、广告等噪音
+ * - 只保留正文文字，便于继续做自动分页
+ */
+export async function parseLinkContentAction(rawUrl: string): Promise<string> {
+  if (!rawUrl || !rawUrl.trim()) {
+    throw new Error('请先输入要抓取的链接');
+  }
+
+  let normalizedUrl = rawUrl.trim();
+  if (!/^https?:\/\//i.test(normalizedUrl)) {
+    normalizedUrl = `https://${normalizedUrl}`;
+  }
+
+  try {
+    const target = new URL(normalizedUrl);
+    const res = await fetch(target, {
+      cache: 'no-store',
+      headers: {
+        'User-Agent': 'StudyHacksSlidesBot/1.0 (+https://studyhacks.ai/ai-ppt)',
+        Accept:
+          'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+    });
+
+    if (!res.ok) {
+      throw new Error(`链接访问失败（HTTP ${res.status}）`);
+    }
+
+    const html = await res.text();
+    const stripped = html
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<!--[\s\S]*?-->/g, '')
+      .replace(/<\/?(svg|canvas|iframe|picture|noscript)[\s\S]*?>/gi, '');
+
+    const text = stripped
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/(p|div|section|article|li|h[1-6])>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+
+    if (!text) {
+      throw new Error('没有从该链接提取到有效正文');
+    }
+
+    return text.slice(0, 20000); // 限制最大长度，避免超长 prompt
+  } catch (error: any) {
+    console.error('[Link Parser] 解析网页失败', error);
+    throw new Error(
+      error.message || '解析网页内容失败，请检查链接是否可公开访问'
+    );
+  }
+}
+
+/**
  * Parse File (PDF/DOCX/TXT/Image) to Text
  * 非程序员解释：
  * - 这个函数现在支持更多文件格式，包括图片
@@ -390,6 +455,7 @@ CRITICAL RULE:
 - If the input is in Chinese, ALL titles and content in the output JSON MUST be in Chinese.
 - If the input is in English, output in English.
 - Do NOT translate unless explicitly asked.
+- **The first slide MUST be a COVER PAGE.** It should only contain a Main Title (title) and a Subtitle (content). The content field for the first slide should be short and act as a subtitle or tagline (e.g. "Presentation by [Name]" or "Date").
 
 The output must be a valid JSON object with the following structure:
 {
@@ -397,7 +463,7 @@ The output must be a valid JSON object with the following structure:
   "slides": [
   {
     "title": "Slide Title",
-      "content": "Key bullet points (max 50 words)"
+    "content": "Key bullet points (max 50 words). For the first slide (Cover), this is the subtitle."
   }
 ]
 }
@@ -487,6 +553,27 @@ export async function consumeCreditsAction(params: {
 }
 
 /**
+ * Refund Credits Action (Server Side)
+ */
+export async function refundCreditsAction(params: {
+  credits: number;
+  description: string;
+}) {
+  const user = await getSignUser();
+  if (!user) {
+    throw new Error('Unauthorized');
+  }
+
+  await refundCredits({
+    userId: user.id,
+    credits: params.credits,
+    description: params.description,
+  });
+
+  return { success: true };
+}
+
+/**
  * Create Image Generation Task via KIE API
  */
 export async function createKieTaskAction(params: {
@@ -511,7 +598,7 @@ export async function createKieTaskAction(params: {
   if (params.styleId) {
     const style = PPT_STYLES.find((s) => s.id === params.styleId);
     if (style && params.isPromptEnhancedMode !== false) {
-      styleSuffix = style.suffix;
+      styleSuffix = style.prompt;
       // Note: Preset reference images should be handled by client
       // and passed in customImages/referenceImages to keep this action pure
     }
@@ -544,7 +631,7 @@ export async function createKieTaskAction(params: {
     );
     // Add strong natural language instruction to use reference image style
     finalPrompt +=
-      ' (Style Reference: Strictly follow the visual style, color palette, and composition from the provided input image)';
+      '（视觉风格参考：请严格遵循所提供参考图的设计风格、配色方案和构图布局）';
   }
 
   // New payload structure per documentation: wrap params in 'input'
@@ -653,6 +740,18 @@ export async function queryKieTaskAction(taskId: string) {
  * - 2. 托底: KIE
  * - 3. 最终托底: Replicate
  */
+/**
+ * Deck上下文信息 - 用于多页PPT生成时保持一致性
+ */
+export interface DeckContext {
+  /** 当前是第几页（从1开始） */
+  currentSlide: number;
+  /** 总共多少页 */
+  totalSlides: number;
+  /** 第一张已生成的图片URL（作为视觉锚定参考） */
+  anchorImageUrl?: string;
+}
+
 export async function createKieTaskWithFallbackAction(params: {
   prompt: string;
   styleId?: string;
@@ -664,6 +763,8 @@ export async function createKieTaskWithFallbackAction(params: {
   isPromptEnhancedMode?: boolean;
   outputLanguage?: 'auto' | 'zh' | 'en';
   refundCredits?: number; // 失败时自动退还的积分数量
+  /** Deck上下文：传递当前页码和总页数，帮助AI保持一致性 */
+  deckContext?: DeckContext;
 }) {
   const {
     preferredProvider,
@@ -671,16 +772,33 @@ export async function createKieTaskWithFallbackAction(params: {
     isPromptEnhancedMode = true,
     outputLanguage = 'auto',
     refundCredits: refundAmount,
+    deckContext,
     ...taskParams
   } = params;
 
   // 预处理图片 URL，确保对所有提供商都是公网可访问的
+  // 如果有锚定图片（第一张已生成的图片），将其添加到参考图片列表的最前面
+  let customImagesWithAnchor = (taskParams.customImages || []).map(
+    resolveImageUrl
+  );
+
+  // 首张锚定机制：如果不是第一张，且有锚定图片，则将其作为首要参考
+  if (deckContext?.anchorImageUrl && deckContext.currentSlide > 1) {
+    const anchorUrl = resolveImageUrl(deckContext.anchorImageUrl);
+    // 将锚定图片放在最前面，确保AI优先参考
+    customImagesWithAnchor = [anchorUrl, ...customImagesWithAnchor];
+    console.log(
+      `[一致性锚定] 第 ${deckContext.currentSlide}/${deckContext.totalSlides} 页使用首张作为风格锚定`
+    );
+  }
+
   const processedParams = {
     ...taskParams,
     isEnhancedMode,
     isPromptEnhancedMode,
     outputLanguage,
-    customImages: (taskParams.customImages || []).map(resolveImageUrl),
+    customImages: customImagesWithAnchor,
+    deckContext, // 传递deck上下文
   };
 
   // 定义优先级顺序
@@ -790,6 +908,8 @@ export async function createFalTaskAction(params: {
   isEnhancedMode?: boolean;
   isPromptEnhancedMode?: boolean;
   outputLanguage?: 'auto' | 'zh' | 'en';
+  /** Deck上下文：传递当前页码信息以增强视觉一致性 */
+  deckContext?: DeckContext;
 }) {
   if (!FAL_KEY) {
     throw new Error('FAL API Key 未配置');
@@ -801,14 +921,36 @@ export async function createFalTaskAction(params: {
       credentials: FAL_KEY,
     });
 
-    // 处理样式
+    // 处理样式和视觉规范
     let styleSuffix = '';
+    let visualSpecPrompt = '';
+
     if (params.styleId) {
       const style = PPT_STYLES.find((s) => s.id === params.styleId);
       if (style && params.isPromptEnhancedMode !== false) {
-        styleSuffix = style.suffix;
+        styleSuffix = style.prompt;
+
+        // 🎯 关键：如果风格有视觉规范，生成强制性的视觉约束提示词
+        if (style.visualSpec) {
+          visualSpecPrompt = generateVisualSpecPrompt(
+            style.visualSpec,
+            params.deckContext
+              ? {
+                  currentSlide: params.deckContext.currentSlide,
+                  totalSlides: params.deckContext.totalSlides,
+                }
+              : undefined
+          );
+        }
       }
     }
+
+    // 🎯 首张锚定提示词：如果不是第一张且有锚定图片
+    const anchorPrompt = generateAnchorPrompt(
+      params.deckContext?.currentSlide && params.deckContext.currentSlide > 1
+        ? params.deckContext.anchorImageUrl
+        : null
+    );
 
     // Language Strategy Prompt
     let languagePrompt = '';
@@ -826,16 +968,23 @@ export async function createFalTaskAction(params: {
       ? `\n\n[Content Enhancement Strategy]\nIf user provided content is detailed, use it directly. If content is simple/sparse, use your professional knowledge to expand on the subject to create a rich, complete slide, BUT you must STRICTLY preserve any specific data, numbers, and professional terms provided. Do NOT invent false data. For sparse content, use advanced layout techniques (grid, whitespace, font size) to fill the space professionally without forced filling.${languagePrompt}`
       : `\n\n[Strict Mode]\nSTRICTLY follow the provided text for Title and Content. Do NOT add, remove, or modify any words. Do NOT expand or summarize. Render the text exactly as given.${languagePrompt}`;
 
-    let finalPrompt = params.prompt + ' ' + styleSuffix + contentStrategy;
+    // 🎯 构建最终提示词：内容 + 风格 + 视觉规范 + 锚定 + 策略
+    let finalPrompt =
+      params.prompt +
+      ' ' +
+      styleSuffix +
+      visualSpecPrompt +
+      anchorPrompt +
+      contentStrategy;
 
     // 处理参考图片
     const referenceImages = (params.customImages || []).map(resolveImageUrl);
     if (referenceImages.length > 0) {
       // 限制最多 4 张 (FAL 示例是 2 张，KIE 是多张，Replicate 也是多张，nano-banana通常支持多张)
       // 保持一致性，取前几张
-      const limitedImages = referenceImages.slice(0, 4);
+      const limitedImages = referenceImages.slice(0, 8);
       finalPrompt +=
-        ' (Style Reference: Strictly follow the visual style, color palette, and composition from the provided input images)';
+        '（视觉风格参考：请严格遵循所提供参考图的设计风格、配色方案和构图布局）';
       console.log(`[FAL] 使用 ${limitedImages.length} 张参考图`);
     }
 
@@ -892,50 +1041,51 @@ export async function createFalTaskAction(params: {
     const imageUrl = result.data.images[0].url;
     console.log('✅ FAL 生成成功，URL:', imageUrl);
 
-    // 自动保存到 R2 (复用逻辑)
-    let finalImageUrl = imageUrl;
-    try {
-      const { getStorageServiceWithConfigs } = await import(
-        '@/shared/services/storage'
-      );
-      const { getAllConfigs } = await import('@/shared/models/config');
-      const { getUserInfo } = await import('@/shared/models/user');
-      const { nanoid } = await import('nanoid');
+    // 🎯 优化：不再阻塞等待 R2 上传，直接返回原始 URL 以提高用户体感速度
+    // R2 持久化转为后台执行
+    const saveToR2Background = async () => {
+      try {
+        const { getStorageServiceWithConfigs } = await import(
+          '@/shared/services/storage'
+        );
+        const { getAllConfigs } = await import('@/shared/models/config');
+        const { getUserInfo } = await import('@/shared/models/user');
+        const { nanoid } = await import('nanoid');
 
-      const user = await getUserInfo();
-      const configs = await getAllConfigs();
+        const user = await getUserInfo();
+        const configs = await getAllConfigs();
 
-      if (user && configs.r2_bucket_name && configs.r2_access_key) {
-        console.log('[FAL] 开始保存图片到 R2...');
-        const storageService = getStorageServiceWithConfigs(configs);
-        const timestamp = Date.now();
-        const randomId = nanoid(8);
-        const fileExtension = imageUrl.includes('.jpg') ? 'jpg' : 'png';
-        const fileName = `${timestamp}_${randomId}.${fileExtension}`;
-        const storageKey = `slides/${user.id}/${fileName}`;
+        if (user && configs.r2_bucket_name && configs.r2_access_key) {
+          console.log('[FAL] 后台开始保存图片到 R2...');
+          const storageService = getStorageServiceWithConfigs(configs);
+          const timestamp = Date.now();
+          const randomId = nanoid(8);
+          const fileExtension = imageUrl.includes('.jpg') ? 'jpg' : 'png';
+          const fileName = `${timestamp}_${randomId}.${fileExtension}`;
+          const storageKey = `slides/${user.id}/${fileName}`;
 
-        const uploadResult = await storageService.downloadAndUpload({
-          url: imageUrl,
-          key: storageKey,
-          contentType: `image/${fileExtension}`,
-          disposition: 'inline',
-        });
-
-        if (uploadResult.success && uploadResult.url) {
-          console.log(`[FAL] ✅ 图片保存成功: ${uploadResult.url}`);
-          finalImageUrl = uploadResult.url;
+          await storageService.downloadAndUpload({
+            url: imageUrl,
+            key: storageKey,
+            contentType: `image/${fileExtension}`,
+            disposition: 'inline',
+          });
+          console.log(`[FAL] ✅ 图片后台保存成功`);
         }
+      } catch (saveError) {
+        console.error('[FAL] 后台保存图片异常:', saveError);
       }
-    } catch (saveError) {
-      console.error('[FAL] 保存图片异常:', saveError);
-    }
+    };
+
+    // 触发后台执行，不 await
+    saveToR2Background();
 
     return {
       success: true,
       task_id: `fal-${result.requestId || Date.now()}`,
       provider: 'FAL',
       fallbackUsed: false,
-      imageUrl: finalImageUrl,
+      imageUrl: imageUrl, // 返回原始 FAL URL
     };
   } catch (error: any) {
     console.error('❌ FAL 失败:', error.message);
@@ -960,6 +1110,8 @@ export async function createReplicateTaskAction(params: {
   isEnhancedMode?: boolean;
   isPromptEnhancedMode?: boolean;
   outputLanguage?: 'auto' | 'zh' | 'en';
+  /** Deck上下文：传递当前页码信息以增强视觉一致性 */
+  deckContext?: DeckContext;
 }) {
   if (!REPLICATE_API_TOKEN) {
     console.log('⏭️ 跳过 Replicate（未配置API Token）');
@@ -975,14 +1127,36 @@ export async function createReplicateTaskAction(params: {
       customImages: (params.customImages || []).map(resolveImageUrl),
     };
 
-    // 处理样式
+    // 处理样式和视觉规范
     let styleSuffix = '';
+    let visualSpecPrompt = '';
+
     if (params.styleId) {
       const style = PPT_STYLES.find((s) => s.id === params.styleId);
       if (style && params.isPromptEnhancedMode !== false) {
-        styleSuffix = style.suffix;
+        styleSuffix = style.prompt;
+
+        // 🎯 关键：如果风格有视觉规范，生成强制性的视觉约束提示词
+        if (style.visualSpec) {
+          visualSpecPrompt = generateVisualSpecPrompt(
+            style.visualSpec,
+            params.deckContext
+              ? {
+                  currentSlide: params.deckContext.currentSlide,
+                  totalSlides: params.deckContext.totalSlides,
+                }
+              : undefined
+          );
+        }
       }
     }
+
+    // 🎯 首张锚定提示词
+    const anchorPrompt = generateAnchorPrompt(
+      params.deckContext?.currentSlide && params.deckContext.currentSlide > 1
+        ? params.deckContext.anchorImageUrl
+        : null
+    );
 
     // Language Strategy Prompt
     let languagePrompt = '';
@@ -1000,7 +1174,14 @@ export async function createReplicateTaskAction(params: {
       ? `\n\n[Content Enhancement Strategy]\nIf user provided content is detailed, use it directly. If content is simple/sparse, use your professional knowledge to expand on the subject to create a rich, complete slide, BUT you must STRICTLY preserve any specific data, numbers, and professional terms provided. Do NOT invent false data. For sparse content, use advanced layout techniques (grid, whitespace, font size) to fill the space professionally without forced filling.${languagePrompt}`
       : `\n\n[Strict Mode]\nSTRICTLY follow the provided text for Title and Content. Do NOT add, remove, or modify any words. Do NOT expand or summarize. Render the text exactly as given.${languagePrompt}`;
 
-    let finalPrompt = params.prompt + ' ' + styleSuffix + contentStrategy;
+    // 🎯 构建最终提示词：内容 + 风格 + 视觉规范 + 锚定 + 策略
+    let finalPrompt =
+      params.prompt +
+      ' ' +
+      styleSuffix +
+      visualSpecPrompt +
+      anchorPrompt +
+      contentStrategy;
 
     // 处理参考图片
     const referenceImages = processedParams.customImages || [];
@@ -1008,7 +1189,7 @@ export async function createReplicateTaskAction(params: {
       // nano-banana-pro 支持多图融合，最多8张
       const limitedImages = referenceImages.slice(0, 8);
       finalPrompt +=
-        ' (Style Reference: Strictly follow the visual style, color palette, and composition from the provided input images)';
+        '（视觉风格参考：请严格遵循所提供参考图的设计风格、配色方案和构图布局）';
       console.log(
         `[Replicate] 使用 ${limitedImages.length} 张参考图:`,
         limitedImages
@@ -1016,7 +1197,6 @@ export async function createReplicateTaskAction(params: {
     }
 
     // 调用 Replicate API
-    const Replicate = require('replicate');
     const replicate = new Replicate({ auth: REPLICATE_API_TOKEN });
 
     // google/nano-banana-pro 的参数结构（与 KIE 类似）
@@ -1047,7 +1227,7 @@ export async function createReplicateTaskAction(params: {
     const startTime = Date.now();
     let output = await replicate.run('google/nano-banana-pro', {
       input,
-      wait: { interval: 2000 }, // 每 2 秒检查一次状态
+      wait: { mode: 'poll', interval: 2000 }, // 每 2 秒检查一次状态
     });
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
@@ -1064,14 +1244,17 @@ export async function createReplicateTaskAction(params: {
     let imageUrl: string;
 
     if (typeof output === 'string') {
-      console.log('[Replicate] ✓ 输出是字符串类型，长度:', output.length);
+      console.log(
+        '[Replicate] ✓ 输出是字符串类型，长度:',
+        (output as string).length
+      );
       imageUrl = output;
     } else if (Array.isArray(output)) {
       console.log(
         '[Replicate] ✓ 输出是数组，长度:',
-        output.length,
+        (output as any[]).length,
         ', 第一项类型:',
-        typeof output[0]
+        typeof (output as any[])[0]
       );
 
       const firstItem = output[0];
@@ -1202,61 +1385,54 @@ export async function createReplicateTaskAction(params: {
 
     console.log('✅ Replicate 生成成功，URL:', imageUrl);
 
-    // ✅ 新增：自动保存 Replicate 生成的图片到 R2
-    let finalImageUrl = imageUrl;
-    try {
-      // 动态导入 storage 相关模块
-      const { getStorageServiceWithConfigs } = await import(
-        '@/shared/services/storage'
-      );
-      const { getAllConfigs } = await import('@/shared/models/config');
-      const { getUserInfo } = await import('@/shared/models/user');
-      const { nanoid } = await import('nanoid');
+    // 🎯 优化：不再阻塞等待 R2 上传，直接返回原始 URL 以提高用户体感速度
+    const saveToR2Background = async () => {
+      try {
+        const { getStorageServiceWithConfigs } = await import(
+          '@/shared/services/storage'
+        );
+        const { getAllConfigs } = await import('@/shared/models/config');
+        const { getUserInfo } = await import('@/shared/models/user');
+        const { nanoid } = await import('nanoid');
 
-      const user = await getUserInfo();
-      const configs = await getAllConfigs();
+        const user = await getUserInfo();
+        const configs = await getAllConfigs();
 
-      if (user && configs.r2_bucket_name && configs.r2_access_key) {
-        console.log('[Replicate] 开始保存图片到 R2...');
-        const storageService = getStorageServiceWithConfigs(configs);
+        if (user && configs.r2_bucket_name && configs.r2_access_key) {
+          console.log('[Replicate] 后台开始保存图片到 R2...');
+          const storageService = getStorageServiceWithConfigs(configs);
+          const timestamp = Date.now();
+          const randomId = nanoid(8);
+          const fileExtension =
+            imageUrl.includes('.jpg') || imageUrl.includes('.jpeg')
+              ? 'jpg'
+              : 'png';
+          const fileName = `${timestamp}_${randomId}.${fileExtension}`;
+          const storageKey = `slides/${user.id}/${fileName}`;
 
-        const timestamp = Date.now();
-        const randomId = nanoid(8);
-        const fileExtension =
-          imageUrl.includes('.jpg') || imageUrl.includes('.jpeg')
-            ? 'jpg'
-            : 'png';
-        const fileName = `${timestamp}_${randomId}.${fileExtension}`;
-        const storageKey = `slides/${user.id}/${fileName}`;
-
-        const uploadResult = await storageService.downloadAndUpload({
-          url: imageUrl,
-          key: storageKey,
-          contentType: `image/${fileExtension}`,
-          disposition: 'inline',
-        });
-
-        if (uploadResult.success && uploadResult.url) {
-          console.log(`[Replicate] ✅ 图片保存成功: ${uploadResult.url}`);
-          finalImageUrl = uploadResult.url;
-        } else {
-          console.warn(`[Replicate] ⚠️ 图片保存失败: ${uploadResult.error}`);
+          await storageService.downloadAndUpload({
+            url: imageUrl,
+            key: storageKey,
+            contentType: `image/${fileExtension}`,
+            disposition: 'inline',
+          });
+          console.log(`[Replicate] ✅ 图片后台保存成功`);
         }
-      } else {
-        console.log('[Replicate] R2 未配置或用户未登录，跳过保存');
+      } catch (saveError: any) {
+        console.error('[Replicate] 后台保存图片异常:', saveError);
       }
-    } catch (saveError: any) {
-      console.error('[Replicate] 保存图片异常:', saveError);
-      // 保存失败不影响流程，继续使用原始 URL
-    }
+    };
+
+    // 触发后台执行，不 await
+    saveToR2Background();
 
     // 返回类似KIE的格式，但标记为同步结果
     const result = {
       success: true,
       task_id: `replicate-${Date.now()}`,
       provider: 'Replicate',
-      fallbackUsed: false, // 如果是主力调用，这里应该是 false
-      imageUrl: finalImageUrl, // 返回（可能已替换为 R2 的）图片URL
+      fallbackUsed: false,
+      imageUrl: imageUrl, // 返回原始 Replicate URL
     };
 
     console.log('[Replicate] 返回值:', {
@@ -1306,101 +1482,66 @@ export async function queryKieTaskWithFallbackAction(
   // 否则使用原来的KIE查询逻辑
   const result = await queryKieTaskAction(taskId);
 
-  // ✅ 新增：如果任务成功且有结果，自动保存到 R2
+  // ✅ 优化：如果任务成功且有结果，后台执行 R2 保存，不阻塞当前查询请求
   if (
     result?.data?.status === 'SUCCESS' &&
     result.data.results &&
     result.data.results.length > 0
   ) {
-    try {
-      // 动态导入 storage 相关模块（避免在前端执行）
-      const { getStorageServiceWithConfigs } = await import(
-        '@/shared/services/storage'
-      );
-      const { getAllConfigs } = await import('@/shared/models/config');
-      const { getUserInfo } = await import('@/shared/models/user');
-      const { nanoid } = await import('nanoid');
+    const originalResults = [...result.data.results];
 
-      // 获取当前用户
-      const user = await getUserInfo();
-      if (!user) {
-        console.log('[Slides] 用户未登录，跳过 R2 保存');
-        return result;
-      }
+    // 后台保存逻辑
+    const saveToR2Background = async () => {
+      try {
+        const { getStorageServiceWithConfigs } = await import(
+          '@/shared/services/storage'
+        );
+        const { getAllConfigs } = await import('@/shared/models/config');
+        const { getUserInfo } = await import('@/shared/models/user');
+        const { nanoid } = await import('nanoid');
 
-      // 获取配置
-      const configs = await getAllConfigs();
+        const user = await getUserInfo();
+        const configs = await getAllConfigs();
 
-      // 检查 R2 是否配置
-      if (!configs.r2_bucket_name || !configs.r2_access_key) {
-        console.log('[Slides] R2 未配置，跳过保存');
-        return result;
-      }
+        if (user && configs.r2_bucket_name && configs.r2_access_key) {
+          console.log(
+            `[Slides] 后台开始保存 ${originalResults.length} 张图片到 R2`
+          );
+          const storageService = getStorageServiceWithConfigs(configs);
 
-      console.log(
-        `[Slides] 开始保存 ${result.data.results.length} 张图片到 R2`
-      );
-
-      const storageService = getStorageServiceWithConfigs(configs);
-
-      // 并行保存所有图片
-      const savePromises = result.data.results.map(
-        async (imageUrl: string, index: number) => {
-          try {
-            const timestamp = Date.now();
-            const randomId = nanoid(8);
-            const fileExtension =
-              imageUrl.includes('.jpg') || imageUrl.includes('.jpeg')
-                ? 'jpg'
-                : 'png';
-
-            const fileName = `${timestamp}_${randomId}_${index}.${fileExtension}`;
-            const storageKey = `slides/${user.id}/${fileName}`;
-
-            console.log(`[Slides] 保存图片 ${index + 1}: ${storageKey}`);
-
-            const uploadResult = await storageService.downloadAndUpload({
-              url: imageUrl,
-              key: storageKey,
-              contentType: `image/${fileExtension}`,
-              disposition: 'inline',
-            });
-
-            if (uploadResult.success && uploadResult.url) {
-              console.log(
-                `[Slides] ✅ 图片 ${index + 1} 保存成功: ${uploadResult.url}`
-              );
-              return uploadResult.url;
-            } else {
-              console.warn(
-                `[Slides] ⚠️ 图片 ${index + 1} 保存失败: ${uploadResult.error}`
-              );
-              return imageUrl; // 失败时返回原始 URL
-            }
-          } catch (error: any) {
-            console.error(`[Slides] ❌ 图片 ${index + 1} 保存异常:`, error);
-            return imageUrl; // 异常时返回原始 URL
-          }
+          await Promise.all(
+            originalResults.map(async (imageUrl: string, index: number) => {
+              try {
+                const timestamp = Date.now();
+                const randomId = nanoid(8);
+                const fileExtension =
+                  imageUrl.includes('.jpg') || imageUrl.includes('.jpeg')
+                    ? 'jpg'
+                    : 'png';
+                const fileName = `${timestamp}_${randomId}_${index}.${fileExtension}`;
+                const storageKey = `slides/${user.id}/${fileName}`;
+                await storageService.downloadAndUpload({
+                  url: imageUrl,
+                  key: storageKey,
+                  contentType: `image/${fileExtension}`,
+                  disposition: 'inline',
+                });
+              } catch (e) {
+                console.error(`[Slides] 后台保存第 ${index} 张失败`, e);
+              }
+            })
+          );
+          console.log(`[Slides] ✅ 图片后台保存完成`);
         }
-      );
+      } catch (error) {
+        console.error('[Slides] 后台保存异常', error);
+      }
+    };
 
-      const savedUrls = await Promise.all(savePromises);
-      console.log(
-        `[Slides] 保存完成，成功 ${savedUrls.filter((url, i) => url !== result.data.results![i]).length}/${result.data.results.length} 张`
-      );
+    saveToR2Background();
 
-      // 返回保存后的 R2 URL
-      return {
-        data: {
-          status: result.data.status,
-          results: savedUrls,
-        },
-      };
-    } catch (error: any) {
-      console.error('[Slides] 保存图片到 R2 失败:', error);
-      // 保存失败不影响返回结果，使用原始 URL
-      return result;
-    }
+    // 直接返回原始结果，不等待保存完成
+    return result;
   }
 
   return result;
