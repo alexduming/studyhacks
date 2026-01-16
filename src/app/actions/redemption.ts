@@ -58,13 +58,13 @@ export async function generateCodesAction(
     codesToInsert.push({
       id: getUuid(),
       code: generateSecureCode(),
-      credits: amount,
+      credits: amount ?? 0,
       createdBy,
       createdAt: new Date(),
       status: 'active',
       maxUses,
       usedCount: 0,
-      creditValidityDays,
+      creditValidityDays: creditValidityDays ?? 30,
       expiresAt: codeExpiresAt,
     });
   }
@@ -110,7 +110,7 @@ export async function generateMembershipCodesAction(
     codesToInsert.push({
       id: getUuid(),
       code: generateSecureCode(),
-      credits: planInfo.credits,
+      credits: planInfo.credits ?? 0,
       type: 'membership',
       planId,
       membershipDays,

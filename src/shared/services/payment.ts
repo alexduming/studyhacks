@@ -13,7 +13,7 @@ import {
   CreditTransactionType,
   NewCredit,
   calculateCreditExpirationTime,
-} from './credit';
+} from '@/shared/models/credit';
 import {
   NewOrder,
   Order,
@@ -21,7 +21,7 @@ import {
   UpdateOrder,
   updateOrderByOrderNo,
   updateOrderInTransaction,
-} from './order';
+} from '@/shared/models/order';
 import {
   PaymentSession,
   PaymentStatus,
@@ -31,22 +31,15 @@ import {
   NewSubscription,
   Subscription,
   SubscriptionStatus,
-} from './subscription';
+} from '@/shared/models/subscription';
 // 联盟功能暂时禁用 - 需要时取消注释
 // import { getInvitationByInviteeId } from '@/shared/models/invitation';
 // import { createCommission, CommissionStatus } from '@/shared/models/commission';
-
-// ... (existing imports and code) ...
-
-// We will use the existing payment service code but add the commission logic in handleCheckoutSuccess
 
 /**
  * payment manager
  */
 export class PaymentManager {
-  // ... (existing code) ...
-  // Since I can't see the full content of PaymentManager, I assume it's fine.
-  // I will focus on the exported functions.
   private providers: Map<string, any> = new Map();
 
   constructor() {}
@@ -83,8 +76,8 @@ export async function getPaymentService(): Promise<PaymentManager> {
       new StripeProvider({
         secretKey: configs.stripe_secret_key,
         publishableKey: configs.stripe_publishable_key,
-        webhookSecret: configs.stripe_webhook_secret,
-        prices: {}, // load prices from config if needed
+        signingSecret: configs.stripe_signing_secret || configs.stripe_webhook_secret,
+        allowedPaymentMethods: configs.stripe_payment_methods ? JSON.parse(configs.stripe_payment_methods) : ['card'],
       })
     );
   }
@@ -94,8 +87,8 @@ export async function getPaymentService(): Promise<PaymentManager> {
       'creem',
       new CreemProvider({
         apiKey: configs.creem_api_key,
-        webhookSecret: configs.creem_webhook_secret,
-        productId: configs.creem_product_id,
+        signingSecret: configs.creem_signing_secret || configs.creem_webhook_secret,
+        environment: (configs.creem_environment as 'sandbox' | 'production') || 'sandbox',
       })
     );
   }
@@ -106,8 +99,8 @@ export async function getPaymentService(): Promise<PaymentManager> {
       new PayPalProvider({
         clientId: configs.paypal_client_id,
         clientSecret: configs.paypal_client_secret,
-        webhookId: configs.paypal_webhook_id,
-        mode: configs.paypal_mode || 'sandbox',
+        webhookSecret: configs.paypal_webhook_id || configs.paypal_signing_secret,
+        environment: (configs.paypal_environment as 'sandbox' | 'production') || 'sandbox',
       })
     );
   }
@@ -477,8 +470,8 @@ export async function handleSubscriptionRenewal({
     userId: subscription.userId,
     userEmail: subscription.userEmail,
     status: OrderStatus.PAID,
-    amount: subscriptionInfo.amount,
-    currency: subscriptionInfo.currency,
+    amount: subscriptionInfo.amount ?? 0,
+    currency: subscriptionInfo.currency ?? '',
     productId: subscription.productId,
     planName: subscription.planName,
     productName: subscription.productName,
@@ -486,16 +479,16 @@ export async function handleSubscriptionRenewal({
     paymentInterval: subscriptionInfo.interval,
     paymentProvider: subscription.paymentProvider || '',
     paymentProductId: subscription.paymentProductId,
-    paymentSessionId: session.sessionId,
-    checkoutInfo: JSON.stringify(session.checkoutInfo || {}),
+    paymentSessionId: session.metadata?.sessionId || '',
+    checkoutInfo: JSON.stringify(session.metadata?.checkoutInfo || {}),
     paymentResult: JSON.stringify(session.paymentResult),
     transactionId: session.paymentInfo?.transactionId,
     subscriptionId: subscription.subscriptionId,
     subscriptionNo: subscription.subscriptionNo,
     subscriptionResult: JSON.stringify(session.subscriptionResult),
     paymentEmail: session.paymentInfo?.paymentEmail,
-    paymentAmount: session.paymentInfo?.paymentAmount,
-    paymentCurrency: session.paymentInfo?.paymentCurrency,
+    paymentAmount: session.paymentInfo?.paymentAmount ?? 0,
+    paymentCurrency: session.paymentInfo?.paymentCurrency ?? '',
     paidAt: session.paymentInfo?.paidAt,
     invoiceId: session.paymentInfo?.invoiceId,
     invoiceUrl: session.paymentInfo?.invoiceUrl,
@@ -537,7 +530,7 @@ export async function handleSubscriptionRenewal({
   const updateSubscriptionData = {
     currentPeriodStart: subscriptionInfo.currentPeriodStart,
     currentPeriodEnd: subscriptionInfo.currentPeriodEnd,
-    status: subscriptionInfo.status,
+    status: subscriptionInfo.status || SubscriptionStatus.ACTIVE,
     subscriptionResult: JSON.stringify(session.subscriptionResult),
   };
 
