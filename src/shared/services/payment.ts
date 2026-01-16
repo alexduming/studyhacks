@@ -1,5 +1,11 @@
+import { eq } from 'drizzle-orm';
 import { db } from '@/core/db';
-import { order, subscription, credit, user } from '@/config/db/schema';
+import {
+  order as orderTable,
+  subscription as subscriptionTable,
+  credit as creditTable,
+  user as userTable,
+} from '@/config/db/schema';
 import { getSnowId, getUuid } from '@/shared/lib/hash';
 import {
   CreditStatus,
@@ -8,10 +14,24 @@ import {
   NewCredit,
   calculateCreditExpirationTime,
 } from './credit';
-import { NewOrder, Order, OrderStatus, UpdateOrder } from './order';
-import { PaymentSession, PaymentStatus, PaymentType } from '@/extensions/payment';
-import { NewSubscription, Subscription, SubscriptionStatus } from './subscription';
-import { getPaymentService } from '@/shared/services/payment';
+import {
+  NewOrder,
+  Order,
+  OrderStatus,
+  UpdateOrder,
+  updateOrderByOrderNo,
+  updateOrderInTransaction,
+} from './order';
+import {
+  PaymentSession,
+  PaymentStatus,
+  PaymentType,
+} from '@/extensions/payment';
+import {
+  NewSubscription,
+  Subscription,
+  SubscriptionStatus,
+} from './subscription';
 // 联盟功能暂时禁用 - 需要时取消注释
 // import { getInvitationByInviteeId } from '@/shared/models/invitation';
 // import { createCommission, CommissionStatus } from '@/shared/models/commission';
@@ -556,19 +576,74 @@ export async function handleSubscriptionRenewal({
   // update in transaction
   const result = await db().transaction(async (tx) => {
     // create order
-    await tx.insert(import('@/config/db/schema').then(m => m.order)).values(order);
+    await tx.insert(orderTable).values(order);
 
     // grant credit
     if (newCredit) {
-      await tx.insert(import('@/config/db/schema').then(m => m.credit)).values(newCredit);
+      await tx.insert(creditTable).values(newCredit);
     }
 
     // update subscription
     await tx
-      .update(import('@/config/db/schema').then(m => m.subscription))
+      .update(subscriptionTable)
       .set(updateSubscriptionData)
-      .where(eq(import('@/config/db/schema').then(m => m.subscription).id, subscription.id));
+      .where(eq(subscriptionTable.id, subscription.id));
   });
 
   return result;
+}
+
+/**
+ * handle subscription updated
+ */
+export async function handleSubscriptionUpdated({
+  subscription: existingSubscription,
+  session,
+}: {
+  subscription: Subscription;
+  session: PaymentSession;
+}) {
+  const subscriptionInfo = session.subscriptionInfo;
+  if (!subscriptionInfo) {
+    throw new Error('subscription info not found');
+  }
+
+  const updateSubscriptionData = {
+    status: subscriptionInfo.status || SubscriptionStatus.ACTIVE,
+    currentPeriodStart: subscriptionInfo.currentPeriodStart,
+    currentPeriodEnd: subscriptionInfo.currentPeriodEnd,
+    subscriptionResult: JSON.stringify(session.subscriptionResult),
+    amount: subscriptionInfo.amount,
+    currency: subscriptionInfo.currency,
+    interval: subscriptionInfo.interval,
+    intervalCount: subscriptionInfo.intervalCount,
+  };
+
+  await db()
+    .update(subscriptionTable)
+    .set(updateSubscriptionData)
+    .where(eq(subscriptionTable.id, existingSubscription.id));
+}
+
+/**
+ * handle subscription canceled
+ */
+export async function handleSubscriptionCanceled({
+  subscription: existingSubscription,
+  session,
+}: {
+  subscription: Subscription;
+  session: PaymentSession;
+}) {
+  const subscriptionInfo = session.subscriptionInfo;
+
+  await db()
+    .update(subscriptionTable)
+    .set({
+      status: SubscriptionStatus.CANCELED,
+      subscriptionResult: JSON.stringify(session.subscriptionResult),
+      canceledAt: new Date(),
+      currentPeriodEnd: subscriptionInfo?.currentPeriodEnd,
+    })
+    .where(eq(subscriptionTable.id, existingSubscription.id));
 }

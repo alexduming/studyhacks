@@ -316,7 +316,7 @@ async function setProMember() {
       console.log(`🔄 正在发放初始积分...`);
 
       const expiresAt = calculateCreditExpirationTime({
-        creditsValidDays: planInfo.valid_days,
+        creditsValidDays: planInfo.valid_days ?? 0,
         currentPeriodEnd,
       });
 
@@ -328,8 +328,8 @@ async function setProMember() {
         subscriptionNo,
         transactionType: CreditTransactionType.GRANT,
         transactionScene: CreditTransactionScene.SUBSCRIPTION,
-        credits: planInfo.credits,
-        remainingCredits: planInfo.credits,
+        credits: planInfo.credits ?? 0,
+        remainingCredits: planInfo.credits ?? 0,
         description: `Pro membership initial credits - ${planConfig.productName}`,
         expiresAt,
         status: CreditStatus.ACTIVE,

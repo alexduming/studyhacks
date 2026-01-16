@@ -3,10 +3,19 @@ import { getTranslations } from 'next-intl/server';
 import { PERMISSIONS, requirePermission } from '@/core/rbac';
 import { Header, Main, MainHeader } from '@/shared/blocks/dashboard';
 import { TableCard } from '@/shared/blocks/table';
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from '@/shared/components/ui/avatar';
 import { Badge } from '@/shared/components/ui/badge';
-import { Avatar, AvatarImage, AvatarFallback } from '@/shared/components/ui/avatar';
 import { getRemainingCredits } from '@/shared/models/credit';
-import { getUsers, getUsersCount, User, getUserMembership } from '@/shared/models/user';
+import {
+  getUserMembership,
+  getUsers,
+  getUsersCount,
+  User,
+} from '@/shared/models/user';
 import { getUserRoles } from '@/shared/services/rbac';
 import { Crumb, Search } from '@/shared/types/blocks/common';
 import { type Table } from '@/shared/types/blocks/table';
@@ -72,8 +81,8 @@ export default async function AdminUsersPage({
         callback: async (item: User) => {
           const membership = await getUserMembership(item.id);
           return (
-            <Avatar 
-              isVip={membership.level === 'plus' || membership.level === 'pro'} 
+            <Avatar
+              isVip={membership.level === 'plus' || membership.level === 'pro'}
               vipLevel={membership.level as 'plus' | 'pro'}
             >
               <AvatarImage src={item.image || ''} alt={item.name || ''} />
@@ -88,7 +97,7 @@ export default async function AdminUsersPage({
         title: 'Membership',
         callback: async (item: User) => {
           const membership = await getUserMembership(item.id);
-          
+
           const colors = {
             free: 'bg-slate-500',
             plus: 'bg-blue-500',
