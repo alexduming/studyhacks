@@ -123,7 +123,17 @@ export const PPT_STYLES: PPTStyle[] = [
     prompt:
       '你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调成果量化、商务红蓝配色和多样化的高阶图表形式。',
     preview: `${CDN_BASE_URL}/styles/work_result/preview.png`,
-    refs: [`${CDN_BASE_URL}/styles/work_result/preview.png`],
+    refs: [
+      `${CDN_BASE_URL}/styles/work_result/preview.png`,
+      `${CDN_BASE_URL}/styles/work_result/ref1.png`,
+      `${CDN_BASE_URL}/styles/work_result/ref2.png`,
+      `${CDN_BASE_URL}/styles/work_result/ref3.png`,
+      `${CDN_BASE_URL}/styles/work_result/ref4.png`,
+      `${CDN_BASE_URL}/styles/work_result/ref5.png`,
+      `${CDN_BASE_URL}/styles/work_result/ref6.png`,
+      `${CDN_BASE_URL}/styles/work_result/ref7.png`,
+      `${CDN_BASE_URL}/styles/work_result/ref8.png`,
+    ],
   },
   {
     id: 'red_tech',
@@ -132,7 +142,15 @@ export const PPT_STYLES: PPTStyle[] = [
     prompt:
       '你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调极高信息密度、强视觉冲击力和严谨的商务结构。',
     preview: `${CDN_BASE_URL}/styles/red_tech/preview.png`,
-    refs: [`${CDN_BASE_URL}/styles/red_tech/preview.png`],
+    refs: [
+      `${CDN_BASE_URL}/styles/red_tech/preview.png`,
+      `${CDN_BASE_URL}/styles/red_tech/ref1.png`,
+      `${CDN_BASE_URL}/styles/red_tech/ref2.png`,
+      `${CDN_BASE_URL}/styles/red_tech/ref3.png`,
+      `${CDN_BASE_URL}/styles/red_tech/ref4.png`,
+      `${CDN_BASE_URL}/styles/red_tech/ref5.png`,
+      `${CDN_BASE_URL}/styles/red_tech/ref6.png`,
+    ],
   },
   {
     id: 'scholar',
@@ -141,7 +159,15 @@ export const PPT_STYLES: PPTStyle[] = [
     prompt:
       '你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调学术严谨性、深红配色和结构化呈现。',
     preview: `${CDN_BASE_URL}/styles/scholar/preview.png`,
-    refs: [`${CDN_BASE_URL}/styles/scholar/preview.png`],
+    refs: [
+      `${CDN_BASE_URL}/styles/scholar/preview.png`,
+      `${CDN_BASE_URL}/styles/scholar/ref1.png`,
+      `${CDN_BASE_URL}/styles/scholar/ref2.png`,
+      `${CDN_BASE_URL}/styles/scholar/ref3.png`,
+      `${CDN_BASE_URL}/styles/scholar/ref4.png`,
+      `${CDN_BASE_URL}/styles/scholar/ref5.png`,
+      `${CDN_BASE_URL}/styles/scholar/ref6.png`,
+    ],
   },
   {
     id: 'scholar_green',
@@ -159,7 +185,15 @@ export const PPT_STYLES: PPTStyle[] = [
     prompt:
       '你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调 3D 材质感、治愈色系和圆润的手工痕迹。',
     preview: `${CDN_BASE_URL}/styles/claymation/preview.png`,
-    refs: [`${CDN_BASE_URL}/styles/claymation/preview.png`],
+    refs: [
+      `${CDN_BASE_URL}/styles/claymation/ref1.png`,
+      `${CDN_BASE_URL}/styles/claymation/ref2.png`,
+      `${CDN_BASE_URL}/styles/claymation/ref3.png`,
+      `${CDN_BASE_URL}/styles/claymation/ref4.png`,
+      `${CDN_BASE_URL}/styles/claymation/ref5.png`,
+      `${CDN_BASE_URL}/styles/claymation/ref6.png`,
+      `${CDN_BASE_URL}/styles/claymation/ref7.png`,
+    ],
     visualSpec: {
       header: {
         position: 'top-left' as const,
@@ -196,7 +230,10 @@ export const PPT_STYLES: PPTStyle[] = [
     prompt:
       '你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调极致克制、纯白背景、严谨网格和洋红色点缀。',
     preview: `${CDN_BASE_URL}/styles/minimalism-magenta/preview.png`,
-    refs: [`${CDN_BASE_URL}/styles/minimalism-magenta/preview.png`],
+    refs: [
+      `${CDN_BASE_URL}/styles/minimalism-magenta/preview.png`,
+      `${CDN_BASE_URL}/styles/minimalism-magenta/ref1.png`,
+    ],
   },
   {
     id: 'illustration-lab',
@@ -205,7 +242,15 @@ export const PPT_STYLES: PPTStyle[] = [
     prompt:
       '你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调扁平化人物、明快配色和模块化内容组合。',
     preview: `${CDN_BASE_URL}/styles/modern_illustration/preview.png`,
-    refs: [`${CDN_BASE_URL}/styles/modern_illustration/preview.png`],
+    refs: [
+      `${CDN_BASE_URL}/styles/modern_illustration/preview.png`,
+      `${CDN_BASE_URL}/styles/modern_illustration/ref1.png`,
+      `${CDN_BASE_URL}/styles/modern_illustration/ref2.png`,
+      `${CDN_BASE_URL}/styles/modern_illustration/ref3.png`,
+      `${CDN_BASE_URL}/styles/modern_illustration/ref4.png`,
+      `${CDN_BASE_URL}/styles/modern_illustration/ref5.png`,
+      `${CDN_BASE_URL}/styles/modern_illustration/ref6.png`,
+    ],
   },
   {
     id: 'data_vision',
@@ -214,7 +259,16 @@ export const PPT_STYLES: PPTStyle[] = [
     prompt:
       '你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调网格化布局、专业图表和高密度数据展示。',
     preview: `${CDN_BASE_URL}/styles/data_vision/preview.png`,
-    refs: [`${CDN_BASE_URL}/styles/data_vision/preview.png`],
+    refs: [
+      `${CDN_BASE_URL}/styles/data_vision/ref1.png`,
+      `${CDN_BASE_URL}/styles/data_vision/ref2.png`,
+      `${CDN_BASE_URL}/styles/data_vision/ref3.png`,
+      `${CDN_BASE_URL}/styles/data_vision/ref4.png`,
+      `${CDN_BASE_URL}/styles/data_vision/ref5.png`,
+      `${CDN_BASE_URL}/styles/data_vision/ref6.png`,
+      `${CDN_BASE_URL}/styles/data_vision/ref7.png`,
+      `${CDN_BASE_URL}/styles/data_vision/ref8.png`,
+    ],
   },
   {
     id: 'vintage-minimalism',

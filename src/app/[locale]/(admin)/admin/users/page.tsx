@@ -4,6 +4,7 @@ import { PERMISSIONS, requirePermission } from '@/core/rbac';
 import { Header, Main, MainHeader } from '@/shared/blocks/dashboard';
 import { TableCard } from '@/shared/blocks/table';
 import { Badge } from '@/shared/components/ui/badge';
+import { Avatar, AvatarImage, AvatarFallback } from '@/shared/components/ui/avatar';
 import { getRemainingCredits } from '@/shared/models/credit';
 import { getUsers, getUsersCount, User, getUserMembership } from '@/shared/models/user';
 import { getUserRoles } from '@/shared/services/rbac';

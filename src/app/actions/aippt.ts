@@ -599,8 +599,13 @@ export async function createKieTaskAction(params: {
     const style = PPT_STYLES.find((s) => s.id === params.styleId);
     if (style && params.isPromptEnhancedMode !== false) {
       styleSuffix = style.prompt;
-      // Note: Preset reference images should be handled by client
-      // and passed in customImages/referenceImages to keep this action pure
+
+      // 🎯 关键：如果风格定义了参考图，将其加入参考图列表
+      if (style.refs && style.refs.length > 0) {
+        const styleRefs = style.refs.map(resolveImageUrl);
+        // 将风格参考图放在前面
+        referenceImages = [...styleRefs, ...referenceImages];
+      }
     }
   }
 
@@ -625,13 +630,16 @@ export async function createKieTaskAction(params: {
 
   // Log reference images info
   if (referenceImages.length > 0) {
+    const limitedImages = referenceImages.slice(0, 8);
     console.log(
-      `[KIE] Reference images (${referenceImages.length} URLs):`,
-      referenceImages
+      `[KIE] Reference images (${limitedImages.length} URLs):`,
+      limitedImages
     );
     // Add strong natural language instruction to use reference image style
     finalPrompt +=
       '（视觉风格参考：请严格遵循所提供参考图的设计风格、配色方案和构图布局）';
+
+    referenceImages = limitedImages;
   }
 
   // New payload structure per documentation: wrap params in 'input'
@@ -978,14 +986,14 @@ export async function createFalTaskAction(params: {
       contentStrategy;
 
     // 处理参考图片
-    const referenceImages = (params.customImages || []).map(resolveImageUrl);
-    if (referenceImages.length > 0) {
-      // 限制最多 4 张 (FAL 示例是 2 张，KIE 是多张，Replicate 也是多张，nano-banana通常支持多张)
-      // 保持一致性，取前几张
-      const limitedImages = referenceImages.slice(0, 8);
-      finalPrompt +=
-        '（视觉风格参考：请严格遵循所提供参考图的设计风格、配色方案和构图布局）';
-      console.log(`[FAL] 使用 ${limitedImages.length} 张参考图`);
+    let referenceImages = (params.customImages || []).map(resolveImageUrl);
+
+    if (params.styleId) {
+      const style = PPT_STYLES.find((s) => s.id === params.styleId);
+      if (style && style.refs && style.refs.length > 0) {
+        const styleRefs = style.refs.map(resolveImageUrl);
+        referenceImages = [...styleRefs, ...referenceImages];
+      }
     }
 
     const input: any = {
@@ -997,7 +1005,12 @@ export async function createFalTaskAction(params: {
     };
 
     if (referenceImages.length > 0) {
-      input.image_urls = referenceImages;
+      // 限制最多 8 张 (nano-banana通常支持多张)
+      const limitedImages = referenceImages.slice(0, 8);
+      finalPrompt +=
+        '（视觉风格参考：请严格遵循所提供参考图的设计风格、配色方案和构图布局）';
+      console.log(`[FAL] 使用 ${limitedImages.length} 张参考图`);
+      input.image_urls = limitedImages;
     }
 
     // 动态选择模型：如果有参考图，使用 edit 模型；否则使用标准模型
@@ -1184,7 +1197,16 @@ export async function createReplicateTaskAction(params: {
       contentStrategy;
 
     // 处理参考图片
-    const referenceImages = processedParams.customImages || [];
+    let referenceImages = (params.customImages || []).map(resolveImageUrl);
+
+    if (params.styleId) {
+      const style = PPT_STYLES.find((s) => s.id === params.styleId);
+      if (style && style.refs && style.refs.length > 0) {
+        const styleRefs = style.refs.map(resolveImageUrl);
+        referenceImages = [...styleRefs, ...referenceImages];
+      }
+    }
+
     if (referenceImages.length > 0) {
       // nano-banana-pro 支持多图融合，最多8张
       const limitedImages = referenceImages.slice(0, 8);

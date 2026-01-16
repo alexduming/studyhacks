@@ -84,6 +84,11 @@
       "title": "业务",
       "items": [
         {
+          "title": "PPT 风格库",
+          "url": "/admin/styles",
+          "icon": "Palette"
+        },
+        {
           "title": "AI任务",
           "url": "/admin/ai-tasks",
           "icon": "Brain"

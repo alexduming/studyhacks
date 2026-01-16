@@ -84,6 +84,11 @@
       "title": "Business",
       "items": [
         {
+          "title": "PPT Styles",
+          "url": "/admin/styles",
+          "icon": "Palette"
+        },
+        {
           "title": "AI Tasks",
           "url": "/admin/ai-tasks",
           "icon": "Brain"
