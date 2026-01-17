@@ -1,4 +1,66 @@
 {
-  "title": "AI 学习信息图生成器",
-  "subtitle": "上传课件、学习笔记或文本，AI 自动为你生成扁平风格的教育信息图。"
+  "title": "AI信息图生成器",
+  "subtitle": "上传课件、学习笔记或文本，AI 自动为你生成可视化信息图。",
+  "form": {
+    "input_title": "输入知识内容",
+    "textarea_placeholder": "粘贴你的学习笔记、知识点列表或课程内容…",
+    "aspect_ratio_label": "信息图宽高比",
+    "resolution_label": "分辨率",
+    "format_label": "输出格式"
+  },
+  "upload": {
+    "loading": "正在读取文件...",
+    "button_label": "从文件读取内容（PDF / Word / TXT）",
+    "button_label_batch": "上传文件（支持批量）",
+    "hint": "也可以直接在下方粘贴或编辑要转换的信息。",
+    "hint_batch": "支持PDF、DOCX、TXT、图片等",
+    "file_info": "已从文件「{fileName}」读取内容，下面文本框中的内容将用于生成信息图。",
+    "file_read_error": "读取文件内容失败，请确认文件未损坏或格式受支持。",
+    "files_selected": "已选择 {count} 个文件",
+    "files_selected_toast": "已选择 {count} 个文件：{types}",
+    "file_type_images": "{count}张图片",
+    "file_type_pdfs": "{count}个PDF",
+    "file_type_docs": "{count}个文档",
+    "file_type_others": "{count}个其他文件",
+    "processing_files": "正在处理 {count} 个文件...",
+    "recognizing_images": "正在识别 {count} 张图片...",
+    "processing_file": "正在处理文件 {current}/{total}: {fileName}...",
+    "processing_single_file": "正在处理文件: {fileName}...",
+    "file_header": "=== 文件 {index}: {fileName} ===",
+    "parse_file_failed": "解析文件 {fileName} 失败:",
+    "parse_failed_message": "[解析失败: {error}]",
+    "extracted_content_header": "=== 从上传文件中提取的内容 ===",
+    "file_count": "{count} 个文件",
+    "separator": "、"
+  },
+  "actions": {
+    "clear": "清空内容",
+    "generate": "生成信息图",
+    "generating": "AI 正在生成信息图任务..."
+  },
+  "result": {
+    "title": "生成结果",
+    "empty_title": "还没有生成结果",
+    "empty_desc": "这里将显示 AI 生成的信息图。",
+    "empty_hint": "提示：生成时间受网络影响，请耐心等待图片加载完成。",
+    "loading": "AI 正在生成信息图，请稍候...",
+    "image_title": "信息图 {index}",
+    "download": "下载图片",
+    "click_to_enlarge": "点击图片可放大查看",
+    "generating": "正在生成...",
+    "status_preparing": "准备资源中...",
+    "status_drawing": "AI 正在绘制...",
+    "status_refining": "正在优化细节..."
+  },
+  "modal": {
+    "image_alt": "放大查看的信息图"
+  },
+  "errors": {
+    "no_content": "请先上传文件或粘贴要转换为信息图的知识内容。",
+    "generate_failed": "生成信息图失败，请稍后重试。",
+    "unknown": "生成信息图时出现未知错误，请稍后重试。",
+    "poll_failed": "查询信息图生成结果时出现错误，请稍后重试。",
+    "timeout": "生成信息图超时，请稍后重试。",
+    "generation_failed": "信息图生成失败，请稍后重试。"
+  }
 }

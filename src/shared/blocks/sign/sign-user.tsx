@@ -58,7 +58,10 @@ export function SignUser({
               variant="ghost"
               className="relative h-10 w-10 rounded-full p-0"
             >
-              <Avatar>
+              <Avatar 
+                isVip={user.membership?.level === 'plus' || user.membership?.level === 'pro'} 
+                vipLevel={user.membership?.level as 'plus' | 'pro'}
+              >
                 <AvatarImage src={user.image || ''} alt={user.name || ''} />
                 <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
               </Avatar>
@@ -118,11 +121,20 @@ export function SignUser({
               </Fragment>
             ))}
 
+            {/* My Library - For Everyone */}
+            <DropdownMenuItem asChild>
+              <Link className="w-full cursor-pointer" href="/library">
+                <LayoutDashboard />
+                {t('my_library')}
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+
             {user.isAdmin && (
               <>
                 <DropdownMenuItem asChild>
                   <Link className="w-full cursor-pointer" href="/admin">
-                    <LayoutDashboard />
+                    <User className="h-4 w-4" />
                     {t('admin_title')}
                   </Link>
                 </DropdownMenuItem>

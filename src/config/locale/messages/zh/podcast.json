@@ -1,58 +1,130 @@
 {
-  "title": "学习播客 - 智能学习",
-  "subtitle": "将您的笔记转换为引人入胜的音频播客，随时随地学习",
+  "title": "AI 播客生成器",
+  "subtitle": "解说万物，一键生成播客 - 将文本、文件或链接转换为专业播客",
   "upload": {
-    "title": "将笔记转换为音频",
-    "subtitle": "适合在通勤、锻炼或休息时学习",
-    "drag_text": "拖拽学习文件到此处或浏览",
-    "supported_formats": "支持所有格式：TXT, PDF, DOC, MD，或直接粘贴文本",
+    "title": "输入内容",
+    "subtitle": "支持文本、文件或网页链接",
+    "drag_text": "拖拽文件到此处，或直接输入/粘贴文本",
+    "paste_link": "或粘贴网页链接",
+    "supported_formats": "支持格式：PDF, TXT, DOCX, EPUB, MD, JPG, JPEG, PNG, WEBP",
+    "supported_platforms": "支持平台",
     "file_selected": "已选择：",
-    "processing": "AI正在创建您的学习播客...",
-    "upload_button": "选择学习文件"
+    "processing": "AI正在创建您的播客...",
+    "upload_button": "选择文件",
+    "input_type": {
+      "text": "文本",
+      "file": "文件",
+      "link": "链接"
+    }
+  },
+  "mode": {
+    "title": "播客模式",
+    "quick": {
+      "name": "速听",
+      "description": "快速生成，效率优先",
+      "duration": "1-2 分钟",
+      "features": "新闻快报、时效性内容",
+      "credits": "5 积分"
+    },
+    "deep": {
+      "name": "精听",
+      "description": "深度分析，内容质量高",
+      "duration": "2-4 分钟",
+      "features": "专业知识分享、深度解读",
+      "credits": "8 积分"
+    },
+    "debate": {
+      "name": "对话",
+      "description": "双主持人讨论形式",
+      "duration": "2-4 分钟",
+      "features": "观点讨论、多角度分析",
+      "credits": "10 积分"
+    }
   },
   "settings": {
     "title": "播客设置",
-    "voice_style": {
-      "label": "语音风格",
-      "professional": "专业播音",
-      "friendly": "友好对话",
-      "academic": "学术讲解"
-    },
-    "duration": {
-      "label": "播客时长",
-      "short": "简短 (3-5分钟)",
-      "medium": "中等 (5-10分钟)",
-      "long": "详细 (10-15分钟)"
-    },
     "language": {
       "label": "播客语言",
-      "chinese": "中文",
-      "english": "英文"
+      "auto": "自动检测",
+      "zh": "中文",
+      "en": "英文",
+      "ja": "日语",
+      "ko": "韩语",
+      "es": "西班牙语",
+      "fr": "法语",
+      "de": "德语"
     },
-    "speed": {
-      "label": "语速",
-      "slow": "缓慢",
-      "normal": "正常",
-      "fast": "快速"
+    "voices": {
+      "label": "音色选择",
+      "speaker1": "说话者 1",
+      "speaker2": "说话者 2（可选）",
+      "placeholder": "选择音色",
+      "custom": "自定义克隆音色",
+      "default": "默认音色"
+    },
+    "speakers": {
+      "label": "人数",
+      "single": "单人播客",
+      "dual": "双人播客"
     }
   },
   "generate": {
     "title": "生成播客",
     "button": "开始生成播客",
     "generating": "AI 正在生成播客...",
+    "querying": "正在查询播客状态...",
     "error": "生成播客时出错，请重试",
-    "success": "播客生成成功！"
+    "success": "播客生成成功！",
+    "pending": "任务已创建，正在处理中...",
+    "processing": "AI 正在处理您的播客..."
   },
   "player": {
     "title": "播客播放器",
     "play": "播放",
     "pause": "暂停",
     "stop": "停止",
-    "download": "下载音频",
-    "share": "分享播客",
-    "current_time": "当前时间",
+    "skip_back": "后退",
+    "skip_forward": "前进",
+    "download": "下载",
+    "share": "分享",
+    "current_time": "当前",
     "total_time": "总时长",
+    "volume": "音量",
     "no_audio": "暂无音频，请先生成播客"
+  },
+  "library": {
+    "title": "我的播客库",
+    "subtitle": "您之前生成的所有播客",
+    "no_podcasts": "还没有播客",
+    "start_creating": "开始创建您的第一个AI播客吧",
+    "created": "创建于",
+    "view_details": "查看详情",
+    "open_library": "打开资料库",
+    "link_description": "集中管理、播放和下载历史播客内容",
+    "total_count": "共 {count} 个播客",
+    "empty_title": "播客库为空",
+    "empty_description": "您还没有生成任何播客。开始创建内容来构建您的播客库。",
+    "create_button": "生成新播客",
+    "back_to_list": "返回播客库"
+  },
+  "libraryPage": {
+    "loading": "加载中...",
+    "delete_confirm": "确定要删除这个播客吗？",
+    "audio_missing": "音频文件不存在",
+    "download_start": "开始下载",
+    "download_fail": "下载失败，请稍后重试",
+    "delete_success": "删除成功",
+    "delete_fail": "删除失败",
+    "load_fail": "加载播客列表失败",
+    "close_player": "关闭播放器",
+    "skip_back": "后退10秒",
+    "skip_forward": "前进10秒",
+    "no_audio": "暂无音频可播放",
+    "not_found": "未找到该播客"
+  },
+  "libraryDetail": {
+    "outline_tab": "大纲笔记",
+    "script_tab": "完整脚本"
   },
   "history": {
     "title": "历史记录",
@@ -64,40 +136,49 @@
     "regenerate": "重新生成"
   },
   "features": {
-    "ai_script": {
-      "title": "AI 脚本生成",
-      "description": "智能生成适合播客的对话脚本"
+    "title": "功能特点",
+    "multi_input": {
+      "title": "支持多种内容",
+      "description": "课程笔记、教材内容、文章链接等"
     },
-    "multiple_voices": {
-      "title": "多种语音风格",
-      "description": "专业、友好、学术等多种风格可选"
+    "ai_optimize": {
+      "title": "AI智能优化",
+      "description": "自动优化语言和语调"
     },
-    "background_music": {
-      "title": "背景音乐",
-      "description": "自动添加适合的背景音乐"
-    },
-    "export_options": {
-      "title": "多种导出格式",
-      "description": "支持 MP3、WAV 等常见音频格式"
+    "anytime": {
+      "title": "随时随地学习",
+      "description": "支持下载和离线收听"
     }
   },
   "tips": {
-    "quality": "提示：上传的笔记质量越高，生成的播客质量越好",
+    "title": "使用提示",
+    "quality": "提示：内容质量越高，生成的播客质量越好",
     "length": "建议：每次上传内容不超过 2000 字以获得最佳效果",
-    "format": "格式：结构化的笔记比纯文本效果更好"
+    "format": "格式：结构化的内容比纯文本效果更好",
+    "platforms": "链接：支持常见视频和文章平台的链接"
   },
   "buttons": {
     "cancel": "取消",
     "confirm": "确认",
     "reset": "重置",
     "save": "保存",
-    "close": "关闭"
+    "close": "关闭",
+    "create": "创作"
   },
   "errors": {
     "upload_failed": "文件上传失败",
     "generation_failed": "播客生成失败",
     "invalid_format": "不支持的文件格式",
     "file_too_large": "文件太大，请选择小于 10MB 的文件",
-    "network_error": "网络错误，请检查连接"
+    "network_error": "网络错误，请检查连接",
+    "no_content": "请输入内容、上传文件或粘贴链接",
+    "insufficient_credits": "积分不足",
+    "not_configured": "ListenHub 未配置，请联系管理员",
+    "select_voices": "请选择至少一个音色"
+  },
+  "credits": {
+    "required": "所需积分",
+    "remaining": "剩余积分",
+    "used": "已使用积分"
   }
 }

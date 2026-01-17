@@ -34,13 +34,13 @@ import { NavItem } from '@/shared/types/blocks/common';
 import { SidebarUser as SidebarUserType } from '@/shared/types/blocks/dashboard';
 
 // SSR/CSR hydration bug fix: Avoid rendering session-dependent UI until mounted on client
-export function SidebarUser({ user }: { user: SidebarUserType }) {
+export function SidebarUser({ user: sidebarConfig }: { user: SidebarUserType }) {
   const t = useTranslations('common.sign');
   const { data: session, isPending } = useSession();
   const { isMobile, open } = useSidebar();
   const router = useRouter();
 
-  const { setIsShowSignModal } = useAppContext();
+  const { setIsShowSignModal, user } = useAppContext();
 
   // This state will ensure rendering only happens after client hydration
   const [hasMounted, setHasMounted] = useState(false);
@@ -50,7 +50,7 @@ export function SidebarUser({ user }: { user: SidebarUserType }) {
 
   const handleSignOut = async () => {
     await signOut();
-    router.push(user.signout_callback || '/sign-in');
+    router.push(sidebarConfig.signout_callback || '/sign-in');
   };
 
   // If not mounted, render placeholder to avoid hydration mismatch
@@ -62,7 +62,7 @@ export function SidebarUser({ user }: { user: SidebarUserType }) {
     );
   }
 
-  if (session?.user) {
+  if (session?.user && user) {
     return (
       <SidebarMenu className="gap-4 px-3">
         <SidebarMenuItem>
@@ -72,22 +72,26 @@ export function SidebarUser({ user }: { user: SidebarUserType }) {
                 size="lg"
                 className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
               >
-                <Avatar className="h-8 w-8 rounded-lg">
+                <Avatar 
+                  className="h-8 w-8 rounded-lg"
+                  isVip={user.membership?.level === 'plus' || user.membership?.level === 'pro'} 
+                  vipLevel={user.membership?.level as 'plus' | 'pro'}
+                >
                   <AvatarImage
-                    src={session?.user?.image || ''}
-                    alt={session?.user?.name}
+                    src={user?.image || ''}
+                    alt={user?.name}
                   />
                   <AvatarFallback className="rounded-lg">
-                    {session?.user?.name?.charAt(0)}
+                    {user?.name?.charAt(0)}
                   </AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-semibold">
-                    {session?.user?.name}
+                    {user?.name}
                   </span>
-                  {user.show_email && (
+                  {sidebarConfig.show_email && (
                     <span className="truncate text-xs">
-                      {session?.user?.email}
+                      {user?.email}
                     </span>
                   )}
                 </div>
@@ -102,22 +106,26 @@ export function SidebarUser({ user }: { user: SidebarUserType }) {
             >
               <DropdownMenuLabel className="p-0 font-normal">
                 <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                  <Avatar className="h-8 w-8 rounded-lg">
+                  <Avatar 
+                    className="h-8 w-8 rounded-lg"
+                    isVip={user.membership?.level === 'plus' || user.membership?.level === 'pro'} 
+                    vipLevel={user.membership?.level as 'plus' | 'pro'}
+                  >
                     <AvatarImage
-                      src={session?.user?.image || ''}
-                      alt={session?.user?.name}
+                      src={user?.image || ''}
+                      alt={user?.name}
                     />
                     <AvatarFallback className="rounded-lg">
-                      {session?.user?.name?.charAt(0) || 'U'}
+                      {user?.name?.charAt(0) || 'U'}
                     </AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-semibold">
-                      {session?.user?.name}
+                      {user?.name}
                     </span>
-                    {user.show_email && (
+                    {sidebarConfig.show_email && (
                       <span className="truncate text-xs">
-                        {session?.user?.email}
+                        {user?.email}
                       </span>
                     )}
                   </div>
@@ -125,7 +133,7 @@ export function SidebarUser({ user }: { user: SidebarUserType }) {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
-                {user.nav?.items.map((item: NavItem | undefined) => (
+                {sidebarConfig.nav?.items.map((item: NavItem | undefined) => (
                   <Fragment key={item?.title || item?.url}>
                     <DropdownMenuItem className="cursor-pointer">
                       <Link
@@ -175,7 +183,7 @@ export function SidebarUser({ user }: { user: SidebarUserType }) {
         <SidebarMenu />
       )}
 
-      <SignModal callbackUrl={user.signin_callback || '/'} />
+      <SignModal callbackUrl={sidebarConfig.signin_callback || '/'} />
     </>
   );
 }

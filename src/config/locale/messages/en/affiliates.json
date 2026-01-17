@@ -1,0 +1,59 @@
+{
+  "title": "Affiliate Program",
+  "description": "Invite friends to use ShipAny Premium and earn rewards.",
+  "invite_card": {
+    "title": "Invite",
+    "badge": "Starter",
+    "description": "Invite users to purchase ShipAny Premium, you will get 20% reward",
+    "copy_button": "Copy Invite Link",
+    "edit_tooltip": "Edit Invite Code"
+  },
+  "reward_card": {
+    "title": "Reward",
+    "badge": "Balance",
+    "description": "Invited {total} users, {paid} paid; Total reward: {totalAmount}, Withdrawn: {withdrawn}, Available: {balance}",
+    "withdraw_button": "Withdraw",
+    "withdraw_dialog": {
+      "title": "Withdraw Funds",
+      "description": "Enter the amount and account details to withdraw.",
+      "amount_label": "Amount",
+      "method_label": "Method",
+      "account_label": "Account",
+      "submit_button": "Submit"
+    }
+  },
+  "panel": {
+    "title": "Affiliates",
+    "subtitle": "My affiliate management",
+    "tabs": {
+      "invitation": "Invitation",
+      "reward": "Reward",
+      "withdraw": "Withdraw"
+    },
+    "invitation_table": {
+      "user": "User",
+      "code": "Code",
+      "time": "Time",
+      "status": "Status",
+      "amount": "Amount",
+      "no_data": "No data"
+    },
+    "reward_table": {
+      "id": "ID",
+      "amount": "Amount",
+      "status": "Status",
+      "type": "Type",
+      "time": "Time",
+      "no_data": "No data"
+    },
+    "withdraw_table": {
+      "id": "ID",
+      "amount": "Amount",
+      "status": "Status",
+      "method": "Method",
+      "time": "Time",
+      "no_data": "No data"
+    }
+  }
+}
+

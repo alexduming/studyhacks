@@ -1,0 +1,14 @@
+{
+  "title": "My Presentations",
+  "subtitle": "All AI slide decks you generated are stored here for quick access.",
+  "buttons": {
+    "new": "New presentation",
+    "empty": "Create presentation"
+  },
+  "empty": {
+    "title": "No presentations yet",
+    "description": "Your generated presentations will appear here. Click the button below to start building your deck.",
+    "button": "Create now"
+  }
+}
+

@@ -1,0 +1,44 @@
+{
+  "header": {
+    "title": "Note editor",
+    "wordCount": "{count} words"
+  },
+  "status": {
+    "saved": "Saved at {time}",
+    "unsaved": "Not saved yet"
+  },
+  "buttons": {
+    "previewTooltip": "Open full preview and export",
+    "preview": "Preview",
+    "saving": "Saving...",
+    "save": "Save changes",
+    "export": "Save as image"
+  },
+  "placeholders": {
+    "title": "Untitled note"
+  },
+  "toolbar": {
+    "paragraph": "Paragraph",
+    "heading1": "Heading 1",
+    "heading2": "Heading 2",
+    "heading3": "Heading 3",
+    "bold": "Bold",
+    "italic": "Italic",
+    "underline": "Underline",
+    "blockquote": "Quote",
+    "color": "Text color"
+  },
+  "labels": {
+    "editorLoading": "Editor is loading...",
+    "previewDialog": "Preview mode"
+  },
+  "toast": {
+    "saveSuccess": "Saved successfully, preview updated",
+    "saveFail": "Failed to save, please try again later",
+    "previewMissing": "Preview area not found",
+    "generating": "Generating image, please wait...",
+    "exportSuccess": "Image saved to your device",
+    "exportFail": "Failed to export image: {message}"
+  }
+}
+
