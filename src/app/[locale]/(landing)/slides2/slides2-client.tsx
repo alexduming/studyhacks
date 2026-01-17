@@ -144,6 +144,7 @@ export default function Slides2Client({
   const { data: session } = useSession();
   const { user } = useAppContext();
   const t = useTranslations('library.sidebar');
+  const t_aippt = useTranslations('aippt');
   const locale = useLocale();
 
   // 判断是否为会员 (Plus 或 Pro)
@@ -245,7 +246,7 @@ export default function Slides2Client({
     },
     onFinish: (_prompt, result) => {
       if (!result?.trim()) {
-        toast.error('自动分页失败：空响应');
+        toast.error(t_aippt('v2.empty_response'));
         return;
       }
       try {
@@ -262,22 +263,23 @@ export default function Slides2Client({
         const nextSlides: SlideData[] = parsed.map(
           (item: any, idx: number) => ({
             id: `slide-${Date.now()}-${idx}`,
-            title: item.title || `第 ${idx + 1} 页`,
+            title:
+              item.title || `${t_aippt('outline_step.slide_title')} ${idx + 1}`,
             content: item.content || '',
             status: 'pending',
           })
         );
         setSlides(nextSlides);
         setSlideCount(String(nextSlides.length));
-        toast.success('自动分页完成');
+        toast.success(t_aippt('v2.pagination_completed'));
       } catch (error: any) {
         console.error('Outline parse error', error);
-        toast.error('自动分页结果解析失败：' + error.message);
+        toast.error(t_aippt('v2.parse_failed') + error.message);
       }
     },
     onError: (error) => {
       console.error('Outline error', error);
-      toast.error('自动分页失败：' + error.message);
+      toast.error(t_aippt('v2.pagination_failed') + error.message);
     },
   });
 
@@ -319,7 +321,7 @@ export default function Slides2Client({
           }
         } catch (error) {
           console.error('Failed to load presentation', error);
-          toast.error('加载演示失败，请稍后再试');
+          toast.error(t_aippt('v2.pagination_failed'));
         }
       })();
     }
@@ -360,7 +362,7 @@ export default function Slides2Client({
     const message =
       typeof error?.message === 'string'
         ? error.message
-        : '操作失败，请稍后重试';
+        : t_aippt('errors.general_failed');
     toast.error(message);
   };
 
@@ -372,11 +374,11 @@ export default function Slides2Client({
       (slide) => slide.status === 'completed' && slide.imageUrl
     );
     if (completed.length === 0) {
-      toast.error('还没有生成好的页面');
+      toast.error(t_aippt('v2.no_completed_slides'));
       return;
     }
 
-    toast.loading('正在准备 PDF...', { id: 'pdf' });
+    toast.loading(t_aippt('v2.preparing_pdf'), { id: 'pdf' });
     try {
       const { jsPDF } = await import('jspdf');
       const doc = new jsPDF({
@@ -400,10 +402,10 @@ export default function Slides2Client({
       }
 
       doc.save(`presentation-${Date.now()}.pdf`);
-      toast.success('PDF 下载成功', { id: 'pdf' });
+      toast.success(t_aippt('v2.pdf_success'), { id: 'pdf' });
     } catch (error) {
       console.error('PDF export failed', error);
-      toast.error('PDF 导出失败', { id: 'pdf' });
+      toast.error(t_aippt('v2.pdf_failed'), { id: 'pdf' });
     }
   };
 
@@ -604,7 +606,7 @@ export default function Slides2Client({
     let combined = primaryInput.trim();
     if (inputTab === 'link') {
       if (!primaryInput.trim()) {
-        throw new Error('请先粘贴要解析的链接');
+        throw new Error(t_aippt('v2.link_required'));
       }
       setIsFetchingLink(true);
       try {
@@ -623,7 +625,11 @@ export default function Slides2Client({
         );
         let parsed = '';
         if (allImages) {
-          setParsingProgress(`正在识别 ${uploadedFiles.length} 张图片...`);
+          setParsingProgress(
+            t_aippt('input_step.recognizing_images', {
+              count: uploadedFiles.length,
+            })
+          );
           const formData = new FormData();
           uploadedFiles.forEach((file) => formData.append('files', file));
           parsed = await parseMultipleImagesAction(formData);
@@ -632,7 +638,11 @@ export default function Slides2Client({
           for (let i = 0; i < uploadedFiles.length; i++) {
             const file = uploadedFiles[i];
             setParsingProgress(
-              `解析 ${file.name} (${i + 1}/${uploadedFiles.length})`
+              t_aippt('v2.parsing_file', {
+                name: file.name,
+                current: i + 1,
+                total: uploadedFiles.length,
+              })
             );
             const formData = new FormData();
             formData.append('file', file);
@@ -648,7 +658,7 @@ export default function Slides2Client({
       }
     }
     if (!combined.trim()) {
-      throw new Error('请先输入内容或上传素材');
+      throw new Error(t_aippt('v2.content_required'));
     }
     return combined.trim();
   };
@@ -661,8 +671,8 @@ export default function Slides2Client({
     if (paragraphs.length === 0) {
       return Array.from({ length: 6 }).map((_, idx) => ({
         id: `auto-${Date.now()}-${idx}`,
-        title: `第 ${idx + 1} 页`,
-        content: '自动模式',
+        title: `${t_aippt('outline_step.slide_title')} ${idx + 1}`,
+        content: t_aippt('v2.auto_mode'),
         status: 'pending',
       }));
     }
@@ -672,7 +682,9 @@ export default function Slides2Client({
     const slides: SlideData[] = [];
     for (let i = 0; i < paragraphs.length; i += chunkSize) {
       const chunk = paragraphs.slice(i, i + chunkSize);
-      const title = chunk[0]?.slice(0, 24) || `第 ${slides.length + 1} 页`;
+      const title =
+        chunk[0]?.slice(0, 24) ||
+        `${t_aippt('outline_step.slide_title')} ${slides.length + 1}`;
       slides.push({
         id: `auto-${Date.now()}-${i}`,
         title,
@@ -697,14 +709,14 @@ export default function Slides2Client({
     if (customStylePrompt.trim()) {
       return `Custom style direction: ${customStylePrompt.trim()}`;
     }
-    return '你是一位专家级UI、UX演示设计师，请采用专业、信息密集的PPT视觉系统，并保持一致的排版。';
+    return t_aippt('v2.default_style_prompt');
   };
 
   const buildRegionInstructions = (regions?: RegionDefinition[]) => {
     if (!regions?.length) return null;
     return regions
       .map((region) => {
-        const note = region.note || '请根据整体语境细化画面';
+        const note = region.note || t_aippt('v2.region_note_default');
         const imageLine = region.uploadedUrl
           ? `参考图像：${region.uploadedUrl}`
           : '';
@@ -743,7 +755,10 @@ export default function Slides2Client({
         ? `${AUTO_MODE_PREFIX}\n\n文章内容:\n${options.sourceContent}`
         : null,
       options?.index !== undefined && options?.total !== undefined
-        ? `当前渲染第 ${options.index + 1}/${options.total} 页，需确保整体视觉一致。`
+        ? t_aippt('v2.rendering_page_prompt', {
+            current: options.index + 1,
+            total: options.total,
+          })
         : null,
       `Slide Title: "${slide.title}"`,
       `Key Content:\n${baseContent}`,
@@ -752,7 +767,9 @@ export default function Slides2Client({
       `Inner title alignment: ${innerTitleAlign.toUpperCase()}.`,
       // ⚠️ 移除 AI 生成水印，改为由前端代码添加
       'DO NOT include any visible watermarks or brand text in the generated image. The final watermark will be applied externally.',
-      regionInstruction ? `局部调整指令:\n${regionInstruction}` : null,
+      regionInstruction
+        ? `${t_aippt('v2.regional_edit_instruction')}:\n${regionInstruction}`
+        : null,
       buildStyleInstruction(),
     ]
       .filter(Boolean)
@@ -842,7 +859,7 @@ export default function Slides2Client({
     }
 
     if (!imageUrl) {
-      throw new Error('生成超时，请重试当前页面');
+      throw new Error(t_aippt('v2.generation_timeout'));
     }
 
     setSlides((prev) =>
@@ -883,7 +900,7 @@ export default function Slides2Client({
         return status.data.results[0];
       }
     }
-    throw new Error('生成超时');
+    throw new Error(t_aippt('v2.generation_timeout'));
   };
 
   /**
@@ -911,13 +928,16 @@ export default function Slides2Client({
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `分析失败：HTTP ${response.status}`);
+        throw new Error(
+          errorData.error ||
+            `${t_aippt('errors.general_failed')}: HTTP ${response.status}`
+        );
       }
 
       // 读取流式响应
       const reader = response.body?.getReader();
       if (!reader) {
-        throw new Error('无法读取响应流');
+        throw new Error(t_aippt('errors.general_failed'));
       }
 
       const decoder = new TextDecoder();
@@ -941,13 +961,14 @@ export default function Slides2Client({
 
       const parsed = JSON.parse(clean);
       if (!Array.isArray(parsed)) {
-        throw new Error('AI返回的分页结果格式不正确');
+        throw new Error(t_aippt('errors.invalid_outline'));
       }
 
       // 转换为 SlideData 格式
       return parsed.map((item: any, idx: number) => ({
         id: `slide-${Date.now()}-${idx}`,
-        title: item.title || `第 ${idx + 1} 页`,
+        title:
+          item.title || `${t_aippt('outline_step.slide_title')} ${idx + 1}`,
         content: item.content || '',
         status: 'pending',
       }));
@@ -980,7 +1001,7 @@ export default function Slides2Client({
     try {
       // 🎯 修复：无论什么模式，生成前必须先有大纲
       if (slides.length === 0) {
-        toast.error('请先执行第一步：开始分页');
+        toast.error(t_aippt('v2.step1_first'));
         return;
       }
 
@@ -991,11 +1012,11 @@ export default function Slides2Client({
       try {
         await consumeCreditsAction({
           credits: totalCost,
-          description: `生成 ${slides.length} 页 PPT`,
+          description: t_aippt('style_step.generating'),
         });
       } catch (err: any) {
         if (err.message.includes('Insufficient credits')) {
-          toast.error('积分不足，请充值');
+          toast.error(t_aippt('v2.insufficient_credits'));
           return;
         }
         throw err;
@@ -1006,7 +1027,7 @@ export default function Slides2Client({
       let recordId = presentationRecordId;
       if (!recordId) {
         const record = await createPresentationAction({
-          title: workingSlides[0]?.title || 'AI Slides',
+          title: workingSlides[0]?.title || t_aippt('v2.title'),
           content: JSON.stringify(workingSlides),
           status: 'generating',
           styleId: selectedStyleId || 'custom',
@@ -1073,7 +1094,8 @@ export default function Slides2Client({
             pageMode === 'auto' &&
             (slide.content === 'Wait for generation...' ||
               !slide.content ||
-              slide.title === `Page ${i + 1}`);
+              slide.title ===
+                `${t_aippt('outline_step.slide_title')} ${i + 1}`);
 
           const resultUrl = await generateSlide(slide, {
             cachedStyleImages: sharedStyleImages,
@@ -1126,10 +1148,13 @@ export default function Slides2Client({
             try {
               await refundCreditsAction({
                 credits: costPerSlide,
-                description: `退还失败页面的积分: ${slide.title || '未命名页面'}`,
+                description: `${t_aippt('v2.refund_failed_slide')}: ${slide.title || 'Untitled'}`,
               });
               toast.info(
-                `页面「${slide.title}」生成失败，已退还 ${costPerSlide} 积分`
+                t_aippt('v2.refund_success_hint', {
+                  title: slide.title,
+                  cost: costPerSlide,
+                })
               );
             } catch (refundError) {
               console.error(
@@ -1151,7 +1176,7 @@ export default function Slides2Client({
           });
         } catch (e) {
           console.error('Failed to consume credits for auto generation', e);
-          toast.error('积分扣除异常，请联系客服');
+          toast.error(t_aippt('errors.general_failed'));
         }
       }
 
@@ -1173,7 +1198,7 @@ export default function Slides2Client({
         });
       }
 
-      toast.success('全部页面生成完成');
+      toast.success(t_aippt('v2.all_completed'));
     } catch (error) {
       handleApiError(error);
     } finally {
@@ -1187,10 +1212,10 @@ export default function Slides2Client({
       (slide) => slide.status === 'completed' && slide.imageUrl
     );
     if (completed.length === 0) {
-      toast.error('还没有生成好的页面');
+      toast.error(t_aippt('v2.no_completed_slides'));
       return;
     }
-    toast.loading('正在打包所有图片...', { id: 'zip' });
+    toast.loading(t_aippt('v2.packaging_images'), { id: 'zip' });
     try {
       const JSZip = (await import('jszip')).default;
       const zip = new JSZip();
@@ -1213,10 +1238,10 @@ export default function Slides2Client({
       link.download = `slides-${Date.now()}.zip`;
       link.click();
       URL.revokeObjectURL(url);
-      toast.success('已下载全部图片', { id: 'zip' });
+      toast.success(t_aippt('result_step.download_success'), { id: 'zip' });
     } catch (error) {
       console.error('zip error', error);
-      toast.error('打包失败，请稍后重试', { id: 'zip' });
+      toast.error(t_aippt('result_step.zip_creation_failed'), { id: 'zip' });
     }
   };
 
@@ -1225,10 +1250,10 @@ export default function Slides2Client({
       (slide) => slide.status === 'completed' && slide.imageUrl
     );
     if (completed.length === 0) {
-      toast.error('没有可导出的已完成页面');
+      toast.error(t_aippt('v2.no_completed_slides'));
       return;
     }
-    toast.loading('正在生成 PPTX...', { id: 'pptx' });
+    toast.loading(t_aippt('result_step.generating_pptx'), { id: 'pptx' });
     try {
       const PptxGenJS = (await import('pptxgenjs')).default;
       const pres = new PptxGenJS();
@@ -1248,10 +1273,10 @@ export default function Slides2Client({
       link.download = `presentation-${Date.now()}.pptx`;
       link.click();
       URL.revokeObjectURL(url);
-      toast.success('PPTX 导出成功', { id: 'pptx' });
+      toast.success(t_aippt('v2.pptx_success'), { id: 'pptx' });
     } catch (error) {
       console.error('PPTX export failed', error);
-      toast.error('PPTX 导出失败', { id: 'pptx' });
+      toast.error(t_aippt('v2.pptx_failed'), { id: 'pptx' });
     }
   };
 
@@ -1265,8 +1290,8 @@ export default function Slides2Client({
       ...prev,
       {
         id: `slide-${Date.now()}`,
-        title: `新页面 ${prev.length + 1}`,
-        content: '请在此编写要点',
+        title: `${t_aippt('v2.new_page')} ${prev.length + 1}`,
+        content: t_aippt('v2.content_placeholder'),
         status: 'pending',
       },
     ]);
@@ -1304,7 +1329,11 @@ export default function Slides2Client({
 
   const renderStep1Input = () => (
     <Card className="border-white/5 bg-gradient-to-b from-[#0E1424]/90 to-[#06070D]/90 p-6 text-white shadow-2xl">
-      {renderStepTitle('Step 1', '输入素材', ' ')}
+      {renderStepTitle(
+        `${t_aippt('v2.step_prefix')} 1`,
+        t_aippt('v2.step1_title'),
+        ' '
+      )}
       <div className="space-y-4">
         <section className="space-y-3">
           <Tabs
@@ -1314,13 +1343,13 @@ export default function Slides2Client({
           >
             <TabsList className="mb-4 grid grid-cols-3 rounded-xl bg-white/10 text-white">
               <TabsTrigger className="h-9 text-xs" value="text">
-                TEXT
+                {t_aippt('v2.tab_text')}
               </TabsTrigger>
               <TabsTrigger className="h-9 text-xs" value="upload">
-                UPLOAD
+                {t_aippt('v2.tab_upload')}
               </TabsTrigger>
               <TabsTrigger className="h-9 text-xs" value="link">
-                LINK
+                {t_aippt('v2.tab_link')}
               </TabsTrigger>
             </TabsList>
 
@@ -1329,7 +1358,7 @@ export default function Slides2Client({
                 value={primaryInput}
                 onChange={(e) => setPrimaryInput(e.target.value)}
                 rows={8}
-                placeholder="例如：气候变化的原因和影响..."
+                placeholder={t_aippt('input_step.placeholder')}
                 className="border-white/10 bg-black/30 text-sm text-white"
               />
             </TabsContent>
@@ -1350,7 +1379,7 @@ export default function Slides2Client({
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <FileText className="mr-2 h-4 w-4" />
-                  上传参考图
+                  {t_aippt('v2.upload_reference')}
                 </Button>
                 <input
                   type="file"
@@ -1363,12 +1392,19 @@ export default function Slides2Client({
               {uploadedFiles.length > 0 && (
                 <div className="rounded-xl border border-white/10 bg-black/20 p-4 text-xs">
                   <div className="mb-2 flex items-center justify-between text-white/60">
-                    <span>已选择 {uploadedFiles.length} 个文件</span>
+                    <span>
+                      {
+                        t_aippt('input_step.files_selected_batch', {
+                          count: uploadedFiles.length,
+                          types: '',
+                        }).split(':')[0]
+                      }
+                    </span>
                     <button
                       className="text-white/40 hover:text-white/80"
                       onClick={() => setUploadedFiles([])}
                     >
-                      清空
+                      {t_aippt('v2.clear')}
                     </button>
                   </div>
                   <ScrollArea className="h-24 pr-2">
@@ -1416,7 +1452,7 @@ export default function Slides2Client({
                       primaryInput.trim()
                     );
                     setLinkPreview(text.slice(0, 100));
-                    toast.success('网页内容抓取成功');
+                    toast.success(t_aippt('v2.fetch_success'));
                   } catch (error) {
                     handleApiError(error);
                   } finally {
@@ -1427,17 +1463,17 @@ export default function Slides2Client({
                 {isFetchingLink ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    抓取中...
+                    {t_aippt('v2.fetching')}
                   </>
                 ) : linkPreview ? (
                   <>
                     <Check className="mr-2 h-4 w-4" />
-                    抓取成功
+                    {t_aippt('v2.fetch_success')}
                   </>
                 ) : (
                   <>
                     <RefreshCcw className="mr-2 h-4 w-4" />
-                    抓取网页内容
+                    {t_aippt('v2.fetch_web_content')}
                   </>
                 )}
               </Button>
@@ -1454,10 +1490,12 @@ export default function Slides2Client({
           {/* Header */}
           <div className="flex items-center justify-between">
             <h3 className="text-[11px] font-bold tracking-wider text-indigo-300 uppercase">
-              Page Count
+              {t_aippt('v2.page_count')}
             </h3>
             <span className="text-xs font-medium text-white/70">
-              {pageMode === 'auto' ? 'AI Auto' : `${slideCount} Pages`}
+              {pageMode === 'auto'
+                ? t_aippt('v2.language_auto')
+                : `${slideCount} ${t_aippt('v2.pages')}`}
             </span>
           </div>
 
@@ -1472,7 +1510,7 @@ export default function Slides2Client({
                   : 'text-white/40 hover:text-white/60'
               )}
             >
-              Auto
+              {t_aippt('v2.auto_mode')}
             </button>
             <button
               onClick={() => setPageMode('fixed')}
@@ -1483,7 +1521,7 @@ export default function Slides2Client({
                   : 'text-white/40 hover:text-white/60'
               )}
             >
-              Fixed
+              {t_aippt('v2.fixed_mode')}
             </button>
           </div>
 
@@ -1529,7 +1567,7 @@ export default function Slides2Client({
             {isAnalyzing || isParsingFiles ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                正在分页中...
+                {t_aippt('v2.pagination_in_progress')}
               </>
             ) : (
               <>
@@ -1538,7 +1576,7 @@ export default function Slides2Client({
                   credits={3}
                   className="mr-2 bg-white/20 text-white"
                 />
-                开始分页
+                {t_aippt('v2.start_pagination')}
               </>
             )}
           </Button>
@@ -1564,7 +1602,7 @@ export default function Slides2Client({
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold tracking-wide text-white/80">
-              逐页大纲
+              {t_aippt('v2.outline')}
             </h3>
             <Button
               variant="ghost"
@@ -1573,12 +1611,12 @@ export default function Slides2Client({
               onClick={handleAddSlide}
             >
               <Plus className="mr-1 h-3.5 w-3.5" />
-              新增页面
+              {t_aippt('v2.add_slide')}
             </Button>
           </div>
           {slides.length === 0 ? (
             <Card className="border-dashed border-white/15 bg-black/20 p-5 text-xs text-white/55">
-              暂无大纲
+              {t_aippt('v2.no_outline')}
             </Card>
           ) : (
             <div className="space-y-4">
@@ -1589,13 +1627,13 @@ export default function Slides2Client({
                 >
                   <div className="mb-2 flex items-center justify-between text-[11px] tracking-[0.2em] text-white/45 uppercase">
                     <span>
-                      Page {idx + 1} ·{' '}
+                      {t_aippt('outline_step.slide_title')} {idx + 1} ·{' '}
                       {
                         {
-                          pending: '待生成',
-                          generating: '生成中',
-                          completed: '已完成',
-                          failed: '失败',
+                          pending: t_aippt('result_step.status.pending'),
+                          generating: t_aippt('result_step.status.generating'),
+                          completed: t_aippt('result_step.download_success'),
+                          failed: t_aippt('result_step.status.failed'),
                         }[slide.status]
                       }
                     </span>
@@ -1603,7 +1641,7 @@ export default function Slides2Client({
                       className="hover:text-destructive text-white/40"
                       onClick={() => handleRemoveSlide(slide.id)}
                     >
-                      删除
+                      {t_aippt('v2.remove')}
                     </button>
                   </div>
                   <Input
@@ -1632,12 +1670,18 @@ export default function Slides2Client({
 
   const renderStep2Style = () => (
     <Card className="border-white/5 bg-gradient-to-b from-[#0A1427]/90 to-[#05080F]/90 p-6 text-white shadow-2xl">
-      {renderStepTitle('Step 2', '风格与参数', ' ')}
+      {renderStepTitle(
+        `${t_aippt('v2.step_prefix')} 2`,
+        t_aippt('v2.step2_title'),
+        ' '
+      )}
 
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label className="text-xs text-white/60">输出比例</Label>
+            <Label className="text-xs text-white/60">
+              {t_aippt('v2.output_ratio')}
+            </Label>
             <Select value={aspectRatio} onValueChange={setAspectRatio}>
               <SelectTrigger className="mt-1 border-white/10 bg-black/30 text-white">
                 <SelectValue />
@@ -1652,7 +1696,9 @@ export default function Slides2Client({
             </Select>
           </div>
           <div>
-            <Label className="text-xs text-white/60">分辨率</Label>
+            <Label className="text-xs text-white/60">
+              {t_aippt('v2.resolution')}
+            </Label>
             <Select value={resolution} onValueChange={setResolution}>
               <SelectTrigger className="mt-1 border-white/10 bg-black/30 text-white">
                 <SelectValue />
@@ -1670,7 +1716,9 @@ export default function Slides2Client({
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label className="text-xs text-white/60">语言</Label>
+            <Label className="text-xs text-white/60">
+              {t_aippt('v2.language')}
+            </Label>
             <Select
               value={language}
               onValueChange={(v) => setLanguage(v as any)}
@@ -1679,14 +1727,18 @@ export default function Slides2Client({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-black/90 text-white">
-                <SelectItem value="auto">智能匹配</SelectItem>
-                <SelectItem value="zh">中文</SelectItem>
-                <SelectItem value="en">English</SelectItem>
+                <SelectItem value="auto">
+                  {t_aippt('v2.language_auto')}
+                </SelectItem>
+                <SelectItem value="zh">{t_aippt('v2.language_zh')}</SelectItem>
+                <SelectItem value="en">{t_aippt('v2.language_en')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div>
-            <Label className="text-xs text-white/60">内容控制</Label>
+            <Label className="text-xs text-white/60">
+              {t_aippt('v2.content_control')}
+            </Label>
             <Select
               value={contentControl}
               onValueChange={(v) => setContentControl(v as any)}
@@ -1695,8 +1747,12 @@ export default function Slides2Client({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-black/90 text-white">
-                <SelectItem value="expand">智能扩写</SelectItem>
-                <SelectItem value="strict">遵循大纲</SelectItem>
+                <SelectItem value="expand">
+                  {t_aippt('v2.expand_content')}
+                </SelectItem>
+                <SelectItem value="strict">
+                  {t_aippt('v2.strict_outline')}
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -1704,7 +1760,9 @@ export default function Slides2Client({
 
         <div className="grid grid-cols-1 gap-3">
           <div>
-            <Label className="text-xs text-white/60">标题位置</Label>
+            <Label className="text-xs text-white/60">
+              {t_aippt('v2.title_position')}
+            </Label>
             <div className="mt-2 flex gap-2">
               {(['left', 'center'] as const).map((align) => (
                 <button
@@ -1717,7 +1775,7 @@ export default function Slides2Client({
                   )}
                   onClick={() => setInnerTitleAlign(align)}
                 >
-                  {align.toUpperCase()}
+                  {align === 'left' ? t_aippt('v2.left') : t_aippt('v2.center')}
                 </button>
               ))}
             </div>
@@ -1726,8 +1784,12 @@ export default function Slides2Client({
 
         <div className="space-y-3">
           <div className="flex items-center justify-between text-[11px] tracking-[0.2em] text-white/45 uppercase">
-            <span>风格库 (点击图片预览 & 选择)</span>
-            <span>{SLIDES2_STYLE_PRESETS.length} styles</span>
+            <span>{t_aippt('v2.style_library')}</span>
+            <span>
+              {t_aippt('v2.styles_count', {
+                count: SLIDES2_STYLE_PRESETS.length,
+              })}
+            </span>
           </div>
           <ScrollArea className="h-[400px] w-full pr-2">
             <div className="grid grid-cols-2 gap-3 pr-3">
@@ -1783,7 +1845,7 @@ export default function Slides2Client({
 
         <div>
           <p className="text-[11px] tracking-[0.2em] text-white/45 uppercase">
-            CUSTOM STYLE
+            {t_aippt('v2.custom_style')}
           </p>
           <Textarea
             value={customStylePrompt}
@@ -1792,14 +1854,14 @@ export default function Slides2Client({
               if (e.target.value.trim()) setSelectedStyleId(null);
             }}
             rows={2}
-            placeholder="输入风格描述..."
+            placeholder={t_aippt('v2.style_placeholder')}
             className="mt-2 border-white/10 bg-black/30 text-white"
           />
         </div>
 
         <div>
           <p className="text-[11px] tracking-[0.2em] text-white/45 uppercase">
-            REFERENCE IMAGES
+            {t_aippt('v2.reference_images')}
           </p>
           <div className="mt-2 grid grid-cols-4 gap-2">
             <div className="relative aspect-square">
@@ -1813,7 +1875,7 @@ export default function Slides2Client({
                     ? Array.from(e.target.files)
                     : [];
                   if (files.length + customImageFiles.length > 8) {
-                    toast.error('最多上传 8 张参考图');
+                    toast.error(t_aippt('v2.upload_reference_limit'));
                     return;
                   }
                   setCustomImageFiles((prev) => [...prev, ...files]);
@@ -1866,17 +1928,17 @@ export default function Slides2Client({
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label className="text-sm font-semibold text-white/80">
-                水印控制
+                {t_aippt('v2.watermark_control')}
               </Label>
               <p className="text-xs text-white/40">
-                Plus/Pro 会员可自定义或关闭
+                {t_aippt('v2.watermark_vip_hint')}
               </p>
             </div>
             <Switch
               checked={showWatermark}
               onCheckedChange={(checked) => {
                 if (!isVip) {
-                  toast.info('升级 Plus/Pro 会员即可关闭水印');
+                  toast.info(t('membership_required'));
                   return;
                 }
                 setShowWatermark(checked);
@@ -1884,17 +1946,19 @@ export default function Slides2Client({
             />
           </div>
           <div className="space-y-2">
-            <Label className="text-xs text-white/60">水印文字</Label>
+            <Label className="text-xs text-white/60">
+              {t_aippt('v2.watermark_text')}
+            </Label>
             <Input
               value={watermarkText}
               onChange={(e) => {
                 if (!isVip) {
-                  toast.info('升级 Plus/Pro 会员即可修改水印');
+                  toast.info(t('membership_required'));
                   return;
                 }
                 setWatermarkText(e.target.value);
               }}
-              placeholder="输入水印文字..."
+              placeholder={t_aippt('v2.watermark_text')}
               disabled={!isVip}
               className="border-white/10 bg-black/30 text-xs text-white"
             />
@@ -1922,7 +1986,7 @@ export default function Slides2Client({
               className="mr-2 bg-white/20 text-white"
             />
           )}
-          一键生成
+          {t_aippt('v2.one_click_generate')}
         </Button>
       </div>
     </Card>
@@ -1931,7 +1995,9 @@ export default function Slides2Client({
   const renderSlideCard = (slide: SlideData, index: number) => (
     <Card key={slide.id} className="overflow-hidden bg-white/[0.03] p-4">
       <div className="mb-3 flex items-center justify-between text-xs tracking-[0.2em] text-white/50 uppercase">
-        <span className="text-white/80">Page {index + 1}</span>
+        <span className="text-white/80">
+          {t_aippt('outline_step.slide_title')} {index + 1}
+        </span>
         <Badge
           variant="outline"
           className={cn(
@@ -1944,10 +2010,10 @@ export default function Slides2Client({
         >
           {
             {
-              pending: '待生成',
-              generating: '生成中',
-              completed: '已完成',
-              failed: '失败',
+              pending: t_aippt('result_step.status.pending'),
+              generating: t_aippt('result_step.status.generating'),
+              completed: t_aippt('result_step.download_success'),
+              failed: t_aippt('result_step.status.failed'),
             }[slide.status]
           }
         </Badge>
@@ -1973,15 +2039,15 @@ export default function Slides2Client({
         ) : slide.status === 'generating' ? (
           <div className="flex h-full flex-col items-center justify-center text-sm text-white/60">
             <Loader2 className="mb-2 h-6 w-6 animate-spin" />
-            正在生成...
+            {t_aippt('v2.generating')}
           </div>
         ) : slide.status === 'failed' ? (
           <div className="text-destructive flex h-full flex-col items-center justify-center text-sm">
-            生成失败
+            {t_aippt('errors.generation_failed')}
           </div>
         ) : (
           <div className="flex h-full flex-col items-center justify-center text-sm text-white/60">
-            待生成
+            {t_aippt('result_step.status.pending')}
           </div>
         )}
       </div>
@@ -1994,7 +2060,7 @@ export default function Slides2Client({
           disabled={slide.status === 'generating'}
         >
           <WandSparkles className="mr-1 h-4 w-4" />
-          Edit
+          {t_aippt('v2.edit')}
         </Button>
         <Button
           variant="ghost"
@@ -2004,7 +2070,7 @@ export default function Slides2Client({
           disabled={!slideHistories[slide.id]?.length}
         >
           <History className="mr-1 h-4 w-4" />
-          History
+          {t_aippt('v2.history')}
         </Button>
       </div>
     </Card>
@@ -2013,7 +2079,11 @@ export default function Slides2Client({
   const renderStep3Preview = () => (
     <div className="space-y-4">
       <Card className="border-white/5 bg-gradient-to-b from-[#0B0F1D]/90 to-[#040609]/90 p-5 text-white shadow-2xl">
-        {renderStepTitle('Step 3', '生成预览', ' ')}
+        {renderStepTitle(
+          `${t_aippt('v2.step_prefix')} 3`,
+          t_aippt('v2.step3_title'),
+          ' '
+        )}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 p-4">
           <div className="flex flex-wrap gap-2">
             <Button
@@ -2023,7 +2093,7 @@ export default function Slides2Client({
               onClick={handleDownloadPDF}
             >
               <FileText className="mr-2 h-4 w-4" />
-              下载为 PDF
+              {t_aippt('v2.download_pdf')}
             </Button>
             <Button
               variant="ghost"
@@ -2032,7 +2102,7 @@ export default function Slides2Client({
               onClick={handleDownloadImages}
             >
               <Images className="mr-2 h-4 w-4" />
-              下载全部图片
+              {t_aippt('v2.download_images')}
             </Button>
             <Button
               variant="ghost"
@@ -2041,7 +2111,7 @@ export default function Slides2Client({
               onClick={handleDownloadPPTX}
             >
               <Download className="mr-2 h-4 w-4" />
-              导出 PPTX
+              {t_aippt('v2.export_pptx')}
             </Button>
           </div>
           <Button
@@ -2052,18 +2122,18 @@ export default function Slides2Client({
             disabled
             style={{ display: 'none' }}
           >
-            查看历史演示
+            {t('presentation_history')}
           </Button>
         </div>
         {autoPlanning && (
           <div className="mb-4 rounded-xl border border-dashed border-white/10 bg-black/20 px-4 py-3 text-sm text-white/70">
             <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />
-            正在根据全文自动规划页数...
+            {t_aippt('v2.planning_pages')}
           </div>
         )}
         {slides.length === 0 ? (
           <Card className="border-dashed border-white/15 bg-white/[0.03] p-10 text-center text-sm text-white/55">
-            等待生成结果
+            {t_aippt('v2.waiting_for_generation')}
           </Card>
         ) : (
           <div className="space-y-4">
@@ -2298,7 +2368,7 @@ export default function Slides2Client({
                 )
               }
             >
-              删除
+              {t_aippt('v2.remove')}
             </button>
           </div>
           <Textarea
@@ -2313,7 +2383,7 @@ export default function Slides2Client({
               )
             }
             rows={2}
-            placeholder="描述修改需求..."
+            placeholder={t_aippt('v2.describe_edit_placeholder')}
             className="focus:border-primary/30 border-white/5 bg-white/[0.02] text-xs text-white/80 placeholder:text-white/30 focus:bg-white/[0.04]"
           />
           <Input
@@ -2371,7 +2441,7 @@ export default function Slides2Client({
           }}
         >
           <Crop className="mr-2 h-3.5 w-3.5" />
-          添加选区
+          {t_aippt('v2.add_region_button')}
         </Button>
       )}
     </div>
@@ -2385,11 +2455,15 @@ export default function Slides2Client({
       <Dialog open onOpenChange={() => setHistorySlideId(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>「{slide?.title}」历史记录</DialogTitle>
+            <DialogTitle>
+              {t_aippt('v2.history_title', { title: slide?.title || '' })}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             {records.length === 0 ? (
-              <p className="text-muted-foreground text-sm">暂无历史版本</p>
+              <p className="text-muted-foreground text-sm">
+                {t_aippt('v2.no_history')}
+              </p>
             ) : (
               records.map((entry) => (
                 <div
@@ -2418,7 +2492,7 @@ export default function Slides2Client({
                           )
                         }
                       >
-                        下载
+                        {t_aippt('result_step.download')}
                       </Button>
                       <Button
                         size="sm"
@@ -2437,7 +2511,7 @@ export default function Slides2Client({
                           setHistorySlideId(null);
                         }}
                       >
-                        设为当前
+                        {t_aippt('v2.set_current')}
                       </Button>
                     </div>
                   </div>
@@ -2492,14 +2566,14 @@ export default function Slides2Client({
                   {/* 2. 文案修改区 */}
                   <div className="shrink-0 space-y-3">
                     <Label className="text-sm font-medium text-white/70">
-                      文案修改
+                      {t_aippt('v2.edit_text_label')}
                     </Label>
                     <Textarea
                       value={editingPrompt}
                       onChange={(e) => setEditingPrompt(e.target.value)}
                       rows={4}
                       className="focus:border-primary/30 min-h-[100px] w-full resize-none rounded-xl border-white/10 bg-white/[0.03] p-4 text-sm leading-relaxed text-white/90 transition-all placeholder:text-white/30 focus:bg-white/[0.05] focus:ring-0"
-                      placeholder="输入新的文案要点..."
+                      placeholder={t_aippt('v2.edit_text_placeholder')}
                     />
                   </div>
                 </div>
@@ -2510,10 +2584,10 @@ export default function Slides2Client({
                 <div className="flex min-h-0 flex-1 flex-col p-6">
                   <div className="mb-6">
                     <Label className="text-sm font-medium text-white/70">
-                      局部修改指令
+                      {t_aippt('v2.edit_dialog_title')}
                     </Label>
                     <p className="mt-1 text-xs leading-relaxed text-white/50">
-                      描述框选区域的修改需求
+                      {t_aippt('v2.edit_dialog_desc')}
                     </p>
                   </div>
 
@@ -2523,7 +2597,7 @@ export default function Slides2Client({
                         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-white/5 bg-white/[0.01] py-16 text-center">
                           <Plus className="mb-3 h-6 w-6 text-white/20" />
                           <p className="text-xs text-white/40">
-                            在左侧图片中拖拽创建选区
+                            {t_aippt('v2.drag_to_select')}
                           </p>
                         </div>
                       ) : (
@@ -2541,7 +2615,7 @@ export default function Slides2Client({
                     onClick={async () => {
                       if (!editingSlide) return;
                       setPendingEditSubmit(true);
-                      toast.loading('正在重新生成...', {
+                      toast.loading(t_aippt('v2.generating'), {
                         id: editingSlide.id,
                       });
                       try {
@@ -2549,12 +2623,14 @@ export default function Slides2Client({
                           overrideContent: editingPrompt,
                           regions: editRegions,
                         });
-                        toast.success('重新生成成功', {
+                        toast.success(t_aippt('result_step.download_success'), {
                           id: editingSlide.id,
                         });
                       } catch (error) {
                         handleApiError(error);
-                        toast.error('生成失败', { id: editingSlide.id });
+                        toast.error(t_aippt('result_step.status.failed'), {
+                          id: editingSlide.id,
+                        });
                       } finally {
                         setPendingEditSubmit(false);
                         setEditingSlide(null);
@@ -2566,7 +2642,7 @@ export default function Slides2Client({
                     ) : (
                       <WandSparkles className="mr-2 h-5 w-5" />
                     )}
-                    重新生成
+                    {t_aippt('v2.re_generate')}
                   </Button>
                 </div>
               </div>
@@ -2581,7 +2657,7 @@ export default function Slides2Client({
    * 🎯 详情页视图 (参考 podcasts 详情页风格，使用 ConsoleLayout)
    */
   const renderDetailView = () => {
-    const title = t('title');
+    const title = t_aippt('v2.presentation_detail');
     const nav = t.raw('nav');
     const topNav = t.raw('top_nav');
 
@@ -2601,7 +2677,7 @@ export default function Slides2Client({
               onClick={() => router.push('/library/presentations')}
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to library
+              {t_aippt('v2.back_to_library')}
             </Button>
 
             <div className="space-y-4">
@@ -2625,7 +2701,8 @@ export default function Slides2Client({
               </div>
 
               <h1 className="text-3xl leading-tight font-bold tracking-tight sm:text-4xl">
-                {initialPresentation?.title || '演示文档详情'}
+                {initialPresentation?.title ||
+                  t_aippt('v2.presentation_detail')}
               </h1>
             </div>
           </div>
@@ -2638,7 +2715,7 @@ export default function Slides2Client({
               onClick={handleDownloadPDF}
             >
               <FileText className="mr-2 h-4 w-4" />
-              下载 PDF
+              {t_aippt('v2.download_pdf')}
             </Button>
             <Button
               variant="outline"
@@ -2646,7 +2723,7 @@ export default function Slides2Client({
               onClick={handleDownloadPPTX}
             >
               <Download className="mr-2 h-4 w-4" />
-              导出 PPTX
+              {t_aippt('v2.export_pptx')}
             </Button>
             <Button
               variant="outline"
@@ -2654,14 +2731,14 @@ export default function Slides2Client({
               onClick={handleDownloadImages}
             >
               <Images className="mr-2 h-4 w-4" />
-              下载图片集
+              {t_aippt('v2.download_images')}
             </Button>
             <Button
               className="h-11 rounded-xl px-8 font-bold"
               onClick={() => setViewMode('studio')}
             >
               <WandSparkles className="mr-2 h-4 w-4" />
-              Edit (进入编辑器)
+              {t_aippt('v2.edit_in_studio')}
             </Button>
           </div>
 
@@ -2683,6 +2760,7 @@ export default function Slides2Client({
                         fill
                         className="object-cover transition-transform group-hover:scale-105"
                         unoptimized
+                        onClick={() => setLightboxUrl(slide.imageUrl!)}
                       />
                       {showWatermark && (
                         <div className="absolute right-3 bottom-3 z-10 rounded bg-black/40 px-2 py-1 text-[10px] text-white/60 backdrop-blur-sm">
@@ -2693,7 +2771,7 @@ export default function Slides2Client({
                   ) : (
                     <div className="text-muted-foreground flex h-full flex-col items-center justify-center text-xs">
                       <Images className="mb-2 h-8 w-8 opacity-20" />
-                      未生成图片
+                      {t_aippt('v2.no_images_generated')}
                     </div>
                   )}
                   <div className="bg-background/80 text-foreground absolute top-3 left-3 flex h-6 w-6 items-center justify-center rounded-lg text-[10px] font-bold backdrop-blur-md">
@@ -2745,7 +2823,7 @@ export default function Slides2Client({
           <div className="mx-auto max-w-[1500px] px-4 pt-24 pb-12 lg:px-8">
             <div className="relative mb-10 flex items-center justify-center">
               <h1 className="bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-4xl font-bold text-transparent md:text-5xl">
-                AI Slides Studio
+                {t_aippt('v2.title')}
               </h1>
               {presentationId && (
                 <Button
@@ -2753,7 +2831,7 @@ export default function Slides2Client({
                   onClick={() => setViewMode('preview')}
                   className="absolute right-0 text-white/40 hover:text-white"
                 >
-                  返回预览模式
+                  {t_aippt('v2.back_to_preview')}
                 </Button>
               )}
             </div>
