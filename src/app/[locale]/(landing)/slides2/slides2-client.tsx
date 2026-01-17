@@ -282,6 +282,18 @@ export default function Slides2Client({
   });
 
   useEffect(() => {
+    if (logRef.current) {
+      const scrollArea = logRef.current;
+      const scrollContainer = scrollArea.querySelector(
+        '[data-radix-scroll-area-viewport]'
+      );
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      }
+    }
+  }, [completion, parsingProgress]);
+
+  useEffect(() => {
     if (initialPresentation && initialPresentation.id === presentationId) {
       return;
     }
@@ -874,12 +886,89 @@ export default function Slides2Client({
     throw new Error('生成超时');
   };
 
+  /**
+   * 调用 analyze-ppt API 让AI决定分页数和每页内容
+   * 非程序员解释：
+   * - 这个函数会调用AI分析接口，让AI根据内容智能决定应该分成几页
+   * - 返回AI分析后的分页结果（每页的标题和内容）
+   */
+  const analyzeContentForPagination = async (
+    content: string,
+    preferredSlideCount?: number
+  ): Promise<SlideData[]> => {
+    try {
+      // 调用 analyze-ppt API，不使用流式，直接等待完整结果
+      const response = await fetch('/api/ai/analyze-ppt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: content,
+          slideCount: preferredSlideCount,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `分析失败：HTTP ${response.status}`);
+      }
+
+      // 读取流式响应
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('无法读取响应流');
+      }
+
+      const decoder = new TextDecoder();
+      let result = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        result += decoder.decode(value, { stream: true });
+      }
+
+      // 解析JSON结果
+      let clean = result
+        .replace(/```json/gi, '')
+        .replace(/```/g, '')
+        .trim();
+      const first = clean.indexOf('[');
+      if (first > -1) clean = clean.slice(first);
+      const last = clean.lastIndexOf(']');
+      if (last > -1) clean = clean.slice(0, last + 1);
+
+      const parsed = JSON.parse(clean);
+      if (!Array.isArray(parsed)) {
+        throw new Error('AI返回的分页结果格式不正确');
+      }
+
+      // 转换为 SlideData 格式
+      return parsed.map((item: any, idx: number) => ({
+        id: `slide-${Date.now()}-${idx}`,
+        title: item.title || `第 ${idx + 1} 页`,
+        content: item.content || '',
+        status: 'pending',
+      }));
+    } catch (error: any) {
+      console.error('分析内容分页失败:', error);
+      throw error;
+    }
+  };
+
   const handleAutoPaginate = async () => {
     try {
       setSlides([]);
       setCompletion('');
       const payload = await gatherAllInputContent();
-      complete(payload);
+      // 🚀 触发流式分页分析
+      complete(payload, {
+        body: {
+          slideCount:
+            pageMode === 'fixed' ? parseInt(slideCount) || 10 : undefined,
+        },
+      });
     } catch (error) {
       handleApiError(error);
     }
@@ -889,60 +978,30 @@ export default function Slides2Client({
     // 🚀 立即设置生成状态，提升 UI 响应速度，防止重复点击
     setIsGenerating(true);
     try {
+      // 🎯 修复：无论什么模式，生成前必须先有大纲
+      if (slides.length === 0) {
+        toast.error('请先执行第一步：开始分页');
+        return;
+      }
+
       // 1. 检查积分 & 扣除 (自动模式将在生成后扣除)
       const costPerSlide = resolution === '4K' ? 12 : 6;
-      let totalCost = 0;
+      let totalCost = slides.length * costPerSlide;
 
-      if (pageMode !== 'auto') {
-        if (slides.length === 0) {
-          throw new Error('请先完成分页或添加至少一页内容');
+      try {
+        await consumeCreditsAction({
+          credits: totalCost,
+          description: `生成 ${slides.length} 页 PPT`,
+        });
+      } catch (err: any) {
+        if (err.message.includes('Insufficient credits')) {
+          toast.error('积分不足，请充值');
+          return;
         }
-        totalCost = slides.length * costPerSlide;
-        try {
-          await consumeCreditsAction({
-            credits: totalCost,
-            description: `生成 ${slides.length} 页 PPT`,
-          });
-        } catch (err: any) {
-          if (err.message.includes('Insufficient credits')) {
-            toast.error('积分不足，请充值');
-            return;
-          }
-          throw err;
-        }
+        throw err;
       }
 
-      let workingSlides: SlideData[] = [];
-
-      if (pageMode === 'auto') {
-        setAutoPlanning(true);
-        const content = await gatherAllInputContent();
-        autoSourceRef.current = content;
-
-        // 根据内容长度估算页数 (6-12页)
-        const contentLength = content.length;
-        const estimatedCount = Math.min(
-          12,
-          Math.max(6, 6 + Math.floor(contentLength / 300))
-        );
-
-        workingSlides = Array.from({ length: estimatedCount }).map((_, i) => ({
-          id: `slide-${Date.now()}-${i}`,
-          title: `Page ${i + 1}`,
-          content: 'Wait for generation...',
-          status: 'pending',
-        }));
-        setSlides(workingSlides);
-        setAutoPlanning(false);
-      } else {
-        workingSlides = [...slides];
-      }
-
-      const creditsNeeded =
-        workingSlides.length * (resolution === '4K' ? 12 : 6);
-
-      // Auto mode consumes credits AFTER generation
-      // But we still create record first
+      let workingSlides: SlideData[] = [...slides];
 
       let recordId = presentationRecordId;
       if (!recordId) {
@@ -1006,10 +1065,21 @@ export default function Slides2Client({
           )
         );
         try {
+          // 🎯 优化：在自动模式下，如果已经有AI分析的分页结果（slide有具体内容），就不传完整内容
+          // 非程序员解释：
+          // - 如果AI已经分析好了每页的标题和内容，就直接用这些内容生成，不需要再传完整内容
+          // - 只有在降级方案（AI分析失败，使用占位符）时，才需要传完整内容让NANO BANANA PRO自己推断
+          const shouldUseSourceContent =
+            pageMode === 'auto' &&
+            (slide.content === 'Wait for generation...' ||
+              !slide.content ||
+              slide.title === `Page ${i + 1}`);
+
           const resultUrl = await generateSlide(slide, {
             cachedStyleImages: sharedStyleImages,
-            sourceContent:
-              pageMode === 'auto' ? autoSourceRef.current : undefined,
+            sourceContent: shouldUseSourceContent
+              ? autoSourceRef.current
+              : undefined,
             index: i, // 始终传递index，用于视觉一致性
             total: workingSlides.length, // 始终传递total
             // 🎯 从第三页（index 2）开始，使用锚定图片（锚定源为index 1）
@@ -1380,74 +1450,98 @@ export default function Slides2Client({
           </Tabs>
         </section>
 
-        <section className="mt-4 space-y-3 border-t border-white/10 pt-4">
-          <div className="flex items-center justify-between text-xs text-white/55">
-            <span>分页策略</span>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant={pageMode === 'auto' ? 'default' : 'ghost'}
-              size="sm"
-              className="h-9 flex-1 rounded-xl"
-              onClick={() => setPageMode('auto')}
-            >
-              自动模式
-            </Button>
-            <Button
-              variant={pageMode === 'fixed' ? 'default' : 'ghost'}
-              size="sm"
-              className="h-9 flex-1 rounded-xl"
-              onClick={() => setPageMode('fixed')}
-            >
-              固定模式
-            </Button>
+        <section className="mt-4 space-y-4 border-t border-white/10 pt-4">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <h3 className="text-[11px] font-bold tracking-wider text-indigo-300 uppercase">
+              Page Count
+            </h3>
+            <span className="text-xs font-medium text-white/70">
+              {pageMode === 'auto' ? 'AI Auto' : `${slideCount} Pages`}
+            </span>
           </div>
 
-          {pageMode === 'auto' ? (
-            <div className="space-y-2">
-              <p className="text-[12px] text-white/45">
-                由模型根据整篇素材自动规划页数（≤15 页），生成时直接生图。
-              </p>
-              {autoSourceRef.current && (
-                <ScrollArea className="h-40 w-full rounded-xl border border-white/10 bg-black/20 p-3">
-                  <p className="text-xs whitespace-pre-wrap text-white/60">
-                    {autoSourceRef.current.slice(0, 100)}
-                    {autoSourceRef.current.length > 100 && '...'}
-                  </p>
-                </ScrollArea>
+          {/* Toggle Buttons */}
+          <div className="flex rounded-xl bg-black/40 p-1">
+            <button
+              onClick={() => setPageMode('auto')}
+              className={cn(
+                'flex-1 rounded-lg py-1.5 text-xs font-medium transition-all',
+                pageMode === 'auto'
+                  ? 'bg-indigo-600 text-white shadow-lg'
+                  : 'text-white/40 hover:text-white/60'
               )}
-            </div>
-          ) : (
-            <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-              <div>
-                <Label className="text-[11px] text-white/50">预期页数</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={slideCount}
-                  onChange={(e) => setSlideCount(e.target.value)}
-                  className="mt-1 h-10 rounded-xl border-white/10 bg-black/30 text-lg font-semibold"
+            >
+              Auto
+            </button>
+            <button
+              onClick={() => setPageMode('fixed')}
+              className={cn(
+                'flex-1 rounded-lg py-1.5 text-xs font-medium transition-all',
+                pageMode === 'fixed'
+                  ? 'bg-indigo-600 text-white shadow-lg'
+                  : 'text-white/40 hover:text-white/60'
+              )}
+            >
+              Fixed
+            </button>
+          </div>
+
+          {/* Slider & Input Group */}
+          <div
+            className={cn(
+              'flex items-center gap-4 transition-all duration-300',
+              pageMode === 'auto'
+                ? 'pointer-events-none opacity-20'
+                : 'opacity-100'
+            )}
+          >
+            <input
+              type="range"
+              min="1"
+              max="30"
+              step="1"
+              value={slideCount}
+              onChange={(e) => setSlideCount(e.target.value)}
+              className="h-1.5 flex-1 cursor-pointer appearance-none rounded-lg bg-white/10 accent-indigo-500"
+            />
+            <input
+              type="number"
+              min="1"
+              max="30"
+              value={slideCount}
+              onChange={(e) => {
+                const val = parseInt(e.target.value);
+                if (!isNaN(val)) {
+                  setSlideCount(String(Math.min(30, Math.max(1, val))));
+                }
+              }}
+              className="h-8 w-12 rounded-lg border border-white/10 bg-black/40 text-center text-xs font-bold text-white outline-none focus:border-indigo-500/50"
+            />
+          </div>
+
+          {/* Start Pagination Button */}
+          <Button
+            className="h-10 w-full rounded-xl bg-indigo-600 text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-500"
+            onClick={handleAutoPaginate}
+            disabled={isAnalyzing || isParsingFiles || isFetchingLink}
+          >
+            {isAnalyzing || isParsingFiles ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                正在分页中...
+              </>
+            ) : (
+              <>
+                {/* 显示自动分页功能消耗的积分额度：3积分 */}
+                <CreditsCost
+                  credits={3}
+                  className="mr-2 bg-white/20 text-white"
                 />
-              </div>
-              <Button
-                className="mt-5 h-10 rounded-xl"
-                onClick={handleAutoPaginate}
-                disabled={isAnalyzing || isParsingFiles || isFetchingLink}
-              >
-                {isAnalyzing || isParsingFiles ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    拆页中
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    自动分页
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
+                开始分页
+              </>
+            )}
+          </Button>
         </section>
 
         {(parsingProgress || completion) && (
