@@ -430,6 +430,56 @@ export default function AIPPTClient({ initialPresentation }: AIPPTClientProps) {
       .catch((error) => console.error('Download failed:', error));
   };
 
+  /**
+   * 🎯 辅助函数：加载图片
+   */
+  const loadImage = (url: string): Promise<HTMLImageElement> => {
+    return new Promise((resolve, reject) => {
+      const img = new window.Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = url;
+    });
+  };
+
+  /**
+   * 🎯 下载为 PDF
+   */
+  const handleDownloadPDF = async () => {
+    const completed = slides.filter(
+      (slide) => slide.status === 'completed' && slide.imageUrl
+    );
+    if (completed.length === 0) {
+      toast.error('还没有生成好的页面');
+      return;
+    }
+
+    toast.loading('正在准备 PDF...', { id: 'pdf-download' });
+    try {
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'px',
+        format: [1280, 720], // 16:9 比例
+      });
+
+      for (let i = 0; i < completed.length; i++) {
+        const slide = completed[i];
+        if (i > 0) doc.addPage([1280, 720], 'landscape');
+
+        const img = await loadImage(slide.imageUrl!);
+        doc.addImage(img, 'PNG', 0, 0, 1280, 720);
+      }
+
+      doc.save(`presentation-${Date.now()}.pdf`);
+      toast.success('PDF 下载成功', { id: 'pdf-download' });
+    } catch (error) {
+      console.error('PDF export failed', error);
+      toast.error('PDF 导出失败', { id: 'pdf-download' });
+    }
+  };
+
   const handleDownloadImages = async () => {
     try {
       const completedSlides = slides.filter(
@@ -1890,6 +1940,10 @@ export default function AIPPTClient({ initialPresentation }: AIPPTClientProps) {
 
           {slides.some((s) => s.status === 'completed') && (
             <>
+              <Button variant="secondary" onClick={handleDownloadPDF}>
+                <FileText className="mr-2 h-4 w-4" />{' '}
+                下载为 PDF
+              </Button>
               <Button variant="secondary" onClick={handleDownloadPPTX}>
                 <Presentation className="mr-2 h-4 w-4" />{' '}
                 {t('result_step.download_pptx')}

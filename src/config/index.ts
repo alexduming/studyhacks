@@ -129,5 +129,14 @@ export const envConfigs = {
   // - API 文档：https://blog.listenhub.ai/openapi-docs
   listenhub_enabled: process.env.LISTENHUB_ENABLED ?? 'false', // 是否启用 ListenHub
   listenhub_api_key: process.env.LISTENHUB_API_KEY ?? '', // ListenHub API Key
-  listenhub_base_url: process.env.LISTENHUB_BASE_URL ?? 'https://api.marswave.ai', // ListenHub API 基础 URL
+  listenhub_base_url:
+    process.env.LISTENHUB_BASE_URL ?? 'https://api.marswave.ai', // ListenHub API 基础 URL
+
+  // ====== Slides 功能配置 ======
+  // 非程序员解释：
+  // - 控制 /slides 路由使用哪个版本的组件
+  // - 设置为 'true' 时，/slides 会使用 slides2 的新版本组件
+  // - 设置为 'false' 或未设置时，使用原来的 AIPPTClient 组件
+  // - 可以通过环境变量 SLIDES_USE_V2=true 来切换，无需修改代码
+  slides_use_v2: process.env.SLIDES_USE_V2 ?? 'false', // 是否在 /slides 路由使用 slides2 版本
 };

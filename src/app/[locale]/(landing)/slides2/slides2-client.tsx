@@ -1926,6 +1926,15 @@ export default function Slides2Client({
               variant="ghost"
               size="sm"
               className="h-9 rounded-full px-4 text-xs"
+              onClick={handleDownloadPDF}
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              下载为 PDF
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-9 rounded-full px-4 text-xs"
               onClick={handleDownloadImages}
             >
               <Images className="mr-2 h-4 w-4" />
@@ -2544,6 +2553,14 @@ export default function Slides2Client({
             >
               <Download className="mr-2 h-4 w-4" />
               导出 PPTX
+            </Button>
+            <Button
+              variant="outline"
+              className="h-11 rounded-xl px-6"
+              onClick={handleDownloadImages}
+            >
+              <Images className="mr-2 h-4 w-4" />
+              下载图片集
             </Button>
             <Button
               className="h-11 rounded-xl px-8 font-bold"
