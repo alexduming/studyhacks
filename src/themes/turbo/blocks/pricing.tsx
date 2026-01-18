@@ -329,41 +329,46 @@ export function Pricing({
           - 点击 "Pay monthly" 会显示所有月付方案（group === 'monthly'）
           - 点击 "Pay yearly" 会显示所有年付方案（group === 'yearly'）
           - 选中的按钮会高亮显示，未选中的按钮显示为灰色
+          - 年付按钮右上角显示 "Save 30%" 标签，突出显示优惠
         */}
         {pricing.groups && pricing.groups.length > 0 && (
           <div className="mx-auto mt-8 mb-16 flex w-full justify-center md:max-w-lg">
-            <div className="border-border/60 bg-muted/60 inline-flex items-center gap-2 rounded-full border px-1 py-1 text-xs">
+            <div className="border-border/60 bg-muted/60 inline-flex items-center gap-2 rounded-full border px-1 py-1 text-xs overflow-visible">
               {/* 月付按钮 */}
               <button
                 type="button"
                 onClick={() => setGroup('monthly')}
                 className={cn(
-                  'rounded-full px-3 py-1 text-xs font-medium transition-colors',
+                  'rounded-full px-3 py-1 text-sm font-medium transition-colors',
                   group === 'monthly'
                     ? 'bg-primary text-primary-foreground'
                     : 'text-muted-foreground hover:text-foreground'
                 )}
               >
-                Pay monthly
+                {t('pay_monthly')}
               </button>
 
               {/* 中间提示文案：年付更省钱（仅在中等以上屏幕显示） */}
-              <span className="text-muted-foreground hidden text-[11px] md:inline">
-                Save more with annual billing
+              <span className="text-muted-foreground hidden text-[14px] md:inline">
+                {t('save_more_with_annual_billing')}
               </span>
 
-              {/* 年付按钮 */}
+              {/* 年付按钮 - 右上角添加 "Save 30%" 标签 */}
               <button
                 type="button"
                 onClick={() => setGroup('yearly')}
                 className={cn(
-                  'rounded-full px-3 py-1 text-xs font-medium transition-colors',
+                  'relative rounded-full px-3 py-1 text-sm font-medium transition-colors overflow-visible',
                   group === 'yearly'
                     ? 'bg-primary text-primary-foreground'
                     : 'text-muted-foreground hover:text-foreground'
                 )}
               >
-                Pay yearly
+                {t('pay_yearly')}
+                {/* 右上角 "Save 30%" 标签，悬浮在按钮右上角，有微微重叠但不遮挡文字 */}
+                <span className="absolute right-0 top-0 z-10 -translate-y-4/5 translate-x-1/2 rounded-full bg-emerald-500 px-1.5 py-0.5 text-[16px] font-bold text-white shadow-md whitespace-nowrap">
+                  {t('save_30_percent')}
+                </span>
               </button>
             </div>
           </div>
@@ -410,12 +415,12 @@ export function Pricing({
                       )}
                     >
                       {item.interval === 'year'
-                        ? 'Pay annually'
-                        : 'Pay monthly'}
+                        ? t('pay_annually')
+                        : t('pay_monthly')}
                     </span>
                     {item.interval === 'year' && (
                       <span className="rounded-full bg-emerald-400 px-2 py-0.5 text-[11px] font-bold text-emerald-950">
-                        Save 30%
+                        {t('save_30_percent')}
                       </span>
                     )}
                   </div>

@@ -1319,16 +1319,16 @@ export default function Slides2Client({
     description: string
   ) => (
     <div className="mb-2 space-y-1">
-      <p className="text-xs font-semibold tracking-[0.4em] text-white/40 uppercase">
+      <p className="text-xs font-semibold tracking-[0.4em] text-muted-foreground uppercase">
         {label}
       </p>
-      <h2 className="text-2xl font-semibold">{title}</h2>
-      <p className="text-sm text-white/60">{description}</p>
+      <h2 className="text-2xl font-semibold text-foreground">{title}</h2>
+      <p className="text-sm text-muted-foreground">{description}</p>
     </div>
   );
 
   const renderStep1Input = () => (
-    <Card className="border-white/5 bg-gradient-to-b from-[#0E1424]/90 to-[#06070D]/90 p-6 text-white shadow-2xl">
+    <Card className="border-border bg-gradient-to-b from-card/90 to-muted/90 p-6 text-foreground shadow-2xl dark:from-[#0E1424]/90 dark:to-[#06070D]/90">
       {renderStepTitle(
         `${t_aippt('v2.step_prefix')} 1`,
         t_aippt('v2.step1_title'),
@@ -1341,7 +1341,7 @@ export default function Slides2Client({
             onValueChange={(v) => setInputTab(v as any)}
             className="w-full"
           >
-            <TabsList className="mb-4 grid grid-cols-3 rounded-xl bg-white/10 text-white">
+            <TabsList className="mb-4 grid grid-cols-3 rounded-xl bg-muted text-foreground">
               <TabsTrigger className="h-9 text-xs" value="text">
                 {t_aippt('v2.tab_text')}
               </TabsTrigger>
@@ -1359,13 +1359,13 @@ export default function Slides2Client({
                 onChange={(e) => setPrimaryInput(e.target.value)}
                 rows={8}
                 placeholder={t_aippt('input_step.placeholder')}
-                className="border-white/10 bg-black/30 text-sm text-white"
+                className="border-border bg-muted/50 text-sm text-foreground dark:bg-black/30"
               />
             </TabsContent>
 
             <TabsContent value="upload" className="space-y-3">
               <div
-                className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-white/15 px-4 py-10 text-center"
+                className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border px-4 py-10 text-center"
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
                   e.preventDefault();
@@ -1390,8 +1390,8 @@ export default function Slides2Client({
                 />
               </div>
               {uploadedFiles.length > 0 && (
-                <div className="rounded-xl border border-white/10 bg-black/20 p-4 text-xs">
-                  <div className="mb-2 flex items-center justify-between text-white/60">
+                <div className="rounded-xl border border-border bg-muted/50 p-4 text-xs dark:bg-black/20">
+                  <div className="mb-2 flex items-center justify-between text-muted-foreground">
                     <span>
                       {
                         t_aippt('input_step.files_selected_batch', {
@@ -1401,7 +1401,7 @@ export default function Slides2Client({
                       }
                     </span>
                     <button
-                      className="text-white/40 hover:text-white/80"
+                      className="text-muted-foreground hover:text-foreground"
                       onClick={() => setUploadedFiles([])}
                     >
                       {t_aippt('v2.clear')}
@@ -1412,13 +1412,13 @@ export default function Slides2Client({
                       {uploadedFiles.map((file, idx) => (
                         <div
                           key={`${file.name}-${idx}`}
-                          className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2"
+                          className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2 dark:bg-white/5"
                         >
-                          <span className="line-clamp-1 text-white/80">
+                          <span className="line-clamp-1 text-foreground">
                             {file.name}
                           </span>
                           <button
-                            className="hover:text-destructive text-white/40"
+                            className="text-muted-foreground hover:text-destructive"
                             onClick={() =>
                               setUploadedFiles((prev) =>
                                 prev.filter((_, i) => i !== idx)
@@ -1440,7 +1440,7 @@ export default function Slides2Client({
                 value={primaryInput}
                 onChange={(e) => setPrimaryInput(e.target.value)}
                 placeholder="https://example.com/article"
-                className="border-white/10 bg-black/30 text-white"
+                className="border-border bg-muted/50 text-foreground dark:bg-black/30"
               />
               <Button
                 variant="outline"
@@ -1478,7 +1478,7 @@ export default function Slides2Client({
                 )}
               </Button>
               {linkPreview && (
-                <div className="rounded-xl border border-white/10 bg-black/20 p-4 text-xs text-white/70">
+                <div className="rounded-xl border border-border bg-muted/50 p-4 text-xs text-muted-foreground dark:bg-black/20 dark:text-white/70">
                   {linkPreview}...
                 </div>
               )}
@@ -1486,13 +1486,13 @@ export default function Slides2Client({
           </Tabs>
         </section>
 
-        <section className="mt-4 space-y-4 border-t border-white/10 pt-4">
+        <section className="mt-4 space-y-4 border-t border-border pt-4">
           {/* Header */}
           <div className="flex items-center justify-between">
-            <h3 className="text-[11px] font-bold tracking-wider text-indigo-300 uppercase">
+            <h3 className="text-[11px] font-bold tracking-wider text-primary uppercase">
               {t_aippt('v2.page_count')}
             </h3>
-            <span className="text-xs font-medium text-white/70">
+            <span className="text-xs font-medium text-muted-foreground">
               {pageMode === 'auto'
                 ? t_aippt('v2.language_auto')
                 : `${slideCount} ${t_aippt('v2.pages')}`}
@@ -1500,14 +1500,14 @@ export default function Slides2Client({
           </div>
 
           {/* Toggle Buttons */}
-          <div className="flex rounded-xl bg-black/40 p-1">
+          <div className="flex rounded-xl bg-muted p-1 dark:bg-black/40">
             <button
               onClick={() => setPageMode('auto')}
               className={cn(
                 'flex-1 rounded-lg py-1.5 text-xs font-medium transition-all',
                 pageMode === 'auto'
-                  ? 'bg-indigo-600 text-white shadow-lg'
-                  : 'text-white/40 hover:text-white/60'
+                  ? 'bg-primary text-primary-foreground shadow-lg'
+                  : 'text-muted-foreground hover:text-foreground'
               )}
             >
               {t_aippt('v2.auto_mode')}
@@ -1517,8 +1517,8 @@ export default function Slides2Client({
               className={cn(
                 'flex-1 rounded-lg py-1.5 text-xs font-medium transition-all',
                 pageMode === 'fixed'
-                  ? 'bg-indigo-600 text-white shadow-lg'
-                  : 'text-white/40 hover:text-white/60'
+                  ? 'bg-primary text-primary-foreground shadow-lg'
+                  : 'text-muted-foreground hover:text-foreground'
               )}
             >
               {t_aippt('v2.fixed_mode')}
@@ -1537,30 +1537,30 @@ export default function Slides2Client({
             <input
               type="range"
               min="1"
-              max="30"
+              max="50"
               step="1"
               value={slideCount}
               onChange={(e) => setSlideCount(e.target.value)}
-              className="h-1.5 flex-1 cursor-pointer appearance-none rounded-lg bg-white/10 accent-indigo-500"
+              className="h-0.5 flex-1 cursor-pointer appearance-none rounded-lg bg-gray-300 accent-primary dark:bg-white/10 [&::-webkit-slider-runnable-track]:h-0.5 [&::-webkit-slider-runnable-track]:rounded-lg [&::-webkit-slider-runnable-track]:bg-gray-300 dark:[&::-webkit-slider-runnable-track]:bg-white/10 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:-mt-1.75 [&::-webkit-slider-thumb]:shadow-sm [&::-moz-range-track]:h-1.5 [&::-moz-range-track]:rounded-lg [&::-moz-range-track]:bg-gray-300 dark:[&::-moz-range-track]:bg-white/10 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
             />
             <input
               type="number"
               min="1"
-              max="30"
+              max="50"
               value={slideCount}
               onChange={(e) => {
                 const val = parseInt(e.target.value);
                 if (!isNaN(val)) {
-                  setSlideCount(String(Math.min(30, Math.max(1, val))));
+                  setSlideCount(String(Math.min(50, Math.max(1, val))));
                 }
               }}
-              className="h-8 w-12 rounded-lg border border-white/10 bg-black/40 text-center text-xs font-bold text-white outline-none focus:border-indigo-500/50"
+              className="h-8 w-12 rounded-lg border border-border bg-muted text-center text-xs font-bold text-foreground outline-none focus:border-primary/50 dark:bg-black/40"
             />
           </div>
 
           {/* Start Pagination Button */}
           <Button
-            className="h-10 w-full rounded-xl bg-indigo-600 text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-500"
+            className="h-10 w-full rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90"
             onClick={handleAutoPaginate}
             disabled={isAnalyzing || isParsingFiles || isFetchingLink}
           >
@@ -1574,7 +1574,7 @@ export default function Slides2Client({
                 {/* 显示自动分页功能消耗的积分额度：3积分 */}
                 <CreditsCost
                   credits={3}
-                  className="mr-2 bg-white/20 text-white"
+                  className="mr-2 bg-primary-foreground/20 text-primary-foreground"
                 />
                 {t_aippt('v2.start_pagination')}
               </>
@@ -1585,7 +1585,7 @@ export default function Slides2Client({
         {(parsingProgress || completion) && (
           <ScrollArea
             ref={logRef as any}
-            className="h-40 w-full rounded-xl border border-white/10 bg-black/25 p-4 text-xs text-white/70"
+            className="h-40 w-full rounded-xl border border-border bg-muted/50 p-4 text-xs text-muted-foreground dark:bg-black/25 dark:text-white/70"
           >
             <div className="space-y-1">
               {parsingProgress && <p>{parsingProgress}</p>}
@@ -1601,7 +1601,7 @@ export default function Slides2Client({
 
         <section className="space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold tracking-wide text-white/80">
+            <h3 className="text-sm font-semibold tracking-wide text-foreground">
               {t_aippt('v2.outline')}
             </h3>
             <Button
@@ -1615,7 +1615,7 @@ export default function Slides2Client({
             </Button>
           </div>
           {slides.length === 0 ? (
-            <Card className="border-dashed border-white/15 bg-black/20 p-5 text-xs text-white/55">
+            <Card className="border-dashed border-border bg-muted/50 p-5 text-xs text-muted-foreground dark:bg-black/20 dark:text-white/55">
               {t_aippt('v2.no_outline')}
             </Card>
           ) : (
@@ -1623,9 +1623,9 @@ export default function Slides2Client({
               {slides.map((slide, idx) => (
                 <div
                   key={slide.id}
-                  className="rounded-2xl border border-white/10 bg-black/20 p-4"
+                  className="rounded-2xl border border-border bg-muted/50 p-4 dark:bg-black/20"
                 >
-                  <div className="mb-2 flex items-center justify-between text-[11px] tracking-[0.2em] text-white/45 uppercase">
+                  <div className="mb-2 flex items-center justify-between text-[11px] tracking-[0.2em] text-muted-foreground uppercase">
                     <span>
                       {t_aippt('outline_step.slide_title')} {idx + 1} ·{' '}
                       {
@@ -1638,7 +1638,7 @@ export default function Slides2Client({
                       }
                     </span>
                     <button
-                      className="hover:text-destructive text-white/40"
+                      className="text-muted-foreground hover:text-destructive"
                       onClick={() => handleRemoveSlide(slide.id)}
                     >
                       {t_aippt('v2.remove')}
@@ -1649,7 +1649,7 @@ export default function Slides2Client({
                     onChange={(e) =>
                       handleSlideChange(slide.id, 'title', e.target.value)
                     }
-                    className="mb-3 border-white/10 bg-black/30 text-white"
+                    className="mb-3 border-border bg-muted/50 text-foreground dark:bg-black/30"
                   />
                   <Textarea
                     value={slide.content}
@@ -1657,7 +1657,7 @@ export default function Slides2Client({
                       handleSlideChange(slide.id, 'content', e.target.value)
                     }
                     rows={4}
-                    className="border-white/10 bg-black/20 text-sm text-white"
+                    className="border-border bg-muted/30 text-sm text-foreground dark:bg-black/20"
                   />
                 </div>
               ))}
@@ -1669,7 +1669,7 @@ export default function Slides2Client({
   );
 
   const renderStep2Style = () => (
-    <Card className="border-white/5 bg-gradient-to-b from-[#0A1427]/90 to-[#05080F]/90 p-6 text-white shadow-2xl">
+    <Card className="border-border bg-gradient-to-b from-card/90 to-muted/90 p-6 text-foreground shadow-2xl dark:from-[#0A1427]/90 dark:to-[#05080F]/90">
       {renderStepTitle(
         `${t_aippt('v2.step_prefix')} 2`,
         t_aippt('v2.step2_title'),
@@ -1679,14 +1679,14 @@ export default function Slides2Client({
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label className="text-xs text-white/60">
+            <Label className="text-xs text-muted-foreground">
               {t_aippt('v2.output_ratio')}
             </Label>
             <Select value={aspectRatio} onValueChange={setAspectRatio}>
-              <SelectTrigger className="mt-1 border-white/10 bg-black/30 text-white">
+              <SelectTrigger className="mt-1 border-border bg-muted/50 text-foreground dark:bg-black/30">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-black/90 text-white">
+              <SelectContent className="bg-popover text-popover-foreground dark:bg-black/90">
                 {PPT_RATIOS.map((ratio) => (
                   <SelectItem key={ratio.value} value={ratio.value}>
                     {ratio.label}
@@ -1696,14 +1696,14 @@ export default function Slides2Client({
             </Select>
           </div>
           <div>
-            <Label className="text-xs text-white/60">
+            <Label className="text-xs text-muted-foreground">
               {t_aippt('v2.resolution')}
             </Label>
             <Select value={resolution} onValueChange={setResolution}>
-              <SelectTrigger className="mt-1 border-white/10 bg-black/30 text-white">
+              <SelectTrigger className="mt-1 border-border bg-muted/50 text-foreground dark:bg-black/30">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-black/90 text-white">
+              <SelectContent className="bg-popover text-popover-foreground dark:bg-black/90">
                 {PPT_SIZES.map((size) => (
                   <SelectItem key={size.value} value={size.value}>
                     {size.label}
@@ -1716,17 +1716,17 @@ export default function Slides2Client({
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label className="text-xs text-white/60">
+            <Label className="text-xs text-muted-foreground">
               {t_aippt('v2.language')}
             </Label>
             <Select
               value={language}
               onValueChange={(v) => setLanguage(v as any)}
             >
-              <SelectTrigger className="mt-1 border-white/10 bg-black/30 text-white">
+              <SelectTrigger className="mt-1 border-border bg-muted/50 text-foreground dark:bg-black/30">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-black/90 text-white">
+              <SelectContent className="bg-popover text-popover-foreground dark:bg-black/90">
                 <SelectItem value="auto">
                   {t_aippt('v2.language_auto')}
                 </SelectItem>
@@ -1736,17 +1736,17 @@ export default function Slides2Client({
             </Select>
           </div>
           <div>
-            <Label className="text-xs text-white/60">
+            <Label className="text-xs text-muted-foreground">
               {t_aippt('v2.content_control')}
             </Label>
             <Select
               value={contentControl}
               onValueChange={(v) => setContentControl(v as any)}
             >
-              <SelectTrigger className="mt-1 h-10 rounded-xl border-white/10 bg-black/30 text-white">
+              <SelectTrigger className="mt-1 h-10 rounded-xl border-border bg-muted/50 text-foreground dark:bg-black/30">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-black/90 text-white">
+              <SelectContent className="bg-popover text-popover-foreground dark:bg-black/90">
                 <SelectItem value="expand">
                   {t_aippt('v2.expand_content')}
                 </SelectItem>
@@ -1760,7 +1760,7 @@ export default function Slides2Client({
 
         <div className="grid grid-cols-1 gap-3">
           <div>
-            <Label className="text-xs text-white/60">
+            <Label className="text-xs text-muted-foreground">
               {t_aippt('v2.title_position')}
             </Label>
             <div className="mt-2 flex gap-2">
@@ -1771,7 +1771,7 @@ export default function Slides2Client({
                     'flex-1 rounded-xl border px-3 py-2 text-sm font-semibold transition-all',
                     innerTitleAlign === align
                       ? 'border-primary bg-primary/10 text-primary'
-                      : 'hover:border-primary/40 border-white/10 bg-black/30 text-white/60'
+                      : 'border-border bg-muted/50 text-muted-foreground hover:border-primary/40 hover:text-foreground dark:bg-black/30 dark:text-white/60'
                   )}
                   onClick={() => setInnerTitleAlign(align)}
                 >
@@ -1783,7 +1783,7 @@ export default function Slides2Client({
         </div>
 
         <div className="space-y-3">
-          <div className="flex items-center justify-between text-[11px] tracking-[0.2em] text-white/45 uppercase">
+          <div className="flex items-center justify-between text-[11px] tracking-[0.2em] text-muted-foreground uppercase">
             <span>{t_aippt('v2.style_library')}</span>
             <span>
               {t_aippt('v2.styles_count', {
@@ -1805,7 +1805,7 @@ export default function Slides2Client({
                     'group relative aspect-[16/10] overflow-hidden rounded-xl border transition-all',
                     selectedStyleId === style.id
                       ? 'border-primary ring-primary/50 ring-2'
-                      : 'border-white/10 bg-black/30 hover:border-white/30'
+                      : 'border-border bg-muted/50 hover:border-primary/50 dark:bg-black/30 dark:hover:border-white/30'
                   )}
                 >
                   {style.preview && (
@@ -1822,18 +1822,18 @@ export default function Slides2Client({
                   )}
                   <div
                     className={cn(
-                      'absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 pt-6 transition-opacity',
+                      'absolute inset-x-0 bottom-0 bg-gradient-to-t from-background/80 to-transparent p-2 pt-6 transition-opacity dark:from-black/80',
                       selectedStyleId === style.id
                         ? 'opacity-100'
                         : 'opacity-0 group-hover:opacity-100'
                     )}
                   >
-                    <p className="truncate text-[11px] font-medium text-white">
+                    <p className="truncate text-[11px] font-medium text-foreground">
                       {style.title}
                     </p>
                   </div>
                   {selectedStyleId === style.id && (
-                    <div className="bg-primary absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full text-white shadow-lg">
+                    <div className="bg-primary absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full text-primary-foreground shadow-lg">
                       <Check className="h-3 w-3" />
                     </div>
                   )}
@@ -1844,7 +1844,7 @@ export default function Slides2Client({
         </div>
 
         <div>
-          <p className="text-[11px] tracking-[0.2em] text-white/45 uppercase">
+          <p className="text-[11px] tracking-[0.2em] text-muted-foreground uppercase">
             {t_aippt('v2.custom_style')}
           </p>
           <Textarea
@@ -1855,12 +1855,12 @@ export default function Slides2Client({
             }}
             rows={2}
             placeholder={t_aippt('v2.style_placeholder')}
-            className="mt-2 border-white/10 bg-black/30 text-white"
+            className="mt-2 border-border bg-muted/50 text-foreground dark:bg-black/30"
           />
         </div>
 
         <div>
-          <p className="text-[11px] tracking-[0.2em] text-white/45 uppercase">
+          <p className="text-[11px] tracking-[0.2em] text-muted-foreground uppercase">
             {t_aippt('v2.reference_images')}
           </p>
           <div className="mt-2 grid grid-cols-4 gap-2">
@@ -1892,7 +1892,7 @@ export default function Slides2Client({
                   setSelectedStyleId(null);
                 }}
               />
-              <div className="flex h-full w-full items-center justify-center rounded-xl border border-dashed border-white/20 bg-black/30 text-white/40 transition-colors hover:border-white/40 hover:text-white/60">
+              <div className="flex h-full w-full items-center justify-center rounded-xl border border-dashed border-border bg-muted/50 text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground dark:bg-black/30 dark:text-white/40 dark:hover:border-white/40 dark:hover:text-white/60">
                 <Plus className="h-6 w-6" />
               </div>
             </div>
@@ -1900,12 +1900,12 @@ export default function Slides2Client({
             {customImages.map((src, idx) => (
               <div
                 key={`${src}-${idx}`}
-                className="group relative aspect-square overflow-hidden rounded-xl border border-white/10"
+                className="group relative aspect-square overflow-hidden rounded-xl border border-border"
               >
                 <img src={src} className="h-full w-full object-cover" />
-                <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                <div className="absolute inset-0 flex items-center justify-center bg-background/80 opacity-0 transition-opacity group-hover:opacity-100 dark:bg-black/40">
                   <button
-                    className="rounded-full bg-black/60 p-1.5 text-white transition-colors hover:bg-red-500/80"
+                    className="rounded-full bg-destructive/80 p-1.5 text-destructive-foreground transition-colors hover:bg-destructive"
                     onClick={() => {
                       setCustomImages((prev) =>
                         prev.filter((_, i) => i !== idx)
@@ -1924,13 +1924,13 @@ export default function Slides2Client({
         </div>
 
         {/* 水印控制区域 (会员功能) */}
-        <div className="mt-6 space-y-4 border-t border-white/10 pt-4">
+        <div className="mt-6 space-y-4 border-t border-border pt-4">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label className="text-sm font-semibold text-white/80">
+              <Label className="text-sm font-semibold text-foreground">
                 {t_aippt('v2.watermark_control')}
               </Label>
-              <p className="text-xs text-white/40">
+              <p className="text-xs text-muted-foreground">
                 {t_aippt('v2.watermark_vip_hint')}
               </p>
             </div>
@@ -1946,7 +1946,7 @@ export default function Slides2Client({
             />
           </div>
           <div className="space-y-2">
-            <Label className="text-xs text-white/60">
+            <Label className="text-xs text-muted-foreground">
               {t_aippt('v2.watermark_text')}
             </Label>
             <Input
@@ -1960,7 +1960,7 @@ export default function Slides2Client({
               }}
               placeholder={t_aippt('v2.watermark_text')}
               disabled={!isVip}
-              className="border-white/10 bg-black/30 text-xs text-white"
+              className="border-border bg-muted/50 text-xs text-foreground dark:bg-black/30"
             />
           </div>
         </div>
@@ -1977,13 +1977,13 @@ export default function Slides2Client({
           {isGenerating ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : pageMode === 'auto' ? (
-            <div className="mr-2 rounded-full bg-black/30 px-3 py-1 text-sm font-semibold text-white/80">
+            <div className="mr-2 rounded-full bg-muted px-3 py-1 text-sm font-semibold text-foreground">
               ?
             </div>
           ) : (
             <CreditsCost
               credits={slides.length * (resolution === '4K' ? 12 : 6)}
-              className="mr-2 bg-white/20 text-white"
+              className="mr-2 bg-muted text-foreground"
             />
           )}
           {t_aippt('v2.one_click_generate')}
@@ -1993,17 +1993,17 @@ export default function Slides2Client({
   );
 
   const renderSlideCard = (slide: SlideData, index: number) => (
-    <Card key={slide.id} className="overflow-hidden bg-white/[0.03] p-4">
-      <div className="mb-3 flex items-center justify-between text-xs tracking-[0.2em] text-white/50 uppercase">
-        <span className="text-white/80">
+    <Card key={slide.id} className="overflow-hidden bg-card/50 p-4 dark:bg-white/[0.03]">
+      <div className="mb-3 flex items-center justify-between text-xs tracking-[0.2em] text-muted-foreground uppercase">
+        <span className="text-foreground">
           {t_aippt('outline_step.slide_title')} {index + 1}
         </span>
         <Badge
           variant="outline"
           className={cn(
-            'border-white/20 text-[10px]',
+            'border-border text-[10px]',
             slide.status === 'completed' &&
-              'border-emerald-400 text-emerald-200',
+              'border-emerald-400 text-emerald-600 dark:text-emerald-200',
             slide.status === 'failed' && 'border-destructive text-destructive',
             slide.status === 'generating' && 'border-primary text-primary'
           )}
@@ -2018,7 +2018,7 @@ export default function Slides2Client({
           }
         </Badge>
       </div>
-      <div className="relative aspect-[16/9] overflow-hidden rounded-2xl border border-white/10 bg-black/20">
+      <div className="relative aspect-[16/9] overflow-hidden rounded-2xl border border-border bg-muted/50 dark:bg-black/20">
         {slide.status === 'completed' && slide.imageUrl ? (
           <div className="relative h-full w-full">
             <Image
@@ -2031,13 +2031,13 @@ export default function Slides2Client({
             />
             {/* 前端固定位置水印 */}
             {showWatermark && (
-              <div className="absolute right-3 bottom-3 z-10 rounded bg-black/40 px-2 py-1 text-[10px] font-medium text-white/60 backdrop-blur-sm">
+              <div className="absolute right-3 bottom-3 z-10 rounded bg-background/80 px-2 py-1 text-[10px] font-medium text-muted-foreground backdrop-blur-sm dark:bg-black/40 dark:text-white/60">
                 {watermarkText}
               </div>
             )}
           </div>
         ) : slide.status === 'generating' ? (
-          <div className="flex h-full flex-col items-center justify-center text-sm text-white/60">
+          <div className="flex h-full flex-col items-center justify-center text-sm text-muted-foreground">
             <Loader2 className="mb-2 h-6 w-6 animate-spin" />
             {t_aippt('v2.generating')}
           </div>
@@ -2046,7 +2046,7 @@ export default function Slides2Client({
             {t_aippt('errors.generation_failed')}
           </div>
         ) : (
-          <div className="flex h-full flex-col items-center justify-center text-sm text-white/60">
+          <div className="flex h-full flex-col items-center justify-center text-sm text-muted-foreground">
             {t_aippt('result_step.status.pending')}
           </div>
         )}
@@ -2078,13 +2078,13 @@ export default function Slides2Client({
 
   const renderStep3Preview = () => (
     <div className="space-y-4">
-      <Card className="border-white/5 bg-gradient-to-b from-[#0B0F1D]/90 to-[#040609]/90 p-5 text-white shadow-2xl">
+      <Card className="border-border bg-gradient-to-b from-card/90 to-muted/90 p-5 text-foreground shadow-2xl dark:from-[#0B0F1D]/90 dark:to-[#040609]/90">
         {renderStepTitle(
           `${t_aippt('v2.step_prefix')} 3`,
           t_aippt('v2.step3_title'),
           ' '
         )}
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 p-4">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-muted/50 p-4 dark:bg-black/20">
           <div className="flex flex-wrap gap-2">
             <Button
               variant="ghost"
@@ -2126,13 +2126,13 @@ export default function Slides2Client({
           </Button>
         </div>
         {autoPlanning && (
-          <div className="mb-4 rounded-xl border border-dashed border-white/10 bg-black/20 px-4 py-3 text-sm text-white/70">
+          <div className="mb-4 rounded-xl border border-dashed border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground dark:bg-black/20 dark:text-white/70">
             <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />
             {t_aippt('v2.planning_pages')}
           </div>
         )}
         {slides.length === 0 ? (
-          <Card className="border-dashed border-white/15 bg-white/[0.03] p-10 text-center text-sm text-white/55">
+          <Card className="border-dashed border-border bg-muted/50 p-10 text-center text-sm text-muted-foreground dark:bg-white/[0.03] dark:text-white/55">
             {t_aippt('v2.waiting_for_generation')}
           </Card>
         ) : (
@@ -2312,7 +2312,7 @@ export default function Slides2Client({
             }}
           >
             <span
-              className="absolute top-1 left-1 rounded bg-black/70 px-1 text-[10px]"
+              className="absolute top-1 left-1 rounded bg-background/90 px-1 text-[10px] dark:bg-black/70"
               style={{ color: REGION_COLORS[index % REGION_COLORS.length] }}
             >
               {region.label}
@@ -2328,7 +2328,7 @@ export default function Slides2Client({
         ))}
         {draftRegion && (
           <div
-            className="absolute border-2 border-dashed border-white/70"
+            className="absolute border-2 border-dashed border-primary/70"
             style={{
               left: `${draftRegion.x * 100}%`,
               top: `${draftRegion.y * 100}%`,
@@ -2350,7 +2350,7 @@ export default function Slides2Client({
             'rounded-lg border p-3',
             activeRegionId === region.id
               ? 'border-primary/50 bg-primary/5'
-              : 'border-white/5 bg-white/[0.02]'
+              : 'border-border bg-muted/30 dark:bg-white/[0.02]'
           )}
         >
           <div className="mb-2 flex items-center justify-between">
@@ -2361,7 +2361,7 @@ export default function Slides2Client({
               {region.label}
             </span>
             <button
-              className="text-xs text-white/40 transition-colors hover:text-red-400"
+              className="text-xs text-muted-foreground transition-colors hover:text-destructive"
               onClick={() =>
                 setEditRegions((prev) =>
                   prev.filter((item) => item.id !== region.id)
@@ -2384,7 +2384,7 @@ export default function Slides2Client({
             }
             rows={2}
             placeholder={t_aippt('v2.describe_edit_placeholder')}
-            className="focus:border-primary/30 border-white/5 bg-white/[0.02] text-xs text-white/80 placeholder:text-white/30 focus:bg-white/[0.04]"
+            className="focus:border-primary/30 border-border bg-muted/30 text-xs text-foreground placeholder:text-muted-foreground focus:bg-muted/50 dark:bg-white/[0.02] dark:text-white/80 dark:placeholder:text-white/30 dark:focus:bg-white/[0.04]"
           />
           <Input
             type="file"
@@ -2408,7 +2408,7 @@ export default function Slides2Client({
               };
               reader.readAsDataURL(file);
             }}
-            className="mt-2 border-white/5 bg-white/[0.02] text-xs text-white/60"
+            className="mt-2 border-border bg-muted/30 text-xs text-muted-foreground dark:bg-white/[0.02] dark:text-white/60"
           />
           {region.imagePreview && (
             <img
@@ -2422,7 +2422,7 @@ export default function Slides2Client({
         <Button
           variant="outline"
           size="sm"
-          className="w-full border-dashed border-white/5 text-xs text-white/50 hover:border-white/10 hover:text-white/70"
+          className="w-full border-dashed border-border text-xs text-muted-foreground hover:border-primary/50 hover:text-foreground"
           onClick={() => {
             const label = getRegionLabel(editRegions.length);
             setEditRegions((prev) => [
@@ -2468,7 +2468,7 @@ export default function Slides2Client({
               records.map((entry) => (
                 <div
                   key={entry.id}
-                  className="flex gap-4 rounded-xl border border-white/10 p-3"
+                  className="flex gap-4 rounded-xl border border-border bg-card p-3"
                 >
                   <img
                     src={entry.imageUrl}
@@ -2478,7 +2478,7 @@ export default function Slides2Client({
                     <p className="font-semibold">
                       {new Date(entry.createdAt).toLocaleString()}
                     </p>
-                    <p className="line-clamp-3 text-xs text-white/60">
+                    <p className="line-clamp-3 text-xs text-muted-foreground">
                       {entry.prompt}
                     </p>
                     <div className="mt-2 flex gap-2">
@@ -2528,17 +2528,17 @@ export default function Slides2Client({
     if (!editingSlide) return null;
     return (
       <Dialog open onOpenChange={() => setEditingSlide(null)}>
-        <DialogContent className="max-h-[96vh] w-[80vw] max-w-[80vw] gap-0 overflow-hidden border-white/10 bg-[#0E1424]/98 p-0 shadow-[0_0_100px_rgba(0,0,0,0.8)] backdrop-blur-3xl sm:max-w-[80vw]">
+        <DialogContent className="max-h-[96vh] w-[80vw] max-w-[80vw] gap-0 overflow-hidden border-border bg-background/98 p-0 shadow-[0_0_100px_rgba(0,0,0,0.8)] backdrop-blur-3xl dark:bg-[#0E1424]/98 sm:max-w-[80vw]">
           <div className="flex h-full flex-col">
             <div className="grid flex-1 overflow-hidden lg:grid-cols-[5fr_380px]">
               {/* 左侧：视觉编辑核心区 */}
-              <div className="flex flex-col overflow-hidden bg-black/40 p-6">
+              <div className="flex flex-col overflow-hidden bg-muted/30 p-6 dark:bg-black/40">
                 <div className="flex flex-1 flex-col gap-6 overflow-hidden">
                   {/* 1. 待编辑图片 - 撑满宽度 */}
                   <div className="relative flex min-h-120 flex-1 flex-col">
                     <div
                       ref={editCanvasRef}
-                      className="group hover:border-primary/20 relative h-full w-full cursor-crosshair overflow-hidden rounded-2xl border border-white/5 bg-black/60 shadow-[0_40px_100px_rgba(0,0,0,0.6)] transition-all"
+                      className="group hover:border-primary/20 relative h-full w-full cursor-crosshair overflow-hidden rounded-2xl border border-border bg-muted/50 shadow-[0_40px_100px_rgba(0,0,0,0.6)] transition-all dark:bg-black/60"
                       onPointerDown={handleCanvasPointerDown}
                       onPointerMove={handleCanvasPointerMove}
                       onPointerUp={finalizeRegion}
@@ -2555,7 +2555,7 @@ export default function Slides2Client({
                           />
                         </div>
                       ) : (
-                        <div className="flex h-full flex-col items-center justify-center space-y-4 text-white/20">
+                        <div className="flex h-full flex-col items-center justify-center space-y-4 text-muted-foreground/50">
                           <Images className="h-16 w-16 opacity-10" />
                         </div>
                       )}
@@ -2565,14 +2565,14 @@ export default function Slides2Client({
 
                   {/* 2. 文案修改区 */}
                   <div className="shrink-0 space-y-3">
-                    <Label className="text-sm font-medium text-white/70">
+                    <Label className="text-sm font-medium text-foreground">
                       {t_aippt('v2.edit_text_label')}
                     </Label>
                     <Textarea
                       value={editingPrompt}
                       onChange={(e) => setEditingPrompt(e.target.value)}
                       rows={4}
-                      className="focus:border-primary/30 min-h-[100px] w-full resize-none rounded-xl border-white/10 bg-white/[0.03] p-4 text-sm leading-relaxed text-white/90 transition-all placeholder:text-white/30 focus:bg-white/[0.05] focus:ring-0"
+                      className="focus:border-primary/30 min-h-[100px] w-full resize-none rounded-xl border-border bg-muted/50 p-4 text-sm leading-relaxed text-foreground transition-all placeholder:text-muted-foreground focus:bg-muted/70 focus:ring-0 dark:bg-white/[0.03] dark:text-white/90 dark:placeholder:text-white/30 dark:focus:bg-white/[0.05]"
                       placeholder={t_aippt('v2.edit_text_placeholder')}
                     />
                   </div>
@@ -2580,13 +2580,13 @@ export default function Slides2Client({
               </div>
 
               {/* 右侧：指令侧边栏 */}
-              <div className="flex flex-col overflow-hidden border-l border-white/5 bg-[#0A0D18]/50">
+              <div className="flex flex-col overflow-hidden border-l border-border bg-muted/20 dark:bg-[#0A0D18]/50">
                 <div className="flex min-h-0 flex-1 flex-col p-6">
                   <div className="mb-6">
-                    <Label className="text-sm font-medium text-white/70">
+                    <Label className="text-sm font-medium text-foreground">
                       {t_aippt('v2.edit_dialog_title')}
                     </Label>
-                    <p className="mt-1 text-xs leading-relaxed text-white/50">
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                       {t_aippt('v2.edit_dialog_desc')}
                     </p>
                   </div>
@@ -2594,9 +2594,9 @@ export default function Slides2Client({
                   <ScrollArea className="-mx-2 flex-1 px-2">
                     <div className="space-y-4 pb-6">
                       {editRegions.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-white/5 bg-white/[0.01] py-16 text-center">
-                          <Plus className="mb-3 h-6 w-6 text-white/20" />
-                          <p className="text-xs text-white/40">
+                        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/30 py-16 text-center dark:bg-white/[0.01]">
+                          <Plus className="mb-3 h-6 w-6 text-muted-foreground/50 dark:text-white/20" />
+                          <p className="text-xs text-muted-foreground dark:text-white/40">
                             {t_aippt('v2.drag_to_select')}
                           </p>
                         </div>
@@ -2608,9 +2608,9 @@ export default function Slides2Client({
                 </div>
 
                 {/* Footer Action */}
-                <div className="border-t border-white/5 bg-[#080A12] p-6">
+                <div className="border-t border-border bg-muted/30 p-6 dark:bg-[#080A12]">
                   <Button
-                    className="bg-primary hover:bg-primary/90 h-12 w-full rounded-xl text-base font-semibold text-white transition-all active:scale-[0.98]"
+                    className="bg-primary hover:bg-primary/90 h-12 w-full rounded-xl text-base font-semibold text-primary-foreground transition-all active:scale-[0.98]"
                     disabled={pendingEditSubmit}
                     onClick={async () => {
                       if (!editingSlide) return;
@@ -2802,11 +2802,11 @@ export default function Slides2Client({
           {renderEditDialog()}
           {lightboxUrl && (
             <div
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-6"
+              className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-sm p-6 dark:bg-black/90"
               onClick={() => setLightboxUrl(null)}
             >
               <button
-                className="hover:text-primary absolute top-6 right-6 text-white"
+                className="hover:text-primary absolute top-6 right-6 text-foreground"
                 onClick={() => setLightboxUrl(null)}
               >
                 <X className="h-8 w-8" />
@@ -2819,17 +2819,17 @@ export default function Slides2Client({
           )}
         </>
       ) : (
-        <div className="min-h-screen bg-[#030409] text-white">
+        <div className="min-h-screen bg-background text-foreground dark:bg-[#030409]">
           <div className="mx-auto max-w-[1500px] px-4 pt-24 pb-12 lg:px-8">
             <div className="relative mb-10 flex items-center justify-center">
-              <h1 className="bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-4xl font-bold text-transparent md:text-5xl">
+              <h1 className="bg-gradient-to-r from-foreground via-foreground/80 to-foreground/60 bg-clip-text text-4xl font-bold text-transparent md:text-5xl dark:from-white dark:via-slate-100 dark:to-slate-400">
                 {t_aippt('v2.title')}
               </h1>
               {presentationId && (
                 <Button
                   variant="ghost"
                   onClick={() => setViewMode('preview')}
-                  className="absolute right-0 text-white/40 hover:text-white"
+                  className="absolute right-0 text-muted-foreground hover:text-foreground"
                 >
                   {t_aippt('v2.back_to_preview')}
                 </Button>
@@ -2848,11 +2848,11 @@ export default function Slides2Client({
 
           {lightboxUrl && (
             <div
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-6"
+              className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-sm p-6 dark:bg-black/90"
               onClick={() => setLightboxUrl(null)}
             >
               <button
-                className="hover:text-primary absolute top-6 right-6 text-white"
+                className="hover:text-primary absolute top-6 right-6 text-foreground"
                 onClick={() => setLightboxUrl(null)}
               >
                 <X className="h-8 w-8" />

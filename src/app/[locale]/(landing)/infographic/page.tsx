@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import {
   parseFileAction,
   parseMultipleImagesAction,
+  refundCreditsAction,
 } from '@/app/actions/aippt';
 import { motion } from 'framer-motion';
 import {
@@ -430,6 +431,25 @@ const InfographicPage = () => {
         }
 
         if (status === 'FAILED') {
+          // 🎯 修复：任务失败时自动退还积分
+          const costPerInfographic = resolution === '4K' ? 12 : 6;
+          console.log(
+            `💰 信息图生成失败，尝试退还 ${costPerInfographic} 积分...`
+          );
+          try {
+            await refundCreditsAction({
+              credits: costPerInfographic,
+              description: `信息图生成失败退还积分`,
+            });
+            toast.info(
+              `生成失败，已自动退还 ${costPerInfographic} 积分`
+            );
+          } catch (refundError) {
+            console.error(
+              'Failed to refund credits for failed infographic:',
+              refundError
+            );
+          }
           throw new Error(t('errors.generation_failed'));
         }
       } catch (err) {
@@ -442,6 +462,26 @@ const InfographicPage = () => {
       // 如果等待时间较长（超过20次，即1分钟），稍微减慢轮询频率到5秒
       const waitTime = attempt > 20 ? 5000 : 3000;
       await delay(waitTime);
+    }
+
+    // 🎯 修复：轮询超时时自动退还积分
+    const costPerInfographic = resolution === '4K' ? 12 : 6;
+    console.log(
+      `💰 信息图生成超时，尝试退还 ${costPerInfographic} 积分...`
+    );
+    try {
+      await refundCreditsAction({
+        credits: costPerInfographic,
+        description: `信息图生成超时退还积分`,
+      });
+      toast.info(
+        `生成超时，已自动退还 ${costPerInfographic} 积分`
+      );
+    } catch (refundError) {
+      console.error(
+        'Failed to refund credits for timed out infographic:',
+        refundError
+      );
     }
 
     setError(

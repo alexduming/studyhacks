@@ -232,6 +232,11 @@
     "current_plan": "当前方案",
     "processing": "处理中",
     "or_pay_with": "微信支付 👉",
-    "wechat_alipay": "微信支付"
+    "wechat_alipay": "微信支付",
+    "pay_monthly": "月付",
+    "pay_yearly": "年付",
+    "save_more_with_annual_billing": "年付更省钱",
+    "pay_annually": "年付",
+    "save_30_percent": "立省30%"
   }
 }

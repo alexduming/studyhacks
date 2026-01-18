@@ -247,6 +247,11 @@
     "current_plan": "Current Plan",
     "processing": "Processing",
     "or_pay_with": "WeChat Pay 👉",
-    "wechat_alipay": "WeChat Pay"
+    "wechat_alipay": "WeChat Pay",
+    "pay_monthly": "Pay monthly",
+    "pay_yearly": "Pay yearly",
+    "save_more_with_annual_billing": "Save more with annual billing",
+    "pay_annually": "Pay annually",
+    "save_30_percent": "Save 30%"
   }
 }
