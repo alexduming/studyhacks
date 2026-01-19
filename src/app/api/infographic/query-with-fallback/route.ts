@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+// @ts-ignore
+import { fal } from '@fal-ai/client';
 import { getAllConfigs } from '@/shared/models/config';
 import { getStorageServiceWithConfigs } from '@/shared/services/storage';
 import { getUserInfo } from '@/shared/models/user';
@@ -13,12 +15,77 @@ const KIE_BASE_URL = 'https://api.kie.ai/api/v1';
 
 /**
  * 查询任务状态（支持多提供商）
- * 
+ *
  * 非程序员解释：
  * - 这个接口用于查询图片生成任务的状态
- * - 支持KIE、Replicate、Together AI、Novita AI
+ * - 支持FAL、KIE、Replicate、Together AI、Novita AI
  * - 根据taskId的前缀判断使用哪个提供商
  */
+
+/**
+ * 查询FAL任务状态
+ * 说明：FAL 已改为异步模式，需要查询任务状态
+ */
+async function queryFalTask(
+  requestId: string,
+  apiKey: string
+): Promise<{ success: boolean; status?: string; resultUrls?: string[]; error?: string }> {
+  try {
+    // 配置 FAL Client
+    fal.config({
+      credentials: apiKey,
+    });
+
+    // 查询任务状态
+    const status = await fal.queue.status('fal-ai/nano-banana-pro', {
+      requestId,
+      logs: false,
+    });
+
+    console.log('[FAL Query] 任务状态:', status.status);
+
+    if (status.status === 'COMPLETED') {
+      // 获取结果
+      const result = await fal.queue.result('fal-ai/nano-banana-pro', {
+        requestId,
+      });
+
+      console.log('[FAL Query] 获取结果成功');
+
+      // 提取图片 URL
+      let resultUrls: string[] = [];
+      if (result.data?.images && Array.isArray(result.data.images)) {
+        resultUrls = result.data.images
+          .map((img: any) => img.url)
+          .filter((url: any) => typeof url === 'string' && url.startsWith('http'));
+      }
+
+      console.log('[FAL Query] 提取的 URLs:', resultUrls);
+
+      return {
+        success: true,
+        status: 'SUCCESS',
+        resultUrls,
+      };
+    } else if (status.status === 'FAILED') {
+      return {
+        success: true,
+        status: 'FAILED',
+        resultUrls: [],
+      };
+    } else {
+      // IN_QUEUE, IN_PROGRESS 等状态
+      return {
+        success: true,
+        status: 'PENDING',
+        resultUrls: [],
+      };
+    }
+  } catch (error: any) {
+    console.error('[FAL Query] 错误:', error);
+    return { success: false, error: error.message };
+  }
+}
 
 /**
  * 查询KIE任务状态
@@ -209,16 +276,25 @@ export async function GET(request: NextRequest) {
     // 根据provider或taskId前缀判断使用哪个提供商
     let result: any;
 
-    if (provider === 'Together AI' || (!provider && taskId.startsWith('together-')) ||
-        provider === 'FAL' || (!provider && taskId.startsWith('fal-'))) {
-      // Together AI 和 FAL 是同步API，不需要查询
+    if (provider === 'Together AI' || (!provider && taskId.startsWith('together-'))) {
+      // Together AI 是同步API，不需要查询
       return NextResponse.json({
         success: true,
         status: 'SUCCESS',
         results: [],
       });
-    } else if (provider === 'Replicate' || (!provider && (taskId.startsWith('replicate-') || 
-               (!taskId.includes('-') && taskId.length > 20)))) {
+    } else if (provider === 'FAL') {
+      // ✅ FAL 异步查询（已改为异步模式）
+      const apiKey = configs.fal_key || process.env.FAL_KEY;
+      if (!apiKey) {
+        return NextResponse.json(
+          { success: false, error: 'FAL API Key 未配置' },
+          { status: 500 }
+        );
+      }
+      result = await queryFalTask(taskId, apiKey);
+    } else if (provider === 'Replicate' || (!provider && (taskId.startsWith('replicate-') ||
+      (!taskId.includes('-') && taskId.length > 20)))) {
       // ✅ Replicate 异步查询
       // 说明：Replicate 的 predictionId 格式类似 "ufawqhfynnddngldkgtslldrkq"（无前缀）
       const apiToken = configs.replicate_api_token || process.env.REPLICATE_API_TOKEN;

@@ -34,7 +34,12 @@ interface GenerateParams {
 }
 
 /**
- * 尝试使用FAL生成（nano-banana-pro）
+ * 尝试使用FAL生成（nano-banana-pro）- 异步模式
+ *
+ * 说明：
+ * - 使用 fal.queue.submit() 异步提交任务，立即返回 request_id
+ * - 前端通过轮询 query-with-fallback API 查询任务状态
+ * - 这样可以避免 Vercel 函数超时（30-60秒限制）
  */
 async function tryGenerateWithFal(
   params: GenerateParams,
@@ -46,7 +51,7 @@ async function tryGenerateWithFal(
   error?: string;
 }> {
   try {
-    console.log('🔄 尝试使用 FAL (nano-banana-pro) 生成...');
+    console.log('🔄 尝试使用 FAL (nano-banana-pro) 异步生成...');
 
     // 配置 FAL Client
     fal.config({
@@ -98,76 +103,23 @@ ${params.content}`;
       prompt: input.prompt.substring(0, 100) + '...',
     });
 
-    const startTime = Date.now();
-
-    // 使用 subscribe 等待结果
-    const result: any = await fal.subscribe('fal-ai/nano-banana-pro', {
+    // ✅ 改为异步模式：使用 queue.submit() 立即返回，不等待完成
+    // 说明：
+    // - 使用 queue.submit() 提交任务，立即返回 request_id
+    // - 前端将通过轮询 query API 查询任务状态
+    // - 这样可以避免超过 Vercel 的超时限制
+    const { request_id } = await fal.queue.submit('fal-ai/nano-banana-pro', {
       input: input as any,
-      logs: true,
-      onQueueUpdate: (update: any) => {
-        if (update.status === 'IN_PROGRESS') {
-          // console.log(update.logs.map((log: any) => log.message));
-        }
-      },
     });
 
-    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`[FAL] API 调用完成，耗时: ${elapsed}s`);
+    console.log('[FAL] 任务创建成功, request_id:', request_id);
 
-    if (
-      !result.data ||
-      !result.data.images ||
-      result.data.images.length === 0
-    ) {
-      throw new Error('FAL 未返回图片');
-    }
-
-    const imageUrl = result.data.images[0].url;
-    console.log('✅ FAL 生成成功，URL:', imageUrl);
-
-    // 自动保存到 R2
-    let finalImageUrl = imageUrl;
-    try {
-      // 动态导入以避免循环依赖或在某些环境中出错
-      const { getStorageServiceWithConfigs } = await import(
-        '@/shared/services/storage'
-      );
-      const { getAllConfigs } = await import('@/shared/models/config');
-      const { getUserInfo } = await import('@/shared/models/user');
-      const { nanoid } = await import('nanoid');
-
-      const user = await getUserInfo();
-      const configs = await getAllConfigs();
-
-      if (user && configs.r2_bucket_name && configs.r2_access_key) {
-        console.log('[FAL] 开始保存图片到 R2...');
-        const storageService = getStorageServiceWithConfigs(configs);
-        const timestamp = Date.now();
-        const randomId = nanoid(8);
-        const fileExtension = imageUrl.includes('.jpg') ? 'jpg' : 'png';
-        const fileName = `${timestamp}_${randomId}.${fileExtension}`;
-        const storageKey = `infographic/${user.id}/${fileName}`;
-
-        const uploadResult = await storageService.downloadAndUpload({
-          url: imageUrl,
-          key: storageKey,
-          contentType: `image/${fileExtension}`,
-          disposition: 'inline',
-        });
-
-        if (uploadResult.success && uploadResult.url) {
-          console.log(`[FAL] ✅ 图片保存成功: ${uploadResult.url}`);
-          finalImageUrl = uploadResult.url;
-        }
-      }
-    } catch (saveError) {
-      console.error('[FAL] 保存图片异常:', saveError);
-    }
-
+    // ✅ 返回 taskId，前端将通过轮询查询任务状态
+    // 注意：这里不等待生成完成，避免超过 Vercel 超时限制
     return {
       success: true,
-      taskId: `fal-${result.requestId || Date.now()}`,
-      imageUrls: [finalImageUrl],
+      taskId: request_id, // 直接使用 FAL 的 request_id
+      imageUrls: undefined, // 异步模式下不立即返回图片，需要前端轮询查询
     };
   } catch (error: any) {
     console.warn('⚠️ FAL 异常:', error.message);
