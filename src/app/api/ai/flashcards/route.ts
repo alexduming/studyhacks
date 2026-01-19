@@ -73,8 +73,9 @@ export async function POST(request: Request) {
     }
 
     // 消耗积分
+    let consumedCredit;
     try {
-      await consumeCredits({
+      consumedCredit = await consumeCredits({
         userId: user.id,
         credits: requiredCredits,
         scene: 'ai_flashcards',
@@ -115,6 +116,7 @@ export async function POST(request: Request) {
           }),
           scene: 'ai_flashcards',
           costCredits: requiredCredits,
+          creditId: consumedCredit?.id,
           status: AITaskStatus.SUCCESS,
           taskInfo: JSON.stringify({ status: 'SUCCESS' }),
           taskResult: JSON.stringify({

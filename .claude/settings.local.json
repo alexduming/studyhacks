@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: FAL 改为异步模式，避免 Vercel 超时\n\n主要改动：\n- generate-with-fallback: 使用 fal.queue.submit\\(\\) 异步提交任务\n- query-with-fallback: 新增 queryFalTask 函数查询 FAL 任务状态\n- 前端通过轮询 query API 获取生成结果\n- 避免 Vercel 函数超时（30-60秒限制）\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: TypeScript 类型错误 - FAL status 检查\n\n使用类型断言避免 TypeScript 编译错误\nFAL SDK 的类型定义不完整，需要 as any 处理\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(npx drizzle-kit studio:*)",
+      "Bash(npx tsx:*)"
+    ]
+  }
+}

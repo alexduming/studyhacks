@@ -347,7 +347,7 @@ export default function Slides2Client({
   }, [editingSlide]);
 
   const [viewMode, setViewMode] = useState<'studio' | 'preview'>(
-    initialPresentation?.id ? 'preview' : 'studio'
+    initialPresentation?.id || presentationId ? 'preview' : 'studio'
   );
   const [mounted, setMounted] = useState(false);
   const [draggedRegionId, setDraggedRegionId] = useState<string | null>(null);
@@ -410,15 +410,27 @@ export default function Slides2Client({
   };
 
   /**
-   * 🎯 辅助函数：加载图片
+   * 🎯 辅助函数：加载图片（使用代理避免 CORS 问题）
    */
-  const loadImage = (url: string): Promise<HTMLImageElement> => {
-    return new Promise((resolve, reject) => {
-      const img = new window.Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => resolve(img);
-      img.onerror = reject;
-      img.src = url;
+  const loadImage = async (url: string): Promise<HTMLImageElement> => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        // 对于外部 URL，使用代理获取图片
+        let imageUrl = url;
+        if (!url.startsWith('/') && !url.startsWith(window.location.origin)) {
+          const buffer = await urlToBuffer(url);
+          const blob = new Blob([buffer], { type: 'image/png' });
+          imageUrl = URL.createObjectURL(blob);
+        }
+
+        const img = new window.Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = imageUrl;
+      } catch (error) {
+        reject(error);
+      }
     });
   };
 
@@ -1226,8 +1238,21 @@ export default function Slides2Client({
           if (showWatermark) {
             url = await addWatermarkToImage(url, watermarkText);
           }
-          const response = await fetch(url);
-          const blob = await response.blob();
+          // 🎯 使用代理避免 CORS 问题
+          let blob: Blob;
+          if (url.startsWith('data:')) {
+            // 如果是 data URL（水印后的图片），直接转换
+            const response = await fetch(url);
+            blob = await response.blob();
+          } else if (!url.startsWith('/') && !url.startsWith(window.location.origin)) {
+            // 外部 URL，使用代理
+            const buffer = await urlToBuffer(url);
+            blob = new Blob([buffer], { type: 'image/png' });
+          } else {
+            // 本地 URL，直接 fetch
+            const response = await fetch(url);
+            blob = await response.blob();
+          }
           zip.file(`slide-${String(idx + 1).padStart(2, '0')}.png`, blob);
         })
       );
@@ -1257,15 +1282,58 @@ export default function Slides2Client({
     try {
       const PptxGenJS = (await import('pptxgenjs')).default;
       const pres = new PptxGenJS();
-      for (const slide of completed) {
+
+      // 🎯 逐个处理幻灯片，避免内存溢出
+      for (let i = 0; i < completed.length; i++) {
+        const slide = completed[i];
         const pptSlide = pres.addSlide();
         let url = slide.imageUrl!;
+
         // 🎯 只要开启水印，且用户没有手动关闭，就在导出 PPTX 时打入背景图
         if (showWatermark) {
           url = await addWatermarkToImage(url, watermarkText);
         }
-        pptSlide.background = { path: url };
+
+        // 🎯 转换为 base64 数据，使用 data 属性而不是 path，更节省内存
+        let imageData: string;
+        if (url.startsWith('data:')) {
+          // 已经是 data URL，提取 base64 部分
+          imageData = url.split(',')[1];
+        } else {
+          // 获取图片数据并转换为 base64
+          let buffer: ArrayBuffer;
+          if (!url.startsWith('/') && !url.startsWith(window.location.origin)) {
+            // 外部 URL，使用代理
+            buffer = await urlToBuffer(url);
+          } else {
+            // 本地 URL，直接 fetch
+            const response = await fetch(url);
+            buffer = await response.arrayBuffer();
+          }
+
+          // 转换为 base64（不使用 FileReader，更节省内存）
+          const bytes = new Uint8Array(buffer);
+          let binary = '';
+          const chunkSize = 0x8000; // 32KB chunks
+          for (let i = 0; i < bytes.length; i += chunkSize) {
+            const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+            binary += String.fromCharCode.apply(null, Array.from(chunk));
+          }
+          imageData = btoa(binary);
+        }
+
+        // 使用 data 属性而不是 path，pptxgenjs 会直接使用 base64 数据
+        pptSlide.background = { data: `image/png;base64,${imageData}` };
+
+        // 🎯 更新进度提示
+        if (completed.length > 5) {
+          toast.loading(
+            `${t_aippt('result_step.generating_pptx')} (${i + 1}/${completed.length})`,
+            { id: 'pptx' }
+          );
+        }
       }
+
       const blob = (await pres.write({ outputType: 'blob' })) as Blob;
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');

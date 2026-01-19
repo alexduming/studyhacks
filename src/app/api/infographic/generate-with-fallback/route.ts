@@ -468,8 +468,9 @@ export async function POST(request: NextRequest) {
     }
 
     // 消耗积分
+    let consumedCredit;
     try {
-      await consumeCredits({
+      consumedCredit = await consumeCredits({
         userId: user.id,
         credits: requiredCredits,
         scene: 'ai_infographic',
@@ -573,6 +574,7 @@ export async function POST(request: NextRequest) {
             }),
             scene: 'ai_infographic',
             costCredits: requiredCredits,
+            creditId: consumedCredit?.id,
             status: taskStatus,
             taskId: result.taskId || null,
             taskInfo: hasImages
