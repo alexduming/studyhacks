@@ -1,5 +1,4 @@
 import { getTranslations } from 'next-intl/server';
-import Link from 'next/link';
 import Image from 'next/image';
 import { Clock, Presentation } from 'lucide-react';
 
@@ -7,6 +6,7 @@ import { getUserPresentationsAction } from '@/app/actions/presentation';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardFooter, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { Badge } from '@/shared/components/ui/badge';
+import { Link } from '@/core/i18n/navigation';
 
 export const dynamic = 'force-dynamic';
 
