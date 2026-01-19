@@ -477,6 +477,12 @@ export async function POST(request: NextRequest) {
         description: `AI Infographic - Generate with fallback`,
         metadata: JSON.stringify({ aspectRatio, resolution, outputFormat }),
       });
+
+      console.log('[Infographic] 积分消耗成功:', {
+        creditId: consumedCredit?.id,
+        transactionNo: consumedCredit?.transactionNo,
+        credits: requiredCredits,
+      });
     } catch (creditError: any) {
       console.error('Failed to consume credits:', creditError);
       return NextResponse.json(
@@ -558,6 +564,8 @@ export async function POST(request: NextRequest) {
             ? AITaskStatus.SUCCESS
             : AITaskStatus.PENDING;
 
+          console.log('[Infographic] 准备创建任务记录，creditId:', consumedCredit?.id);
+
           await createAITaskRecordOnly({
             // 必填字段：谁、什么类型、用哪个提供商
             userId: user.id,
@@ -574,7 +582,7 @@ export async function POST(request: NextRequest) {
             }),
             scene: 'ai_infographic',
             costCredits: requiredCredits,
-            creditId: consumedCredit?.id,
+            creditId: consumedCredit?.id || null,
             status: taskStatus,
             taskId: result.taskId || null,
             taskInfo: hasImages
@@ -589,6 +597,8 @@ export async function POST(request: NextRequest) {
                   })
                 : null,
           });
+
+          console.log('[Infographic] ✅ 任务记录创建成功，creditId 已保存');
         } catch (logError) {
           // 记录历史失败不影响用户正常使用，只打印日志方便排查
           console.error(
