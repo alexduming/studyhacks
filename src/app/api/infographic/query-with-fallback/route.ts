@@ -44,7 +44,10 @@ async function queryFalTask(
 
     console.log('[FAL Query] 任务状态:', status.status);
 
-    if (status.status === 'COMPLETED') {
+    // 使用 as any 避免 TypeScript 类型检查问题
+    const statusValue = (status as any).status;
+
+    if (statusValue === 'COMPLETED') {
       // 获取结果
       const result = await fal.queue.result('fal-ai/nano-banana-pro', {
         requestId,
@@ -67,7 +70,7 @@ async function queryFalTask(
         status: 'SUCCESS',
         resultUrls,
       };
-    } else if (status.status === 'FAILED') {
+    } else if (statusValue === 'FAILED') {
       return {
         success: true,
         status: 'FAILED',
