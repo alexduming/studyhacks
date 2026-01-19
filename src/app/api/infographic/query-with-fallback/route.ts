@@ -4,6 +4,7 @@ import { fal } from '@fal-ai/client';
 import { getAllConfigs } from '@/shared/models/config';
 import { getStorageServiceWithConfigs } from '@/shared/services/storage';
 import { getUserInfo } from '@/shared/models/user';
+import { refundCredits } from '@/shared/models/credit';
 import { nanoid } from 'nanoid';
 import { db } from '@/core/db';
 import { aiTask } from '@/config/db/schema';
@@ -335,6 +336,50 @@ export async function GET(request: NextRequest) {
         { success: false, error: result.error },
         { status: 500 }
       );
+    }
+
+    // ✅ 新增：如果任务失败，自动退还积分
+    if (result.status === 'FAILED') {
+      try {
+        // 查找对应的 ai_task 记录
+        const user = await getUserInfo();
+        if (user) {
+          const [existingTask] = await db()
+            .select()
+            .from(aiTask)
+            .where(
+              and(
+                eq(aiTask.taskId, taskId),
+                eq(aiTask.userId, user.id),
+                eq(aiTask.scene, 'ai_infographic')
+              )
+            )
+            .limit(1);
+
+          if (existingTask && existingTask.costCredits && existingTask.costCredits > 0) {
+            console.log(`[Infographic] 💰 任务失败，自动退还 ${existingTask.costCredits} 积分给用户 ${user.id}`);
+
+            await refundCredits({
+              userId: user.id,
+              credits: existingTask.costCredits,
+              description: `Refund for failed Infographic task ${taskId}`,
+            });
+
+            // 更新任务状态为 failed
+            await db()
+              .update(aiTask)
+              .set({ status: 'failed' })
+              .where(eq(aiTask.id, existingTask.id));
+
+            console.log(`[Infographic] ✅ 积分退还成功`);
+          } else {
+            console.log(`[Infographic] ⚠️ 未找到对应的任务记录或积分为0，跳过退款`);
+          }
+        }
+      } catch (refundError: any) {
+        console.error('[Infographic] 自动退款失败:', refundError);
+        // 退款失败不影响返回结果
+      }
     }
 
     // ✅ 新增：如果任务成功且有结果，自动保存到 R2
