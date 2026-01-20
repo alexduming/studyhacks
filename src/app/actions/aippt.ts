@@ -773,6 +773,12 @@ export async function createKieTaskWithFallbackAction(params: {
   refundCredits?: number; // 失败时自动退还的积分数量
   /** Deck上下文：传递当前页码和总页数，帮助AI保持一致性 */
   deckContext?: DeckContext;
+  /** 🎯 编辑模式：原始图片URL（用于局部编辑） */
+  editImageUrl?: string;
+  /** 🎯 编辑模式：mask 图片（Base64 或 URL） */
+  maskImage?: string;
+  /** 🎯 编辑模式：带标记的图片（降级方案） */
+  markedImage?: string;
 }) {
   const {
     preferredProvider,
@@ -781,6 +787,9 @@ export async function createKieTaskWithFallbackAction(params: {
     outputLanguage = 'auto',
     refundCredits: refundAmount,
     deckContext,
+    editImageUrl,
+    maskImage,
+    markedImage,
     ...taskParams
   } = params;
 
@@ -807,13 +816,21 @@ export async function createKieTaskWithFallbackAction(params: {
     outputLanguage,
     customImages: customImagesWithAnchor,
     deckContext, // 传递deck上下文
+    editImageUrl, // 🎯 传递编辑模式参数
+    maskImage, // 🎯 传递 mask
+    markedImage, // 🎯 传递带标记的图片
   };
 
   // 定义优先级顺序
   // 如果指定了 provider，则它排第一，其他的按默认顺序排
   let providerChain = ['FAL', 'KIE', 'Replicate'];
 
-  if (preferredProvider && providerChain.includes(preferredProvider)) {
+  // 🎯 编辑模式（有标记图片）只支持 FAL，不回退到其他服务
+  const isEditMode = !!(editImageUrl && markedImage);
+  if (isEditMode) {
+    providerChain = ['FAL']; // 只使用 FAL
+    console.log('\n🎨 编辑模式：仅使用 FAL（视觉标记编辑）');
+  } else if (preferredProvider && providerChain.includes(preferredProvider)) {
     // 将首选 provider 移到第一位
     providerChain = [
       preferredProvider,
@@ -875,6 +892,15 @@ export async function createKieTaskWithFallbackAction(params: {
     } catch (error: any) {
       console.warn(`⚠️ ${provider} 失败:`, error.message);
       lastError = error;
+
+      // 🎯 编辑模式下，如果 FAL 失败，提供更详细的错误信息
+      if (isEditMode && provider === 'FAL') {
+        console.error('❌ 编辑模式失败：FAL API 错误');
+        console.error('错误详情:', error);
+        throw new Error(
+          `局部编辑失败：${error.message || '未知错误'}。提示：编辑模式需要 FAL API 支持。`
+        );
+      }
       // 继续下一个 loop
     }
   }
@@ -918,6 +944,14 @@ export async function createFalTaskAction(params: {
   outputLanguage?: 'auto' | 'zh' | 'en';
   /** Deck上下文：传递当前页码信息以增强视觉一致性 */
   deckContext?: DeckContext;
+  /** 🎯 编辑模式：原始图片URL（用于局部编辑） */
+  editImageUrl?: string;
+  /** 🎯 编辑模式：mask 图片（Base64 或 URL） */
+  maskImage?: string;
+  /** 🎯 编辑模式：带标记的图片（降级方案，用于不支持 mask 的模型） */
+  markedImage?: string;
+  /** 🎯 编辑模式：是否使用 inpainting 专用模型 */
+  useInpaintingModel?: boolean;
 }) {
   if (!FAL_KEY) {
     throw new Error('FAL API Key 未配置');
@@ -985,14 +1019,22 @@ export async function createFalTaskAction(params: {
       anchorPrompt +
       contentStrategy;
 
-    // 处理参考图片
-    let referenceImages = (params.customImages || []).map(resolveImageUrl);
+    // 🎯 判断是否为编辑模式（有原图和mask）
+    const isEditMode = !!(params.editImageUrl && params.maskImage);
 
-    if (params.styleId) {
-      const style = PPT_STYLES.find((s) => s.id === params.styleId);
-      if (style && style.refs && style.refs.length > 0) {
-        const styleRefs = style.refs.map(resolveImageUrl);
-        referenceImages = [...styleRefs, ...referenceImages];
+    // 处理参考图片（编辑模式下不使用参考图）
+    let referenceImages: string[] = [];
+
+    if (!isEditMode) {
+      // 只在非编辑模式下添加参考图
+      referenceImages = (params.customImages || []).map(resolveImageUrl);
+
+      if (params.styleId) {
+        const style = PPT_STYLES.find((s) => s.id === params.styleId);
+        if (style && style.refs && style.refs.length > 0) {
+          const styleRefs = style.refs.map(resolveImageUrl);
+          referenceImages = [...styleRefs, ...referenceImages];
+        }
       }
     }
 
@@ -1004,8 +1046,27 @@ export async function createFalTaskAction(params: {
       resolution: params.imageSize || '2K', // 支持 1K, 2K, 4K
     };
 
-    if (referenceImages.length > 0) {
-      // 限制最多 8 张 (nano-banana通常支持多张)
+    let falModel = 'fal-ai/nano-banana-pro';
+
+    if (isEditMode) {
+      // 🎯 编辑模式：使用视觉标记方案（在图片上绘制选区框）
+      // 因为 nano-banana-pro/edit 需要 image_urls 参数，不支持单独的 mask
+      if (params.markedImage) {
+        // 使用带标记的图片作为参考图
+        falModel = 'fal-ai/nano-banana-pro/edit';
+        input.image_urls = [params.markedImage];
+
+        // 增强提示词：明确指出要编辑红框区域
+        finalPrompt = `${finalPrompt}\n\n[重要编辑指令]\n图片中的红色框标记了需要修改的区域。请仅修改红框内的内容，保持红框外的所有元素不变。修改完成后，请移除所有红色标记框。`;
+
+        console.log('[FAL] 🎨 编辑模式：使用视觉标记方案（红框标记编辑区域）');
+        console.log('[FAL] 标记图片长度:', params.markedImage.length, '字符');
+      } else {
+        throw new Error('编辑模式需要带标记的图片');
+      }
+    } else if (referenceImages.length > 0) {
+      // 🎯 参考图模式：使用 edit 模型 + 参考图（非局部编辑）
+      falModel = 'fal-ai/nano-banana-pro/edit';
       const limitedImages = referenceImages.slice(0, 8);
       finalPrompt +=
         '（视觉风格参考：请严格遵循所提供参考图的设计风格、配色方案和构图布局）';
@@ -1013,16 +1074,11 @@ export async function createFalTaskAction(params: {
       input.image_urls = limitedImages;
     }
 
-    // 动态选择模型：如果有参考图，使用 edit 模型；否则使用标准模型
-    const falModel =
-      referenceImages.length > 0
-        ? 'fal-ai/nano-banana-pro/edit'
-        : 'fal-ai/nano-banana-pro';
-
     console.log('[FAL] 请求参数:', {
       model: falModel,
       prompt: input.prompt.substring(0, 100) + '...',
       hasReferenceImages: referenceImages.length > 0,
+      isEditMode: isEditMode,
     });
 
     const startTime = Date.now();
@@ -1102,6 +1158,13 @@ export async function createFalTaskAction(params: {
     };
   } catch (error: any) {
     console.error('❌ FAL 失败:', error.message);
+    // 打印更详细的错误信息
+    if (error.body) {
+      console.error('[FAL] 错误详情:', JSON.stringify(error.body, null, 2));
+    }
+    if (error.status) {
+      console.error('[FAL] HTTP 状态码:', error.status);
+    }
     throw error;
   }
 }
@@ -1567,4 +1630,160 @@ export async function queryKieTaskWithFallbackAction(
   }
 
   return result;
+}
+
+/**
+ * 精简版局部编辑 - 新方案
+ *
+ * 核心思路：
+ * 1. 只上传当前图片作为唯一参考
+ * 2. 将框选坐标转换为提示词
+ * 3. 结合用户的修改描述
+ * 4. 支持多选框
+ *
+ * @param params 编辑参数
+ * @returns 编辑后的图片 URL
+ */
+export async function editImageRegionAction(params: {
+  /** 待编辑的原图 URL */
+  imageUrl: string;
+  /** 选区列表（支持多选框） */
+  regions: Array<{
+    /** 选区标签（如 A, B, C） */
+    label: string;
+    /** 归一化坐标 0-1 */
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    /** 该选区的修改描述 */
+    note: string;
+  }>;
+  /** 图片宽度（像素） */
+  imageWidth: number;
+  /** 图片高度（像素） */
+  imageHeight: number;
+  /** 分辨率 */
+  resolution?: string;
+}) {
+  'use server';
+
+  if (!FAL_KEY) {
+    throw new Error('FAL API Key 未配置');
+  }
+
+  console.log('\n========== 精简版局部编辑 ==========');
+  console.log('[Edit] 原图:', params.imageUrl);
+  console.log('[Edit] 选区数量:', params.regions.length);
+  console.log('[Edit] 图片尺寸:', params.imageWidth, 'x', params.imageHeight);
+
+  try {
+    // 配置 FAL Client
+    fal.config({
+      credentials: FAL_KEY,
+    });
+
+    // 🎯 构建坐标信息提示词
+    // 将归一化坐标(0-1)转换为像素坐标，并生成描述
+    const regionPrompts = params.regions.map((region) => {
+      const pixelX = Math.round(region.x * params.imageWidth);
+      const pixelY = Math.round(region.y * params.imageHeight);
+      const pixelWidth = Math.round(region.width * params.imageWidth);
+      const pixelHeight = Math.round(region.height * params.imageHeight);
+      const pixelX2 = pixelX + pixelWidth;
+      const pixelY2 = pixelY + pixelHeight;
+
+      // 同时提供百分比和像素坐标，增强 AI 理解
+      const percentX = Math.round(region.x * 100);
+      const percentY = Math.round(region.y * 100);
+      const percentWidth = Math.round(region.width * 100);
+      const percentHeight = Math.round(region.height * 100);
+
+      return `【区域 ${region.label}】
+位置：从左上角 (${percentX}%, ${percentY}%) 到 (${percentX + percentWidth}%, ${percentY + percentHeight}%)
+像素坐标：左上 (${pixelX}, ${pixelY}) 右下 (${pixelX2}, ${pixelY2})
+尺寸：${pixelWidth}×${pixelHeight} 像素
+修改要求：${region.note || '保持不变'}`;
+    }).join('\n\n');
+
+    // 🎯 构建最终提示词 - 简洁明确
+    const finalPrompt = `【图片局部编辑任务】
+
+你需要对这张图片进行精确的局部修改。
+
+【重要规则】
+1. 只修改下面指定的区域，其他所有区域必须保持完全不变
+2. 保持图片的整体风格、配色、质感一致
+3. 修改后的内容要与周围环境自然融合
+
+【需要修改的区域】
+${regionPrompts}
+
+【执行要求】
+- 严格按照坐标范围修改，不要超出指定区域
+- 区域外的任何元素（文字、图形、背景）都不能改变
+- 输出完整的修改后图片`;
+
+    console.log('[Edit] 最终提示词:\n', finalPrompt);
+
+    // 🎯 处理图片 URL
+    const imageUrl = resolveImageUrl(params.imageUrl);
+    console.log('[Edit] 处理后的图片 URL:', imageUrl);
+
+    // 调用 FAL nano-banana-pro/edit
+    const input: any = {
+      prompt: finalPrompt,
+      num_images: 1,
+      aspect_ratio: '16:9',
+      output_format: 'png',
+      resolution: params.resolution || '2K',
+      // 🎯 关键：只上传当前图片作为唯一参考
+      image_urls: [imageUrl],
+    };
+
+    console.log('[Edit] FAL 请求参数:', {
+      model: 'fal-ai/nano-banana-pro/edit',
+      prompt: finalPrompt.substring(0, 100) + '...',
+      image_urls: input.image_urls,
+    });
+
+    const startTime = Date.now();
+
+    const result: any = await fal.subscribe('fal-ai/nano-banana-pro/edit', {
+      input,
+      logs: true,
+      onQueueUpdate: (update: any) => {
+        if (update.status === 'IN_PROGRESS') {
+          console.log('[Edit] 生成中...');
+        }
+      },
+    });
+
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.log(`[Edit] FAL 调用完成，耗时: ${elapsed}s`);
+
+    if (
+      !result.data ||
+      !result.data.images ||
+      result.data.images.length === 0
+    ) {
+      throw new Error('FAL 未返回图片');
+    }
+
+    const editedImageUrl = result.data.images[0].url;
+    console.log('[Edit] ✅ 编辑成功，URL:', editedImageUrl);
+    console.log('========================================\n');
+
+    return {
+      success: true,
+      imageUrl: editedImageUrl,
+      provider: 'FAL',
+    };
+  } catch (error: any) {
+    console.error('[Edit] ❌ 编辑失败:', error.message);
+    if (error.body) {
+      console.error('[Edit] 错误详情:', JSON.stringify(error.body, null, 2));
+    }
+    throw error;
+  }
 }

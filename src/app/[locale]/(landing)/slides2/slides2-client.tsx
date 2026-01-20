@@ -48,6 +48,7 @@ import {
   PPT_SIZES,
   SLIDES2_STYLE_PRESETS,
 } from '@/config/aippt-slides2';
+import { pxToPoint, calculatePPTXCoords } from '@/shared/lib/ocr-utils';
 import { ConsoleLayout } from '@/shared/blocks/console/layout';
 import { CreditsCost } from '@/shared/components/ai-elements/credits-display';
 import { Badge } from '@/shared/components/ui/badge';
@@ -83,6 +84,14 @@ import { cn } from '@/shared/lib/utils';
 
 type SlideStatus = 'pending' | 'generating' | 'completed' | 'failed';
 
+interface SlideHistoryEntry {
+  id: string;
+  imageUrl: string;
+  prompt: string;
+  createdAt: number;
+  provider?: string;
+}
+
 interface SlideData {
   id: string;
   title: string;
@@ -91,14 +100,8 @@ interface SlideData {
   imageUrl?: string;
   provider?: string;
   fallbackUsed?: boolean;
-}
-
-interface SlideHistoryEntry {
-  id: string;
-  imageUrl: string;
-  prompt: string;
-  createdAt: number;
-  provider?: string;
+  /** 🎯 编辑历史记录（持久化保存） */
+  history?: SlideHistoryEntry[];
 }
 
 interface RegionDefinition {
@@ -226,6 +229,7 @@ export default function Slides2Client({
   const editCanvasRef = useRef<HTMLDivElement>(null);
   const drawingStartRef = useRef<{ x: number; y: number } | null>(null);
   const autoSourceRef = useRef<string>('');
+  const slidesRef = useRef<SlideData[]>(slides); // 🎯 追踪最新的 slides 状态
   const [presentationRecordId, setPresentationRecordId] = useState<
     string | null
   >(initialPresentation?.id || null);
@@ -357,6 +361,31 @@ export default function Slides2Client({
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // 🎯 保持 slidesRef 与 slides 状态同步
+  useEffect(() => {
+    slidesRef.current = slides;
+  }, [slides]);
+
+  // 🎯 从加载的 slides 中初始化 slideHistories（向后兼容）
+  useEffect(() => {
+    const initialHistories: Record<string, SlideHistoryEntry[]> = {};
+    let hasAnyHistory = false;
+
+    for (const slide of slides) {
+      if (slide.history && slide.history.length > 0) {
+        initialHistories[slide.id] = slide.history;
+        hasAnyHistory = true;
+      }
+    }
+
+    if (hasAnyHistory) {
+      setSlideHistories((prev) => ({
+        ...prev,
+        ...initialHistories,
+      }));
+    }
+  }, [slides.length]); // 只在 slides 数量变化时运行（避免频繁更新）
 
   const handleApiError = (error: any) => {
     const message =
@@ -595,7 +624,21 @@ export default function Slides2Client({
     }
   };
 
+  // 🎯 更新历史记录 - 直接存储在 slide 对象中以便持久化
   const appendHistory = (slideId: string, entry: SlideHistoryEntry) => {
+    setSlides((prev) =>
+      prev.map((slide) => {
+        if (slide.id === slideId) {
+          const currentHistory = slide.history || [];
+          // 新记录放在前面，最多保留 20 条
+          const newHistory = [entry, ...currentHistory].slice(0, 20);
+          return { ...slide, history: newHistory };
+        }
+        return slide;
+      })
+    );
+
+    // 同时更新旧的 slideHistories 状态（兼容性）
     setSlideHistories((prev) => {
       const list = prev[slideId] || [];
       return {
@@ -799,6 +842,8 @@ export default function Slides2Client({
       total?: number;
       /** 🎯 锚定图片URL：用于保持视觉一致性 */
       anchorImageUrl?: string;
+      /** 🎯 整体修改模式：仅使用当前图片+提示词，不传风格参考 */
+      isGlobalEdit?: boolean;
     }
   ) => {
     const styleImages =
@@ -842,6 +887,155 @@ export default function Slides2Client({
       total: options?.total,
     });
 
+    // 🎯 编辑模式：精简方案（只传图片+坐标+提示词）
+    if (regionPayload && regionPayload.length > 0 && slide.imageUrl) {
+      try {
+        console.log('[Edit Mode] 开始精简版局部编辑');
+        console.log('[Edit Mode] 选区数量:', regionPayload.length);
+
+        // 🎯 首次编辑前，先把原始图片存入历史记录
+        const existingHistory = slide.history || [];
+        if (existingHistory.length === 0) {
+          console.log('[Edit Mode] 首次编辑，保存原始图片到历史');
+          appendHistory(slide.id, {
+            id: `${slide.id}-original`,
+            imageUrl: slide.imageUrl,
+            prompt: '原始版本',
+            createdAt: Date.now() - 1, // 稍早一点，确保排在编辑结果之后
+            provider: slide.provider,
+          });
+        }
+
+        const { editImageRegionAction } = await import('@/app/actions/aippt');
+
+        // 获取原图尺寸
+        const imageWidth = resolution === '4K' ? 3840 : 1920;
+        const imageHeight = resolution === '4K' ? 2160 : 1080;
+
+        // 🎯 调用精简版编辑 API
+        // 只传递：原图 + 选区坐标和描述 + 分辨率
+        const editResult = await editImageRegionAction({
+          imageUrl: slide.imageUrl,
+          regions: regionPayload.map((region) => ({
+            label: region.label,
+            x: region.x,
+            y: region.y,
+            width: region.width,
+            height: region.height,
+            note: region.note || '',
+          })),
+          imageWidth,
+          imageHeight,
+          resolution,
+        });
+
+        console.log('[Edit Mode] ✅ 编辑完成');
+
+        // 更新 slide - 直接使用返回的图片
+        setSlides((prev) =>
+          prev.map((s) =>
+            s.id === slide.id
+              ? {
+                  ...s,
+                  imageUrl: editResult.imageUrl,
+                  status: 'completed',
+                  provider: editResult.provider,
+                }
+              : s
+          )
+        );
+
+        appendHistory(slide.id, {
+          id: `${slide.id}-${Date.now()}`,
+          imageUrl: editResult.imageUrl,
+          prompt: regionPayload.map((r) => `[${r.label}] ${r.note}`).join('; '),
+          createdAt: Date.now(),
+          provider: editResult.provider,
+        });
+
+        return editResult.imageUrl;
+      } catch (error) {
+        console.error('[Edit Mode] 局部编辑失败:', error);
+        throw error;
+      }
+    }
+
+    // 🎯 整体修改模式：仅使用当前图片+提示词，不传风格参考
+    if (options?.isGlobalEdit && slide.imageUrl && options?.overrideContent?.trim()) {
+      try {
+        console.log('[Global Edit Mode] 开始整体修改');
+        console.log('[Global Edit Mode] 提示词:', options.overrideContent.substring(0, 100));
+
+        // 🎯 首次编辑前，先把原始图片存入历史记录
+        const existingHistory = slide.history || [];
+        if (existingHistory.length === 0) {
+          console.log('[Global Edit Mode] 首次编辑，保存原始图片到历史');
+          appendHistory(slide.id, {
+            id: `${slide.id}-original`,
+            imageUrl: slide.imageUrl,
+            prompt: '原始版本',
+            createdAt: Date.now() - 1,
+            provider: slide.provider,
+          });
+        }
+
+        // 🎯 整体修改：只传当前图片作为参考 + 提示词
+        const task = await createKieTaskWithFallbackAction({
+          prompt: options.overrideContent,
+          customImages: [slide.imageUrl], // 仅当前图片作为参考
+          aspectRatio,
+          imageSize: resolution,
+          preferredProvider: 'FAL',
+          isEnhancedMode,
+          outputLanguage: language,
+          refundCredits: resolution === '4K' ? 12 : 6,
+          // 不传 styleId，不传 deckContext
+        });
+
+        let imageUrl = 'imageUrl' in task ? task.imageUrl : undefined;
+        if (!imageUrl) {
+          const result = await pollTask(task.task_id!, task.provider);
+          imageUrl = result;
+        }
+
+        if (!imageUrl) {
+          throw new Error(t_aippt('v2.generation_timeout'));
+        }
+
+        console.log('[Global Edit Mode] ✅ 整体修改完成');
+
+        setSlides((prev) =>
+          prev.map((s) =>
+            s.id === slide.id
+              ? {
+                  ...s,
+                  imageUrl,
+                  status: 'completed',
+                  provider: task.provider,
+                  fallbackUsed: task.fallbackUsed,
+                }
+              : s
+          )
+        );
+
+        appendHistory(slide.id, {
+          id: `${slide.id}-${Date.now()}`,
+          imageUrl,
+          prompt: `[整体修改] ${options.overrideContent}`,
+          createdAt: Date.now(),
+          provider: task.provider,
+        });
+
+        void persistSlideImageToR2(slide.id, imageUrl);
+
+        return imageUrl;
+      } catch (error) {
+        console.error('[Global Edit Mode] 整体修改失败:', error);
+        throw error;
+      }
+    }
+
+    // 正常生成模式（无选区）
     const task = await createKieTaskWithFallbackAction({
       prompt,
       styleId: selectedStyleId || undefined,
@@ -1283,54 +1477,259 @@ export default function Slides2Client({
       const PptxGenJS = (await import('pptxgenjs')).default;
       const pres = new PptxGenJS();
 
+      // 🎯 设置演示文稿尺寸（16:9）
+      pres.layout = 'LAYOUT_16x9';
+      const slideWidth = 10; // 英寸
+      const slideHeight = 5.625; // 英寸
+
       // 🎯 逐个处理幻灯片，避免内存溢出
       for (let i = 0; i < completed.length; i++) {
         const slide = completed[i];
         const pptSlide = pres.addSlide();
         let url = slide.imageUrl!;
 
-        // 🎯 只要开启水印，且用户没有手动关闭，就在导出 PPTX 时打入背景图
-        if (showWatermark) {
-          url = await addWatermarkToImage(url, watermarkText);
-        }
-
-        // 🎯 转换为 base64 数据，使用 data 属性而不是 path，更节省内存
-        let imageData: string;
-        if (url.startsWith('data:')) {
-          // 已经是 data URL，提取 base64 部分
-          imageData = url.split(',')[1];
-        } else {
-          // 获取图片数据并转换为 base64
-          let buffer: ArrayBuffer;
-          if (!url.startsWith('/') && !url.startsWith(window.location.origin)) {
-            // 外部 URL，使用代理
-            buffer = await urlToBuffer(url);
-          } else {
-            // 本地 URL，直接 fetch
-            const response = await fetch(url);
-            buffer = await response.arrayBuffer();
-          }
-
-          // 转换为 base64（不使用 FileReader，更节省内存）
-          const bytes = new Uint8Array(buffer);
-          let binary = '';
-          const chunkSize = 0x8000; // 32KB chunks
-          for (let i = 0; i < bytes.length; i += chunkSize) {
-            const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
-            binary += String.fromCharCode.apply(null, Array.from(chunk));
-          }
-          imageData = btoa(binary);
-        }
-
-        // 使用 data 属性而不是 path，pptxgenjs 会直接使用 base64 数据
-        pptSlide.background = { data: `image/png;base64,${imageData}` };
-
         // 🎯 更新进度提示
-        if (completed.length > 5) {
-          toast.loading(
-            `${t_aippt('result_step.generating_pptx')} (${i + 1}/${completed.length})`,
-            { id: 'pptx' }
-          );
+        toast.loading(
+          `正在处理幻灯片 ${i + 1}/${completed.length}...`,
+          { id: 'pptx' }
+        );
+
+        try {
+          // 🎯 步骤1: 提取文本和位置信息（使用 OCR）
+          let ocrData: any = null;
+          try {
+            const ocrResponse = await fetch('/api/ai/ocr-with-positions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ imageUrl: url }),
+            });
+            ocrData = await ocrResponse.json();
+            console.log(`[PPTX] 幻灯片 ${i + 1} OCR 结果:`, ocrData);
+          } catch (ocrError) {
+            console.warn(`[PPTX] 幻灯片 ${i + 1} OCR 失败:`, ocrError);
+          }
+
+          // 🎯 步骤2: 清理背景（移除文本区域）
+          // ⚠️ 这是 inpainting 的关键步骤，必须成功执行才能得到干净背景
+          const originalUrl = url; // 保存原始 URL 用于对比
+          if (ocrData?.success && ocrData.blocks && ocrData.blocks.length > 0) {
+            try {
+              console.log(`[PPTX] ========== 幻灯片 ${i + 1} 背景清理开始 ==========`);
+              console.log(`[PPTX] 原图 URL: ${url.substring(0, 100)}...`);
+              console.log(`[PPTX] 检测到 ${ocrData.blocks.length} 个文本区域需要清理`);
+              console.log(`[PPTX] 图片尺寸: ${ocrData.imageSize?.width}x${ocrData.imageSize?.height}`);
+              console.log(`[PPTX] 文本框示例:`, ocrData.blocks.slice(0, 2).map((b: any) => ({
+                text: b.text?.substring(0, 20),
+                bbox: b.bbox,
+              })));
+
+              const cleanResponse = await fetch('/api/image/clean-background', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  imageUrl: url,
+                  textBoxes: ocrData.blocks.map((block: any) => block.bbox),
+                  imageSize: ocrData.imageSize,
+                }),
+              });
+
+              console.log(`[PPTX] clean-background API 响应状态: ${cleanResponse.status}`);
+
+              const cleanData = await cleanResponse.json();
+              console.log(`[PPTX] clean-background API 响应:`, {
+                success: cleanData.success,
+                hasImageUrl: !!cleanData.imageUrl,
+                imageUrlPreview: cleanData.imageUrl?.substring(0, 80),
+                error: cleanData.error,
+              });
+
+              if (cleanData.success && cleanData.imageUrl) {
+                console.log(`[PPTX] ✅ 幻灯片 ${i + 1} 背景清理成功！`);
+                console.log(`[PPTX] 清理后 URL: ${cleanData.imageUrl.substring(0, 100)}...`);
+                console.log(`[PPTX] URL 是否变化: ${url !== cleanData.imageUrl}`);
+                url = cleanData.imageUrl;
+              } else {
+                // ⚠️ 不要静默失败，显示警告让用户知道
+                console.error(`[PPTX] ❌ 幻灯片 ${i + 1} 背景清理失败!`);
+                console.error(`[PPTX] 错误信息: ${cleanData.error || '未知错误'}`);
+                console.error(`[PPTX] 将使用原图作为背景（文字不会被清除）`);
+                // 继续使用原图，但记录警告
+                toast.warning(`幻灯片 ${i + 1} 背景清理失败: ${cleanData.error || '未知错误'}`);
+              }
+            } catch (cleanError) {
+              console.error(`[PPTX] ❌ 幻灯片 ${i + 1} 背景清理异常:`, cleanError);
+              toast.warning(`幻灯片 ${i + 1} 背景清理异常: ${cleanError instanceof Error ? cleanError.message : '未知错误'}`);
+            }
+            console.log(`[PPTX] ========== 幻灯片 ${i + 1} 背景清理结束 ==========`);
+            console.log(`[PPTX] 最终使用的背景 URL: ${url.substring(0, 100)}...`);
+            console.log(`[PPTX] 背景是否被清理: ${url !== originalUrl}`);
+          } else {
+            console.log(`[PPTX] 幻灯片 ${i + 1} 跳过背景清理（OCR 未检测到文本或失败）`);
+            console.log(`[PPTX] OCR 状态: success=${ocrData?.success}, blocks=${ocrData?.blocks?.length || 0}`);
+          }
+
+          // 🎯 步骤3: 只要开启水印，且用户没有手动关闭，就在导出 PPTX 时打入背景图
+          if (showWatermark) {
+            url = await addWatermarkToImage(url, watermarkText);
+          }
+
+          // 🎯 转换为 base64 数据，使用 data 属性而不是 path，更节省内存
+          let imageData: string;
+          if (url.startsWith('data:')) {
+            // 已经是 data URL，提取 base64 部分
+            imageData = url.split(',')[1];
+          } else {
+            // 获取图片数据并转换为 base64
+            let buffer: ArrayBuffer;
+            if (!url.startsWith('/') && !url.startsWith(window.location.origin)) {
+              // 外部 URL，使用代理
+              buffer = await urlToBuffer(url);
+            } else {
+              // 本地 URL，直接 fetch
+              const response = await fetch(url);
+              buffer = await response.arrayBuffer();
+            }
+
+            // 转换为 base64（不使用 FileReader，更节省内存）
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            const chunkSize = 0x8000; // 32KB chunks
+            for (let j = 0; j < bytes.length; j += chunkSize) {
+              const chunk = bytes.subarray(j, Math.min(j + chunkSize, bytes.length));
+              binary += String.fromCharCode.apply(null, Array.from(chunk));
+            }
+            imageData = btoa(binary);
+          }
+
+          // 🎯 将背景作为可编辑图片对象添加（而非填充式背景）
+          // 这样用户可以在 PowerPoint 中选择、拖动和编辑背景图片
+          // 同时 inpainting 清理的效果也能正确显示
+          pptSlide.addImage({
+            data: `image/png;base64,${imageData}`,
+            x: 0,
+            y: 0,
+            w: slideWidth,   // 10 英寸
+            h: slideHeight,  // 5.625 英寸
+          });
+
+          // 🎯 步骤4: 检测并添加图形元素（图标、形状等）作为独立图层
+          // 图形元素应该在背景之上、文本之下
+          try {
+            console.log(`[PPTX] 幻灯片 ${i + 1} 开始检测图形元素...`);
+            const graphicsResponse = await fetch('/api/ai/detect-graphics', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ imageUrl: slide.imageUrl }),
+            });
+            const graphicsData = await graphicsResponse.json();
+
+            if (graphicsData?.success && graphicsData.elements && graphicsData.elements.length > 0) {
+              const imgWidth = graphicsData.imageSize?.width || 1920;
+              const imgHeight = graphicsData.imageSize?.height || 1080;
+
+              // 按 zIndex 排序，确保正确的图层顺序
+              const sortedElements = [...graphicsData.elements].sort((a: any, b: any) => a.zIndex - b.zIndex);
+
+              for (const element of sortedElements) {
+                try {
+                  // 裁剪图形元素
+                  const cropResponse = await fetch('/api/image/crop', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      imageUrl: slide.imageUrl,
+                      bbox: element.bbox,
+                      imageSize: graphicsData.imageSize,
+                    }),
+                  });
+                  const cropData = await cropResponse.json();
+
+                  if (cropData.success && cropData.croppedImageUrl) {
+                    // 计算 PPTX 坐标
+                    const coords = calculatePPTXCoords(
+                      element.bbox,
+                      { width: imgWidth, height: imgHeight },
+                      slideWidth,
+                      slideHeight
+                    );
+
+                    // 提取 base64 数据
+                    const graphicBase64 = cropData.croppedImageUrl.split(',')[1];
+
+                    // 添加图形作为独立图片元素
+                    pptSlide.addImage({
+                      data: `image/png;base64,${graphicBase64}`,
+                      x: coords.x,
+                      y: coords.y,
+                      w: coords.w || 1,
+                      h: coords.h || 1,
+                    });
+                  }
+                } catch (cropError) {
+                  console.warn(`[PPTX] 裁剪图形元素失败:`, cropError);
+                }
+              }
+              console.log(`[PPTX] 幻灯片 ${i + 1} 添加了 ${sortedElements.length} 个图形元素`);
+            }
+          } catch (graphicsError) {
+            console.warn(`[PPTX] 幻灯片 ${i + 1} 图形检测失败:`, graphicsError);
+          }
+
+          // 🎯 步骤5: 添加可编辑文本框（如果 OCR 成功）
+          // 文本框应该在最上层，覆盖背景和图形
+          if (ocrData?.success && ocrData.blocks && ocrData.blocks.length > 0) {
+            const imgWidth = ocrData.imageSize?.width || 1920;
+            const imgHeight = ocrData.imageSize?.height || 1080;
+
+            for (const block of ocrData.blocks) {
+              // 使用工具函数计算 PPTX 坐标（英寸），传入对齐方式
+              const coords = calculatePPTXCoords(
+                block.bbox,
+                { width: imgWidth, height: imgHeight },
+                slideWidth,
+                slideHeight,
+                block.alignment || 'left'  // 传入对齐方式以精确调整位置
+              );
+
+              // 使用精确的像素字号转换为点数
+              const fontSizePt = pxToPoint(block.fontSizePx || 24);
+
+              // 解析颜色（去掉 # 号，pptxgenjs 需要不带 # 的 hex）
+              // 确保颜色格式正确（6位hex，大写）
+              let colorHex = (block.color || '#000000').replace('#', '').toUpperCase();
+              if (!/^[0-9A-F]{6}$/i.test(colorHex)) {
+                console.warn(`[PPTX] 无效颜色值: ${block.color}, 使用默认黑色`);
+                colorHex = '000000';
+              }
+
+              // 根据文本内容选择字体（中文用微软雅黑，英文用 Arial）
+              const hasChineseChar = /[\u4e00-\u9fa5]/.test(block.text);
+              const fontFace = hasChineseChar ? 'Microsoft YaHei' : 'Arial';
+
+              // 添加文本框（透明背景，精确样式，无边框）
+              pptSlide.addText(block.text, {
+                x: coords.x,
+                y: coords.y,
+                w: (coords.w || 1) * 1.02, // 减少到 2% 缓冲，提高位置精度
+                h: (coords.h || 0.5) * 1.02,  // 减少到 2% 缓冲
+                fontSize: fontSizePt,
+                fontFace: fontFace,
+                color: colorHex,
+                bold: block.isBold || false,
+                align: block.alignment || 'left',
+                valign: 'top',
+                autoFit: false, // 禁用自动适应，使用精确尺寸
+                lineSpacingMultiple: block.lineHeight || 1.0,
+                // 关键：文本框背景透明
+                fill: { type: 'none' },
+                // 完全移除边框（不设置line属性）
+              });
+            }
+            console.log(`[PPTX] 幻灯片 ${i + 1} 添加了 ${ocrData.blocks.length} 个文本框（颜色: ${ocrData.blocks[0]?.color}, 字号: ${ocrData.blocks[0]?.fontSizePx}px）`);
+          }
+        } catch (slideError) {
+          console.error(`[PPTX] 处理幻灯片 ${i + 1} 失败:`, slideError);
+          // 继续处理下一张幻灯片
         }
       }
 
@@ -2060,89 +2459,162 @@ export default function Slides2Client({
     </Card>
   );
 
-  const renderSlideCard = (slide: SlideData, index: number) => (
-    <Card key={slide.id} className="overflow-hidden bg-card/50 p-4 dark:bg-white/[0.03]">
-      <div className="mb-3 flex items-center justify-between text-xs tracking-[0.2em] text-muted-foreground uppercase">
-        <span className="text-foreground">
-          {t_aippt('outline_step.slide_title')} {index + 1}
-        </span>
-        <Badge
-          variant="outline"
-          className={cn(
-            'border-border text-[10px]',
-            slide.status === 'completed' &&
-              'border-emerald-400 text-emerald-600 dark:text-emerald-200',
-            slide.status === 'failed' && 'border-destructive text-destructive',
-            slide.status === 'generating' && 'border-primary text-primary'
-          )}
-        >
-          {
-            {
-              pending: t_aippt('result_step.status.pending'),
-              generating: t_aippt('result_step.status.generating'),
-              completed: t_aippt('result_step.download_success'),
-              failed: t_aippt('result_step.status.failed'),
-            }[slide.status]
-          }
-        </Badge>
-      </div>
-      <div className="relative aspect-[16/9] overflow-hidden rounded-2xl border border-border bg-muted/50 dark:bg-black/20">
-        {slide.status === 'completed' && slide.imageUrl ? (
-          <div className="relative h-full w-full">
-            <Image
-              src={slide.imageUrl}
-              alt={slide.title}
-              fill
-              className="cursor-zoom-in object-cover transition-transform hover:scale-[1.02]"
-              unoptimized
-              onClick={() => setLightboxUrl(slide.imageUrl!)}
-            />
-            {/* 前端固定位置水印 */}
-            {showWatermark && (
-              <div className="absolute right-3 bottom-3 z-10 rounded bg-background/80 px-2 py-1 text-[10px] font-medium text-muted-foreground backdrop-blur-sm dark:bg-black/40 dark:text-white/60">
-                {watermarkText}
-              </div>
+  const renderSlideCard = (slide: SlideData, index: number) => {
+    // 🎯 使用 slide 内置的 history（持久化），同时兼容旧的 slideHistories
+    const histories = slide.history || slideHistories[slide.id] || [];
+
+    return (
+      <Card key={slide.id} className="overflow-hidden bg-card/50 p-4 dark:bg-white/[0.03]">
+        <div className="mb-3 flex items-center justify-between text-xs tracking-[0.2em] text-muted-foreground uppercase">
+          <span className="text-foreground">
+            {t_aippt('outline_step.slide_title')} {index + 1}
+          </span>
+          <Badge
+            variant="outline"
+            className={cn(
+              'border-border text-[10px]',
+              slide.status === 'completed' &&
+                'border-emerald-400 text-emerald-600 dark:text-emerald-200',
+              slide.status === 'failed' && 'border-destructive text-destructive',
+              slide.status === 'generating' && 'border-primary text-primary'
             )}
+          >
+            {
+              {
+                pending: t_aippt('result_step.status.pending'),
+                generating: t_aippt('result_step.status.generating'),
+                completed: t_aippt('result_step.download_success'),
+                failed: t_aippt('result_step.status.failed'),
+              }[slide.status]
+            }
+          </Badge>
+        </div>
+        <div className="relative aspect-[16/9] overflow-hidden rounded-2xl border border-border bg-muted/50 dark:bg-black/20">
+          {slide.status === 'completed' && slide.imageUrl ? (
+            <div className="relative h-full w-full">
+              <Image
+                src={slide.imageUrl}
+                alt={slide.title}
+                fill
+                className="cursor-zoom-in object-cover transition-transform hover:scale-[1.02]"
+                unoptimized
+                onClick={() => setLightboxUrl(slide.imageUrl!)}
+              />
+              {/* 前端固定位置水印 */}
+              {showWatermark && (
+                <div className="absolute right-3 bottom-3 z-10 rounded bg-background/80 px-2 py-1 text-[10px] font-medium text-muted-foreground backdrop-blur-sm dark:bg-black/40 dark:text-white/60">
+                  {watermarkText}
+                </div>
+              )}
+            </div>
+          ) : slide.status === 'generating' ? (
+            <div className="flex h-full flex-col items-center justify-center text-sm text-muted-foreground">
+              <Loader2 className="mb-2 h-6 w-6 animate-spin" />
+              {t_aippt('v2.generating')}
+            </div>
+          ) : slide.status === 'failed' ? (
+            <div className="text-destructive flex h-full flex-col items-center justify-center text-sm">
+              {t_aippt('errors.generation_failed')}
+            </div>
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center text-sm text-muted-foreground">
+              {t_aippt('result_step.status.pending')}
+            </div>
+          )}
+        </div>
+
+        {/* 🎯 历史记录缩略图区域 */}
+        <div className="mt-3 flex items-center gap-2">
+          {/* 历史缩略图滚动区域 */}
+          <div className="flex-1 overflow-hidden">
+            {/* 🎯 始终显示历史区域，包含原始图和编辑历史 */}
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted-foreground/20">
+              {/* 🎯 首先显示所有编辑历史（新的在前） */}
+              {histories.map((entry, historyIndex) => (
+                <button
+                  key={entry.id}
+                  className={cn(
+                    'group relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all hover:border-primary',
+                    slide.imageUrl === entry.imageUrl
+                      ? 'border-primary shadow-[0_0_0_2px_rgba(139,108,255,0.3)]'
+                      : 'border-border/50 hover:border-primary/60'
+                  )}
+                  onClick={() => {
+                    // 切换到历史版本
+                    setSlides((prev) =>
+                      prev.map((s) =>
+                        s.id === slide.id
+                          ? { ...s, imageUrl: entry.imageUrl }
+                          : s
+                      )
+                    );
+                  }}
+                  title={`版本 ${histories.length - historyIndex} - ${new Date(entry.createdAt).toLocaleString()}`}
+                >
+                  <img
+                    src={entry.imageUrl}
+                    alt={`历史版本 ${historyIndex + 1}`}
+                    className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                  />
+                  {/* 版本标记 */}
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-1 py-0.5">
+                    <span className="text-[8px] font-medium text-white">
+                      v{histories.length - historyIndex}
+                    </span>
+                  </div>
+                  {/* 当前选中标记 - 只用边框高亮，不用蒙版 */}
+                  {slide.imageUrl === entry.imageUrl && (
+                    <div className="absolute top-0.5 right-0.5">
+                      <Check className="h-3 w-3 text-primary drop-shadow-md" />
+                    </div>
+                  )}
+                </button>
+              ))}
+              {/* 🎯 如果没有编辑历史但有当前图片，显示当前图作为"原始版本" */}
+              {histories.length === 0 && slide.imageUrl && (
+                <div
+                  className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg border-2 border-primary shadow-[0_0_0_2px_rgba(139,108,255,0.3)]"
+                  title="原始版本"
+                >
+                  <img
+                    src={slide.imageUrl}
+                    alt="原始版本"
+                    className="h-full w-full object-cover"
+                  />
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-1 py-0.5">
+                    <span className="text-[8px] font-medium text-white">
+                      原始
+                    </span>
+                  </div>
+                  <div className="absolute top-0.5 right-0.5">
+                    <Check className="h-3 w-3 text-primary drop-shadow-md" />
+                  </div>
+                </div>
+              )}
+              {/* 如果没有图片，显示空状态 */}
+              {!slide.imageUrl && histories.length === 0 && (
+                <div className="flex h-12 items-center text-xs text-muted-foreground/50">
+                  {t_aippt('v2.no_history')}
+                </div>
+              )}
+            </div>
           </div>
-        ) : slide.status === 'generating' ? (
-          <div className="flex h-full flex-col items-center justify-center text-sm text-muted-foreground">
-            <Loader2 className="mb-2 h-6 w-6 animate-spin" />
-            {t_aippt('v2.generating')}
-          </div>
-        ) : slide.status === 'failed' ? (
-          <div className="text-destructive flex h-full flex-col items-center justify-center text-sm">
-            {t_aippt('errors.generation_failed')}
-          </div>
-        ) : (
-          <div className="flex h-full flex-col items-center justify-center text-sm text-muted-foreground">
-            {t_aippt('result_step.status.pending')}
-          </div>
-        )}
-      </div>
-      <div className="mt-3 flex items-center justify-end gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 rounded-full px-3 text-xs"
-          onClick={() => openEditDialog(slide)}
-          disabled={slide.status === 'generating'}
-        >
-          <WandSparkles className="mr-1 h-4 w-4" />
-          {t_aippt('v2.edit')}
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8 rounded-full px-3 text-xs"
-          onClick={() => openHistory(slide.id)}
-          disabled={!slideHistories[slide.id]?.length}
-        >
-          <History className="mr-1 h-4 w-4" />
-          {t_aippt('v2.history')}
-        </Button>
-      </div>
-    </Card>
-  );
+
+          {/* 编辑按钮 */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-10 flex-shrink-0 rounded-xl px-4 text-xs"
+            onClick={() => openEditDialog(slide)}
+            disabled={slide.status === 'generating'}
+          >
+            <WandSparkles className="mr-1.5 h-4 w-4" />
+            {t_aippt('v2.edit')}
+          </Button>
+        </div>
+      </Card>
+    );
+  };
 
   const renderStep3Preview = () => (
     <div className="space-y-4">
@@ -2451,33 +2923,40 @@ export default function Slides2Client({
               )
             }
             rows={2}
-            placeholder={t_aippt('v2.describe_edit_placeholder')}
-            className="focus:border-primary/30 border-border bg-muted/30 text-xs text-foreground placeholder:text-muted-foreground focus:bg-muted/50 dark:bg-white/[0.02] dark:text-white/80 dark:placeholder:text-white/30 dark:focus:bg-white/[0.04]"
+            placeholder="描述此区域的修改需求..."
+            className="w-full resize-none rounded-lg border border-border bg-background/50 p-3 text-xs text-foreground ring-offset-background transition-all placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:bg-black/30 dark:text-white/80 dark:placeholder:text-white/30"
           />
-          <Input
-            type="file"
-            accept="image/*"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              const reader = new FileReader();
-              reader.onload = (ev) => {
-                setEditRegions((prev) =>
-                  prev.map((item) =>
-                    item.id === region.id
-                      ? {
-                          ...item,
-                          imageFile: file,
-                          imagePreview: ev.target?.result as string,
-                        }
-                      : item
-                  )
-                );
-              };
-              reader.readAsDataURL(file);
-            }}
-            className="mt-2 border-border bg-muted/30 text-xs text-muted-foreground dark:bg-white/[0.02] dark:text-white/60"
-          />
+          {/* 上传参考图 */}
+          <div className="mt-2">
+            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground transition-all hover:border-primary/50 hover:bg-muted/40 dark:bg-white/[0.01] dark:hover:bg-white/[0.03]">
+              <Upload className="h-3.5 w-3.5" />
+              <span>上传参考图</span>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = (ev) => {
+                    setEditRegions((prev) =>
+                      prev.map((item) =>
+                        item.id === region.id
+                          ? {
+                              ...item,
+                              imageFile: file,
+                              imagePreview: ev.target?.result as string,
+                            }
+                          : item
+                      )
+                    );
+                  };
+                  reader.readAsDataURL(file);
+                }}
+              />
+            </label>
+          </div>
           {region.imagePreview && (
             <img
               src={region.imagePreview}
@@ -2598,6 +3077,29 @@ export default function Slides2Client({
       <Dialog open onOpenChange={() => setEditingSlide(null)}>
         <DialogContent className="max-h-[96vh] w-[80vw] max-w-[80vw] gap-0 overflow-hidden border-border bg-background/98 p-0 shadow-[0_0_100px_rgba(0,0,0,0.8)] backdrop-blur-3xl dark:bg-[#0E1424]/98 sm:max-w-[80vw]">
           <div className="flex h-full flex-col">
+            {/* 🎯 对话框头部 */}
+            <div className="flex items-center justify-between border-b border-border bg-muted/20 px-6 py-4 dark:bg-black/30">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
+                  <WandSparkles className="h-4.5 w-4.5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-foreground">
+                    编辑幻灯片
+                  </h3>
+                  <p className="text-xs text-muted-foreground line-clamp-1 max-w-[300px]">
+                    {editingSlide.title}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setEditingSlide(null)}
+                className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
             <div className="grid flex-1 overflow-hidden lg:grid-cols-[5fr_380px]">
               {/* 左侧：视觉编辑核心区 */}
               <div className="flex flex-col overflow-hidden bg-muted/30 p-6 dark:bg-black/40">
@@ -2631,18 +3133,28 @@ export default function Slides2Client({
                     </div>
                   </div>
 
-                  {/* 2. 文案修改区 */}
-                  <div className="shrink-0 space-y-3">
-                    <Label className="text-sm font-medium text-foreground">
-                      {t_aippt('v2.edit_text_label')}
-                    </Label>
-                    <Textarea
-                      value={editingPrompt}
-                      onChange={(e) => setEditingPrompt(e.target.value)}
-                      rows={4}
-                      className="focus:border-primary/30 min-h-[100px] w-full resize-none rounded-xl border-border bg-muted/50 p-4 text-sm leading-relaxed text-foreground transition-all placeholder:text-muted-foreground focus:bg-muted/70 focus:ring-0 dark:bg-white/[0.03] dark:text-white/90 dark:placeholder:text-white/30 dark:focus:bg-white/[0.05]"
-                      placeholder={t_aippt('v2.edit_text_placeholder')}
-                    />
+                  {/* 2. 整体修改区 - 针对整个画面的修改 */}
+                  <div className="shrink-0 space-y-3 rounded-xl border border-border bg-card/50 p-4 dark:bg-white/[0.02]">
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm font-medium text-foreground">
+                        整体修改
+                      </Label>
+                      <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                        全局
+                      </span>
+                    </div>
+                    <div className="relative">
+                      <Textarea
+                        value={editingPrompt}
+                        onChange={(e) => setEditingPrompt(e.target.value)}
+                        rows={3}
+                        className="min-h-[80px] w-full resize-none rounded-xl border border-border bg-background/50 p-4 text-sm leading-relaxed text-foreground ring-offset-background transition-all placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:bg-black/30 dark:text-white/90 dark:placeholder:text-white/30"
+                        placeholder="描述针对整个画面的修改需求，如：把整体色调改为暖色系、增加科技感氛围..."
+                      />
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      无需框选区域，直接输入修改描述即可对整张图进行调整
+                    </p>
                   </div>
                 </div>
               </div>
@@ -2651,21 +3163,27 @@ export default function Slides2Client({
               <div className="flex flex-col overflow-hidden border-l border-border bg-muted/20 dark:bg-[#0A0D18]/50">
                 <div className="flex min-h-0 flex-1 flex-col p-6">
                   <div className="mb-6">
-                    <Label className="text-sm font-medium text-foreground">
-                      {t_aippt('v2.edit_dialog_title')}
-                    </Label>
+                    <div className="flex items-center gap-2">
+                      <Crop className="h-4 w-4 text-primary" />
+                      <Label className="text-sm font-medium text-foreground">
+                        {t_aippt('v2.edit_dialog_title')}
+                      </Label>
+                    </div>
                     <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                       {t_aippt('v2.edit_dialog_desc')}
                     </p>
                   </div>
 
-                  <ScrollArea className="-mx-2 flex-1 px-2">
-                    <div className="space-y-4 pb-6">
+                  <ScrollArea className="flex-1">
+                    <div className="space-y-4 pb-6 pr-2">
                       {editRegions.length === 0 ? (
                         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/30 py-16 text-center dark:bg-white/[0.01]">
-                          <Plus className="mb-3 h-6 w-6 text-muted-foreground/50 dark:text-white/20" />
+                          <Crop className="mb-3 h-8 w-8 text-muted-foreground/30 dark:text-white/20" />
                           <p className="text-xs text-muted-foreground dark:text-white/40">
                             {t_aippt('v2.drag_to_select')}
+                          </p>
+                          <p className="mt-1 text-[10px] text-muted-foreground/60">
+                            在左侧图片上拖拽框选区域
                           </p>
                         </div>
                       ) : (
@@ -2687,13 +3205,38 @@ export default function Slides2Client({
                         id: editingSlide.id,
                       });
                       try {
+                        // 🎯 判断编辑模式：
+                        // - 有选区 → 局部编辑
+                        // - 无选区但有整体修改提示词 → 整体修改
+                        const hasRegions = editRegions.length > 0;
+                        const hasGlobalPrompt = editingPrompt.trim().length > 0;
+
                         await generateSlide(editingSlide, {
                           overrideContent: editingPrompt,
                           regions: editRegions,
+                          // 🎯 无选区但有提示词时，启用整体修改模式
+                          isGlobalEdit: !hasRegions && hasGlobalPrompt,
                         });
                         toast.success(t_aippt('result_step.download_success'), {
                           id: editingSlide.id,
                         });
+
+                        // 🎯 编辑成功后，保存更新后的 slides 到数据库（包含历史记录）
+                        if (presentationRecordId) {
+                          // 使用 setTimeout 确保 state 更新完成，然后通过 ref 获取最新状态
+                          setTimeout(async () => {
+                            try {
+                              // 使用 ref 获取最新的 slides 状态
+                              const currentSlides = slidesRef.current;
+                              await updatePresentationAction(presentationRecordId, {
+                                content: JSON.stringify(currentSlides),
+                              });
+                              console.log('[Edit] 历史记录已保存到数据库');
+                            } catch (saveError) {
+                              console.error('[Edit] 保存历史记录失败:', saveError);
+                            }
+                          }, 500);
+                        }
                       } catch (error) {
                         handleApiError(error);
                         toast.error(t_aippt('result_step.status.failed'), {
