@@ -48,7 +48,6 @@ import {
   PPT_SIZES,
   SLIDES2_STYLE_PRESETS,
 } from '@/config/aippt-slides2';
-import { pxToPoint, calculatePPTXCoords } from '@/shared/lib/ocr-utils';
 import { ConsoleLayout } from '@/shared/blocks/console/layout';
 import { CreditsCost } from '@/shared/components/ai-elements/credits-display';
 import { Badge } from '@/shared/components/ui/badge';
@@ -63,6 +62,7 @@ import {
 } from '@/shared/components/ui/dialog';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
+import { Progress } from '@/shared/components/ui/progress';
 import { ScrollArea } from '@/shared/components/ui/scroll-area';
 import {
   Select,
@@ -79,8 +79,8 @@ import {
   TabsTrigger,
 } from '@/shared/components/ui/tabs';
 import { Textarea } from '@/shared/components/ui/textarea';
-import { Progress } from '@/shared/components/ui/progress';
 import { useAppContext } from '@/shared/contexts/app';
+import { calculatePPTXCoords, pxToPoint } from '@/shared/lib/ocr-utils';
 import { cn } from '@/shared/lib/utils';
 
 type SlideStatus = 'pending' | 'generating' | 'completed' | 'failed';
@@ -972,10 +972,17 @@ export default function Slides2Client({
     }
 
     // 🎯 整体修改模式：仅使用当前图片+提示词，不传风格参考
-    if (options?.isGlobalEdit && slide.imageUrl && options?.overrideContent?.trim()) {
+    if (
+      options?.isGlobalEdit &&
+      slide.imageUrl &&
+      options?.overrideContent?.trim()
+    ) {
       try {
         console.log('[Global Edit Mode] 开始整体修改');
-        console.log('[Global Edit Mode] 提示词:', options.overrideContent.substring(0, 100));
+        console.log(
+          '[Global Edit Mode] 提示词:',
+          options.overrideContent.substring(0, 100)
+        );
 
         // 🎯 首次编辑前，先把原始图片存入历史记录
         const existingHistory = slide.history || [];
@@ -1449,7 +1456,10 @@ export default function Slides2Client({
             // 如果是 data URL（水印后的图片），直接转换
             const response = await fetch(url);
             blob = await response.blob();
-          } else if (!url.startsWith('/') && !url.startsWith(window.location.origin)) {
+          } else if (
+            !url.startsWith('/') &&
+            !url.startsWith(window.location.origin)
+          ) {
             // 外部 URL，使用代理
             const buffer = await urlToBuffer(url);
             blob = new Blob([buffer], { type: 'image/png' });
@@ -1484,23 +1494,43 @@ export default function Slides2Client({
    * 4. 在正确位置添加可编辑文本框
    */
   const handleDownloadPPTX = async () => {
+    console.log('[PPTX Export] 🚀 开始导出流程...');
+
     const completed = slides.filter(
       (slide) => slide.status === 'completed' && slide.imageUrl
     );
+
+    console.log('[PPTX Export] 找到已完成的幻灯片:', completed.length);
+
     if (completed.length === 0) {
       toast.error(t_aippt('v2.no_completed_slides'));
       return;
     }
 
-    // 🎯 打开进度对话框
+    // 🎯 立即打开进度对话框
+    console.log('[PPTX Export] 正在打开进度对话框...');
+
+    // 🔧 显示 toast 提示确认代码执行
+    toast.info('开始导出 PPTX，请稍候...');
+
     setPptxExportProgress({
       isOpen: true,
       currentSlide: 0,
       totalSlides: completed.length,
       currentStep: '正在初始化...',
       overallProgress: 0,
-      logs: ['开始导出 PPTX...'],
+      logs: ['🚀 开始导出 PPTX...'],
     });
+
+    // 🎯 关键：使用 requestAnimationFrame + 较长延迟确保 DOM 更新完成
+    await new Promise((resolve) => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setTimeout(resolve, 500); // 增加延迟确保对话框完全渲染
+        });
+      });
+    });
+    console.log('[PPTX Export] 进度对话框应该已显示');
 
     const addLog = (msg: string) => {
       console.log(`[PPTX] ${msg}`);
@@ -1518,7 +1548,8 @@ export default function Slides2Client({
       // 每张幻灯片有4个主要步骤
       const stepsPerSlide = 4;
       const baseProgress = (slideIndex / completed.length) * 100;
-      const stepIncrement = (1 / completed.length) * (stepProgress / stepsPerSlide) * 100;
+      const stepIncrement =
+        (1 / completed.length) * (stepProgress / stepsPerSlide) * 100;
       const overallProgress = Math.min(100, baseProgress + stepIncrement);
 
       setPptxExportProgress((prev) => ({
@@ -1530,6 +1561,7 @@ export default function Slides2Client({
     };
 
     try {
+      addLog('正在加载 PptxGenJS 库...');
       const PptxGenJS = (await import('pptxgenjs')).default;
       const pres = new PptxGenJS();
 
@@ -1538,7 +1570,7 @@ export default function Slides2Client({
       const slideWidth = 10; // 英寸
       const slideHeight = 5.625; // 英寸
 
-      addLog(`准备处理 ${completed.length} 张幻灯片`);
+      addLog(`✅ 准备处理 ${completed.length} 张幻灯片`);
 
       // 🎯 逐个处理幻灯片
       for (let i = 0; i < completed.length; i++) {
@@ -1548,33 +1580,54 @@ export default function Slides2Client({
 
         addLog(`========== 幻灯片 ${i + 1}/${completed.length} ==========`);
 
-        // 🎯 步骤1: OCR 识别文字
+        // 🎯 步骤1: OCR 识别文字（使用 VLM，带超时保护）
         updateProgress(i, `幻灯片 ${i + 1}: 正在识别文字...`, 0);
         addLog(`步骤1: 开始 OCR 识别...`);
 
         let ocrData: any = null;
         try {
+          // 使用带超时的 OCR 请求（60秒超时，因为 VLM OCR 可能需要较长时间）
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 120000); // 60秒超时
+
+          addLog(`  正在调用 OCR API（最长等待 60 秒）...`);
+
+          // 使用 VLM OCR API
           const ocrResponse = await fetch('/api/ai/ocr-with-positions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ imageUrl: slide.imageUrl }),
+            signal: controller.signal,
           });
+
+          clearTimeout(timeoutId);
 
           if (ocrResponse.ok) {
             ocrData = await ocrResponse.json();
             if (ocrData?.success && ocrData.blocks?.length > 0) {
               addLog(`✅ 识别到 ${ocrData.blocks.length} 个文本块`);
+              addLog(
+                `✅ 图片尺寸: ${ocrData.imageSize?.width}x${ocrData.imageSize?.height}`
+              );
               ocrData.blocks.slice(0, 3).forEach((b: any, idx: number) => {
-                addLog(`  文本 ${idx + 1}: "${b.text?.substring(0, 20)}..." (${b.fontSizePx}px, ${b.color})`);
+                addLog(
+                  `  文本 ${idx + 1}: "${b.text?.substring(0, 20)}..." @ (${b.bbox?.x}, ${b.bbox?.y})`
+                );
               });
             } else {
-              addLog(`⚠️ OCR 未识别到文本或失败`);
+              addLog(`⚠️ OCR 未识别到文本: ${ocrData?.error || '继续导出'}`);
             }
           } else {
-            addLog(`❌ OCR API 返回错误: ${ocrResponse.status}`);
+            addLog(`⚠️ OCR API 返回 ${ocrResponse.status}，跳过文本提取`);
           }
         } catch (ocrError) {
-          addLog(`❌ OCR 请求异常: ${ocrError instanceof Error ? ocrError.message : '未知错误'}`);
+          if (ocrError instanceof Error && ocrError.name === 'AbortError') {
+            addLog(`⚠️ OCR 超时（60秒），跳过文本提取（继续导出）`);
+          } else {
+            addLog(
+              `⚠️ OCR 请求异常，跳过文本提取: ${ocrError instanceof Error ? ocrError.message : '未知'}`
+            );
+          }
         }
 
         // 🎯 步骤2: 直接使用原图作为背景（跳过 inpainting，更稳定）
@@ -1587,7 +1640,10 @@ export default function Slides2Client({
         if (showWatermark) {
           addLog(`步骤3: 添加水印...`);
           try {
-            backgroundUrl = await addWatermarkToImage(backgroundUrl, watermarkText);
+            backgroundUrl = await addWatermarkToImage(
+              backgroundUrl,
+              watermarkText
+            );
             addLog(`✅ 水印添加成功`);
           } catch (wmError) {
             addLog(`⚠️ 水印添加失败`);
@@ -1597,29 +1653,64 @@ export default function Slides2Client({
         // 🎯 步骤4: 将背景添加到 PPTX
         updateProgress(i, `幻灯片 ${i + 1}: 正在生成幻灯片...`, 2);
         addLog(`步骤4: 转换图片并添加到 PPTX...`);
+        console.log(
+          `[PPTX Export] 步骤4: 处理背景图片 URL:`,
+          backgroundUrl.substring(0, 80)
+        );
 
         try {
           // 转换为 base64
           let imageData: string;
           if (backgroundUrl.startsWith('data:')) {
+            addLog(`  图片类型: data URL`);
             imageData = backgroundUrl.split(',')[1];
           } else {
             let buffer: ArrayBuffer;
-            if (!backgroundUrl.startsWith('/') && !backgroundUrl.startsWith(window.location.origin)) {
-              buffer = await urlToBuffer(backgroundUrl);
-            } else {
-              const response = await fetch(backgroundUrl);
-              buffer = await response.arrayBuffer();
+            addLog(`  图片类型: 远程 URL`);
+            console.log(`[PPTX Export] 开始下载图片...`);
+
+            try {
+              if (
+                !backgroundUrl.startsWith('/') &&
+                !backgroundUrl.startsWith(window.location.origin)
+              ) {
+                addLog(`  使用代理下载...`);
+                buffer = await urlToBuffer(backgroundUrl);
+              } else {
+                addLog(`  直接下载...`);
+                const response = await fetch(backgroundUrl);
+                if (!response.ok) {
+                  throw new Error(`HTTP ${response.status}`);
+                }
+                buffer = await response.arrayBuffer();
+              }
+              console.log(
+                `[PPTX Export] 图片下载完成，大小:`,
+                buffer.byteLength
+              );
+              addLog(
+                `  ✅ 图片下载完成 (${Math.round(buffer.byteLength / 1024)} KB)`
+              );
+            } catch (downloadError) {
+              console.error(`[PPTX Export] 图片下载失败:`, downloadError);
+              addLog(
+                `  ❌ 图片下载失败: ${downloadError instanceof Error ? downloadError.message : '未知错误'}`
+              );
+              throw downloadError;
             }
 
             const bytes = new Uint8Array(buffer);
             let binary = '';
             const chunkSize = 0x8000;
             for (let j = 0; j < bytes.length; j += chunkSize) {
-              const chunk = bytes.subarray(j, Math.min(j + chunkSize, bytes.length));
+              const chunk = bytes.subarray(
+                j,
+                Math.min(j + chunkSize, bytes.length)
+              );
               binary += String.fromCharCode.apply(null, Array.from(chunk));
             }
             imageData = btoa(binary);
+            addLog(`  ✅ Base64 转换完成`);
           }
 
           // 添加背景图片
@@ -1630,9 +1721,14 @@ export default function Slides2Client({
             w: slideWidth,
             h: slideHeight,
           });
-          addLog(`✅ 背景图片已添加`);
+          addLog(`✅ 背景图片已添加到 PPTX`);
+          console.log(`[PPTX Export] ✅ 背景图片已添加`);
         } catch (imgError) {
-          addLog(`❌ 背景图片添加失败: ${imgError instanceof Error ? imgError.message : '未知错误'}`);
+          console.error(`[PPTX Export] ❌ 背景图片处理失败:`, imgError);
+          addLog(
+            `❌ 背景图片添加失败: ${imgError instanceof Error ? imgError.message : '未知错误'}`
+          );
+          // 继续处理，不中断导出
         }
 
         // 🎯 步骤5: 添加可编辑文本框
@@ -1659,7 +1755,9 @@ export default function Slides2Client({
               const fontSizePt = pxToPoint(block.fontSizePx || 24);
 
               // 处理颜色
-              let colorHex = (block.color || '#000000').replace('#', '').toUpperCase();
+              let colorHex = (block.color || '#000000')
+                .replace('#', '')
+                .toUpperCase();
               if (!/^[0-9A-F]{6}$/i.test(colorHex)) {
                 colorHex = '000000';
               }
@@ -1695,13 +1793,20 @@ export default function Slides2Client({
 
         // 完成这张幻灯片
         updateProgress(i, `幻灯片 ${i + 1}: 完成`, 4);
+        addLog(`✅ 幻灯片 ${i + 1} 处理完成`);
+        console.log(
+          `[PPTX Export] ✅ 幻灯片 ${i + 1}/${completed.length} 处理完成`
+        );
       }
 
-      // 🎯 生成并下载文件
+      // 🎯 所有幻灯片处理完毕，开始生成文件
+      console.log('[PPTX Export] ========== 所有幻灯片处理完毕 ==========');
       addLog(`========== 生成 PPTX 文件 ==========`);
       updateProgress(completed.length - 1, '正在生成文件...', 4);
 
+      console.log('[PPTX Export] 正在调用 pres.write()...');
       const blob = (await pres.write({ outputType: 'blob' })) as Blob;
+      console.log('[PPTX Export] pres.write() 完成，blob 大小:', blob.size);
       const downloadUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = downloadUrl;
@@ -1718,7 +1823,9 @@ export default function Slides2Client({
       }, 1500);
     } catch (error) {
       console.error('PPTX export failed', error);
-      addLog(`❌ 导出失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      addLog(
+        `❌ 导出失败: ${error instanceof Error ? error.message : '未知错误'}`
+      );
 
       setTimeout(() => {
         setPptxExportProgress((prev) => ({ ...prev, isOpen: false }));
@@ -1766,16 +1873,16 @@ export default function Slides2Client({
     description: string
   ) => (
     <div className="mb-2 space-y-1">
-      <p className="text-xs font-semibold tracking-[0.4em] text-muted-foreground uppercase">
+      <p className="text-muted-foreground text-xs font-semibold tracking-[0.4em] uppercase">
         {label}
       </p>
-      <h2 className="text-2xl font-semibold text-foreground">{title}</h2>
-      <p className="text-sm text-muted-foreground">{description}</p>
+      <h2 className="text-foreground text-2xl font-semibold">{title}</h2>
+      <p className="text-muted-foreground text-sm">{description}</p>
     </div>
   );
 
   const renderStep1Input = () => (
-    <Card className="border-border bg-gradient-to-b from-card/90 to-muted/90 p-6 text-foreground shadow-2xl dark:from-[#0E1424]/90 dark:to-[#06070D]/90">
+    <Card className="border-border from-card/90 to-muted/90 text-foreground bg-gradient-to-b p-6 shadow-2xl dark:from-[#0E1424]/90 dark:to-[#06070D]/90">
       {renderStepTitle(
         `${t_aippt('v2.step_prefix')} 1`,
         t_aippt('v2.step1_title'),
@@ -1788,7 +1895,7 @@ export default function Slides2Client({
             onValueChange={(v) => setInputTab(v as any)}
             className="w-full"
           >
-            <TabsList className="mb-4 grid grid-cols-3 rounded-xl bg-muted text-foreground">
+            <TabsList className="bg-muted text-foreground mb-4 grid grid-cols-3 rounded-xl">
               <TabsTrigger className="h-9 text-xs" value="text">
                 {t_aippt('v2.tab_text')}
               </TabsTrigger>
@@ -1806,13 +1913,13 @@ export default function Slides2Client({
                 onChange={(e) => setPrimaryInput(e.target.value)}
                 rows={8}
                 placeholder={t_aippt('input_step.placeholder')}
-                className="border-border bg-muted/50 text-sm text-foreground dark:bg-black/30"
+                className="border-border bg-muted/50 text-foreground text-sm dark:bg-black/30"
               />
             </TabsContent>
 
             <TabsContent value="upload" className="space-y-3">
               <div
-                className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border px-4 py-10 text-center"
+                className="border-border flex flex-col items-center justify-center rounded-2xl border-2 border-dashed px-4 py-10 text-center"
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
                   e.preventDefault();
@@ -1837,8 +1944,8 @@ export default function Slides2Client({
                 />
               </div>
               {uploadedFiles.length > 0 && (
-                <div className="rounded-xl border border-border bg-muted/50 p-4 text-xs dark:bg-black/20">
-                  <div className="mb-2 flex items-center justify-between text-muted-foreground">
+                <div className="border-border bg-muted/50 rounded-xl border p-4 text-xs dark:bg-black/20">
+                  <div className="text-muted-foreground mb-2 flex items-center justify-between">
                     <span>
                       {
                         t_aippt('input_step.files_selected_batch', {
@@ -1859,9 +1966,9 @@ export default function Slides2Client({
                       {uploadedFiles.map((file, idx) => (
                         <div
                           key={`${file.name}-${idx}`}
-                          className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2 dark:bg-white/5"
+                          className="bg-muted/50 flex items-center justify-between rounded-lg px-3 py-2 dark:bg-white/5"
                         >
-                          <span className="line-clamp-1 text-foreground">
+                          <span className="text-foreground line-clamp-1">
                             {file.name}
                           </span>
                           <button
@@ -1925,7 +2032,7 @@ export default function Slides2Client({
                 )}
               </Button>
               {linkPreview && (
-                <div className="rounded-xl border border-border bg-muted/50 p-4 text-xs text-muted-foreground dark:bg-black/20 dark:text-white/70">
+                <div className="border-border bg-muted/50 text-muted-foreground rounded-xl border p-4 text-xs dark:bg-black/20 dark:text-white/70">
                   {linkPreview}...
                 </div>
               )}
@@ -1933,13 +2040,13 @@ export default function Slides2Client({
           </Tabs>
         </section>
 
-        <section className="mt-4 space-y-4 border-t border-border pt-4">
+        <section className="border-border mt-4 space-y-4 border-t pt-4">
           {/* Header */}
           <div className="flex items-center justify-between">
-            <h3 className="text-[11px] font-bold tracking-wider text-primary uppercase">
+            <h3 className="text-primary text-[11px] font-bold tracking-wider uppercase">
               {t_aippt('v2.page_count')}
             </h3>
-            <span className="text-xs font-medium text-muted-foreground">
+            <span className="text-muted-foreground text-xs font-medium">
               {pageMode === 'auto'
                 ? t_aippt('v2.language_auto')
                 : `${slideCount} ${t_aippt('v2.pages')}`}
@@ -1947,7 +2054,7 @@ export default function Slides2Client({
           </div>
 
           {/* Toggle Buttons */}
-          <div className="flex rounded-xl bg-muted p-1 dark:bg-black/40">
+          <div className="bg-muted flex rounded-xl p-1 dark:bg-black/40">
             <button
               onClick={() => setPageMode('auto')}
               className={cn(
@@ -1988,7 +2095,7 @@ export default function Slides2Client({
               step="1"
               value={slideCount}
               onChange={(e) => setSlideCount(e.target.value)}
-              className="h-0.5 flex-1 cursor-pointer appearance-none rounded-lg bg-gray-300 accent-primary dark:bg-white/10 [&::-webkit-slider-runnable-track]:h-0.5 [&::-webkit-slider-runnable-track]:rounded-lg [&::-webkit-slider-runnable-track]:bg-gray-300 dark:[&::-webkit-slider-runnable-track]:bg-white/10 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:-mt-1.75 [&::-webkit-slider-thumb]:shadow-sm [&::-moz-range-track]:h-1.5 [&::-moz-range-track]:rounded-lg [&::-moz-range-track]:bg-gray-300 dark:[&::-moz-range-track]:bg-white/10 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
+              className="accent-primary [&::-webkit-slider-thumb]:bg-primary [&::-moz-range-thumb]:bg-primary h-0.5 flex-1 cursor-pointer appearance-none rounded-lg bg-gray-300 dark:bg-white/10 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-track]:h-1.5 [&::-moz-range-track]:rounded-lg [&::-moz-range-track]:bg-gray-300 dark:[&::-moz-range-track]:bg-white/10 [&::-webkit-slider-runnable-track]:h-0.5 [&::-webkit-slider-runnable-track]:rounded-lg [&::-webkit-slider-runnable-track]:bg-gray-300 dark:[&::-webkit-slider-runnable-track]:bg-white/10 [&::-webkit-slider-thumb]:-mt-1.75 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-sm"
             />
             <input
               type="number"
@@ -2001,13 +2108,13 @@ export default function Slides2Client({
                   setSlideCount(String(Math.min(50, Math.max(1, val))));
                 }
               }}
-              className="h-8 w-12 rounded-lg border border-border bg-muted text-center text-xs font-bold text-foreground outline-none focus:border-primary/50 dark:bg-black/40"
+              className="border-border bg-muted text-foreground focus:border-primary/50 h-8 w-12 rounded-lg border text-center text-xs font-bold outline-none dark:bg-black/40"
             />
           </div>
 
           {/* Start Pagination Button */}
           <Button
-            className="h-10 w-full rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90"
+            className="bg-primary text-primary-foreground shadow-primary/20 hover:bg-primary/90 h-10 w-full rounded-xl shadow-lg"
             onClick={handleAutoPaginate}
             disabled={isAnalyzing || isParsingFiles || isFetchingLink}
           >
@@ -2021,7 +2128,7 @@ export default function Slides2Client({
                 {/* 显示自动分页功能消耗的积分额度：3积分 */}
                 <CreditsCost
                   credits={3}
-                  className="mr-2 bg-primary-foreground/20 text-primary-foreground"
+                  className="bg-primary-foreground/20 text-primary-foreground mr-2"
                 />
                 {t_aippt('v2.start_pagination')}
               </>
@@ -2032,7 +2139,7 @@ export default function Slides2Client({
         {(parsingProgress || completion) && (
           <ScrollArea
             ref={logRef as any}
-            className="h-40 w-full rounded-xl border border-border bg-muted/50 p-4 text-xs text-muted-foreground dark:bg-black/25 dark:text-white/70"
+            className="border-border bg-muted/50 text-muted-foreground h-40 w-full rounded-xl border p-4 text-xs dark:bg-black/25 dark:text-white/70"
           >
             <div className="space-y-1">
               {parsingProgress && <p>{parsingProgress}</p>}
@@ -2048,7 +2155,7 @@ export default function Slides2Client({
 
         <section className="space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold tracking-wide text-foreground">
+            <h3 className="text-foreground text-sm font-semibold tracking-wide">
               {t_aippt('v2.outline')}
             </h3>
             <Button
@@ -2062,7 +2169,7 @@ export default function Slides2Client({
             </Button>
           </div>
           {slides.length === 0 ? (
-            <Card className="border-dashed border-border bg-muted/50 p-5 text-xs text-muted-foreground dark:bg-black/20 dark:text-white/55">
+            <Card className="border-border bg-muted/50 text-muted-foreground border-dashed p-5 text-xs dark:bg-black/20 dark:text-white/55">
               {t_aippt('v2.no_outline')}
             </Card>
           ) : (
@@ -2070,9 +2177,9 @@ export default function Slides2Client({
               {slides.map((slide, idx) => (
                 <div
                   key={slide.id}
-                  className="rounded-2xl border border-border bg-muted/50 p-4 dark:bg-black/20"
+                  className="border-border bg-muted/50 rounded-2xl border p-4 dark:bg-black/20"
                 >
-                  <div className="mb-2 flex items-center justify-between text-[11px] tracking-[0.2em] text-muted-foreground uppercase">
+                  <div className="text-muted-foreground mb-2 flex items-center justify-between text-[11px] tracking-[0.2em] uppercase">
                     <span>
                       {t_aippt('outline_step.slide_title')} {idx + 1} ·{' '}
                       {
@@ -2096,7 +2203,7 @@ export default function Slides2Client({
                     onChange={(e) =>
                       handleSlideChange(slide.id, 'title', e.target.value)
                     }
-                    className="mb-3 border-border bg-muted/50 text-foreground dark:bg-black/30"
+                    className="border-border bg-muted/50 text-foreground mb-3 dark:bg-black/30"
                   />
                   <Textarea
                     value={slide.content}
@@ -2104,7 +2211,7 @@ export default function Slides2Client({
                       handleSlideChange(slide.id, 'content', e.target.value)
                     }
                     rows={4}
-                    className="border-border bg-muted/30 text-sm text-foreground dark:bg-black/20"
+                    className="border-border bg-muted/30 text-foreground text-sm dark:bg-black/20"
                   />
                 </div>
               ))}
@@ -2116,7 +2223,7 @@ export default function Slides2Client({
   );
 
   const renderStep2Style = () => (
-    <Card className="border-border bg-gradient-to-b from-card/90 to-muted/90 p-6 text-foreground shadow-2xl dark:from-[#0A1427]/90 dark:to-[#05080F]/90">
+    <Card className="border-border from-card/90 to-muted/90 text-foreground bg-gradient-to-b p-6 shadow-2xl dark:from-[#0A1427]/90 dark:to-[#05080F]/90">
       {renderStepTitle(
         `${t_aippt('v2.step_prefix')} 2`,
         t_aippt('v2.step2_title'),
@@ -2126,11 +2233,11 @@ export default function Slides2Client({
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label className="text-xs text-muted-foreground">
+            <Label className="text-muted-foreground text-xs">
               {t_aippt('v2.output_ratio')}
             </Label>
             <Select value={aspectRatio} onValueChange={setAspectRatio}>
-              <SelectTrigger className="mt-1 border-border bg-muted/50 text-foreground dark:bg-black/30">
+              <SelectTrigger className="border-border bg-muted/50 text-foreground mt-1 dark:bg-black/30">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-popover text-popover-foreground dark:bg-black/90">
@@ -2143,11 +2250,11 @@ export default function Slides2Client({
             </Select>
           </div>
           <div>
-            <Label className="text-xs text-muted-foreground">
+            <Label className="text-muted-foreground text-xs">
               {t_aippt('v2.resolution')}
             </Label>
             <Select value={resolution} onValueChange={setResolution}>
-              <SelectTrigger className="mt-1 border-border bg-muted/50 text-foreground dark:bg-black/30">
+              <SelectTrigger className="border-border bg-muted/50 text-foreground mt-1 dark:bg-black/30">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-popover text-popover-foreground dark:bg-black/90">
@@ -2163,14 +2270,14 @@ export default function Slides2Client({
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label className="text-xs text-muted-foreground">
+            <Label className="text-muted-foreground text-xs">
               {t_aippt('v2.language')}
             </Label>
             <Select
               value={language}
               onValueChange={(v) => setLanguage(v as any)}
             >
-              <SelectTrigger className="mt-1 border-border bg-muted/50 text-foreground dark:bg-black/30">
+              <SelectTrigger className="border-border bg-muted/50 text-foreground mt-1 dark:bg-black/30">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-popover text-popover-foreground dark:bg-black/90">
@@ -2183,14 +2290,14 @@ export default function Slides2Client({
             </Select>
           </div>
           <div>
-            <Label className="text-xs text-muted-foreground">
+            <Label className="text-muted-foreground text-xs">
               {t_aippt('v2.content_control')}
             </Label>
             <Select
               value={contentControl}
               onValueChange={(v) => setContentControl(v as any)}
             >
-              <SelectTrigger className="mt-1 h-10 rounded-xl border-border bg-muted/50 text-foreground dark:bg-black/30">
+              <SelectTrigger className="border-border bg-muted/50 text-foreground mt-1 h-10 rounded-xl dark:bg-black/30">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-popover text-popover-foreground dark:bg-black/90">
@@ -2207,7 +2314,7 @@ export default function Slides2Client({
 
         <div className="grid grid-cols-1 gap-3">
           <div>
-            <Label className="text-xs text-muted-foreground">
+            <Label className="text-muted-foreground text-xs">
               {t_aippt('v2.title_position')}
             </Label>
             <div className="mt-2 flex gap-2">
@@ -2230,7 +2337,7 @@ export default function Slides2Client({
         </div>
 
         <div className="space-y-3">
-          <div className="flex items-center justify-between text-[11px] tracking-[0.2em] text-muted-foreground uppercase">
+          <div className="text-muted-foreground flex items-center justify-between text-[11px] tracking-[0.2em] uppercase">
             <span>{t_aippt('v2.style_library')}</span>
             <span>
               {t_aippt('v2.styles_count', {
@@ -2269,18 +2376,18 @@ export default function Slides2Client({
                   )}
                   <div
                     className={cn(
-                      'absolute inset-x-0 bottom-0 bg-gradient-to-t from-background/80 to-transparent p-2 pt-6 transition-opacity dark:from-black/80',
+                      'from-background/80 absolute inset-x-0 bottom-0 bg-gradient-to-t to-transparent p-2 pt-6 transition-opacity dark:from-black/80',
                       selectedStyleId === style.id
                         ? 'opacity-100'
                         : 'opacity-0 group-hover:opacity-100'
                     )}
                   >
-                    <p className="truncate text-[11px] font-medium text-foreground">
+                    <p className="text-foreground truncate text-[11px] font-medium">
                       {style.title}
                     </p>
                   </div>
                   {selectedStyleId === style.id && (
-                    <div className="bg-primary absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full text-primary-foreground shadow-lg">
+                    <div className="bg-primary text-primary-foreground absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full shadow-lg">
                       <Check className="h-3 w-3" />
                     </div>
                   )}
@@ -2291,7 +2398,7 @@ export default function Slides2Client({
         </div>
 
         <div>
-          <p className="text-[11px] tracking-[0.2em] text-muted-foreground uppercase">
+          <p className="text-muted-foreground text-[11px] tracking-[0.2em] uppercase">
             {t_aippt('v2.custom_style')}
           </p>
           <Textarea
@@ -2302,12 +2409,12 @@ export default function Slides2Client({
             }}
             rows={2}
             placeholder={t_aippt('v2.style_placeholder')}
-            className="mt-2 border-border bg-muted/50 text-foreground dark:bg-black/30"
+            className="border-border bg-muted/50 text-foreground mt-2 dark:bg-black/30"
           />
         </div>
 
         <div>
-          <p className="text-[11px] tracking-[0.2em] text-muted-foreground uppercase">
+          <p className="text-muted-foreground text-[11px] tracking-[0.2em] uppercase">
             {t_aippt('v2.reference_images')}
           </p>
           <div className="mt-2 grid grid-cols-4 gap-2">
@@ -2339,7 +2446,7 @@ export default function Slides2Client({
                   setSelectedStyleId(null);
                 }}
               />
-              <div className="flex h-full w-full items-center justify-center rounded-xl border border-dashed border-border bg-muted/50 text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground dark:bg-black/30 dark:text-white/40 dark:hover:border-white/40 dark:hover:text-white/60">
+              <div className="border-border bg-muted/50 text-muted-foreground hover:border-primary/50 hover:text-foreground flex h-full w-full items-center justify-center rounded-xl border border-dashed transition-colors dark:bg-black/30 dark:text-white/40 dark:hover:border-white/40 dark:hover:text-white/60">
                 <Plus className="h-6 w-6" />
               </div>
             </div>
@@ -2347,12 +2454,12 @@ export default function Slides2Client({
             {customImages.map((src, idx) => (
               <div
                 key={`${src}-${idx}`}
-                className="group relative aspect-square overflow-hidden rounded-xl border border-border"
+                className="group border-border relative aspect-square overflow-hidden rounded-xl border"
               >
                 <img src={src} className="h-full w-full object-cover" />
-                <div className="absolute inset-0 flex items-center justify-center bg-background/80 opacity-0 transition-opacity group-hover:opacity-100 dark:bg-black/40">
+                <div className="bg-background/80 absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100 dark:bg-black/40">
                   <button
-                    className="rounded-full bg-destructive/80 p-1.5 text-destructive-foreground transition-colors hover:bg-destructive"
+                    className="bg-destructive/80 text-destructive-foreground hover:bg-destructive rounded-full p-1.5 transition-colors"
                     onClick={() => {
                       setCustomImages((prev) =>
                         prev.filter((_, i) => i !== idx)
@@ -2371,13 +2478,13 @@ export default function Slides2Client({
         </div>
 
         {/* 水印控制区域 (会员功能) */}
-        <div className="mt-6 space-y-4 border-t border-border pt-4">
+        <div className="border-border mt-6 space-y-4 border-t pt-4">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label className="text-sm font-semibold text-foreground">
+              <Label className="text-foreground text-sm font-semibold">
                 {t_aippt('v2.watermark_control')}
               </Label>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-muted-foreground text-xs">
                 {t_aippt('v2.watermark_vip_hint')}
               </p>
             </div>
@@ -2393,7 +2500,7 @@ export default function Slides2Client({
             />
           </div>
           <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">
+            <Label className="text-muted-foreground text-xs">
               {t_aippt('v2.watermark_text')}
             </Label>
             <Input
@@ -2407,7 +2514,7 @@ export default function Slides2Client({
               }}
               placeholder={t_aippt('v2.watermark_text')}
               disabled={!isVip}
-              className="border-border bg-muted/50 text-xs text-foreground dark:bg-black/30"
+              className="border-border bg-muted/50 text-foreground text-xs dark:bg-black/30"
             />
           </div>
         </div>
@@ -2424,13 +2531,13 @@ export default function Slides2Client({
           {isGenerating ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : pageMode === 'auto' ? (
-            <div className="mr-2 rounded-full bg-muted px-3 py-1 text-sm font-semibold text-foreground">
+            <div className="bg-muted text-foreground mr-2 rounded-full px-3 py-1 text-sm font-semibold">
               ?
             </div>
           ) : (
             <CreditsCost
               credits={slides.length * (resolution === '4K' ? 12 : 6)}
-              className="mr-2 bg-muted text-foreground"
+              className="bg-muted text-foreground mr-2"
             />
           )}
           {t_aippt('v2.one_click_generate')}
@@ -2444,8 +2551,11 @@ export default function Slides2Client({
     const histories = slide.history || slideHistories[slide.id] || [];
 
     return (
-      <Card key={slide.id} className="overflow-hidden bg-card/50 p-4 dark:bg-white/[0.03]">
-        <div className="mb-3 flex items-center justify-between text-xs tracking-[0.2em] text-muted-foreground uppercase">
+      <Card
+        key={slide.id}
+        className="bg-card/50 overflow-hidden p-4 dark:bg-white/[0.03]"
+      >
+        <div className="text-muted-foreground mb-3 flex items-center justify-between text-xs tracking-[0.2em] uppercase">
           <span className="text-foreground">
             {t_aippt('outline_step.slide_title')} {index + 1}
           </span>
@@ -2455,7 +2565,8 @@ export default function Slides2Client({
               'border-border text-[10px]',
               slide.status === 'completed' &&
                 'border-emerald-400 text-emerald-600 dark:text-emerald-200',
-              slide.status === 'failed' && 'border-destructive text-destructive',
+              slide.status === 'failed' &&
+                'border-destructive text-destructive',
               slide.status === 'generating' && 'border-primary text-primary'
             )}
           >
@@ -2469,7 +2580,7 @@ export default function Slides2Client({
             }
           </Badge>
         </div>
-        <div className="relative aspect-[16/9] overflow-hidden rounded-2xl border border-border bg-muted/50 dark:bg-black/20">
+        <div className="border-border bg-muted/50 relative aspect-[16/9] overflow-hidden rounded-2xl border dark:bg-black/20">
           {slide.status === 'completed' && slide.imageUrl ? (
             <div className="relative h-full w-full">
               <Image
@@ -2482,13 +2593,13 @@ export default function Slides2Client({
               />
               {/* 前端固定位置水印 */}
               {showWatermark && (
-                <div className="absolute right-3 bottom-3 z-10 rounded bg-background/80 px-2 py-1 text-[10px] font-medium text-muted-foreground backdrop-blur-sm dark:bg-black/40 dark:text-white/60">
+                <div className="bg-background/80 text-muted-foreground absolute right-3 bottom-3 z-10 rounded px-2 py-1 text-[10px] font-medium backdrop-blur-sm dark:bg-black/40 dark:text-white/60">
                   {watermarkText}
                 </div>
               )}
             </div>
           ) : slide.status === 'generating' ? (
-            <div className="flex h-full flex-col items-center justify-center text-sm text-muted-foreground">
+            <div className="text-muted-foreground flex h-full flex-col items-center justify-center text-sm">
               <Loader2 className="mb-2 h-6 w-6 animate-spin" />
               {t_aippt('v2.generating')}
             </div>
@@ -2497,7 +2608,7 @@ export default function Slides2Client({
               {t_aippt('errors.generation_failed')}
             </div>
           ) : (
-            <div className="flex h-full flex-col items-center justify-center text-sm text-muted-foreground">
+            <div className="text-muted-foreground flex h-full flex-col items-center justify-center text-sm">
               {t_aippt('result_step.status.pending')}
             </div>
           )}
@@ -2508,13 +2619,13 @@ export default function Slides2Client({
           {/* 历史缩略图滚动区域 */}
           <div className="flex-1 overflow-hidden">
             {/* 🎯 始终显示历史区域，包含原始图和编辑历史 */}
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted-foreground/20">
+            <div className="scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted-foreground/20 flex gap-2 overflow-x-auto pb-1">
               {/* 🎯 首先显示所有编辑历史（新的在前） */}
               {histories.map((entry, historyIndex) => (
                 <button
                   key={entry.id}
                   className={cn(
-                    'group relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all hover:border-primary',
+                    'group hover:border-primary relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all',
                     slide.imageUrl === entry.imageUrl
                       ? 'border-primary shadow-[0_0_0_2px_rgba(139,108,255,0.3)]'
                       : 'border-border/50 hover:border-primary/60'
@@ -2537,7 +2648,7 @@ export default function Slides2Client({
                     className="h-full w-full object-cover transition-transform group-hover:scale-105"
                   />
                   {/* 版本标记 */}
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-1 py-0.5">
+                  <div className="absolute right-0 bottom-0 left-0 bg-gradient-to-t from-black/70 to-transparent px-1 py-0.5">
                     <span className="text-[8px] font-medium text-white">
                       v{histories.length - historyIndex}
                     </span>
@@ -2545,7 +2656,7 @@ export default function Slides2Client({
                   {/* 当前选中标记 - 只用边框高亮，不用蒙版 */}
                   {slide.imageUrl === entry.imageUrl && (
                     <div className="absolute top-0.5 right-0.5">
-                      <Check className="h-3 w-3 text-primary drop-shadow-md" />
+                      <Check className="text-primary h-3 w-3 drop-shadow-md" />
                     </div>
                   )}
                 </button>
@@ -2553,7 +2664,7 @@ export default function Slides2Client({
               {/* 🎯 如果没有编辑历史但有当前图片，显示当前图作为"原始版本" */}
               {histories.length === 0 && slide.imageUrl && (
                 <div
-                  className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg border-2 border-primary shadow-[0_0_0_2px_rgba(139,108,255,0.3)]"
+                  className="border-primary relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg border-2 shadow-[0_0_0_2px_rgba(139,108,255,0.3)]"
                   title="原始版本"
                 >
                   <img
@@ -2561,19 +2672,19 @@ export default function Slides2Client({
                     alt="原始版本"
                     className="h-full w-full object-cover"
                   />
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-1 py-0.5">
+                  <div className="absolute right-0 bottom-0 left-0 bg-gradient-to-t from-black/70 to-transparent px-1 py-0.5">
                     <span className="text-[8px] font-medium text-white">
                       原始
                     </span>
                   </div>
                   <div className="absolute top-0.5 right-0.5">
-                    <Check className="h-3 w-3 text-primary drop-shadow-md" />
+                    <Check className="text-primary h-3 w-3 drop-shadow-md" />
                   </div>
                 </div>
               )}
               {/* 如果没有图片，显示空状态 */}
               {!slide.imageUrl && histories.length === 0 && (
-                <div className="flex h-12 items-center text-xs text-muted-foreground/50">
+                <div className="text-muted-foreground/50 flex h-12 items-center text-xs">
                   {t_aippt('v2.no_history')}
                 </div>
               )}
@@ -2598,13 +2709,13 @@ export default function Slides2Client({
 
   const renderStep3Preview = () => (
     <div className="space-y-4">
-      <Card className="border-border bg-gradient-to-b from-card/90 to-muted/90 p-5 text-foreground shadow-2xl dark:from-[#0B0F1D]/90 dark:to-[#040609]/90">
+      <Card className="border-border from-card/90 to-muted/90 text-foreground bg-gradient-to-b p-5 shadow-2xl dark:from-[#0B0F1D]/90 dark:to-[#040609]/90">
         {renderStepTitle(
           `${t_aippt('v2.step_prefix')} 3`,
           t_aippt('v2.step3_title'),
           ' '
         )}
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-muted/50 p-4 dark:bg-black/20">
+        <div className="border-border bg-muted/50 mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4 dark:bg-black/20">
           <div className="flex flex-wrap gap-2">
             <Button
               variant="ghost"
@@ -2646,13 +2757,13 @@ export default function Slides2Client({
           </Button>
         </div>
         {autoPlanning && (
-          <div className="mb-4 rounded-xl border border-dashed border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground dark:bg-black/20 dark:text-white/70">
+          <div className="border-border bg-muted/50 text-muted-foreground mb-4 rounded-xl border border-dashed px-4 py-3 text-sm dark:bg-black/20 dark:text-white/70">
             <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />
             {t_aippt('v2.planning_pages')}
           </div>
         )}
         {slides.length === 0 ? (
-          <Card className="border-dashed border-border bg-muted/50 p-10 text-center text-sm text-muted-foreground dark:bg-white/[0.03] dark:text-white/55">
+          <Card className="border-border bg-muted/50 text-muted-foreground border-dashed p-10 text-center text-sm dark:bg-white/[0.03] dark:text-white/55">
             {t_aippt('v2.waiting_for_generation')}
           </Card>
         ) : (
@@ -2832,7 +2943,7 @@ export default function Slides2Client({
             }}
           >
             <span
-              className="absolute top-1 left-1 rounded bg-background/90 px-1 text-[10px] dark:bg-black/70"
+              className="bg-background/90 absolute top-1 left-1 rounded px-1 text-[10px] dark:bg-black/70"
               style={{ color: REGION_COLORS[index % REGION_COLORS.length] }}
             >
               {region.label}
@@ -2848,7 +2959,7 @@ export default function Slides2Client({
         ))}
         {draftRegion && (
           <div
-            className="absolute border-2 border-dashed border-primary/70"
+            className="border-primary/70 absolute border-2 border-dashed"
             style={{
               left: `${draftRegion.x * 100}%`,
               top: `${draftRegion.y * 100}%`,
@@ -2881,7 +2992,7 @@ export default function Slides2Client({
               {region.label}
             </span>
             <button
-              className="text-xs text-muted-foreground transition-colors hover:text-destructive"
+              className="text-muted-foreground hover:text-destructive text-xs transition-colors"
               onClick={() =>
                 setEditRegions((prev) =>
                   prev.filter((item) => item.id !== region.id)
@@ -2904,11 +3015,11 @@ export default function Slides2Client({
             }
             rows={2}
             placeholder="描述此区域的修改需求..."
-            className="w-full resize-none rounded-lg border border-border bg-background/50 p-3 text-xs text-foreground ring-offset-background transition-all placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:bg-black/30 dark:text-white/80 dark:placeholder:text-white/30"
+            className="border-border bg-background/50 text-foreground ring-offset-background placeholder:text-muted-foreground/60 focus:border-primary focus:ring-primary/20 w-full resize-none rounded-lg border p-3 text-xs transition-all focus:ring-2 focus:outline-none dark:bg-black/30 dark:text-white/80 dark:placeholder:text-white/30"
           />
           {/* 上传参考图 */}
           <div className="mt-2">
-            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground transition-all hover:border-primary/50 hover:bg-muted/40 dark:bg-white/[0.01] dark:hover:bg-white/[0.03]">
+            <label className="border-border bg-muted/20 text-muted-foreground hover:border-primary/50 hover:bg-muted/40 flex cursor-pointer items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-xs transition-all dark:bg-white/[0.01] dark:hover:bg-white/[0.03]">
               <Upload className="h-3.5 w-3.5" />
               <span>上传参考图</span>
               <input
@@ -2949,7 +3060,7 @@ export default function Slides2Client({
         <Button
           variant="outline"
           size="sm"
-          className="w-full border-dashed border-border text-xs text-muted-foreground hover:border-primary/50 hover:text-foreground"
+          className="border-border text-muted-foreground hover:border-primary/50 hover:text-foreground w-full border-dashed text-xs"
           onClick={() => {
             const label = getRegionLabel(editRegions.length);
             setEditRegions((prev) => [
@@ -2995,7 +3106,7 @@ export default function Slides2Client({
               records.map((entry) => (
                 <div
                   key={entry.id}
-                  className="flex gap-4 rounded-xl border border-border bg-card p-3"
+                  className="border-border bg-card flex gap-4 rounded-xl border p-3"
                 >
                   <img
                     src={entry.imageUrl}
@@ -3005,7 +3116,7 @@ export default function Slides2Client({
                     <p className="font-semibold">
                       {new Date(entry.createdAt).toLocaleString()}
                     </p>
-                    <p className="line-clamp-3 text-xs text-muted-foreground">
+                    <p className="text-muted-foreground line-clamp-3 text-xs">
                       {entry.prompt}
                     </p>
                     <div className="mt-2 flex gap-2">
@@ -3055,26 +3166,26 @@ export default function Slides2Client({
     if (!editingSlide) return null;
     return (
       <Dialog open onOpenChange={() => setEditingSlide(null)}>
-        <DialogContent className="max-h-[96vh] w-[80vw] max-w-[80vw] gap-0 overflow-hidden border-border bg-background/98 p-0 shadow-[0_0_100px_rgba(0,0,0,0.8)] backdrop-blur-3xl dark:bg-[#0E1424]/98 sm:max-w-[80vw]">
+        <DialogContent className="border-border bg-background/98 max-h-[96vh] w-[80vw] max-w-[80vw] gap-0 overflow-hidden p-0 shadow-[0_0_100px_rgba(0,0,0,0.8)] backdrop-blur-3xl sm:max-w-[80vw] dark:bg-[#0E1424]/98">
           <div className="flex h-full flex-col">
             {/* 🎯 对话框头部 */}
-            <div className="flex items-center justify-between border-b border-border bg-muted/20 px-6 py-4 dark:bg-black/30">
+            <div className="border-border bg-muted/20 flex items-center justify-between border-b px-6 py-4 dark:bg-black/30">
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
-                  <WandSparkles className="h-4.5 w-4.5 text-primary" />
+                <div className="bg-primary/10 flex h-9 w-9 items-center justify-center rounded-xl">
+                  <WandSparkles className="text-primary h-4.5 w-4.5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-semibold text-foreground">
+                  <h3 className="text-foreground text-base font-semibold">
                     编辑幻灯片
                   </h3>
-                  <p className="text-xs text-muted-foreground line-clamp-1 max-w-[300px]">
+                  <p className="text-muted-foreground line-clamp-1 max-w-[300px] text-xs">
                     {editingSlide.title}
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setEditingSlide(null)}
-                className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg p-2 transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -3082,13 +3193,13 @@ export default function Slides2Client({
 
             <div className="grid flex-1 overflow-hidden lg:grid-cols-[5fr_380px]">
               {/* 左侧：视觉编辑核心区 */}
-              <div className="flex flex-col overflow-hidden bg-muted/30 p-6 dark:bg-black/40">
+              <div className="bg-muted/30 flex flex-col overflow-hidden p-6 dark:bg-black/40">
                 <div className="flex flex-1 flex-col gap-6 overflow-hidden">
                   {/* 1. 待编辑图片 - 撑满宽度 */}
                   <div className="relative flex min-h-120 flex-1 flex-col">
                     <div
                       ref={editCanvasRef}
-                      className="group hover:border-primary/20 relative h-full w-full cursor-crosshair overflow-hidden rounded-2xl border border-border bg-muted/50 shadow-[0_40px_100px_rgba(0,0,0,0.6)] transition-all dark:bg-black/60"
+                      className="group hover:border-primary/20 border-border bg-muted/50 relative h-full w-full cursor-crosshair overflow-hidden rounded-2xl border shadow-[0_40px_100px_rgba(0,0,0,0.6)] transition-all dark:bg-black/60"
                       onPointerDown={handleCanvasPointerDown}
                       onPointerMove={handleCanvasPointerMove}
                       onPointerUp={finalizeRegion}
@@ -3105,7 +3216,7 @@ export default function Slides2Client({
                           />
                         </div>
                       ) : (
-                        <div className="flex h-full flex-col items-center justify-center space-y-4 text-muted-foreground/50">
+                        <div className="text-muted-foreground/50 flex h-full flex-col items-center justify-center space-y-4">
                           <Images className="h-16 w-16 opacity-10" />
                         </div>
                       )}
@@ -3114,12 +3225,12 @@ export default function Slides2Client({
                   </div>
 
                   {/* 2. 整体修改区 - 针对整个画面的修改 */}
-                  <div className="shrink-0 space-y-3 rounded-xl border border-border bg-card/50 p-4 dark:bg-white/[0.02]">
+                  <div className="border-border bg-card/50 shrink-0 space-y-3 rounded-xl border p-4 dark:bg-white/[0.02]">
                     <div className="flex items-center gap-2">
-                      <Label className="text-sm font-medium text-foreground">
+                      <Label className="text-foreground text-sm font-medium">
                         整体修改
                       </Label>
-                      <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                      <span className="bg-primary/10 text-primary rounded-md px-2 py-0.5 text-[10px] font-medium">
                         全局
                       </span>
                     </div>
@@ -3128,11 +3239,11 @@ export default function Slides2Client({
                         value={editingPrompt}
                         onChange={(e) => setEditingPrompt(e.target.value)}
                         rows={3}
-                        className="min-h-[80px] w-full resize-none rounded-xl border border-border bg-background/50 p-4 text-sm leading-relaxed text-foreground ring-offset-background transition-all placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:bg-black/30 dark:text-white/90 dark:placeholder:text-white/30"
+                        className="border-border bg-background/50 text-foreground ring-offset-background placeholder:text-muted-foreground/60 focus:border-primary focus:ring-primary/20 min-h-[80px] w-full resize-none rounded-xl border p-4 text-sm leading-relaxed transition-all focus:ring-2 focus:outline-none dark:bg-black/30 dark:text-white/90 dark:placeholder:text-white/30"
                         placeholder="描述针对整个画面的修改需求，如：把整体色调改为暖色系、增加科技感氛围..."
                       />
                     </div>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-muted-foreground text-[11px]">
                       无需框选区域，直接输入修改描述即可对整张图进行调整
                     </p>
                   </div>
@@ -3140,29 +3251,29 @@ export default function Slides2Client({
               </div>
 
               {/* 右侧：指令侧边栏 */}
-              <div className="flex flex-col overflow-hidden border-l border-border bg-muted/20 dark:bg-[#0A0D18]/50">
+              <div className="border-border bg-muted/20 flex flex-col overflow-hidden border-l dark:bg-[#0A0D18]/50">
                 <div className="flex min-h-0 flex-1 flex-col p-6">
                   <div className="mb-6">
                     <div className="flex items-center gap-2">
-                      <Crop className="h-4 w-4 text-primary" />
-                      <Label className="text-sm font-medium text-foreground">
+                      <Crop className="text-primary h-4 w-4" />
+                      <Label className="text-foreground text-sm font-medium">
                         {t_aippt('v2.edit_dialog_title')}
                       </Label>
                     </div>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
                       {t_aippt('v2.edit_dialog_desc')}
                     </p>
                   </div>
 
                   <ScrollArea className="flex-1">
-                    <div className="space-y-4 pb-6 pr-2">
+                    <div className="space-y-4 pr-2 pb-6">
                       {editRegions.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/30 py-16 text-center dark:bg-white/[0.01]">
-                          <Crop className="mb-3 h-8 w-8 text-muted-foreground/30 dark:text-white/20" />
-                          <p className="text-xs text-muted-foreground dark:text-white/40">
+                        <div className="border-border bg-muted/30 flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-center dark:bg-white/[0.01]">
+                          <Crop className="text-muted-foreground/30 mb-3 h-8 w-8 dark:text-white/20" />
+                          <p className="text-muted-foreground text-xs dark:text-white/40">
                             {t_aippt('v2.drag_to_select')}
                           </p>
-                          <p className="mt-1 text-[10px] text-muted-foreground/60">
+                          <p className="text-muted-foreground/60 mt-1 text-[10px]">
                             在左侧图片上拖拽框选区域
                           </p>
                         </div>
@@ -3174,9 +3285,9 @@ export default function Slides2Client({
                 </div>
 
                 {/* Footer Action */}
-                <div className="border-t border-border bg-muted/30 p-6 dark:bg-[#080A12]">
+                <div className="border-border bg-muted/30 border-t p-6 dark:bg-[#080A12]">
                   <Button
-                    className="bg-primary hover:bg-primary/90 h-12 w-full rounded-xl text-base font-semibold text-primary-foreground transition-all active:scale-[0.98]"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground h-12 w-full rounded-xl text-base font-semibold transition-all active:scale-[0.98]"
                     disabled={pendingEditSubmit}
                     onClick={async () => {
                       if (!editingSlide) return;
@@ -3208,12 +3319,18 @@ export default function Slides2Client({
                             try {
                               // 使用 ref 获取最新的 slides 状态
                               const currentSlides = slidesRef.current;
-                              await updatePresentationAction(presentationRecordId, {
-                                content: JSON.stringify(currentSlides),
-                              });
+                              await updatePresentationAction(
+                                presentationRecordId,
+                                {
+                                  content: JSON.stringify(currentSlides),
+                                }
+                              );
                               console.log('[Edit] 历史记录已保存到数据库');
                             } catch (saveError) {
-                              console.error('[Edit] 保存历史记录失败:', saveError);
+                              console.error(
+                                '[Edit] 保存历史记录失败:',
+                                saveError
+                              );
                             }
                           }, 500);
                         }
@@ -3393,11 +3510,11 @@ export default function Slides2Client({
           {renderEditDialog()}
           {lightboxUrl && (
             <div
-              className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-sm p-6 dark:bg-black/90"
+              className="bg-background/95 fixed inset-0 z-50 flex items-center justify-center p-6 backdrop-blur-sm dark:bg-black/90"
               onClick={() => setLightboxUrl(null)}
             >
               <button
-                className="hover:text-primary absolute top-6 right-6 text-foreground"
+                className="hover:text-primary text-foreground absolute top-6 right-6"
                 onClick={() => setLightboxUrl(null)}
               >
                 <X className="h-8 w-8" />
@@ -3410,17 +3527,17 @@ export default function Slides2Client({
           )}
         </>
       ) : (
-        <div className="min-h-screen bg-background text-foreground dark:bg-[#030409]">
+        <div className="bg-background text-foreground min-h-screen dark:bg-[#030409]">
           <div className="mx-auto max-w-[1500px] px-4 pt-24 pb-12 lg:px-8">
             <div className="relative mb-10 flex items-center justify-center">
-              <h1 className="bg-gradient-to-r from-foreground via-foreground/80 to-foreground/60 bg-clip-text text-4xl font-bold text-transparent md:text-5xl dark:from-white dark:via-slate-100 dark:to-slate-400">
+              <h1 className="from-foreground via-foreground/80 to-foreground/60 bg-gradient-to-r bg-clip-text text-4xl font-bold text-transparent md:text-5xl dark:from-white dark:via-slate-100 dark:to-slate-400">
                 {t_aippt('v2.title')}
               </h1>
               {presentationId && (
                 <Button
                   variant="ghost"
                   onClick={() => setViewMode('preview')}
-                  className="absolute right-0 text-muted-foreground hover:text-foreground"
+                  className="text-muted-foreground hover:text-foreground absolute right-0"
                 >
                   {t_aippt('v2.back_to_preview')}
                 </Button>
@@ -3437,85 +3554,13 @@ export default function Slides2Client({
           {renderHistoryDialog()}
           {renderEditDialog()}
 
-          {/* 🎯 PPTX 导出进度对话框 */}
-          <Dialog
-            open={pptxExportProgress.isOpen}
-            onOpenChange={(open) => {
-              if (!open) {
-                setPptxExportProgress((prev) => ({ ...prev, isOpen: false }));
-              }
-            }}
-          >
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <Download className="h-5 w-5" />
-                  导出可编辑 PPTX
-                </DialogTitle>
-              </DialogHeader>
-
-              <div className="space-y-4 py-4">
-                {/* 总体进度 */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">
-                      幻灯片 {pptxExportProgress.currentSlide}/{pptxExportProgress.totalSlides}
-                    </span>
-                    <span className="font-medium">{pptxExportProgress.overallProgress}%</span>
-                  </div>
-                  <Progress value={pptxExportProgress.overallProgress} className="h-3" />
-                </div>
-
-                {/* 当前步骤 */}
-                <div className="flex items-center gap-2 text-sm">
-                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                  <span>{pptxExportProgress.currentStep}</span>
-                </div>
-
-                {/* 日志滚动区域 */}
-                <div className="rounded-lg border border-border bg-muted/30 p-3">
-                  <ScrollArea className="h-48">
-                    <div className="space-y-1 font-mono text-xs">
-                      {pptxExportProgress.logs.map((log, idx) => (
-                        <div
-                          key={idx}
-                          className={cn(
-                            'py-0.5',
-                            log.includes('✅') && 'text-green-600 dark:text-green-400',
-                            log.includes('❌') && 'text-red-600 dark:text-red-400',
-                            log.includes('⚠️') && 'text-yellow-600 dark:text-yellow-400',
-                            log.includes('===') && 'font-semibold text-foreground'
-                          )}
-                        >
-                          {log}
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                </div>
-              </div>
-
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    setPptxExportProgress((prev) => ({ ...prev, isOpen: false }))
-                  }
-                  disabled={pptxExportProgress.overallProgress < 100 && pptxExportProgress.overallProgress > 0}
-                >
-                  {pptxExportProgress.overallProgress >= 100 ? '关闭' : '取消'}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
           {lightboxUrl && (
             <div
-              className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-sm p-6 dark:bg-black/90"
+              className="bg-background/95 fixed inset-0 z-50 flex items-center justify-center p-6 backdrop-blur-sm dark:bg-black/90"
               onClick={() => setLightboxUrl(null)}
             >
               <button
-                className="hover:text-primary absolute top-6 right-6 text-foreground"
+                className="hover:text-primary text-foreground absolute top-6 right-6"
                 onClick={() => setLightboxUrl(null)}
               >
                 <X className="h-8 w-8" />
@@ -3528,6 +3573,89 @@ export default function Slides2Client({
           )}
         </div>
       )}
+
+      {/* 🎯 PPTX 导出进度对话框 - 移到顶层确保在所有视图模式下都可见 */}
+      <Dialog
+        open={pptxExportProgress.isOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPptxExportProgress((prev) => ({ ...prev, isOpen: false }));
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Download className="h-5 w-5" />
+              导出可编辑 PPTX
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* 总体进度 */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">
+                  幻灯片 {pptxExportProgress.currentSlide}/
+                  {pptxExportProgress.totalSlides}
+                </span>
+                <span className="font-medium">
+                  {pptxExportProgress.overallProgress}%
+                </span>
+              </div>
+              <Progress
+                value={pptxExportProgress.overallProgress}
+                className="h-3"
+              />
+            </div>
+
+            {/* 当前步骤 */}
+            <div className="flex items-center gap-2 text-sm">
+              <Loader2 className="text-primary h-4 w-4 animate-spin" />
+              <span>{pptxExportProgress.currentStep}</span>
+            </div>
+
+            {/* 日志滚动区域 */}
+            <div className="border-border bg-muted/30 rounded-lg border p-3">
+              <ScrollArea className="h-48">
+                <div className="space-y-1 font-mono text-xs">
+                  {pptxExportProgress.logs.map((log, idx) => (
+                    <div
+                      key={idx}
+                      className={cn(
+                        'py-0.5',
+                        log.includes('✅') &&
+                          'text-green-600 dark:text-green-400',
+                        log.includes('❌') && 'text-red-600 dark:text-red-400',
+                        log.includes('⚠️') &&
+                          'text-yellow-600 dark:text-yellow-400',
+                        log.includes('===') && 'text-foreground font-semibold'
+                      )}
+                    >
+                      {log}
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() =>
+                setPptxExportProgress((prev) => ({ ...prev, isOpen: false }))
+              }
+              disabled={
+                pptxExportProgress.overallProgress < 100 &&
+                pptxExportProgress.overallProgress > 0
+              }
+            >
+              {pptxExportProgress.overallProgress >= 100 ? '关闭' : '取消'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

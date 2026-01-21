@@ -191,6 +191,58 @@ export async function handleCheckoutSuccess({
       updateOrder.subscriptionResult = JSON.stringify(
         session.subscriptionResult
       );
+    } else if (
+      order.productId?.includes('plus') ||
+      order.productId?.includes('pro')
+    ) {
+      // 非程序员解释：
+      // - 这是一个重要的修正。
+      // - 以前：如果支付方式是"一次性付款"（比如微信/支付宝 CNY 支付），系统就不会创建订阅记录。
+      // - 结果：用户付了钱，但系统查不到有效的订阅，导致会员状态一直是 Free。
+      // - 现在：即使是一次性付款，只要购买的是会员产品，我们也会创建一个"模拟订阅"记录，让用户获得会员权益。
+      const now = new Date();
+      const currentPeriodStart = session.paymentInfo?.paidAt || now;
+      const currentPeriodEnd = new Date(currentPeriodStart);
+
+      // 计算有效期（默认 30 天，或者根据订单配置）
+      const days = order.creditsValidDays || 30;
+      currentPeriodEnd.setDate(currentPeriodEnd.getDate() + days);
+
+      const planName =
+        order.planName || (order.productId?.includes('pro') ? 'Pro' : 'Plus');
+      const subscriptionNo = getSnowId();
+
+      newSubscription = {
+        id: getUuid(),
+        subscriptionNo: subscriptionNo,
+        userId: order.userId,
+        userEmail: order.paymentEmail || order.userEmail,
+        orderId: order.id,
+        planId: order.productId || '',
+        status: SubscriptionStatus.ACTIVE,
+        paymentProvider: order.paymentProvider,
+        subscriptionId:
+          session.paymentInfo?.transactionId || `one_time_${subscriptionNo}`,
+        subscriptionResult: JSON.stringify(session.paymentResult),
+        productId: order.productId,
+        description: order.description || `One-time Membership: ${planName}`,
+        amount: order.amount,
+        currency: order.currency,
+        interval: order.paymentInterval || 'month',
+        intervalCount: 1,
+        currentPeriodStart,
+        currentPeriodEnd,
+        planName: planName,
+        productName: order.productName,
+        creditsAmount: order.creditsAmount,
+        creditsValidDays: order.creditsValidDays,
+        paymentProductId: order.paymentProductId,
+        paymentUserId: session.paymentInfo?.paymentUserId,
+      };
+
+      updateOrder.subscriptionNo = newSubscription.subscriptionNo;
+      updateOrder.subscriptionId = newSubscription.subscriptionId;
+      updateOrder.subscriptionResult = JSON.stringify(session.paymentResult);
     }
 
     // grant credit for order
@@ -367,6 +419,52 @@ export async function handlePaymentSuccess({
       updateOrder.subscriptionResult = JSON.stringify(
         session.subscriptionResult
       );
+    } else if (
+      order.productId?.includes('plus') ||
+      order.productId?.includes('pro')
+    ) {
+      // 非程序员解释：同样修复一次性支付无法激活会员的问题
+      const now = new Date();
+      const currentPeriodStart = session.paymentInfo?.paidAt || now;
+      const currentPeriodEnd = new Date(currentPeriodStart);
+
+      const days = order.creditsValidDays || 30;
+      currentPeriodEnd.setDate(currentPeriodEnd.getDate() + days);
+
+      const planName =
+        order.planName || (order.productId?.includes('pro') ? 'Pro' : 'Plus');
+      const subscriptionNo = getSnowId();
+
+      newSubscription = {
+        id: getUuid(),
+        subscriptionNo: subscriptionNo,
+        userId: order.userId,
+        userEmail: order.paymentEmail || order.userEmail,
+        orderId: order.id,
+        planId: order.productId || '',
+        status: SubscriptionStatus.ACTIVE,
+        paymentProvider: order.paymentProvider,
+        subscriptionId:
+          session.paymentInfo?.transactionId || `one_time_${subscriptionNo}`,
+        subscriptionResult: JSON.stringify(session.paymentResult),
+        productId: order.productId,
+        description: order.description || `One-time Membership: ${planName}`,
+        amount: order.amount,
+        currency: order.currency,
+        interval: order.paymentInterval || 'month',
+        intervalCount: 1,
+        currentPeriodStart,
+        currentPeriodEnd,
+        planName: planName,
+        productName: order.productName,
+        creditsAmount: order.creditsAmount,
+        creditsValidDays: order.creditsValidDays,
+        paymentProductId: order.paymentProductId,
+        paymentUserId: session.paymentInfo?.paymentUserId,
+      };
+
+      updateOrder.subscriptionId = newSubscription.subscriptionId;
+      updateOrder.subscriptionResult = JSON.stringify(session.paymentResult);
     }
 
     // grant credit for order

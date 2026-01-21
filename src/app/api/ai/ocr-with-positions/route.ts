@@ -1,9 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server';
+import sharp from 'sharp';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60; // 60秒超时
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+
+/**
+ * 获取图片的真实尺寸
+ */
+async function getActualImageSize(
+  imageUrl: string,
+  imageBase64?: string
+): Promise<{ width: number; height: number } | null> {
+  try {
+    let imageBuffer: Buffer;
+
+    if (imageBase64) {
+      // 从 base64 获取
+      const base64Data = imageBase64.includes(',')
+        ? imageBase64.split(',')[1]
+        : imageBase64;
+      imageBuffer = Buffer.from(base64Data, 'base64');
+    } else {
+      // 从 URL 下载
+      const response = await fetch(imageUrl);
+      if (!response.ok) {
+        console.warn('[OCR-POSITIONS] 无法下载图片获取尺寸');
+        return null;
+      }
+      const arrayBuffer = await response.arrayBuffer();
+      imageBuffer = Buffer.from(arrayBuffer);
+    }
+
+    const metadata = await sharp(imageBuffer).metadata();
+    if (metadata.width && metadata.height) {
+      console.log(`[OCR-POSITIONS] 实际图片尺寸: ${metadata.width}x${metadata.height}`);
+      return { width: metadata.width, height: metadata.height };
+    }
+    return null;
+  } catch (error) {
+    console.warn('[OCR-POSITIONS] 获取图片尺寸失败:', error);
+    return null;
+  }
+}
 
 interface TextBlock {
   text: string;
@@ -63,6 +103,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<OCRRespon
     }
 
     console.log('[OCR-POSITIONS] 开始提取文本和位置信息...');
+
+    // 🎯 关键改进：获取图片的真实尺寸
+    const actualImageSize = await getActualImageSize(imageUrl, imageBase64);
+    console.log('[OCR-POSITIONS] 实际图片尺寸:', actualImageSize);
 
     // 构建增强的提示词 - 强调像素级精确定位
     const prompt = `You are a PRECISION OCR system analyzing a presentation slide image. Your task is to extract ALL text elements with PIXEL-PERFECT positioning for recreating an editable PowerPoint file.
@@ -221,43 +265,76 @@ Return ONLY valid JSON (no markdown, no explanations, no comments):
         throw new Error('响应中缺少 blocks 数组');
       }
 
-      if (!parsedData.imageSize || !parsedData.imageSize.width || !parsedData.imageSize.height) {
-        // 如果没有图片尺寸，使用默认值（16:9 比例）
-        parsedData.imageSize = { width: 1920, height: 1080 };
-      }
+      // VLM 返回的图片尺寸（可能是估计值，如 1920x1080）
+      const vlmImageSize = parsedData.imageSize || { width: 1920, height: 1080 };
 
-      // 验证和清理数据
-      const blocks = (parsedData.blocks || []).map((block: any) => ({
-        text: String(block.text || ''),
-        bbox: {
-          x: Number(block.bbox?.x) || 0,
-          y: Number(block.bbox?.y) || 0,
-          width: Number(block.bbox?.width) || 100,
-          height: Number(block.bbox?.height) || 50,
-        },
-        color: String(block.color || '#000000'),
-        fontSizePx: Number(block.fontSizePx) || 24,
-        isBold: Boolean(block.isBold),
-        alignment: ['left', 'center', 'right'].includes(block.alignment) ? block.alignment : 'left',
-        lineHeight: Number(block.lineHeight) || 1.0,
-      }));
+      // 使用实际图片尺寸（如果获取成功）
+      const finalImageSize = actualImageSize || vlmImageSize;
+
+      // 计算坐标校正比例：如果 VLM 假设了错误的尺寸，需要将坐标映射到真实尺寸
+      // 例如：VLM 假设 1920x1080，实际是 2752x1536
+      // 则坐标需要乘以 (实际宽度/VLM宽度)
+      const scaleX = actualImageSize ? finalImageSize.width / vlmImageSize.width : 1;
+      const scaleY = actualImageSize ? finalImageSize.height / vlmImageSize.height : 1;
+
+      console.log('[OCR-POSITIONS] 坐标校正比例:', {
+        vlmSize: vlmImageSize,
+        actualSize: finalImageSize,
+        scaleX,
+        scaleY
+      });
+
+      // 验证和清理数据，同时应用坐标校正
+      const blocks = (parsedData.blocks || []).map((block: any) => {
+        const rawX = Number(block.bbox?.x) || 0;
+        const rawY = Number(block.bbox?.y) || 0;
+        const rawWidth = Number(block.bbox?.width) || 100;
+        const rawHeight = Number(block.bbox?.height) || 50;
+        const rawFontSize = Number(block.fontSizePx) || 24;
+
+        return {
+          text: String(block.text || ''),
+          bbox: {
+            // 应用坐标校正
+            x: Math.round(rawX * scaleX),
+            y: Math.round(rawY * scaleY),
+            width: Math.round(rawWidth * scaleX),
+            height: Math.round(rawHeight * scaleY),
+          },
+          color: String(block.color || '#000000'),
+          // 字体大小也需要按比例调整（基于高度比例）
+          fontSizePx: Math.round(rawFontSize * scaleY),
+          isBold: Boolean(block.isBold),
+          alignment: ['left', 'center', 'right'].includes(block.alignment) ? block.alignment : 'left',
+          lineHeight: Number(block.lineHeight) || 1.0,
+        };
+      });
 
       console.log(`[OCR-POSITIONS] 成功提取 ${blocks.length} 个文本块`);
+
+      // 打印第一个文本块的坐标用于调试
+      if (blocks.length > 0) {
+        console.log('[OCR-POSITIONS] 第一个文本块（校正后）:', {
+          text: blocks[0].text.substring(0, 30),
+          bbox: blocks[0].bbox,
+          fontSizePx: blocks[0].fontSizePx,
+        });
+      }
 
       return NextResponse.json({
         success: true,
         blocks,
-        imageSize: parsedData.imageSize,
+        imageSize: finalImageSize, // 返回真实尺寸
       });
     } catch (parseError) {
       console.error('[OCR-POSITIONS] JSON 解析失败:', parseError);
       console.error('[OCR-POSITIONS] 原始内容:', content);
 
-      // 降级方案：返回空结果但不报错
+      // 降级方案：返回空结果但不报错（使用真实图片尺寸如果有）
       return NextResponse.json({
         success: false,
         blocks: [],
-        imageSize: { width: 1920, height: 1080 },
+        imageSize: actualImageSize || { width: 1920, height: 1080 },
         error: 'JSON 解析失败，请重试',
       });
     }

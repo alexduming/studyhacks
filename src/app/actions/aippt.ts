@@ -1086,89 +1086,72 @@ export async function createFalTaskAction(params: {
     });
 
     const startTime = Date.now();
+    const maxRetries = 2; // 最大重试次数
+    let attempt = 0;
+    let result: any;
 
-    // 使用 subscribe 等待结果
-    const result: any = await fal.subscribe(falModel, {
-      input,
-      logs: true,
-      onQueueUpdate: (update: any) => {
-        if (update.status === 'IN_PROGRESS') {
-          // update.logs.map((log) => log.message).forEach(console.log);
+    while (attempt <= maxRetries) {
+      try {
+        // 使用 subscribe 等待结果
+        result = await fal.subscribe(falModel, {
+          input,
+          logs: true,
+          onQueueUpdate: (update: any) => {
+            if (update.status === 'IN_PROGRESS') {
+              // update.logs.map((log) => log.message).forEach(console.log);
+            }
+          },
+        });
+        // 如果成功，跳出重试循环
+        break;
+      } catch (error: any) {
+        attempt++;
+        // 只有在网络错误（fetch failed）或服务器 5xx 错误时才重试
+        const isNetworkError =
+          error.message?.includes('fetch failed') ||
+          error.status >= 500 ||
+          error.status === 429; // 429 也值得重试
+
+        if (attempt <= maxRetries && isNetworkError) {
+          console.warn(
+            `⚠️ [FAL] 第 ${attempt} 次尝试失败 (${error.message})，正在进行第 ${
+              attempt + 1
+            } 次重试...`
+          );
+          // 指数退避：第一次重试等 1s，第二次重试等 2s
+          await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+          continue;
         }
-      },
-    });
+
+        // 记录失败日志并抛出错误，触发 providerChain 的托底逻辑
+        console.error('❌ FAL 失败:', error.message);
+        if (error.body) {
+          console.error('[FAL] 错误详情:', JSON.stringify(error.body, null, 2));
+        }
+        if (error.status) {
+          console.error('[FAL] HTTP 状态码:', error.status);
+        }
+        throw error;
+      }
+    }
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`[FAL] API 调用完成，耗时: ${elapsed}s`);
+    console.log(`[FAL] API 调用完成，总耗时: ${elapsed}s (尝试次数: ${attempt + 1})`);
 
-    // 解析结果
-    // Output: { images: [ { url: ... } ] }
-    if (
-      !result.data ||
-      !result.data.images ||
-      result.data.images.length === 0
-    ) {
-      throw new Error('FAL 未返回图片');
+    // 返回生成结果
+    if (!result || !result.data || !result.data.images || result.data.images.length === 0) {
+      throw new Error('FAL API 未返回有效的图片结果');
     }
 
     const imageUrl = result.data.images[0].url;
-    console.log('✅ FAL 生成成功，URL:', imageUrl);
-
-    // 🎯 优化：不再阻塞等待 R2 上传，直接返回原始 URL 以提高用户体感速度
-    // R2 持久化转为后台执行
-    const saveToR2Background = async () => {
-      try {
-        const { getStorageServiceWithConfigs } = await import(
-          '@/shared/services/storage'
-        );
-        const { getAllConfigs } = await import('@/shared/models/config');
-        const { getUserInfo } = await import('@/shared/models/user');
-        const { nanoid } = await import('nanoid');
-
-        const user = await getUserInfo();
-        const configs = await getAllConfigs();
-
-        if (user && configs.r2_bucket_name && configs.r2_access_key) {
-          console.log('[FAL] 后台开始保存图片到 R2...');
-          const storageService = getStorageServiceWithConfigs(configs);
-          const timestamp = Date.now();
-          const randomId = nanoid(8);
-          const fileExtension = imageUrl.includes('.jpg') ? 'jpg' : 'png';
-          const fileName = `${timestamp}_${randomId}.${fileExtension}`;
-          const storageKey = `slides/${user.id}/${fileName}`;
-
-          await storageService.downloadAndUpload({
-            url: imageUrl,
-            key: storageKey,
-            contentType: `image/${fileExtension}`,
-            disposition: 'inline',
-          });
-          console.log(`[FAL] ✅ 图片后台保存成功`);
-        }
-      } catch (saveError) {
-        console.error('[FAL] 后台保存图片异常:', saveError);
-      }
-    };
-
-    // 触发后台执行，不 await
-    saveToR2Background();
+    console.log('[FAL] ✅ 生成成功:', imageUrl.substring(0, 60) + '...');
 
     return {
-      success: true,
-      task_id: `fal-${result.requestId || Date.now()}`,
-      provider: 'FAL',
-      fallbackUsed: false,
-      imageUrl: imageUrl, // 返回原始 FAL URL
+      imageUrl,
+      prompt: params.prompt,
     };
   } catch (error: any) {
-    console.error('❌ FAL 失败:', error.message);
-    // 打印更详细的错误信息
-    if (error.body) {
-      console.error('[FAL] 错误详情:', JSON.stringify(error.body, null, 2));
-    }
-    if (error.status) {
-      console.error('[FAL] HTTP 状态码:', error.status);
-    }
+    console.error('[FAL] ❌ createFalTaskAction 错误:', error.message);
     throw error;
   }
 }
@@ -1752,42 +1735,71 @@ ${regionPrompts}
     });
 
     const startTime = Date.now();
+    const maxRetries = 2; // 最大重试次数
+    let attempt = 0;
+    let result: any;
 
-    const result: any = await fal.subscribe('fal-ai/nano-banana-pro/edit', {
-      input,
-      logs: true,
-      onQueueUpdate: (update: any) => {
-        if (update.status === 'IN_PROGRESS') {
-          console.log('[Edit] 生成中...');
+    while (attempt <= maxRetries) {
+      try {
+        result = await fal.subscribe('fal-ai/nano-banana-pro/edit', {
+          input,
+          logs: true,
+          onQueueUpdate: (update: any) => {
+            if (update.status === 'IN_PROGRESS') {
+              console.log('[Edit] 生成中...');
+            }
+          },
+        });
+        // 成功则跳出重试循环
+        break;
+      } catch (error: any) {
+        attempt++;
+        // 只有在网络错误（fetch failed）或服务器 5xx 错误时才重试
+        const isNetworkError =
+          error.message?.includes('fetch failed') ||
+          error.status >= 500 ||
+          error.status === 429;
+
+        if (attempt <= maxRetries && isNetworkError) {
+          console.warn(
+            `⚠️ [Edit] 第 ${attempt} 次尝试失败 (${error.message})，正在进行第 ${
+              attempt + 1
+            } 次重试...`
+          );
+          // 指数退避：第一次重试等 1s，第二次重试等 2s
+          await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+          continue;
         }
-      },
-    });
+
+        // 记录最终失败日志并抛出错误
+        console.error('[Edit] ❌ 编辑失败:', error.message);
+        if (error.body) {
+          console.error('[Edit] 错误详情:', JSON.stringify(error.body, null, 2));
+        }
+        throw error;
+      }
+    }
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`[Edit] FAL 调用完成，耗时: ${elapsed}s`);
+    console.log(
+      `[Edit] FAL 调用完成，总耗时: ${elapsed}s (尝试次数: ${attempt + 1})`
+    );
 
-    if (
-      !result.data ||
-      !result.data.images ||
-      result.data.images.length === 0
-    ) {
-      throw new Error('FAL 未返回图片');
+    // 返回编辑结果
+    if (!result || !result.data || !result.data.images || result.data.images.length === 0) {
+      throw new Error('FAL API 未返回有效的编辑结果');
     }
 
     const editedImageUrl = result.data.images[0].url;
-    console.log('[Edit] ✅ 编辑成功，URL:', editedImageUrl);
-    console.log('========================================\n');
+    console.log('[Edit] ✅ 编辑成功:', editedImageUrl.substring(0, 60) + '...');
 
     return {
-      success: true,
       imageUrl: editedImageUrl,
-      provider: 'FAL',
+      success: true,
+      provider: 'FAL' as const,
     };
   } catch (error: any) {
-    console.error('[Edit] ❌ 编辑失败:', error.message);
-    if (error.body) {
-      console.error('[Edit] 错误详情:', JSON.stringify(error.body, null, 2));
-    }
+    console.error('[Edit] ❌ editImageRegionAction 错误:', error.message);
     throw error;
   }
 }

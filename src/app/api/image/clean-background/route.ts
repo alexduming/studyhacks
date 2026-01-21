@@ -126,31 +126,64 @@ export async function POST(request: NextRequest): Promise<NextResponse<CleanBack
     console.log('[CLEAN-BG] 正在调用 fal.ai inpaint API...');
 
     const startTime = Date.now();
+    const maxRetries = 2;
+    let attempt = 0;
+    let result: any;
 
-    const result = await fal.subscribe('fal-ai/inpaint', {
-      input: {
-        image_url: imageUrl,
-        mask_url: maskDataUrl,
-        // 使用描述性 prompt，让模型填充与背景一致的内容
-        // 注意：fal-ai/inpaint 模型会根据 mask 和周围像素进行填充
-        prompt: 'clean background, seamless fill, consistent lighting, natural texture continuation',
-        // 使用较高的推理步数确保质量
-        num_inference_steps: 30,
-        // 引导强度 - 控制模型遵循 prompt 的程度
-        guidance_scale: 7.5,
-        // 使用 Stable Diffusion XL Inpainting 模型
-        model_name: 'stabilityai/stable-diffusion-xl-refiner-1.0' as any,
-      },
-      logs: true,
-      onQueueUpdate: (update) => {
-        if (update.status === 'IN_PROGRESS' && update.logs) {
-          update.logs.forEach((log) => console.log(`[CLEAN-BG] fal.ai: ${log.message}`));
+    while (attempt <= maxRetries) {
+      try {
+        result = await fal.subscribe('fal-ai/inpaint', {
+          input: {
+            image_url: imageUrl,
+            mask_url: maskDataUrl,
+            // 使用描述性 prompt，让模型填充与背景一致的内容
+            // 注意：fal-ai/inpaint 模型会根据 mask 和周围像素进行填充
+            prompt:
+              'clean background, seamless fill, consistent lighting, natural texture continuation',
+            // 使用较高的推理步数确保质量
+            num_inference_steps: 30,
+            // 引导强度 - 控制模型遵循 prompt 的程度
+            guidance_scale: 7.5,
+            // 使用 Stable Diffusion XL Inpainting 模型
+            model_name: 'stabilityai/stable-diffusion-xl-refiner-1.0' as any,
+          },
+          logs: true,
+          onQueueUpdate: (update) => {
+            if (update.status === 'IN_PROGRESS' && update.logs) {
+              update.logs.forEach((log) =>
+                console.log(`[CLEAN-BG] fal.ai: ${log.message}`)
+              );
+            }
+          },
+        });
+        // 成功则跳出
+        break;
+      } catch (error: any) {
+        attempt++;
+        const isNetworkError =
+          error.message?.includes('fetch failed') ||
+          error.status >= 500 ||
+          error.status === 429;
+
+        if (attempt <= maxRetries && isNetworkError) {
+          console.warn(
+            `[CLEAN-BG] 第 ${attempt} 次尝试失败 (${
+              error.message
+            })，正在进行第 ${attempt + 1} 次重试...`
+          );
+          await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+          continue;
         }
-      },
-    }) as any;
+        throw error;
+      }
+    }
 
     const duration = Date.now() - startTime;
-    console.log(`[CLEAN-BG] ✅ fal.ai 调用完成，耗时: ${duration}ms`);
+    console.log(
+      `[CLEAN-BG] ✅ fal.ai 调用完成，耗时: ${duration}ms (尝试次数: ${
+        attempt + 1
+      })`
+    );
     console.log('[CLEAN-BG] 输出结果:', JSON.stringify(result, null, 2).substring(0, 500));
 
     // fal.ai inpaint 返回格式: { images: [{ url: "..." }] }
