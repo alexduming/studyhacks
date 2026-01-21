@@ -138,6 +138,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<CleanBack
         num_inference_steps: 30,
         // 引导强度 - 控制模型遵循 prompt 的程度
         guidance_scale: 7.5,
+        // 使用 Stable Diffusion XL Inpainting 模型
+        model_name: 'stabilityai/stable-diffusion-xl-refiner-1.0' as any,
       },
       logs: true,
       onQueueUpdate: (update) => {

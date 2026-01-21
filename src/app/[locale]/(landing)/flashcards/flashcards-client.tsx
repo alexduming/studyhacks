@@ -818,7 +818,10 @@ const FlashcardsApp = ({ initialHistoryData }: FlashcardsAppProps) => {
                     ? t('empty_state.no_due_cards_desc')
                     : t('empty_state.no_cards_desc')}
                 </p>
-                <Button className="from-primary to-primary/70 hover:from-primary/90 hover:to-primary/80 bg-gradient-to-r">
+                <Button 
+                  className="from-primary to-primary/70 hover:from-primary/90 hover:to-primary/80 bg-gradient-to-r"
+                  onClick={() => setShowCreateForm(true)}
+                >
                   <Plus className="mr-2 h-4 w-4" />
                   {t('empty_state.create_cards')}
                 </Button>
@@ -830,7 +833,15 @@ const FlashcardsApp = ({ initialHistoryData }: FlashcardsAppProps) => {
         <ScrollAnimation delay={0.5}>
           <div className="mx-auto mt-12 max-w-4xl">
             <div className="border-primary/20 bg-muted/50 rounded-2xl border p-6 backdrop-blur-sm dark:bg-gray-900/50">
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
+                <Button
+                  onClick={() => setShowCreateForm(true)}
+                  variant="outline"
+                  className="border-primary/30 text-primary/80 hover:border-primary/50 justify-start"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  {t('quick_actions.ai_generate')}
+                </Button>
                 <Button
                   asChild
                   variant="outline"

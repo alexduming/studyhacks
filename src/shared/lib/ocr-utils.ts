@@ -144,11 +144,17 @@ export function pxToPoint(px: number, basePPI: number = 96): number {
 
 /**
  * 计算 PPTX 坐标（英寸）- 简化版
- * @param bbox 像素坐标的边界框
+ *
+ * 关键说明：OCR 返回的 bbox 是文本的精确像素边界框，
+ * bbox.x/y 是文本左上角的精确位置，无需根据对齐方式调整。
+ * PowerPoint 的 align 属性控制的是文本在文本框内的对齐，
+ * 而不是文本框本身的位置。
+ *
+ * @param bbox 像素坐标的边界框（OCR 返回的精确文本边界）
  * @param imageSize 图片尺寸
  * @param slideWidth 幻灯片宽度（英寸，默认 10）
  * @param slideHeight 幻灯片高度（英寸，默认 5.625）
- * @param alignment 文本对齐方式（用于调整坐标）
+ * @param _alignment 文本对齐方式（保留参数兼容性，但不再用于调整坐标）
  * @returns PPTX 坐标（英寸）
  */
 export function calculatePPTXCoords(
@@ -156,29 +162,17 @@ export function calculatePPTXCoords(
   imageSize: { width: number; height: number },
   slideWidth: number = 10,
   slideHeight: number = 5.625,
-  alignment: 'left' | 'center' | 'right' = 'left'
+  _alignment: 'left' | 'center' | 'right' = 'left'
 ): SlideCoordinates {
   const scaleX = slideWidth / imageSize.width;
   const scaleY = slideHeight / imageSize.height;
 
-  let x = bbox.x * scaleX;
-  let y = bbox.y * scaleY;
+  // OCR 返回的 bbox.x/y 已经是文本的精确左上角位置
+  // 直接按比例缩放即可，无需根据对齐方式调整
+  const x = bbox.x * scaleX;
+  const y = bbox.y * scaleY;
   const w = bbox.width * scaleX;
   const h = bbox.height * scaleY;
-
-  // 根据对齐方式调整 x 坐标
-  // OCR 返回的 bbox 是文本的实际边界，但 PowerPoint 的对齐是基于文本框的
-  // 需要根据对齐方式调整文本框的起始位置
-  if (alignment === 'center') {
-    // 居中对齐时，OCR 的 bbox.x 是文本左边界
-    // 文本框应该向左扩展半个宽度，使文本在框内居中
-    x = x - w / 2;
-  } else if (alignment === 'right') {
-    // 右对齐时，OCR 的 bbox.x 是文本左边界
-    // 文本框应该向左扩展整个宽度，使文本在框内右对齐
-    x = x - w;
-  }
-  // left 对齐不需要调整，OCR 的 bbox.x 就是文本框的左边界
 
   return { x, y, w, h };
 }

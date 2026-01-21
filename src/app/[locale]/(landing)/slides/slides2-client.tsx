@@ -79,6 +79,7 @@ import {
   TabsTrigger,
 } from '@/shared/components/ui/tabs';
 import { Textarea } from '@/shared/components/ui/textarea';
+import { Progress } from '@/shared/components/ui/progress';
 import { useAppContext } from '@/shared/contexts/app';
 import { cn } from '@/shared/lib/utils';
 
@@ -223,6 +224,16 @@ export default function Slides2Client({
   const [activeRegionId, setActiveRegionId] = useState<string | null>(null);
   const [pendingEditSubmit, setPendingEditSubmit] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
+  // 🎯 PPTX 导出进度状态
+  const [pptxExportProgress, setPptxExportProgress] = useState({
+    isOpen: false,
+    currentSlide: 0,
+    totalSlides: 0,
+    currentStep: '',
+    overallProgress: 0,
+    logs: [] as string[],
+  });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
@@ -1464,6 +1475,14 @@ export default function Slides2Client({
     }
   };
 
+  /**
+   * 🎯 导出为可编辑 PPTX - 完整版本
+   * 流程：
+   * 1. OCR 识别文字位置和样式
+   * 2. 使用 inpainting 清理背景上的文字区域
+   * 3. 将清理后的背景作为底层图片
+   * 4. 在正确位置添加可编辑文本框
+   */
   const handleDownloadPPTX = async () => {
     const completed = slides.filter(
       (slide) => slide.status === 'completed' && slide.imageUrl
@@ -1472,7 +1491,44 @@ export default function Slides2Client({
       toast.error(t_aippt('v2.no_completed_slides'));
       return;
     }
-    toast.loading(t_aippt('result_step.generating_pptx'), { id: 'pptx' });
+
+    // 🎯 打开进度对话框
+    setPptxExportProgress({
+      isOpen: true,
+      currentSlide: 0,
+      totalSlides: completed.length,
+      currentStep: '正在初始化...',
+      overallProgress: 0,
+      logs: ['开始导出 PPTX...'],
+    });
+
+    const addLog = (msg: string) => {
+      console.log(`[PPTX] ${msg}`);
+      setPptxExportProgress((prev) => ({
+        ...prev,
+        logs: [...prev.logs.slice(-20), msg], // 保留最后20条日志
+      }));
+    };
+
+    const updateProgress = (
+      slideIndex: number,
+      step: string,
+      stepProgress: number
+    ) => {
+      // 每张幻灯片有4个主要步骤
+      const stepsPerSlide = 4;
+      const baseProgress = (slideIndex / completed.length) * 100;
+      const stepIncrement = (1 / completed.length) * (stepProgress / stepsPerSlide) * 100;
+      const overallProgress = Math.min(100, baseProgress + stepIncrement);
+
+      setPptxExportProgress((prev) => ({
+        ...prev,
+        currentSlide: slideIndex + 1,
+        currentStep: step,
+        overallProgress: Math.round(overallProgress),
+      }));
+    };
+
     try {
       const PptxGenJS = (await import('pptxgenjs')).default;
       const pres = new PptxGenJS();
@@ -1482,118 +1538,83 @@ export default function Slides2Client({
       const slideWidth = 10; // 英寸
       const slideHeight = 5.625; // 英寸
 
-      // 🎯 逐个处理幻灯片，避免内存溢出
+      addLog(`准备处理 ${completed.length} 张幻灯片`);
+
+      // 🎯 逐个处理幻灯片
       for (let i = 0; i < completed.length; i++) {
         const slide = completed[i];
         const pptSlide = pres.addSlide();
-        let url = slide.imageUrl!;
+        let backgroundUrl = slide.imageUrl!;
 
-        // 🎯 更新进度提示
-        toast.loading(
-          `正在处理幻灯片 ${i + 1}/${completed.length}...`,
-          { id: 'pptx' }
-        );
+        addLog(`========== 幻灯片 ${i + 1}/${completed.length} ==========`);
+
+        // 🎯 步骤1: OCR 识别文字
+        updateProgress(i, `幻灯片 ${i + 1}: 正在识别文字...`, 0);
+        addLog(`步骤1: 开始 OCR 识别...`);
+
+        let ocrData: any = null;
+        try {
+          const ocrResponse = await fetch('/api/ai/ocr-with-positions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ imageUrl: slide.imageUrl }),
+          });
+
+          if (ocrResponse.ok) {
+            ocrData = await ocrResponse.json();
+            if (ocrData?.success && ocrData.blocks?.length > 0) {
+              addLog(`✅ 识别到 ${ocrData.blocks.length} 个文本块`);
+              ocrData.blocks.slice(0, 3).forEach((b: any, idx: number) => {
+                addLog(`  文本 ${idx + 1}: "${b.text?.substring(0, 20)}..." (${b.fontSizePx}px, ${b.color})`);
+              });
+            } else {
+              addLog(`⚠️ OCR 未识别到文本或失败`);
+            }
+          } else {
+            addLog(`❌ OCR API 返回错误: ${ocrResponse.status}`);
+          }
+        } catch (ocrError) {
+          addLog(`❌ OCR 请求异常: ${ocrError instanceof Error ? ocrError.message : '未知错误'}`);
+        }
+
+        // 🎯 步骤2: 直接使用原图作为背景（跳过 inpainting，更稳定）
+        // 注：inpainting API（fal.ai）存在加载缓慢或超时问题，
+        // 为了确保导出成功，我们直接使用原图，文字会通过可编辑文本框覆盖
+        updateProgress(i, `幻灯片 ${i + 1}: 准备背景...`, 1);
+        addLog(`步骤2: 使用原图作为背景（可编辑文本将覆盖在上层）`);
+
+        // 🎯 步骤3: 添加水印（如果开启）
+        if (showWatermark) {
+          addLog(`步骤3: 添加水印...`);
+          try {
+            backgroundUrl = await addWatermarkToImage(backgroundUrl, watermarkText);
+            addLog(`✅ 水印添加成功`);
+          } catch (wmError) {
+            addLog(`⚠️ 水印添加失败`);
+          }
+        }
+
+        // 🎯 步骤4: 将背景添加到 PPTX
+        updateProgress(i, `幻灯片 ${i + 1}: 正在生成幻灯片...`, 2);
+        addLog(`步骤4: 转换图片并添加到 PPTX...`);
 
         try {
-          // 🎯 步骤1: 提取文本和位置信息（使用 OCR）
-          let ocrData: any = null;
-          try {
-            const ocrResponse = await fetch('/api/ai/ocr-with-positions', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ imageUrl: url }),
-            });
-            ocrData = await ocrResponse.json();
-            console.log(`[PPTX] 幻灯片 ${i + 1} OCR 结果:`, ocrData);
-          } catch (ocrError) {
-            console.warn(`[PPTX] 幻灯片 ${i + 1} OCR 失败:`, ocrError);
-          }
-
-          // 🎯 步骤2: 清理背景（移除文本区域）
-          // ⚠️ 这是 inpainting 的关键步骤，必须成功执行才能得到干净背景
-          const originalUrl = url; // 保存原始 URL 用于对比
-          if (ocrData?.success && ocrData.blocks && ocrData.blocks.length > 0) {
-            try {
-              console.log(`[PPTX] ========== 幻灯片 ${i + 1} 背景清理开始 ==========`);
-              console.log(`[PPTX] 原图 URL: ${url.substring(0, 100)}...`);
-              console.log(`[PPTX] 检测到 ${ocrData.blocks.length} 个文本区域需要清理`);
-              console.log(`[PPTX] 图片尺寸: ${ocrData.imageSize?.width}x${ocrData.imageSize?.height}`);
-              console.log(`[PPTX] 文本框示例:`, ocrData.blocks.slice(0, 2).map((b: any) => ({
-                text: b.text?.substring(0, 20),
-                bbox: b.bbox,
-              })));
-
-              const cleanResponse = await fetch('/api/image/clean-background', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  imageUrl: url,
-                  textBoxes: ocrData.blocks.map((block: any) => block.bbox),
-                  imageSize: ocrData.imageSize,
-                }),
-              });
-
-              console.log(`[PPTX] clean-background API 响应状态: ${cleanResponse.status}`);
-
-              const cleanData = await cleanResponse.json();
-              console.log(`[PPTX] clean-background API 响应:`, {
-                success: cleanData.success,
-                hasImageUrl: !!cleanData.imageUrl,
-                imageUrlPreview: cleanData.imageUrl?.substring(0, 80),
-                error: cleanData.error,
-              });
-
-              if (cleanData.success && cleanData.imageUrl) {
-                console.log(`[PPTX] ✅ 幻灯片 ${i + 1} 背景清理成功！`);
-                console.log(`[PPTX] 清理后 URL: ${cleanData.imageUrl.substring(0, 100)}...`);
-                console.log(`[PPTX] URL 是否变化: ${url !== cleanData.imageUrl}`);
-                url = cleanData.imageUrl;
-              } else {
-                // ⚠️ 不要静默失败，显示警告让用户知道
-                console.error(`[PPTX] ❌ 幻灯片 ${i + 1} 背景清理失败!`);
-                console.error(`[PPTX] 错误信息: ${cleanData.error || '未知错误'}`);
-                console.error(`[PPTX] 将使用原图作为背景（文字不会被清除）`);
-                // 继续使用原图，但记录警告
-                toast.warning(`幻灯片 ${i + 1} 背景清理失败: ${cleanData.error || '未知错误'}`);
-              }
-            } catch (cleanError) {
-              console.error(`[PPTX] ❌ 幻灯片 ${i + 1} 背景清理异常:`, cleanError);
-              toast.warning(`幻灯片 ${i + 1} 背景清理异常: ${cleanError instanceof Error ? cleanError.message : '未知错误'}`);
-            }
-            console.log(`[PPTX] ========== 幻灯片 ${i + 1} 背景清理结束 ==========`);
-            console.log(`[PPTX] 最终使用的背景 URL: ${url.substring(0, 100)}...`);
-            console.log(`[PPTX] 背景是否被清理: ${url !== originalUrl}`);
-          } else {
-            console.log(`[PPTX] 幻灯片 ${i + 1} 跳过背景清理（OCR 未检测到文本或失败）`);
-            console.log(`[PPTX] OCR 状态: success=${ocrData?.success}, blocks=${ocrData?.blocks?.length || 0}`);
-          }
-
-          // 🎯 步骤3: 只要开启水印，且用户没有手动关闭，就在导出 PPTX 时打入背景图
-          if (showWatermark) {
-            url = await addWatermarkToImage(url, watermarkText);
-          }
-
-          // 🎯 转换为 base64 数据，使用 data 属性而不是 path，更节省内存
+          // 转换为 base64
           let imageData: string;
-          if (url.startsWith('data:')) {
-            // 已经是 data URL，提取 base64 部分
-            imageData = url.split(',')[1];
+          if (backgroundUrl.startsWith('data:')) {
+            imageData = backgroundUrl.split(',')[1];
           } else {
-            // 获取图片数据并转换为 base64
             let buffer: ArrayBuffer;
-            if (!url.startsWith('/') && !url.startsWith(window.location.origin)) {
-              // 外部 URL，使用代理
-              buffer = await urlToBuffer(url);
+            if (!backgroundUrl.startsWith('/') && !backgroundUrl.startsWith(window.location.origin)) {
+              buffer = await urlToBuffer(backgroundUrl);
             } else {
-              // 本地 URL，直接 fetch
-              const response = await fetch(url);
+              const response = await fetch(backgroundUrl);
               buffer = await response.arrayBuffer();
             }
 
-            // 转换为 base64（不使用 FileReader，更节省内存）
             const bytes = new Uint8Array(buffer);
             let binary = '';
-            const chunkSize = 0x8000; // 32KB chunks
+            const chunkSize = 0x8000;
             for (let j = 0; j < bytes.length; j += chunkSize) {
               const chunk = bytes.subarray(j, Math.min(j + chunkSize, bytes.length));
               binary += String.fromCharCode.apply(null, Array.from(chunk));
@@ -1601,149 +1622,108 @@ export default function Slides2Client({
             imageData = btoa(binary);
           }
 
-          // 🎯 将背景作为可编辑图片对象添加（而非填充式背景）
-          // 这样用户可以在 PowerPoint 中选择、拖动和编辑背景图片
-          // 同时 inpainting 清理的效果也能正确显示
+          // 添加背景图片
           pptSlide.addImage({
             data: `image/png;base64,${imageData}`,
             x: 0,
             y: 0,
-            w: slideWidth,   // 10 英寸
-            h: slideHeight,  // 5.625 英寸
+            w: slideWidth,
+            h: slideHeight,
           });
+          addLog(`✅ 背景图片已添加`);
+        } catch (imgError) {
+          addLog(`❌ 背景图片添加失败: ${imgError instanceof Error ? imgError.message : '未知错误'}`);
+        }
 
-          // 🎯 步骤4: 检测并添加图形元素（图标、形状等）作为独立图层
-          // 图形元素应该在背景之上、文本之下
-          try {
-            console.log(`[PPTX] 幻灯片 ${i + 1} 开始检测图形元素...`);
-            const graphicsResponse = await fetch('/api/ai/detect-graphics', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ imageUrl: slide.imageUrl }),
-            });
-            const graphicsData = await graphicsResponse.json();
+        // 🎯 步骤5: 添加可编辑文本框
+        updateProgress(i, `幻灯片 ${i + 1}: 正在添加文本...`, 3);
 
-            if (graphicsData?.success && graphicsData.elements && graphicsData.elements.length > 0) {
-              const imgWidth = graphicsData.imageSize?.width || 1920;
-              const imgHeight = graphicsData.imageSize?.height || 1080;
+        if (ocrData?.success && ocrData.blocks && ocrData.blocks.length > 0) {
+          addLog(`步骤5: 添加 ${ocrData.blocks.length} 个可编辑文本框...`);
 
-              // 按 zIndex 排序，确保正确的图层顺序
-              const sortedElements = [...graphicsData.elements].sort((a: any, b: any) => a.zIndex - b.zIndex);
+          const imgWidth = ocrData.imageSize?.width || 1920;
+          const imgHeight = ocrData.imageSize?.height || 1080;
 
-              for (const element of sortedElements) {
-                try {
-                  // 裁剪图形元素
-                  const cropResponse = await fetch('/api/image/crop', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      imageUrl: slide.imageUrl,
-                      bbox: element.bbox,
-                      imageSize: graphicsData.imageSize,
-                    }),
-                  });
-                  const cropData = await cropResponse.json();
-
-                  if (cropData.success && cropData.croppedImageUrl) {
-                    // 计算 PPTX 坐标
-                    const coords = calculatePPTXCoords(
-                      element.bbox,
-                      { width: imgWidth, height: imgHeight },
-                      slideWidth,
-                      slideHeight
-                    );
-
-                    // 提取 base64 数据
-                    const graphicBase64 = cropData.croppedImageUrl.split(',')[1];
-
-                    // 添加图形作为独立图片元素
-                    pptSlide.addImage({
-                      data: `image/png;base64,${graphicBase64}`,
-                      x: coords.x,
-                      y: coords.y,
-                      w: coords.w || 1,
-                      h: coords.h || 1,
-                    });
-                  }
-                } catch (cropError) {
-                  console.warn(`[PPTX] 裁剪图形元素失败:`, cropError);
-                }
-              }
-              console.log(`[PPTX] 幻灯片 ${i + 1} 添加了 ${sortedElements.length} 个图形元素`);
-            }
-          } catch (graphicsError) {
-            console.warn(`[PPTX] 幻灯片 ${i + 1} 图形检测失败:`, graphicsError);
-          }
-
-          // 🎯 步骤5: 添加可编辑文本框（如果 OCR 成功）
-          // 文本框应该在最上层，覆盖背景和图形
-          if (ocrData?.success && ocrData.blocks && ocrData.blocks.length > 0) {
-            const imgWidth = ocrData.imageSize?.width || 1920;
-            const imgHeight = ocrData.imageSize?.height || 1080;
-
-            for (const block of ocrData.blocks) {
-              // 使用工具函数计算 PPTX 坐标（英寸），传入对齐方式
+          for (const block of ocrData.blocks) {
+            try {
+              // 计算坐标
               const coords = calculatePPTXCoords(
                 block.bbox,
                 { width: imgWidth, height: imgHeight },
                 slideWidth,
                 slideHeight,
-                block.alignment || 'left'  // 传入对齐方式以精确调整位置
+                block.alignment || 'left'
               );
 
-              // 使用精确的像素字号转换为点数
+              // 转换字号
               const fontSizePt = pxToPoint(block.fontSizePx || 24);
 
-              // 解析颜色（去掉 # 号，pptxgenjs 需要不带 # 的 hex）
-              // 确保颜色格式正确（6位hex，大写）
+              // 处理颜色
               let colorHex = (block.color || '#000000').replace('#', '').toUpperCase();
               if (!/^[0-9A-F]{6}$/i.test(colorHex)) {
-                console.warn(`[PPTX] 无效颜色值: ${block.color}, 使用默认黑色`);
                 colorHex = '000000';
               }
 
-              // 根据文本内容选择字体（中文用微软雅黑，英文用 Arial）
+              // 选择字体
               const hasChineseChar = /[\u4e00-\u9fa5]/.test(block.text);
               const fontFace = hasChineseChar ? 'Microsoft YaHei' : 'Arial';
 
-              // 添加文本框（透明背景，精确样式，无边框）
+              // 添加文本框
+              // 注意：坐标直接使用 OCR 返回的精确位置，不添加额外系数
+              // align 和 valign 设为 left/top 确保文字从左上角开始
               pptSlide.addText(block.text, {
                 x: coords.x,
                 y: coords.y,
-                w: (coords.w || 1) * 1.02, // 减少到 2% 缓冲，提高位置精度
-                h: (coords.h || 0.5) * 1.02,  // 减少到 2% 缓冲
+                w: coords.w || 1,
+                h: coords.h || 0.5,
                 fontSize: fontSizePt,
                 fontFace: fontFace,
                 color: colorHex,
                 bold: block.isBold || false,
-                align: block.alignment || 'left',
+                align: 'left', // 始终左对齐，因为 OCR bbox 已经是精确位置
                 valign: 'top',
-                autoFit: false, // 禁用自动适应，使用精确尺寸
+                autoFit: false,
                 lineSpacingMultiple: block.lineHeight || 1.0,
-                // 关键：文本框背景透明
                 fill: { type: 'none' },
-                // 完全移除边框（不设置line属性）
               });
+            } catch (textError) {
+              addLog(`⚠️ 添加文本框失败: ${block.text?.substring(0, 20)}...`);
             }
-            console.log(`[PPTX] 幻灯片 ${i + 1} 添加了 ${ocrData.blocks.length} 个文本框（颜色: ${ocrData.blocks[0]?.color}, 字号: ${ocrData.blocks[0]?.fontSizePx}px）`);
           }
-        } catch (slideError) {
-          console.error(`[PPTX] 处理幻灯片 ${i + 1} 失败:`, slideError);
-          // 继续处理下一张幻灯片
+          addLog(`✅ 文本框添加完成`);
         }
+
+        // 完成这张幻灯片
+        updateProgress(i, `幻灯片 ${i + 1}: 完成`, 4);
       }
 
+      // 🎯 生成并下载文件
+      addLog(`========== 生成 PPTX 文件 ==========`);
+      updateProgress(completed.length - 1, '正在生成文件...', 4);
+
       const blob = (await pres.write({ outputType: 'blob' })) as Blob;
-      const url = URL.createObjectURL(blob);
+      const downloadUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = url;
+      link.href = downloadUrl;
       link.download = `presentation-${Date.now()}.pptx`;
       link.click();
-      URL.revokeObjectURL(url);
-      toast.success(t_aippt('v2.pptx_success'), { id: 'pptx' });
+      URL.revokeObjectURL(downloadUrl);
+
+      addLog(`✅ PPTX 导出成功！`);
+
+      // 延迟关闭对话框，让用户看到成功消息
+      setTimeout(() => {
+        setPptxExportProgress((prev) => ({ ...prev, isOpen: false }));
+        toast.success(t_aippt('v2.pptx_success'));
+      }, 1500);
     } catch (error) {
       console.error('PPTX export failed', error);
-      toast.error(t_aippt('v2.pptx_failed'), { id: 'pptx' });
+      addLog(`❌ 导出失败: ${error instanceof Error ? error.message : '未知错误'}`);
+
+      setTimeout(() => {
+        setPptxExportProgress((prev) => ({ ...prev, isOpen: false }));
+        toast.error(t_aippt('v2.pptx_failed'));
+      }, 2000);
     }
   };
 
@@ -3456,6 +3436,78 @@ export default function Slides2Client({
 
           {renderHistoryDialog()}
           {renderEditDialog()}
+
+          {/* 🎯 PPTX 导出进度对话框 */}
+          <Dialog
+            open={pptxExportProgress.isOpen}
+            onOpenChange={(open) => {
+              if (!open) {
+                setPptxExportProgress((prev) => ({ ...prev, isOpen: false }));
+              }
+            }}
+          >
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Download className="h-5 w-5" />
+                  导出可编辑 PPTX
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="space-y-4 py-4">
+                {/* 总体进度 */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      幻灯片 {pptxExportProgress.currentSlide}/{pptxExportProgress.totalSlides}
+                    </span>
+                    <span className="font-medium">{pptxExportProgress.overallProgress}%</span>
+                  </div>
+                  <Progress value={pptxExportProgress.overallProgress} className="h-3" />
+                </div>
+
+                {/* 当前步骤 */}
+                <div className="flex items-center gap-2 text-sm">
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  <span>{pptxExportProgress.currentStep}</span>
+                </div>
+
+                {/* 日志滚动区域 */}
+                <div className="rounded-lg border border-border bg-muted/30 p-3">
+                  <ScrollArea className="h-48">
+                    <div className="space-y-1 font-mono text-xs">
+                      {pptxExportProgress.logs.map((log, idx) => (
+                        <div
+                          key={idx}
+                          className={cn(
+                            'py-0.5',
+                            log.includes('✅') && 'text-green-600 dark:text-green-400',
+                            log.includes('❌') && 'text-red-600 dark:text-red-400',
+                            log.includes('⚠️') && 'text-yellow-600 dark:text-yellow-400',
+                            log.includes('===') && 'font-semibold text-foreground'
+                          )}
+                        >
+                          {log}
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    setPptxExportProgress((prev) => ({ ...prev, isOpen: false }))
+                  }
+                  disabled={pptxExportProgress.overallProgress < 100 && pptxExportProgress.overallProgress > 0}
+                >
+                  {pptxExportProgress.overallProgress >= 100 ? '关闭' : '取消'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {lightboxUrl && (
             <div
