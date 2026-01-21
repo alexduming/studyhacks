@@ -825,11 +825,15 @@ export async function createKieTaskWithFallbackAction(params: {
   // 如果指定了 provider，则它排第一，其他的按默认顺序排
   let providerChain = ['FAL', 'KIE', 'Replicate'];
 
-  // 🎯 编辑模式（有标记图片）只支持 FAL，不回退到其他服务
-  const isEditMode = !!(editImageUrl && markedImage);
+  // 🎯 编辑模式判断逻辑优化
+  // 1. 局部编辑：有原图 + 标记图
+  // 2. 整体编辑：有原图（editImageUrl）
+  // 3. 容错处理：如果 customImages 中只有一张图且没有 styleId，通常也是编辑行为
+  const isEditMode = !!(editImageUrl || markedImage || (taskParams.customImages && taskParams.customImages.length === 1 && !params.styleId));
+  
   if (isEditMode) {
-    providerChain = ['FAL']; // 只使用 FAL
-    console.log('\n🎨 编辑模式：仅使用 FAL（视觉标记编辑）');
+    providerChain = ['FAL']; // 编辑模式必须使用支持 edit 模型的 FAL
+    console.log(`\n🎨 编辑模式确认：仅使用 FAL (${markedImage ? '局部标记编辑' : '整体效果编辑'})`);
   } else if (preferredProvider && providerChain.includes(preferredProvider)) {
     // 将首选 provider 移到第一位
     providerChain = [
