@@ -60,8 +60,9 @@ const nextConfig = {
   },
   async redirects() {
     // 说明（给非程序员看的注释）：
-    // - 这里配置的是“旧地址自动跳到新地址”的规则（301 重定向）
+    // - 这里配置的是"旧地址自动跳到新地址"的规则（301 重定向）
     // - 现在把原来的 /aippt 自动跳转到新的 /slides，避免老用户的收藏链接失效
+    // - /slides2 也重定向到 /slides，因为我们已将 slides2 合并到 slides
     return [
       {
         // 处理带语言前缀的路径，例如 /en/aippt 或 /zh/aippt
@@ -72,6 +73,18 @@ const nextConfig = {
       {
         // 兜底：如果没有语言前缀，访问 /aippt 也跳转到 /slides
         source: '/aippt',
+        destination: '/slides',
+        permanent: true,
+      },
+      {
+        // slides2 迁移重定向：处理带语言前缀和查询参数的路径
+        source: '/:locale/slides2',
+        destination: '/:locale/slides',
+        permanent: true,
+      },
+      {
+        // slides2 迁移重定向：兜底无语言前缀的情况
+        source: '/slides2',
         destination: '/slides',
         permanent: true,
       },

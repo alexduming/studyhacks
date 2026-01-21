@@ -21,7 +21,7 @@ export default async function PresentationsPage() {
           <h2 className="text-xl font-semibold">{t('title')}</h2>
           <p className="text-muted-foreground text-sm">{t('subtitle')}</p>
         </div>
-        <Link href="/slides2">
+        <Link href="/slides">
           <Button>
             <Presentation className="mr-2 h-4 w-4" />
             {t('buttons.new')}
@@ -38,7 +38,7 @@ export default async function PresentationsPage() {
           <p className="text-muted-foreground mb-6 max-w-md">
             {t('empty.description')}
           </p>
-          <Link href="/slides2" className="mt-4">
+          <Link href="/slides" className="mt-4">
             <Button>{t('empty.button')}</Button>
           </Link>
         </div>
@@ -60,7 +60,7 @@ export default async function PresentationsPage() {
             }
 
             return (
-              <Link key={item.id} href={`/slides2?id=${item.id}`}>
+              <Link key={item.id} href={`/slides?id=${item.id}`}>
                 <Card className="hover:border-primary group h-full overflow-hidden transition-all hover:shadow-md">
                   <div className="bg-muted relative aspect-video w-full overflow-hidden">
                     {displayThumbnail ? (
