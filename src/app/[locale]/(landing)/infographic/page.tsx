@@ -453,9 +453,22 @@ const InfographicPage = () => {
           throw new Error(t('errors.generation_failed'));
         }
       } catch (err) {
-        console.error('Poll infographic result error:', err);
-        setError(err instanceof Error ? err.message : t('errors.poll_failed'));
-        return;
+        // 🎯 优化：如果是网络超时或临时错误，不要立即停止轮询，而是继续尝试
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        const isNetworkError = 
+          errorMessage.includes('fetch') || 
+          errorMessage.includes('NetworkError') || 
+          errorMessage.includes('timeout') ||
+          errorMessage.includes('Failed to fetch');
+
+        if (isNetworkError && attempt < maxAttempts - 1) {
+          console.warn(`[Poll] 轮询遇到网络波动 (${errorMessage})，${attempt + 1}/${maxAttempts} 次尝试，继续轮询...`);
+          // 不 return，继续下一次循环
+        } else {
+          console.error('Poll infographic result error:', err);
+          setError(err instanceof Error ? err.message : t('errors.poll_failed'));
+          return;
+        }
       }
 
       // 等待一段时间再继续下一次查询

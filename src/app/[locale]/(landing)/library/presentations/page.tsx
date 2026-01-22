@@ -1,12 +1,10 @@
 import { getTranslations } from 'next-intl/server';
-import Image from 'next/image';
-import { Clock, Presentation } from 'lucide-react';
+import { Presentation } from 'lucide-react';
 
 import { getUserPresentationsAction } from '@/app/actions/presentation';
 import { Button } from '@/shared/components/ui/button';
-import { Card, CardFooter, CardHeader, CardTitle } from '@/shared/components/ui/card';
-import { Badge } from '@/shared/components/ui/badge';
 import { Link } from '@/core/i18n/navigation';
+import { PresentationCard } from './presentation-card';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,68 +42,9 @@ export default async function PresentationsPage() {
         </div>
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {presentations.map((item) => {
-            // 🎯 修复：如果 thumbnailUrl 为空，尝试从 content 解析第一张图作为兜底
-            let displayThumbnail = item.thumbnailUrl;
-            if (!displayThumbnail && item.content) {
-              try {
-                const slides = JSON.parse(item.content);
-                if (Array.isArray(slides) && slides.length > 0) {
-                  displayThumbnail =
-                    slides.find((s: any) => s.imageUrl)?.imageUrl || null;
-                }
-              } catch (e) {
-                // ignore parse error
-              }
-            }
-
-            return (
-              <Link key={item.id} href={`/slides?id=${item.id}`}>
-                <Card className="hover:border-primary group h-full overflow-hidden transition-all hover:shadow-md">
-                  <div className="bg-muted relative aspect-video w-full overflow-hidden">
-                    {displayThumbnail ? (
-                      <Image
-                        src={displayThumbnail}
-                        alt={item.title}
-                        fill
-                        className="object-cover transition-transform group-hover:scale-105"
-                        unoptimized
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : (
-                      <div className="bg-secondary/50 flex h-full w-full items-center justify-center">
-                        <Presentation className="text-muted-foreground/50 h-12 w-12" />
-                      </div>
-                    )}
-                    <div className="absolute top-2 right-2">
-                      <Badge
-                        variant={
-                          item.status === 'completed'
-                            ? 'default'
-                            : item.status === 'failed'
-                              ? 'destructive'
-                              : 'secondary'
-                        }
-                      >
-                        {item.status}
-                      </Badge>
-                    </div>
-                  </div>
-                  <CardHeader className="p-4">
-                    <CardTitle className="line-clamp-1 text-lg">
-                      {item.title}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardFooter className="text-muted-foreground flex items-center justify-between p-4 pt-0 text-sm">
-                    <div className="flex items-center">
-                      <Clock className="mr-1 h-3 w-3" />
-                      {new Date(item.createdAt).toLocaleDateString()}
-                    </div>
-                  </CardFooter>
-                </Card>
-              </Link>
-            );
-          })}
+          {presentations.map((item) => (
+            <PresentationCard key={item.id} item={item} />
+          ))}
         </div>
       )}
     </div>

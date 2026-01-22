@@ -312,6 +312,7 @@ async function queryNovitaTask(
 }
 
 export async function GET(request: NextRequest) {
+  const startTime = Date.now();
   try {
     const { searchParams } = request.nextUrl;
     const taskId = searchParams.get('taskId');
@@ -322,6 +323,41 @@ export async function GET(request: NextRequest) {
         { success: false, error: '缺少 taskId 参数' },
         { status: 400 }
       );
+    }
+
+    // 🎯 优化：优先从数据库查询已有的结果，避免重复请求提供商和 R2 保存逻辑
+    // 这样如果之前已经保存成功，第二次查询就是毫秒级响应
+    try {
+      const user = await getUserInfo();
+      if (user) {
+        const [existingTask] = await db()
+          .select()
+          .from(aiTask)
+          .where(
+            and(
+              eq(aiTask.taskId, taskId),
+              eq(aiTask.userId, user.id),
+              eq(aiTask.scene, 'ai_infographic')
+            )
+          )
+          .limit(1);
+
+        if (existingTask && existingTask.status === 'success' && existingTask.taskResult) {
+          const taskResult = JSON.parse(existingTask.taskResult);
+          if (taskResult.imageUrls && taskResult.imageUrls.length > 0) {
+            console.log(`[Infographic] 🚀 从数据库命中缓存结果: ${taskId}`);
+            return NextResponse.json({
+              success: true,
+              status: 'SUCCESS',
+              results: taskResult.imageUrls,
+              cached: true
+            });
+          }
+        }
+      }
+    } catch (dbError) {
+      console.warn('[Infographic] 数据库预查询失败 (可能连接超时)，转为直接查询提供商:', dbError);
+      // 数据库失败不中断流程，继续查提供商
     }
 
     // 获取配置
