@@ -283,8 +283,8 @@ export async function POST(
     }
 
     // 准备请求参数 - 始终使用 base64（避免腾讯云无法访问外部 URL）
-    let imageBase64Data: string;
-    let imageBuffer: Buffer;
+    let imageBase64Data = '';
+    let imageBuffer = Buffer.alloc(0);
     let actualImageWidth = 1920;
     let actualImageHeight = 1080;
 
