@@ -114,7 +114,7 @@ export class EmailService {
         const { data, error } = await resend.emails.send({
           from: `${this.fromName} <${this.fromEmail}>`,
           to: [email],
-          subject: '欢迎加入 Study! 🎉',
+          subject: '欢迎加入 StudyHacks! 🎉',
           html,
         });
 
@@ -227,7 +227,7 @@ export class EmailService {
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>欢迎加入 Study</title>
+          <title>欢迎加入 StudyHacks</title>
           <style>
             body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
             .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -244,7 +244,7 @@ export class EmailService {
           <div class="container">
             <div class="header">
               <div class="logo">StudyHacks</div>
-              <h1>欢迎加入我们！🎉</h1>
+              <h1>欢迎加入 StudyHacks！🎉</h1>
             </div>
 
             <div class="welcome-box">

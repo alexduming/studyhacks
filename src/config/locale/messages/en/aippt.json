@@ -212,6 +212,26 @@
     "default_style_prompt": "You are an expert UI/UX presentation designer. Please use a professional, information-dense PPT visual system and maintain consistent typography.",
     "region_note_default": "Please refine the visual based on the overall context.",
     "rendering_page_prompt": "Currently rendering page {current}/{total}, ensure overall visual consistency.",
-    "regional_edit_instruction": "Regional Edit Instruction"
+    "regional_edit_instruction": "Regional Edit Instruction",
+    "pptx_export": {
+      "loading_lib": "Initializing...",
+      "preparing_slides": "Preparing {count} slides",
+      "slide_progress": "Slide {current}/{total}",
+      "processing": "Processing...",
+      "analyzing_text": "Analyzing text...",
+      "cleaning_background": "Optimizing background...",
+      "text_found": "Found {count} text elements",
+      "no_text_found": "No text detected",
+      "processing_failed": "Processing skipped",
+      "adding_watermark": "Adding watermark...",
+      "watermark_done": "Watermark added",
+      "watermark_failed": "Watermark skipped",
+      "building_slide": "Building slide...",
+      "adding_text": "Adding editable text...",
+      "text_added": "Added {count} text boxes",
+      "generating_file": "Generating file...",
+      "complete": "Export complete!",
+      "first_slide_warning": "First slide processing incomplete, continuing with images only"
+    }
   }
 }

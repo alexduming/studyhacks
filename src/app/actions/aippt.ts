@@ -1146,6 +1146,45 @@ export async function createFalTaskAction(params: {
     const imageUrl = result.data.images[0].url;
     console.log('[FAL] ✅ 生成成功:', imageUrl.substring(0, 60) + '...');
 
+    // 🎯 优化：不再阻塞等待 R2 上传，直接返回原始 URL 以提高用户体感速度
+    // R2 持久化转为后台执行
+    const saveToR2Background = async () => {
+      try {
+        const { getStorageServiceWithConfigs } = await import(
+          '@/shared/services/storage'
+        );
+        const { getAllConfigs } = await import('@/shared/models/config');
+        const { getUserInfo } = await import('@/shared/models/user');
+        const { nanoid } = await import('nanoid');
+
+        const user = await getUserInfo();
+        const configs = await getAllConfigs();
+
+        if (user && configs.r2_bucket_name && configs.r2_access_key) {
+          console.log('[FAL] 后台开始保存图片到 R2...');
+          const storageService = getStorageServiceWithConfigs(configs);
+          const timestamp = Date.now();
+          const randomId = nanoid(8);
+          const fileExtension = imageUrl.includes('.jpg') ? 'jpg' : 'png';
+          const fileName = `${timestamp}_${randomId}.${fileExtension}`;
+          const storageKey = `slides/${user.id}/${fileName}`;
+
+          await storageService.downloadAndUpload({
+            url: imageUrl,
+            key: storageKey,
+            contentType: `image/${fileExtension}`,
+            disposition: 'inline',
+          });
+          console.log(`[FAL] ✅ 图片后台保存成功`);
+        }
+      } catch (saveError) {
+        console.error('[FAL] 后台保存图片异常:', saveError);
+      }
+    };
+
+    // 触发后台执行，不 await
+    saveToR2Background();
+
     return {
       imageUrl,
       prompt: params.prompt,

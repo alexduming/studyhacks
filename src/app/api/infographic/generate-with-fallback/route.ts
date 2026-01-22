@@ -108,17 +108,44 @@ ${params.content}`;
     // - 使用 queue.submit() 提交任务，立即返回 request_id
     // - 前端将通过轮询 query API 查询任务状态
     // - 这样可以避免超过 Vercel 的超时限制
-    const { request_id } = await fal.queue.submit('fal-ai/nano-banana-pro', {
-      input: input as any,
-    });
+    let requestId = '';
+    const maxRetries = 2;
+    let attempt = 0;
 
-    console.log('[FAL] 任务创建成功, request_id:', request_id);
+    while (attempt <= maxRetries) {
+      try {
+        const { request_id } = await fal.queue.submit('fal-ai/nano-banana-pro', {
+          input: input as any,
+        });
+        requestId = request_id;
+        break;
+      } catch (error: any) {
+        attempt++;
+        const isNetworkError =
+          error.message?.includes('fetch failed') ||
+          error.status >= 500 ||
+          error.status === 429;
+
+        if (attempt <= maxRetries && isNetworkError) {
+          console.warn(
+            `[FAL] 提交任务第 ${attempt} 次尝试失败 (${
+              error.message
+            })，正在重试...`
+          );
+          await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    console.log('[FAL] 任务创建成功, request_id:', requestId);
 
     // ✅ 返回 taskId，前端将通过轮询查询任务状态
     // 注意：这里不等待生成完成，避免超过 Vercel 超时限制
     return {
       success: true,
-      taskId: request_id, // 直接使用 FAL 的 request_id
+      taskId: requestId, // 直接使用 FAL 的 request_id
       imageUrls: undefined, // 异步模式下不立即返回图片，需要前端轮询查询
     };
   } catch (error: any) {

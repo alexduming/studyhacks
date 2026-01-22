@@ -1561,7 +1561,7 @@ export default function Slides2Client({
     };
 
     try {
-      addLog('正在加载 PptxGenJS 库...');
+      addLog(t_aippt('v2.pptx_export.loading_lib'));
       const PptxGenJS = (await import('pptxgenjs')).default;
       const pres = new PptxGenJS();
 
@@ -1570,7 +1570,7 @@ export default function Slides2Client({
       const slideWidth = 10; // 英寸
       const slideHeight = 5.625; // 英寸
 
-      addLog(`✅ 准备处理 ${completed.length} 张幻灯片`);
+      addLog(`✅ ${t_aippt('v2.pptx_export.preparing_slides', { count: completed.length })}`);
 
       // 🎯 逐个处理幻灯片
       for (let i = 0; i < completed.length; i++) {
@@ -1578,81 +1578,90 @@ export default function Slides2Client({
         const pptSlide = pres.addSlide();
         let backgroundUrl = slide.imageUrl!;
 
-        addLog(`========== 幻灯片 ${i + 1}/${completed.length} ==========`);
+        addLog(`========== ${t_aippt('v2.pptx_export.slide_progress', { current: i + 1, total: completed.length })} ==========`);
 
-        // 🎯 步骤1: OCR 识别文字（使用 VLM，带超时保护）
-        updateProgress(i, `幻灯片 ${i + 1}: 正在识别文字...`, 0);
-        addLog(`步骤1: 开始 OCR 识别...`);
+        // 🎯 步骤1: 先执行 OCR 识别文本
+        updateProgress(i, t_aippt('v2.pptx_export.slide_progress', { current: i + 1, total: completed.length }), 0);
+        addLog(`  ${t_aippt('v2.pptx_export.analyzing_text')}`);
 
         let ocrData: any = null;
         try {
-          // 使用带超时的 OCR 请求（60秒超时，因为 VLM OCR 可能需要较长时间）
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 120000); // 60秒超时
-
-          addLog(`  正在调用 OCR API（最长等待 60 秒）...`);
-
-          // 使用 VLM OCR API
-          const ocrResponse = await fetch('/api/ai/ocr-with-positions', {
+          const timeoutId = setTimeout(() => controller.abort(), 30000);
+          const response = await fetch('/api/ai/ocr-tencent', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ imageUrl: slide.imageUrl }),
             signal: controller.signal,
           });
-
           clearTimeout(timeoutId);
-
-          if (ocrResponse.ok) {
-            ocrData = await ocrResponse.json();
-            if (ocrData?.success && ocrData.blocks?.length > 0) {
-              addLog(`✅ 识别到 ${ocrData.blocks.length} 个文本块`);
-              addLog(
-                `✅ 图片尺寸: ${ocrData.imageSize?.width}x${ocrData.imageSize?.height}`
-              );
-              ocrData.blocks.slice(0, 3).forEach((b: any, idx: number) => {
-                addLog(
-                  `  文本 ${idx + 1}: "${b.text?.substring(0, 20)}..." @ (${b.bbox?.x}, ${b.bbox?.y})`
-                );
-              });
+          if (response.ok) {
+            const data = await response.json();
+            if (data?.success && data.blocks?.length > 0) {
+              ocrData = data;
+              addLog(`  ✅ ${t_aippt('v2.pptx_export.text_found', { count: data.blocks.length })}`);
             } else {
-              addLog(`⚠️ OCR 未识别到文本: ${ocrData?.error || '继续导出'}`);
+              addLog(`  ⚠️ ${t_aippt('v2.pptx_export.no_text_found')}`);
             }
-          } else {
-            addLog(`⚠️ OCR API 返回 ${ocrResponse.status}，跳过文本提取`);
           }
-        } catch (ocrError) {
-          if (ocrError instanceof Error && ocrError.name === 'AbortError') {
-            addLog(`⚠️ OCR 超时（60秒），跳过文本提取（继续导出）`);
-          } else {
-            addLog(
-              `⚠️ OCR 请求异常，跳过文本提取: ${ocrError instanceof Error ? ocrError.message : '未知'}`
-            );
-          }
+        } catch (e) {
+          addLog(`  ⚠️ ${t_aippt('v2.pptx_export.processing_failed')}`);
         }
 
-        // 🎯 步骤2: 直接使用原图作为背景（跳过 inpainting，更稳定）
-        // 注：inpainting API（fal.ai）存在加载缓慢或超时问题，
-        // 为了确保导出成功，我们直接使用原图，文字会通过可编辑文本框覆盖
-        updateProgress(i, `幻灯片 ${i + 1}: 准备背景...`, 1);
-        addLog(`步骤2: 使用原图作为背景（可编辑文本将覆盖在上层）`);
+        // 🎯 步骤2: 用 OCR 结果精确移除文字（串行执行，确保精确性）
+        addLog(`  ${t_aippt('v2.pptx_export.cleaning_background')}`);
+        updateProgress(i, t_aippt('v2.pptx_export.cleaning_background'), 1);
+
+        // 提取 OCR 识别出的所有文本内容
+        const ocrTexts: string[] = ocrData?.blocks?.map((block: any) => block.text) || [];
+
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 120000);
+          const response = await fetch('/api/image/inpaint-lama', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              imageUrl: slide.imageUrl,
+              textBoxes: [],
+              imageSize: { width: 1920, height: 1080 },
+              ocrTexts: ocrTexts, // 传入 OCR 识别的文本，用于精确移除
+            }),
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+          if (response.ok) {
+            const data = await response.json();
+            if (data?.success && data.imageUrl) {
+              backgroundUrl = data.imageUrl;
+            }
+          }
+        } catch (e) {
+          // 静默处理，使用原图
+        }
+
+        // 如果是第一张幻灯片且 OCR 失败，提示用户
+        if (i === 0 && !ocrData?.blocks?.length) {
+          addLog(`⚠️ ${t_aippt('v2.pptx_export.first_slide_warning')}`);
+        }
 
         // 🎯 步骤3: 添加水印（如果开启）
         if (showWatermark) {
-          addLog(`步骤3: 添加水印...`);
+          addLog(t_aippt('v2.pptx_export.adding_watermark'));
           try {
             backgroundUrl = await addWatermarkToImage(
               backgroundUrl,
               watermarkText
             );
-            addLog(`✅ 水印添加成功`);
+            addLog(`✅ ${t_aippt('v2.pptx_export.watermark_done')}`);
           } catch (wmError) {
-            addLog(`⚠️ 水印添加失败`);
+            addLog(`⚠️ ${t_aippt('v2.pptx_export.watermark_failed')}`);
           }
         }
 
         // 🎯 步骤4: 将背景添加到 PPTX
-        updateProgress(i, `幻灯片 ${i + 1}: 正在生成幻灯片...`, 2);
-        addLog(`步骤4: 转换图片并添加到 PPTX...`);
+        updateProgress(i, t_aippt('v2.pptx_export.building_slide'), 2);
+        addLog(t_aippt('v2.pptx_export.building_slide'));
         console.log(
           `[PPTX Export] 步骤4: 处理背景图片 URL:`,
           backgroundUrl.substring(0, 80)
@@ -1662,11 +1671,9 @@ export default function Slides2Client({
           // 转换为 base64
           let imageData: string;
           if (backgroundUrl.startsWith('data:')) {
-            addLog(`  图片类型: data URL`);
             imageData = backgroundUrl.split(',')[1];
           } else {
             let buffer: ArrayBuffer;
-            addLog(`  图片类型: 远程 URL`);
             console.log(`[PPTX Export] 开始下载图片...`);
 
             try {
@@ -1674,10 +1681,8 @@ export default function Slides2Client({
                 !backgroundUrl.startsWith('/') &&
                 !backgroundUrl.startsWith(window.location.origin)
               ) {
-                addLog(`  使用代理下载...`);
                 buffer = await urlToBuffer(backgroundUrl);
               } else {
-                addLog(`  直接下载...`);
                 const response = await fetch(backgroundUrl);
                 if (!response.ok) {
                   throw new Error(`HTTP ${response.status}`);
@@ -1688,14 +1693,8 @@ export default function Slides2Client({
                 `[PPTX Export] 图片下载完成，大小:`,
                 buffer.byteLength
               );
-              addLog(
-                `  ✅ 图片下载完成 (${Math.round(buffer.byteLength / 1024)} KB)`
-              );
             } catch (downloadError) {
               console.error(`[PPTX Export] 图片下载失败:`, downloadError);
-              addLog(
-                `  ❌ 图片下载失败: ${downloadError instanceof Error ? downloadError.message : '未知错误'}`
-              );
               throw downloadError;
             }
 
@@ -1710,7 +1709,6 @@ export default function Slides2Client({
               binary += String.fromCharCode.apply(null, Array.from(chunk));
             }
             imageData = btoa(binary);
-            addLog(`  ✅ Base64 转换完成`);
           }
 
           // 添加背景图片
@@ -1721,21 +1719,18 @@ export default function Slides2Client({
             w: slideWidth,
             h: slideHeight,
           });
-          addLog(`✅ 背景图片已添加到 PPTX`);
           console.log(`[PPTX Export] ✅ 背景图片已添加`);
         } catch (imgError) {
           console.error(`[PPTX Export] ❌ 背景图片处理失败:`, imgError);
-          addLog(
-            `❌ 背景图片添加失败: ${imgError instanceof Error ? imgError.message : '未知错误'}`
-          );
+          addLog(`⚠️ ${t_aippt('v2.pptx_export.processing_failed')}`);
           // 继续处理，不中断导出
         }
 
         // 🎯 步骤5: 添加可编辑文本框
-        updateProgress(i, `幻灯片 ${i + 1}: 正在添加文本...`, 3);
+        updateProgress(i, t_aippt('v2.pptx_export.adding_text'), 3);
 
         if (ocrData?.success && ocrData.blocks && ocrData.blocks.length > 0) {
-          addLog(`步骤5: 添加 ${ocrData.blocks.length} 个可编辑文本框...`);
+          addLog(t_aippt('v2.pptx_export.adding_text'));
 
           const imgWidth = ocrData.imageSize?.width || 1920;
           const imgHeight = ocrData.imageSize?.height || 1080;
@@ -1754,7 +1749,7 @@ export default function Slides2Client({
               // 转换字号
               const fontSizePt = pxToPoint(block.fontSizePx || 24);
 
-              // 处理颜色
+              // 处理颜色（OCR API 已根据背景亮度返回正确的颜色）
               let colorHex = (block.color || '#000000')
                 .replace('#', '')
                 .toUpperCase();
@@ -1785,15 +1780,15 @@ export default function Slides2Client({
                 fill: { type: 'none' },
               });
             } catch (textError) {
-              addLog(`⚠️ 添加文本框失败: ${block.text?.substring(0, 20)}...`);
+              // 静默处理，不显示给用户
+              console.warn(`Text box add failed: ${block.text?.substring(0, 20)}...`);
             }
           }
-          addLog(`✅ 文本框添加完成`);
+          addLog(`✅ ${t_aippt('v2.pptx_export.text_added', { count: ocrData.blocks.length })}`);
         }
 
         // 完成这张幻灯片
-        updateProgress(i, `幻灯片 ${i + 1}: 完成`, 4);
-        addLog(`✅ 幻灯片 ${i + 1} 处理完成`);
+        updateProgress(i, t_aippt('v2.pptx_export.slide_progress', { current: i + 1, total: completed.length }), 4);
         console.log(
           `[PPTX Export] ✅ 幻灯片 ${i + 1}/${completed.length} 处理完成`
         );
@@ -1801,8 +1796,8 @@ export default function Slides2Client({
 
       // 🎯 所有幻灯片处理完毕，开始生成文件
       console.log('[PPTX Export] ========== 所有幻灯片处理完毕 ==========');
-      addLog(`========== 生成 PPTX 文件 ==========`);
-      updateProgress(completed.length - 1, '正在生成文件...', 4);
+      addLog(t_aippt('v2.pptx_export.generating_file'));
+      updateProgress(completed.length - 1, t_aippt('v2.pptx_export.generating_file'), 4);
 
       console.log('[PPTX Export] 正在调用 pres.write()...');
       const blob = (await pres.write({ outputType: 'blob' })) as Blob;
@@ -1814,7 +1809,7 @@ export default function Slides2Client({
       link.click();
       URL.revokeObjectURL(downloadUrl);
 
-      addLog(`✅ PPTX 导出成功！`);
+      addLog(`✅ ${t_aippt('v2.pptx_export.complete')}`);
 
       // 延迟关闭对话框，让用户看到成功消息
       setTimeout(() => {
@@ -1823,9 +1818,7 @@ export default function Slides2Client({
       }, 1500);
     } catch (error) {
       console.error('PPTX export failed', error);
-      addLog(
-        `❌ 导出失败: ${error instanceof Error ? error.message : '未知错误'}`
-      );
+      addLog(`❌ ${t_aippt('v2.pptx_failed')}`);
 
       setTimeout(() => {
         setPptxExportProgress((prev) => ({ ...prev, isOpen: false }));

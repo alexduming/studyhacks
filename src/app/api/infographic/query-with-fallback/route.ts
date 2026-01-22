@@ -38,10 +38,36 @@ async function queryFalTask(
     });
 
     // 查询任务状态
-    const status = await fal.queue.status('fal-ai/nano-banana-pro', {
-      requestId,
-      logs: false,
-    });
+    const maxRetries = 2;
+    let attempt = 0;
+    let status: any;
+
+    while (attempt <= maxRetries) {
+      try {
+        status = await fal.queue.status('fal-ai/nano-banana-pro', {
+          requestId,
+          logs: false,
+        });
+        break;
+      } catch (error: any) {
+        attempt++;
+        const isNetworkError =
+          error.message?.includes('fetch failed') ||
+          error.status >= 500 ||
+          error.status === 429;
+
+        if (attempt <= maxRetries && isNetworkError) {
+          console.warn(
+            `[FAL Query] 查询状态第 ${attempt} 次尝试失败 (${
+              error.message
+            })，正在重试...`
+          );
+          await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+          continue;
+        }
+        throw error;
+      }
+    }
 
     console.log('[FAL Query] 任务状态:', status.status);
 
@@ -50,9 +76,33 @@ async function queryFalTask(
 
     if (statusValue === 'COMPLETED') {
       // 获取结果
-      const result = await fal.queue.result('fal-ai/nano-banana-pro', {
-        requestId,
-      });
+      let result: any;
+      attempt = 0; // 重置重试计数用于获取结果
+      while (attempt <= maxRetries) {
+        try {
+          result = await fal.queue.result('fal-ai/nano-banana-pro', {
+            requestId,
+          });
+          break;
+        } catch (error: any) {
+          attempt++;
+          const isNetworkError =
+            error.message?.includes('fetch failed') ||
+            error.status >= 500 ||
+            error.status === 429;
+
+          if (attempt <= maxRetries && isNetworkError) {
+            console.warn(
+              `[FAL Query] 获取结果第 ${attempt} 次尝试失败 (${
+                error.message
+              })，正在重试...`
+            );
+            await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+            continue;
+          }
+          throw error;
+        }
+      }
 
       console.log('[FAL Query] 获取结果成功');
 

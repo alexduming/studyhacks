@@ -135,7 +135,7 @@
     "step1_title": "输入素材",
     "step2_title": "风格与参数",
     "step3_title": "生成预览",
-    "upload_reference": "上传参考图",
+    "upload_reference": "上传文件",
     "fetch_web_content": "抓取网页内容",
     "fetching": "抓取中...",
     "fetch_success": "抓取成功",
@@ -212,6 +212,26 @@
     "default_style_prompt": "你是一位专家级UI、UX演示设计师，请采用专业、信息密集的PPT视觉系统，并保持一致的排版。",
     "region_note_default": "请根据整体语境细化画面",
     "rendering_page_prompt": "当前渲染第 {current}/{total} 页，需确保整体视觉一致。",
-    "regional_edit_instruction": "局部调整指令"
+    "regional_edit_instruction": "局部调整指令",
+    "pptx_export": {
+      "loading_lib": "初始化中...",
+      "preparing_slides": "准备处理 {count} 张幻灯片",
+      "slide_progress": "幻灯片 {current}/{total}",
+      "processing": "处理中...",
+      "analyzing_text": "分析文本...",
+      "cleaning_background": "优化背景...",
+      "text_found": "识别到 {count} 个文本",
+      "no_text_found": "未检测到文本",
+      "processing_failed": "处理已跳过",
+      "adding_watermark": "添加水印...",
+      "watermark_done": "水印已添加",
+      "watermark_failed": "水印已跳过",
+      "building_slide": "生成幻灯片...",
+      "adding_text": "添加可编辑文本...",
+      "text_added": "已添加 {count} 个文本框",
+      "generating_file": "生成文件中...",
+      "complete": "导出完成！",
+      "first_slide_warning": "首页处理不完整，将继续导出纯图片版本"
+    }
   }
 }

@@ -24,7 +24,9 @@
       "Bash(findstr \"LISTENING\")",
       "Bash(findstr \":300\")",
       "Bash(npm run build)",
-      "Bash(npm install sharp)"
+      "Bash(npm install sharp)",
+      "Bash(pnpm next build:*)",
+      "Bash(curl:*)"
     ]
   }
 }
