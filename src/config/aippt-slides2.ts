@@ -101,10 +101,37 @@ export function generateVisualSpecPrompt(
 
 /**
  * 🎯 锚定提示词生成器
+ * 
+ * 非程序员解释：
+ * - 锚定的目的是保持标题样式和整体风格一致，但不是完全复制页面布局
+ * - 每页的内容区域应该根据具体内容灵活调整，避免所有页面看起来一模一样
+ * 
+ * 锚定内容（MUST 严格遵循）：
+ * ✅ 标题：位置、字体、字号、颜色、粗细
+ * ✅ 整体风格：配色方案、设计语言
+ * 
+ * 不锚定内容（应根据内容灵活调整）：
+ * ❌ 内容区域的具体布局方式（列表、表格、图表等）
+ * ❌ 元素的排列方式和数量
+ * ❌ 图形和图表的具体形式
  */
 export function generateAnchorPrompt(anchorImageUrl?: string | null): string {
   if (!anchorImageUrl) return '';
-  return `\n\n--- CONSISTENCY ANCHOR ---\n[REFERENCE IMAGE FOR STYLE CONTINUITY]: ${anchorImageUrl}\nCRITICAL: Analyze the typography, spacing, color usage, and container styles from the reference image. The new slide MUST strictly adhere to these visual rules to maintain a seamless presentation deck experience. The content changes, but the 'design DNA' remains identical.`;
+  return `\n\n--- STYLE CONTINUITY ANCHOR ---
+[REFERENCE IMAGE]: ${anchorImageUrl}
+
+CRITICAL ANCHORING RULES:
+You MUST maintain these aspects from the reference:
+✓ TITLE STYLE: Position, font family, font size, font weight, color (exact match required)
+✓ OVERALL AESTHETIC: Color palette, design language, visual mood
+
+You SHOULD adapt these based on current slide content:
+• Content area layout (lists, tables, charts - choose what fits the content best)
+• Element arrangement and quantity (adapt to information density)
+• Graphics and charts format (use appropriate visualizations for the data)
+• Text block organization (optimize for readability based on content type)
+
+Goal: Create a cohesive deck where titles are instantly recognizable as part of the same presentation, but content areas are intelligently adapted to their specific information needs. Avoid cookie-cutter layouts - each slide should feel tailored to its content while maintaining brand consistency through title styling.`;
 }
 
 const CDN_BASE_URL = 'https://cdn.studyhacks.ai';

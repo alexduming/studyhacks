@@ -58,6 +58,49 @@ const InfographicPage = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState('');
   const [taskId, setTaskId] = useState<string | null>(null);
+
+  /**
+   * 智能文件解析：自动判断文件大小并选择最优策略
+   * - 小文件（≤4.5MB）：直接解析
+   * - 大文件（>4.5MB）：先上传到 R2，再从 URL 解析
+   */
+  const smartParseFile = async (file: File): Promise<string> => {
+    const MAX_DIRECT_SIZE = 4.5 * 1024 * 1024; // 4.5MB
+    
+    if (file.size > MAX_DIRECT_SIZE) {
+      console.log(`[Parse] Large file detected (${(file.size / 1024 / 1024).toFixed(2)}MB), uploading to R2 first...`);
+      
+      // 上传到 R2
+      const uploadFormData = new FormData();
+      uploadFormData.append('files', file);
+      uploadFormData.append('path', 'uploads/documents');
+      
+      const uploadRes = await fetch('/api/storage/upload-file', {
+        method: 'POST',
+        body: uploadFormData,
+      });
+      
+      const uploadData = await uploadRes.json();
+      if (uploadData.code !== 0 || !uploadData.data?.urls?.[0]) {
+        throw new Error(`${t('upload.upload_failed')}: ${uploadData.message || 'Unknown error'}`);
+      }
+      
+      const fileUrl = uploadData.data.urls[0];
+      console.log(`[Parse] File uploaded to R2:`, fileUrl);
+      
+      // 从 URL 解析
+      return await parseFileAction({
+        fileUrl,
+        fileName: file.name,
+        fileType: file.type,
+      });
+    } else {
+      // 小文件直接解析
+      const formData = new FormData();
+      formData.append('file', file);
+      return await parseFileAction(formData);
+    }
+  };
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [aspectRatio, setAspectRatio] = useState<AspectRatioOption>('1:1');
   const [resolution, setResolution] = useState<'1K' | '2K' | '4K'>('1K');
@@ -264,9 +307,7 @@ const InfographicPage = () => {
             );
 
             try {
-              const formData = new FormData();
-              formData.append('file', file);
-              const content = await parseFileAction(formData);
+              const content = await smartParseFile(file);
               parsedContents.push(
                 `${t('upload.file_header', { index: i + 1, fileName: file.name })}\n${content}`
               );
@@ -302,10 +343,8 @@ const InfographicPage = () => {
           t('upload.processing_single_file', { fileName: uploadedFile.name })
         );
 
-        const formData = new FormData();
-        formData.append('file', uploadedFile);
-        // Use general file parser (supports PDF, DOCX, TXT, Image)
-        const parsedContent = await parseFileAction(formData);
+        // Use smart parsing strategy (auto-detects file size)
+        const parsedContent = await smartParseFile(uploadedFile);
 
         setIsParsingFiles(false);
         setParsingProgress('');

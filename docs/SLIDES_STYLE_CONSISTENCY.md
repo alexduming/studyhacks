@@ -10,6 +10,23 @@
 
 通过**传递参考图片**而非**文字指令**来实现风格一致性。
 
+### 🎯 微调策略（2026-01-23 更新）
+
+**锚定内容**（严格遵循）：
+- ✅ **标题样式**：位置、字体、字号、颜色、粗细（精确匹配）
+- ✅ **整体风格**：配色方案、设计语言、视觉氛围
+
+**非锚定内容**（根据内容灵活调整）：
+- ❌ 内容区域的布局方式（列表、表格、图表等）
+- ❌ 元素的排列方式和数量
+- ❌ 图形和图表的具体形式
+- ❌ 文本块的组织方式
+
+**目标**：
+- 🎨 保持品牌一致性：通过标题样式让人一眼认出是同一套 PPT
+- 📊 优化信息传达：每页内容区域根据实际信息需求灵活设计
+- ✨ 避免千篇一律：不要所有页面看起来像套模板
+
 ### 具体实现流程
 
 ```
@@ -71,16 +88,39 @@ if (deckContext?.anchorImageUrl && deckContext.currentSlide > 2) {
 }
 ```
 
-### 3. 配置：生成锚定提示词
+### 3. 配置：生成锚定提示词（微调版）
 
 **文件**：`src/config/aippt-slides2.ts`
+
+**核心策略**：锚定**标题样式**和**整体风格**，但**不锚定内容区域布局**
 
 ```typescript
 export function generateAnchorPrompt(anchorImageUrl?: string | null): string {
   if (!anchorImageUrl) return '';
-  return `\n\n--- CONSISTENCY ANCHOR ---\n[REFERENCE IMAGE FOR STYLE CONTINUITY]: ${anchorImageUrl}\nCRITICAL: Analyze the typography, spacing, color usage, and container styles from the reference image. The new slide MUST strictly adhere to these visual rules to maintain a seamless presentation deck experience. The content changes, but the 'design DNA' remains identical.`;
+  return `\n\n--- STYLE CONTINUITY ANCHOR ---
+[REFERENCE IMAGE]: ${anchorImageUrl}
+
+CRITICAL ANCHORING RULES:
+You MUST maintain these aspects from the reference:
+✓ TITLE STYLE: Position, font family, font size, font weight, color (exact match required)
+✓ OVERALL AESTHETIC: Color palette, design language, visual mood
+
+You SHOULD adapt these based on current slide content:
+• Content area layout (lists, tables, charts - choose what fits the content best)
+• Element arrangement and quantity (adapt to information density)
+• Graphics and charts format (use appropriate visualizations for the data)
+• Text block organization (optimize for readability based on content type)
+
+Goal: Create a cohesive deck where titles are instantly recognizable as part of the same presentation, but content areas are intelligently adapted to their specific information needs. Avoid cookie-cutter layouts - each slide should feel tailored to its content while maintaining brand consistency through title styling.`;
 }
 ```
+
+**非程序员解释**：
+- ✅ **锚定内容**：标题的位置、字体、字号、颜色必须一致
+- ✅ **锚定内容**：整体配色方案和设计风格保持统一
+- ❌ **不锚定**：内容区域的具体布局（列表、表格、图表等根据内容选择）
+- ❌ **不锁定**：元素的排列方式和数量（根据信息密度调整）
+- 🎯 **目标**：标题一致让人一眼看出是同一套 PPT，但内容区域灵活适配，避免所有页面千篇一律
 
 ## ⚠️ 重要注意事项
 
@@ -154,16 +194,23 @@ createKieTaskWithFallbackAction({
 
 ### 比喻说明
 
-想象你在画一套 PPT：
+想象你在设计一本杂志：
 
-1. **第 1 张**（封面）：你按照参考图（风格模板）画了一个封面
-2. **第 2 张**（第一张内页）：你按照参考图画了第一页内容
+1. **第 1 张**（封面）：你按照品牌指南设计了封面
+2. **第 2 张**（第一篇文章）：你设计了第一篇文章的页面
 3. **第 3 张开始**：
-   - 你不仅参考原来的风格模板
-   - 还会看着第 2 张的配色、字体、排版
-   - 确保新画的页面和第 2 张"看起来是一套的"
+   - 你会参考第 2 张的**标题样式**（字体、大小、颜色、位置）
+   - 你会保持第 2 张的**整体配色和风格**
+   - 但**内容区域会根据这一页的内容灵活调整**：
+     - 如果是数据页，用图表展示
+     - 如果是要点页，用列表展示
+     - 如果是对比页，用表格展示
+   - **不会**让所有页面看起来完全一样
 
-这就是"锚定"的意思：**用已经画好的页面作为参考，确保后续页面风格一致**。
+这就是"**智能锚定**"的意思：
+- ✅ 标题一致 → 一眼看出是同一套 PPT
+- ✅ 内容灵活 → 每页根据信息需求定制
+- ✅ 避免死板 → 不是简单地套用同一个模板
 
 ### 为什么不直接告诉 AI "第几页"？
 
@@ -214,6 +261,25 @@ createKieTaskWithFallbackAction({
 
 - [PPT 生成流程文档](./pptx-export-notes.md)
 - [R2 存储配置](./R2_STORAGE_SETUP.md)
+
+## 🆕 更新日志
+
+### 2026-01-23 - 智能锚定微调
+
+**更新内容**：
+- ✅ 优化锚定策略：从"完全锚定"改为"智能锚定"
+- ✅ 明确锚定范围：仅锚定标题样式和整体风格，不锚定内容区域布局
+- ✅ 更新提示词：指导 AI 在保持品牌一致性的同时，灵活适配内容区域
+
+**预期效果**：
+- ✅ 标题样式统一：一眼看出是同一套 PPT
+- ✅ 内容区域灵活：图表、列表、表格等根据内容选择
+- ✅ 避免千篇一律：每页根据信息需求定制设计
+
+**改动文件**：
+- `src/config/aippt-slides2.ts` - 更新 `generateAnchorPrompt` 函数
+- `src/app/[locale]/(landing)/slides/slides2-client.tsx` - 更新注释说明
+- `docs/SLIDES_STYLE_CONSISTENCY.md` - 更新文档
 
 ---
 

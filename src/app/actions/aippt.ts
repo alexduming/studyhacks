@@ -466,11 +466,6 @@ export async function parseFileAction(input: FormData | { fileUrl: string; fileT
     throw new Error('Failed to parse file');
   }
 }
-  } catch (error) {
-    console.error('File parsing error:', error);
-    throw new Error('Failed to parse file');
-  }
-}
 
 /**
  * Generate PPT Outline via DeepSeek V3

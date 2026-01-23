@@ -710,9 +710,45 @@ export default function Slides2Client({
                 total: uploadedFiles.length,
               })
             );
-            const formData = new FormData();
-            formData.append('file', file);
-            const text = await parseFileAction(formData);
+            
+            // 智能策略：大文件（>4.5MB）先上传到 R2
+            const MAX_DIRECT_SIZE = 4.5 * 1024 * 1024; // 4.5MB
+            let text: string;
+            
+            if (file.size > MAX_DIRECT_SIZE) {
+              console.log(`[Parse] Large file detected (${(file.size / 1024 / 1024).toFixed(2)}MB), uploading to R2 first...`);
+              
+              // 上传到 R2
+              const uploadFormData = new FormData();
+              uploadFormData.append('files', file);
+              uploadFormData.append('path', 'uploads/documents');
+              
+              const uploadRes = await fetch('/api/storage/upload-file', {
+                method: 'POST',
+                body: uploadFormData,
+              });
+              
+              const uploadData = await uploadRes.json();
+              if (uploadData.code !== 0 || !uploadData.data?.urls?.[0]) {
+                throw new Error(`上传失败: ${uploadData.message || 'Unknown error'}`);
+              }
+              
+              const fileUrl = uploadData.data.urls[0];
+              console.log(`[Parse] File uploaded to R2:`, fileUrl);
+              
+              // 从 URL 解析
+              text = await parseFileAction({
+                fileUrl,
+                fileName: file.name,
+                fileType: file.type,
+              });
+            } else {
+              // 小文件直接解析
+              const formData = new FormData();
+              formData.append('file', file);
+              text = await parseFileAction(formData);
+            }
+            
             parts.push(text);
           }
           parsed = parts.join('\n\n');
@@ -1066,16 +1102,23 @@ export default function Slides2Client({
 
     // 🎯 正常生成模式（无选区）
     // 
-    // 非程序员解释 - 风格一致性机制：
+    // 非程序员解释 - 智能风格锚定机制：
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 问题：多页 PPT 如何保持风格一致？
+    // 问题：多页 PPT 如何保持品牌一致性，同时避免千篇一律？
     // 
-    // 解决方案：锚定机制（Anchor Mechanism）
+    // 解决方案：智能锚定机制（Smart Anchoring）
     // 1. 第 1-2 页：使用风格模板的参考图（通常 6 张）
-    // 2. 第 3 页开始：在参考图基础上，添加第 1 页生成的图片作为"风格锚定"
-    //    - 例如：原本 6 张参考图 → 现在变成 7 张（第 1 页的图 + 原有 6 张）
-    // 3. AI 会分析锚定图片的排版、配色、字体等"设计 DNA"
-    // 4. 新生成的页面会严格遵循这些视觉规则
+    // 2. 第 3 页开始：在参考图基础上，添加第 2 页生成的图片作为"锚定图片"
+    //    - 例如：原本 6 张参考图 → 现在变成 7 张（第 2 页的图 + 原有 6 张）
+    // 3. AI 会参考锚定图片，但分两类处理：
+    //    ✅ 严格锚定：标题样式（位置、字体、字号、颜色）和整体配色
+    //    ❌ 灵活调整：内容区域的布局（列表、图表、表格等根据内容选择）
+    // 4. 结果：标题一致让人认出是同一套 PPT，但内容区域因页而异
+    // 
+    // 🎯 微调目标（2026-01-23）：
+    // - 品牌一致性：标题样式统一
+    // - 内容灵活性：布局根据信息需求调整
+    // - 避免死板：不要所有页面看起来完全一样
     // 
     // ⚠️ 重要：风格一致性通过 anchorImageUrl（图片参考）实现
     //    不需要在 prompt 中添加"第几页"等文字说明
@@ -1322,13 +1365,13 @@ export default function Slides2Client({
       }
 
       // ============================================================
-      // 🎯 风格一致性锚定机制 (Style Consistency Anchoring)
+      // 🎯 智能风格锚定机制 (Smart Style Anchoring)
       // ============================================================
       // 非程序员解释：
       // 
-      // 问题：生成多页 PPT 时，如何确保每一页的视觉风格保持一致？
+      // 问题：生成多页 PPT 时，如何保持品牌一致性，同时避免千篇一律？
       // 
-      // 解决方案：使用"锚定图片"（Anchor Image）作为风格参考
+      // 解决方案：使用"锚定图片"参考标题样式和整体风格，但内容区域灵活调整
       // 
       // 具体流程：
       // 1. 第 1 页（封面）：使用风格模板的参考图生成（6-8张参考图）
@@ -1336,12 +1379,20 @@ export default function Slides2Client({
       // 3. 第 3 页开始：
       //    - 将第 2 页生成的图片作为"锚定图片"
       //    - 连同原有的风格参考图一起传递给 AI（共 7-9 张）
-      //    - AI 会分析锚定图片的设计元素（排版、配色、字体等）
-      //    - 确保新页面与锚定图片保持一致的"设计 DNA"
+      //    - AI 会参考锚定图片的：
+      //      ✅ 标题样式（位置、字体、字号、颜色）← 严格遵循
+      //      ✅ 整体风格（配色方案、设计语言）← 严格遵循
+      //      ❌ 内容区域布局（列表、图表等）← 根据内容灵活调整
+      //    - 确保标题一致，但内容区域因页而异
       // 
       // 为什么选择第 2 页作为锚定源？
       // - 第 1 页通常是封面，排版与内页差异较大
       // - 第 2 页是第一张内页，更能代表整体 PPT 的视觉风格
+      // 
+      // 🎯 微调目标（2026-01-23）：
+      // - 保持品牌一致性：标题样式让人一眼认出是同一套 PPT
+      // - 优化信息传达：内容区域根据实际信息需求灵活设计
+      // - 避免千篇一律：不要所有页面看起来像复制粘贴
       // 
       // ⚠️ 注意：锚定是通过传递图片 URL 实现的，不是通过文字指令！
       //    不要在 prompt 中添加类似"当前第 X 页"的文案，AI 会把它画到图片上！
@@ -3215,31 +3266,10 @@ export default function Slides2Client({
     if (!editingSlide) return null;
     return (
       <Dialog open onOpenChange={() => setEditingSlide(null)}>
-        <DialogContent className="border-border bg-background/98 max-h-[96vh] w-[80vw] max-w-[80vw] gap-0 overflow-hidden p-0 shadow-[0_0_100px_rgba(0,0,0,0.8)] backdrop-blur-3xl sm:max-w-[80vw] dark:bg-[#0E1424]/98">
+        <DialogContent className="border-border bg-background/98 max-h-[90vh] w-[90vw] max-w-[1400px] gap-0 overflow-hidden p-0 shadow-[0_0_100px_rgba(0,0,0,0.8)] backdrop-blur-3xl dark:bg-[#0E1424]/98">
           <div className="flex h-full flex-col">
-            {/* 🎯 对话框头部 */}
-            <div className="border-border bg-muted/20 flex items-center justify-between border-b px-6 py-4 dark:bg-black/30">
-              <div className="flex items-center gap-3">
-                <div className="bg-primary/10 flex h-9 w-9 items-center justify-center rounded-xl">
-                  <WandSparkles className="text-primary h-4.5 w-4.5" />
-                </div>
-                <div>
-                  <h3 className="text-foreground text-base font-semibold">
-                    编辑幻灯片
-                  </h3>
-                  <p className="text-muted-foreground line-clamp-1 max-w-[300px] text-xs">
-                    {editingSlide.title}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setEditingSlide(null)}
-                className="text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg p-2 transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
+            {/* 移除了顶部标题栏，保留 DialogContent 默认的关闭按钮 */}
+            
             <div className="grid flex-1 overflow-hidden lg:grid-cols-[5fr_380px]">
               {/* 左侧：视觉编辑核心区 */}
               <div className="bg-muted/30 flex flex-col overflow-hidden p-6 dark:bg-black/40">
