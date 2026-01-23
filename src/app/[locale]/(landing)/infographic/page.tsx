@@ -125,7 +125,13 @@ const InfographicPage = () => {
   const [isParsingFiles, setIsParsingFiles] = useState(false);
   const [parsingProgress, setParsingProgress] = useState<string>('');
 
+  // 新增：参考图上传（用于图生图模式）
+  const [referenceImage, setReferenceImage] = useState<File | null>(null);
+  const [referenceImageUrl, setReferenceImageUrl] = useState<string>('');
+  const [isUploadingReference, setIsUploadingReference] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const referenceInputRef = useRef<HTMLInputElement | null>(null);
 
   // 新的文件上传处理逻辑：支持批量上传任意类型的文件（参考 /slides 页面）
   /**
@@ -177,6 +183,68 @@ const InfographicPage = () => {
     if (progressInterval.current) {
       clearInterval(progressInterval.current);
       progressInterval.current = null;
+    }
+  };
+
+  /**
+   * 处理参考图上传
+   * 
+   * 非程序员解释：
+   * - 用户上传一张图片作为风格参考
+   * - 图片会先上传到 R2 存储，获得一个公网可访问的 URL
+   * - 后续生成时，会使用 fal-ai/nano-banana-pro/edit 模型（图生图）
+   */
+  const handleReferenceImageSelect = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // 检查文件大小（限制10MB）
+    const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+    if (file.size > MAX_SIZE) {
+      toast.error(t('errors.reference_image_too_large'));
+      return;
+    }
+
+    setIsUploadingReference(true);
+    setError('');
+
+    try {
+      // 上传到 R2 存储
+      const formData = new FormData();
+      formData.append('files', file);
+      formData.append('path', 'uploads/reference-images');
+
+      const uploadRes = await fetch('/api/storage/upload-file', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const uploadData = await uploadRes.json();
+      if (uploadData.code !== 0 || !uploadData.data?.urls?.[0]) {
+        throw new Error(uploadData.message || 'Upload failed');
+      }
+
+      const imageUrl = uploadData.data.urls[0];
+      console.log('[Reference Image] 上传成功:', imageUrl);
+
+      setReferenceImage(file);
+      setReferenceImageUrl(imageUrl);
+      toast.success(
+        t('upload.reference_image_uploaded', { fileName: file.name })
+      );
+    } catch (error: any) {
+      console.error('Upload reference image failed:', error);
+      toast.error(t('upload.upload_failed', { error: error.message }));
+      setReferenceImage(null);
+      setReferenceImageUrl('');
+    } finally {
+      setIsUploadingReference(false);
+      // 清空输入，允许重复选择相同文件
+      if (referenceInputRef.current) {
+        referenceInputRef.current.value = '';
+      }
     }
   };
 
@@ -363,6 +431,7 @@ const InfographicPage = () => {
       startProgressSimulation(90000, 10, 90);
 
       // 使用带托底的新API
+      // 如果有参考图，将使用 fal-ai/nano-banana-pro/edit 模型（图生图）
       const resp = await fetch('/api/infographic/generate-with-fallback', {
         method: 'POST',
         headers: {
@@ -373,6 +442,7 @@ const InfographicPage = () => {
           aspectRatio,
           resolution,
           outputFormat,
+          referenceImageUrl: referenceImageUrl || undefined, // 参考图URL（可选）
         }),
       });
 
@@ -588,43 +658,85 @@ const InfographicPage = () => {
               </h2>
 
               {/* 文件上传 */}
-              <div className="mb-4 flex flex-wrap items-center gap-3">
-                <input
-                  ref={fileInputRef}
-                  id="infographic-file-input"
-                  type="file"
-                  multiple
-                  accept=".pdf,.docx,.txt,.md,.jpg,.jpeg,.png,.webp,.gif,image/*"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-                <Button
-                  asChild
-                  variant="outline"
-                  size="sm"
-                  disabled={isFileLoading || isGenerating || isParsingFiles}
-                  className="border-primary/40 text-primary/80 hover:border-primary/70"
-                >
-                  <label
-                    htmlFor="infographic-file-input"
-                    className="flex cursor-pointer items-center"
+              <div className="mb-4 space-y-3">
+                {/* 内容文件上传 */}
+                <div className="flex flex-wrap items-center gap-3">
+                  <input
+                    ref={fileInputRef}
+                    id="infographic-file-input"
+                    type="file"
+                    multiple
+                    accept=".pdf,.docx,.txt,.md,.jpg,.jpeg,.png,.webp,.gif,image/*"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    disabled={isFileLoading || isGenerating || isParsingFiles}
+                    className="border-primary/40 text-primary/80 hover:border-primary/70"
                   >
-                    {isFileLoading || isParsingFiles ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        {t('upload.loading')}
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="mr-2 h-4 w-4" />
-                        {t('upload.button_label_batch')}
-                      </>
-                    )}
-                  </label>
-                </Button>
-                <span className="text-xs text-muted-foreground dark:text-gray-400">
-                  {t('upload.hint_batch')}
-                </span>
+                    <label
+                      htmlFor="infographic-file-input"
+                      className="flex cursor-pointer items-center"
+                    >
+                      {isFileLoading || isParsingFiles ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          {t('upload.loading')}
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="mr-2 h-4 w-4" />
+                          {t('upload.button_label_batch')}
+                        </>
+                      )}
+                    </label>
+                  </Button>
+                  <span className="text-xs text-muted-foreground dark:text-gray-400">
+                    {t('upload.hint_batch')}
+                  </span>
+                </div>
+
+                {/* 参考图上传（新功能）*/}
+                <div className="flex flex-wrap items-center gap-3">
+                  <input
+                    ref={referenceInputRef}
+                    id="infographic-reference-input"
+                    type="file"
+                    accept="image/*,.jpg,.jpeg,.png,.webp"
+                    onChange={handleReferenceImageSelect}
+                    className="hidden"
+                  />
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    disabled={isUploadingReference || isGenerating || isParsingFiles}
+                    className="border-primary/40 text-primary/80 hover:border-primary/70"
+                  >
+                    <label
+                      htmlFor="infographic-reference-input"
+                      className="flex cursor-pointer items-center"
+                    >
+                      {isUploadingReference ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          {t('upload.loading')}
+                        </>
+                      ) : (
+                        <>
+                          <FileImage className="mr-2 h-4 w-4" />
+                          {t('upload.button_label_reference')}
+                        </>
+                      )}
+                    </label>
+                  </Button>
+                  <span className="text-xs text-muted-foreground dark:text-gray-400">
+                    {t('upload.hint_reference')}
+                  </span>
+                </div>
               </div>
 
               {/* 单个文件预览 */}
@@ -706,6 +818,39 @@ const InfographicPage = () => {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* 参考图预览 */}
+              {referenceImage && referenceImageUrl && (
+                <div className="bg-primary/5 border-primary/30 mb-3 rounded-lg border p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <FileImage className="text-primary h-4 w-4" />
+                      <span className="text-sm font-medium text-foreground dark:text-white">
+                        {t('upload.reference_image_uploaded', {
+                          fileName: referenceImage.name,
+                        })}
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => {
+                        setReferenceImage(null);
+                        setReferenceImageUrl('');
+                      }}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={referenceImageUrl}
+                    alt="Reference"
+                    className="h-auto w-full max-w-[200px] rounded-lg border object-contain"
+                  />
                 </div>
               )}
 
@@ -801,6 +946,8 @@ const InfographicPage = () => {
                     setImageUrls([]);
                     setUploadedFile(null);
                     setUploadedFiles([]);
+                    setReferenceImage(null);
+                    setReferenceImageUrl('');
                   }}
                   variant="outline"
                   className="border-border dark:border-gray-600 text-foreground/70 dark:text-gray-300 hover:border-foreground/50 dark:hover:border-gray-500"

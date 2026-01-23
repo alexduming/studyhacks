@@ -232,7 +232,10 @@
       "text_added": "已添加 {count} 个文本框",
       "generating_file": "生成文件中...",
       "complete": "导出完成！",
-      "first_slide_warning": "首页处理不完整，将继续导出纯图片版本"
-    }
+      "first_slide_warning": "首页处理不完整，将继续导出纯图片版本",
+      "starting_export": "开始导出 PPTX，请稍候..."
+    },
+    "membership_required": "此功能仅限会员使用",
+    "vip_feature_only": "会员专属功能"
   }
 }

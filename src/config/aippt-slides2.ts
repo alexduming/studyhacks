@@ -100,38 +100,59 @@ export function generateVisualSpecPrompt(
 }
 
 /**
- * 🎯 锚定提示词生成器
+ * 🎯 锚定提示词生成器（强化版 - 严格避免布局重复）
  * 
  * 非程序员解释：
- * - 锚定的目的是保持标题样式和整体风格一致，但不是完全复制页面布局
- * - 每页的内容区域应该根据具体内容灵活调整，避免所有页面看起来一模一样
+ * - 锚定的目的是保持标题样式和整体风格一致，但**绝不是**复制页面布局
+ * - 每页的内容区域必须根据具体内容灵活设计，严格避免所有页面看起来一模一样
+ * - 特别强调：禁止重复使用四宫格、三栏等固定布局模式
  * 
  * 锚定内容（MUST 严格遵循）：
  * ✅ 标题：位置、字体、字号、颜色、粗细
  * ✅ 整体风格：配色方案、设计语言
  * 
- * 不锚定内容（应根据内容灵活调整）：
- * ❌ 内容区域的具体布局方式（列表、表格、图表等）
+ * 不锚定内容（必须根据内容灵活调整）：
+ * ❌ 内容区域的布局方式（禁止重复使用四宫格、三栏等固定布局）
  * ❌ 元素的排列方式和数量
  * ❌ 图形和图表的具体形式
  */
 export function generateAnchorPrompt(anchorImageUrl?: string | null): string {
   if (!anchorImageUrl) return '';
-  return `\n\n--- STYLE CONTINUITY ANCHOR ---
+  return `\n\n--- STYLE CONTINUITY ANCHOR (Title & Color Only) ---
 [REFERENCE IMAGE]: ${anchorImageUrl}
 
-CRITICAL ANCHORING RULES:
-You MUST maintain these aspects from the reference:
-✓ TITLE STYLE: Position, font family, font size, font weight, color (exact match required)
-✓ OVERALL AESTHETIC: Color palette, design language, visual mood
+⚠️ CRITICAL WARNING: This reference is ONLY for title style and color palette. DO NOT replicate the content layout structure!
 
-You SHOULD adapt these based on current slide content:
-• Content area layout (lists, tables, charts - choose what fits the content best)
-• Element arrangement and quantity (adapt to information density)
-• Graphics and charts format (use appropriate visualizations for the data)
-• Text block organization (optimize for readability based on content type)
+STRICT ANCHORING (Match Exactly):
+✓ Title positioning (exact location on slide)
+✓ Title typography (font family, size, weight, color - must match)
+✓ Color scheme (primary/accent colors, background tone)
+✓ Overall aesthetic (modern/professional/clean style)
 
-Goal: Create a cohesive deck where titles are instantly recognizable as part of the same presentation, but content areas are intelligently adapted to their specific information needs. Avoid cookie-cutter layouts - each slide should feel tailored to its content while maintaining brand consistency through title styling.`;
+MUST VARY (Do NOT Copy):
+✗ Content area layout structure (AVOID repeating grid patterns like 4-box, 3-column, etc.)
+✗ Element organization and arrangement
+✗ Visual hierarchy in content area
+✗ Chart/graphic types and positions
+✗ Number and size of content blocks
+
+LAYOUT DIVERSITY MANDATE:
+Each slide MUST have a UNIQUE content layout. Think magazine design - consistent brand but diverse page layouts.
+
+If reference uses 4-box grid → Use timeline, flowchart, or vertical list instead
+If reference uses columns → Use horizontal flow, single focus, or comparison layout instead
+If reference uses grid → Use pyramid, circular, or asymmetric layout instead
+
+Layout variety examples:
+• Data/stats → Timeline, progress bars, or metric dashboard (not grid)
+• Comparisons → Side-by-side, vs. layout, or table (not boxes)
+• Key message → Large central focus with minimal supporting text
+• Process steps → Horizontal/vertical flow with arrows, numbered sequence
+• Multiple points → Prioritized list, icon-based rows, or staggered layout
+
+FORBIDDEN: Creating slides that look like "the same template with different text". Each slide's content area should be architecturally different while maintaining title consistency and color harmony.
+
+Goal: Instant brand recognition (title + colors) + Visual diversity (unique layouts) = Professional, engaging presentation.`;
 }
 
 const CDN_BASE_URL = 'https://cdn.studyhacks.ai';

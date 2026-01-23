@@ -12,8 +12,12 @@
     "loading": "Reading file...",
     "button_label": "Read content from file (PDF / Word / TXT)",
     "button_label_batch": "Upload Files (Batch Supported)",
+    "button_label_reference": "Upload Reference Image",
     "hint": "You can also paste or edit the content to be converted in the text area below.",
     "hint_batch": "Supports PDF, DOCX, TXT, images, etc.",
+    "hint_reference": "Upload an image as style reference (optional)",
+    "reference_image_uploaded": "Reference: {fileName}",
+    "upload_failed": "Upload failed: {error}",
     "file_info": "Loaded content from \"{fileName}\". The text in the box below will be used to generate the infographic.",
     "file_read_error": "Failed to read file content. Please ensure the file is not corrupted and is in a supported format.",
     "files_selected": "Selected {count} files",
@@ -61,6 +65,8 @@
     "unknown": "An unknown error occurred while generating the infographic. Please try again later.",
     "poll_failed": "An error occurred while querying the infographic result. Please try again later.",
     "timeout": "Infographic generation timeout. Please try again later.",
-    "generation_failed": "Infographic generation failed. Please try again later."
+    "generation_failed": "Infographic generation failed. Please try again later.",
+    "image_load_failed": "Failed to load image",
+    "reference_image_too_large": "Reference image is too large, please select an image smaller than 10MB"
   }
 }

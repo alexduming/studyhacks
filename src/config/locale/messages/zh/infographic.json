@@ -12,8 +12,12 @@
     "loading": "正在读取文件...",
     "button_label": "从文件读取内容（PDF / Word / TXT）",
     "button_label_batch": "上传文件（支持批量）",
+    "button_label_reference": "上传参考图",
     "hint": "也可以直接在下方粘贴或编辑要转换的信息。",
     "hint_batch": "支持PDF、DOCX、TXT、图片等",
+    "hint_reference": "上传一张图片作为风格参考（可选）",
+    "reference_image_uploaded": "参考图：{fileName}",
+    "upload_failed": "上传失败：{error}",
     "file_info": "已从文件「{fileName}」读取内容，下面文本框中的内容将用于生成信息图。",
     "file_read_error": "读取文件内容失败，请确认文件未损坏或格式受支持。",
     "files_selected": "已选择 {count} 个文件",
@@ -61,6 +65,8 @@
     "unknown": "生成信息图时出现未知错误，请稍后重试。",
     "poll_failed": "查询信息图生成结果时出现错误，请稍后重试。",
     "timeout": "生成信息图超时，请稍后重试。",
-    "generation_failed": "信息图生成失败，请稍后重试。"
+    "generation_failed": "信息图生成失败，请稍后重试。",
+    "image_load_failed": "图片加载失败",
+    "reference_image_too_large": "参考图文件过大，请选择小于10MB的图片"
   }
 }

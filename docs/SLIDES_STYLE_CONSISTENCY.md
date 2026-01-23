@@ -264,7 +264,38 @@ createKieTaskWithFallbackAction({
 
 ## 🆕 更新日志
 
-### 2026-01-23 - 智能锚定微调
+### 2026-01-23 v2 - 强化版：严格避免布局重复
+
+**问题**：
+- 用户反馈：生成 5 页 PPT 后，第 3-5 页都使用了与第 2 页相同的四宫格布局
+- 原因：虽然提示词要求灵活调整，但 AI 仍然过度参考了锚定图片的布局结构
+
+**强化措施**：
+- ✅ **明确禁止布局复制**：在提示词中明确标注"DO NOT replicate the content layout structure"
+- ✅ **提供反向示例**：如果参考图是四宫格，则应使用时间线、流程图、垂直列表等
+- ✅ **强调多样性要求**：每页必须有独特的内容布局结构
+- ✅ **增加禁止条款**：明确禁止创建"同一模板换不同文字"的页面
+
+**新提示词关键点**：
+```
+⚠️ CRITICAL WARNING: This reference is ONLY for title style and color palette. 
+DO NOT replicate the content layout structure!
+
+FORBIDDEN: Creating slides that look like "the same template with different text"
+
+If reference uses 4-box grid → Use timeline, flowchart, or vertical list instead
+If reference uses columns → Use horizontal flow, single focus, or comparison layout instead
+```
+
+**预期效果**：
+- ✅ 标题样式统一（位置、字体、颜色完全一致）
+- ✅ 配色方案统一（主色、辅助色保持一致）
+- ✅ 布局结构多样（每页根据内容选择最佳布局）
+- ✅ 避免重复模式（禁止所有页面都是四宫格/三栏等）
+
+---
+
+### 2026-01-23 v1 - 智能锚定微调
 
 **更新内容**：
 - ✅ 优化锚定策略：从"完全锚定"改为"智能锚定"

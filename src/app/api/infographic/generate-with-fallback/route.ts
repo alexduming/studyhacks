@@ -31,12 +31,15 @@ interface GenerateParams {
   aspectRatio?: string;
   resolution?: string;
   outputFormat?: string;
+  referenceImageUrl?: string; // 新增：参考图URL（用于图生图模式）
 }
 
 /**
  * 尝试使用FAL生成（nano-banana-pro）- 异步模式
  *
  * 说明：
+ * - 使用 fal-ai/nano-banana-pro 模型（统一模型，支持参考图）
+ * - 如果有参考图，通过 image_input 参数传递（数组形式）
  * - 使用 fal.queue.submit() 异步提交任务，立即返回 request_id
  * - 前端通过轮询 query-with-fallback API 查询任务状态
  * - 这样可以避免 Vercel 函数超时（30-60秒限制）
@@ -51,14 +54,56 @@ async function tryGenerateWithFal(
   error?: string;
 }> {
   try {
-    console.log('🔄 尝试使用 FAL (nano-banana-pro) 异步生成...');
+    const hasReferenceImage = !!params.referenceImageUrl;
+    // ✅ 根据是否有参考图选择模型
+    // - 有参考图：使用 edit 模型（图生图）
+    // - 无参考图：使用普通模型（文生图）
+    const modelName = hasReferenceImage 
+      ? 'fal-ai/nano-banana-pro/edit'
+      : 'fal-ai/nano-banana-pro';
+
+    console.log(
+      `🔄 尝试使用 FAL (${modelName}) 异步生成...${hasReferenceImage ? ' [图生图模式]' : ''}`
+    );
 
     // 配置 FAL Client
     fal.config({
       credentials: apiKey,
     });
 
-    const prompt = `Create an educational infographic explaining the provided file or text. You select some typical visual elements. Style: Flat vector.
+    // 构建提示词（根据是否有参考图调整结构）
+    let prompt = '';
+    
+    if (hasReferenceImage) {
+      // 有参考图：强调风格复制
+      prompt = `[CRITICAL STYLE REFERENCE] You MUST strictly follow the provided reference image's visual style. This is the HIGHEST priority.
+
+Style Requirements (MANDATORY):
+- **Color Palette**: Use EXACTLY the same colors as the reference image (background colors, accent colors, text colors)
+- **Design Style**: Match the graphic style, illustration technique, and visual aesthetic
+- **Layout Structure**: Follow similar composition and element arrangement
+- **Typography**: Use similar font styles and text hierarchy
+- **Visual Elements**: Use similar icons, shapes, and decorative elements
+- **Overall Feel**: Replicate the same mood, professionalism level, and visual tone
+
+Content Task:
+Create an educational infographic explaining the provided content. Select typical visual elements.
+
+IMPORTANT: The text labels inside the infographic MUST be in the SAME LANGUAGE as the provided content.
+- If the content is in English, use English labels.
+- If the content is in Chinese, use Chinese labels.
+- If the content is in another language, use that language.
+Do NOT translate the content.
+
+Content:
+${params.content}
+
+[REMINDER] Apply the reference image's visual style to this content. Match the colors, style, and design approach exactly.`;
+      
+      console.log('[FAL] 🎨 使用强化风格参考模式:', params.referenceImageUrl);
+    } else {
+      // 无参考图：使用默认提示词
+      prompt = `Create an educational infographic explaining the provided file or text. You select some typical visual elements. Style: Flat vector.
 IMPORTANT: The text labels inside the infographic MUST be in the SAME LANGUAGE as the provided content.
 - If the content is in English, use English labels.
 - If the content is in Chinese, use Chinese labels.
@@ -67,6 +112,7 @@ Do NOT translate the content.
 
 Content:
 ${params.content}`;
+    }
 
     // 映射宽高比到 FAL (nano-banana-pro) 支持的值
     // 支持的值: "16:9" | "4:3" | "1:1" | "9:16" | "3:4" | "3:2" | "2:3" | "5:4" | "4:5" | "21:9"
@@ -90,7 +136,8 @@ ${params.content}`;
         break;
     }
 
-    const input = {
+    // 构建输入参数
+    const input: any = {
       prompt,
       num_images: 1,
       aspect_ratio: falAspectRatio,
@@ -98,9 +145,17 @@ ${params.content}`;
       resolution: params.resolution || '2K', // 支持 1K, 2K, 4K
     };
 
+    // ✅ 关键修复：根据官方文档，edit模型使用 image_urls 参数
+    // 参考：https://fal.ai/models/fal-ai/nano-banana-pro/edit/api
+    if (hasReferenceImage) {
+      input.image_urls = [params.referenceImageUrl]; // ✅ 使用 image_urls（复数）
+      console.log('[FAL] 🎨 使用 edit 模型，image_urls:', input.image_urls);
+    }
+
     console.log('[FAL] 请求参数:', {
-      model: 'fal-ai/nano-banana-pro',
+      model: modelName,
       prompt: input.prompt.substring(0, 100) + '...',
+      hasReferenceImage,
     });
 
     // ✅ 改为异步模式：使用 queue.submit() 立即返回，不等待完成
@@ -114,7 +169,7 @@ ${params.content}`;
 
     while (attempt <= maxRetries) {
       try {
-        const { request_id } = await fal.queue.submit('fal-ai/nano-banana-pro', {
+        const { request_id } = await fal.queue.submit(modelName, {
           input: input as any,
         });
         requestId = request_id;
@@ -167,9 +222,40 @@ async function tryGenerateWithKie(
   error?: string;
 }> {
   try {
-    console.log('🔄 尝试使用 KIE (nano-banana-pro) 生成...');
+    const hasReferenceImage = !!params.referenceImageUrl;
+    console.log(`🔄 尝试使用 KIE (nano-banana-pro) 生成...${hasReferenceImage ? ' [参考图模式]' : ''}`);
 
-    const prompt = `Create an educational infographic explaining the provided file or text. You select some typical visual elements. Style: Flat vector.
+    // 构建提示词（根据是否有参考图调整）
+    let prompt = '';
+    
+    if (hasReferenceImage) {
+      // 有参考图：强调风格复制
+      prompt = `[CRITICAL STYLE REFERENCE] You MUST strictly follow the provided reference image's visual style. This is the HIGHEST priority.
+
+Style Requirements (MANDATORY):
+- **Color Palette**: Use EXACTLY the same colors as the reference image
+- **Design Style**: Match the graphic style and visual aesthetic
+- **Layout Structure**: Follow similar composition
+- **Typography**: Use similar font styles
+- **Visual Elements**: Use similar icons and shapes
+- **Overall Feel**: Replicate the same visual tone
+
+Content Task:
+Create an educational infographic explaining the provided content.
+
+IMPORTANT: The text labels MUST be in the SAME LANGUAGE as the content.
+- If in English, use English labels.
+- If in Chinese, use Chinese labels.
+Do NOT translate.
+
+Content:
+${params.content}
+
+[REMINDER] Apply the reference image's visual style exactly.`;
+      
+      console.log('[KIE] 🎨 使用强化风格参考模式');
+    } else {
+      prompt = `Create an educational infographic explaining the provided file or text. You select some typical visual elements. Style: Flat vector.
 IMPORTANT: The text labels inside the infographic MUST be in the SAME LANGUAGE as the provided content.
 - If the content is in English, use English labels.
 - If the content is in Chinese, use Chinese labels.
@@ -178,6 +264,7 @@ Do NOT translate the content.
 
 Content:
 ${params.content}`;
+    }
 
     const payload = {
       model: 'nano-banana-pro',
@@ -186,8 +273,13 @@ ${params.content}`;
         aspect_ratio: params.aspectRatio || '1:1',
         resolution: params.resolution || '1K',
         output_format: params.outputFormat || 'png',
+        image_input: hasReferenceImage ? [params.referenceImageUrl] : undefined, // 添加参考图支持
       },
     };
+    
+    if (hasReferenceImage) {
+      console.log('[KIE] image_input:', payload.input.image_input);
+    }
 
     const resp = await fetch(`${KIE_BASE_URL}/jobs/createTask`, {
       method: 'POST',
@@ -232,9 +324,34 @@ async function tryGenerateWithReplicate(
   error?: string;
 }> {
   try {
-    console.log('🔄 尝试使用 Replicate (google/nano-banana-pro) 生成...');
+    const hasReferenceImage = !!params.referenceImageUrl;
+    console.log(`🔄 尝试使用 Replicate (google/nano-banana-pro) 生成...${hasReferenceImage ? ' [参考图模式]' : ''}`);
 
-    const prompt = `Create an educational infographic explaining the provided file or text. You select some typical visual elements. Style: Flat vector.
+    // 构建提示词（根据是否有参考图调整）
+    let prompt = '';
+    
+    if (hasReferenceImage) {
+      // 有参考图：强调风格复制
+      prompt = `[CRITICAL STYLE REFERENCE] You MUST strictly follow the provided reference image's visual style. This is the HIGHEST priority.
+
+Style Requirements (MANDATORY):
+- **Color Palette**: Use EXACTLY the same colors as the reference image
+- **Design Style**: Match the graphic style and visual aesthetic
+- **Layout Structure**: Follow similar composition
+- **Typography**: Use similar font styles
+- **Visual Elements**: Use similar icons and shapes
+
+Create an educational infographic with the following content.
+IMPORTANT: Text labels MUST be in the SAME LANGUAGE as the content below.
+
+Content:
+${params.content}
+
+[REMINDER] Apply the reference image's visual style exactly.`;
+      
+      console.log('[Replicate] 🎨 使用强化风格参考模式');
+    } else {
+      prompt = `Create an educational infographic explaining the provided file or text. You select some typical visual elements. Style: Flat vector.
 IMPORTANT: The text labels inside the infographic MUST be in the SAME LANGUAGE as the provided content.
 - If the content is in English, use English labels.
 - If the content is in Chinese, use Chinese labels.
@@ -243,6 +360,7 @@ Do NOT translate the content.
 
 Content:
 ${params.content}`;
+    }
 
     const Replicate = require('replicate');
     const replicate = new Replicate({ auth: apiToken });
@@ -253,7 +371,12 @@ ${params.content}`;
       aspect_ratio: params.aspectRatio || '1:1',
       resolution: params.resolution || '1K', // 1K/2K/4K
       output_format: params.outputFormat || 'png',
+      image_input: hasReferenceImage ? [params.referenceImageUrl] : undefined, // 添加参考图支持
     };
+    
+    if (hasReferenceImage) {
+      console.log('[Replicate] image_input:', input.image_input);
+    }
 
     console.log('[Replicate] 请求参数:', {
       model: 'google/nano-banana-pro',
@@ -456,6 +579,7 @@ export async function POST(request: NextRequest) {
       aspectRatio = '1:1',
       resolution = '1K',
       outputFormat = 'png',
+      referenceImageUrl, // 新增：参考图URL（可选）
     } = body || {};
 
     if (!content || typeof content !== 'string' || !content.trim()) {
@@ -463,6 +587,11 @@ export async function POST(request: NextRequest) {
         { success: false, error: '缺少用于生成信息图的文本内容' },
         { status: 400 }
       );
+    }
+
+    // 如果有参考图，记录日志
+    if (referenceImageUrl) {
+      console.log('[Infographic] 使用参考图模式，参考图URL:', referenceImageUrl);
     }
 
     // 积分验证和消耗
@@ -529,6 +658,7 @@ export async function POST(request: NextRequest) {
       aspectRatio,
       resolution,
       outputFormat,
+      referenceImageUrl, // 传递参考图URL
     };
 
     // 降级策略：依次尝试各个提供商（FAL 主力 → KIE 托底 → Replicate 最终托底）

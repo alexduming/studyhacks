@@ -232,7 +232,10 @@
       "text_added": "Added {count} text boxes",
       "generating_file": "Generating file...",
       "complete": "Export complete!",
-      "first_slide_warning": "First slide processing incomplete, continuing with images only"
-    }
+      "first_slide_warning": "First slide processing incomplete, continuing with images only",
+      "starting_export": "Starting PPTX export, please wait..."
+    },
+    "membership_required": "This feature is for members only",
+    "vip_feature_only": "VIP feature only"
   }
 }

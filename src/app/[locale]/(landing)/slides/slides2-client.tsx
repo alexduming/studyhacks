@@ -1618,7 +1618,7 @@ export default function Slides2Client({
     console.log('[PPTX Export] 正在打开进度对话框...');
 
     // 🔧 显示 toast 提示确认代码执行
-    toast.info('开始导出 PPTX，请稍候...');
+    toast.info(t_aippt('v2.pptx_export.starting_export'));
 
     setPptxExportProgress({
       isOpen: true,
@@ -2592,7 +2592,7 @@ export default function Slides2Client({
               checked={showWatermark}
               onCheckedChange={(checked) => {
                 if (!isVip) {
-                  toast.info(t('membership_required'));
+                  toast.info(t_aippt('v2.membership_required'));
                   return;
                 }
                 setShowWatermark(checked);
@@ -2607,7 +2607,7 @@ export default function Slides2Client({
               value={watermarkText}
               onChange={(e) => {
                 if (!isVip) {
-                  toast.info(t('membership_required'));
+                  toast.info(t_aippt('v2.membership_required'));
                   return;
                 }
                 setWatermarkText(e.target.value);

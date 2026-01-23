@@ -25,7 +25,10 @@ const KIE_BASE_URL = 'https://api.kie.ai/api/v1';
 
 /**
  * 查询FAL任务状态
- * 说明：FAL 已改为异步模式，需要查询任务状态
+ * 说明：
+ * - FAL 已改为异步模式，需要查询任务状态
+ * - 支持两种模型：nano-banana-pro（文生图）和 nano-banana-pro/edit（图生图）
+ * - 自动尝试两种模型，因为从requestId无法判断使用了哪个模型
  */
 async function queryFalTask(
   requestId: string,
@@ -37,50 +40,49 @@ async function queryFalTask(
       credentials: apiKey,
     });
 
-    // 查询任务状态
-    const maxRetries = 2;
-    let attempt = 0;
-    let status: any;
+    // ✅ 尝试两种模型：先尝试 edit 模型，失败后尝试普通模型
+    const modelNames = ['fal-ai/nano-banana-pro/edit', 'fal-ai/nano-banana-pro'];
+    let status: any = null;
+    let usedModel = '';
 
-    while (attempt <= maxRetries) {
+    for (const modelName of modelNames) {
       try {
-        status = await fal.queue.status('fal-ai/nano-banana-pro', {
+        status = await fal.queue.status(modelName, {
           requestId,
           logs: false,
         });
+        usedModel = modelName;
+        console.log(`[FAL Query] 使用模型 ${modelName} 查询成功`);
         break;
       } catch (error: any) {
-        attempt++;
-        const isNetworkError =
-          error.message?.includes('fetch failed') ||
-          error.status >= 500 ||
-          error.status === 429;
-
-        if (attempt <= maxRetries && isNetworkError) {
-          console.warn(
-            `[FAL Query] 查询状态第 ${attempt} 次尝试失败 (${
-              error.message
-            })，正在重试...`
-          );
-          await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+        // 如果是422错误（模型不匹配），尝试下一个模型
+        if (error.status === 422) {
+          console.log(`[FAL Query] 模型 ${modelName} 不匹配，尝试下一个模型...`);
           continue;
         }
+        // 其他错误则抛出
         throw error;
       }
     }
 
-    console.log('[FAL Query] 任务状态:', status.status);
+    if (!status || !usedModel) {
+      throw new Error('无法找到匹配的FAL模型');
+    }
+
+    console.log('[FAL Query] 任务状态:', status.status, '使用模型:', usedModel);
 
     // 使用 as any 避免 TypeScript 类型检查问题
     const statusValue = (status as any).status;
 
     if (statusValue === 'COMPLETED') {
-      // 获取结果
+      // 获取结果（使用正确的模型名称）
       let result: any;
-      attempt = 0; // 重置重试计数用于获取结果
+      const maxRetries = 2;
+      let attempt = 0;
+      
       while (attempt <= maxRetries) {
         try {
-          result = await fal.queue.result('fal-ai/nano-banana-pro', {
+          result = await fal.queue.result(usedModel, {
             requestId,
           });
           break;
