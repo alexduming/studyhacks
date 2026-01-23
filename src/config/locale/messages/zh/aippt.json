@@ -211,6 +211,7 @@
     "parsing_file": "解析 {name} ({current}/{total})",
     "default_style_prompt": "你是一位专家级UI、UX演示设计师，请采用专业、信息密集的PPT视觉系统，并保持一致的排版。",
     "region_note_default": "请根据整体语境细化画面",
+    "_comment_rendering_page_prompt": "⚠️ 已废弃 - 不要使用此 key！如果在 prompt 中包含页码信息，AI 会将其渲染到图片上。风格一致性通过 anchorImageUrl（锚定图片）实现，不是通过文字指令。",
     "rendering_page_prompt": "当前渲染第 {current}/{total} 页，需确保整体视觉一致。",
     "regional_edit_instruction": "局部调整指令",
     "pptx_export": {

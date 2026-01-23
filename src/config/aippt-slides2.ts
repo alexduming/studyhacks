@@ -48,12 +48,6 @@ export function generateVisualSpecPrompt(
 ): string {
   const parts = [];
 
-  if (deckContext) {
-    parts.push(
-      `[DECK POSITION] Current Slide: ${deckContext.currentSlide}, Total Slides: ${deckContext.totalSlides}.`
-    );
-  }
-
   if (spec.header) {
     parts.push(
       `[HEADER SYSTEM] Position: ${spec.header.position}, OffsetY: ${
@@ -116,200 +110,232 @@ export function generateAnchorPrompt(anchorImageUrl?: string | null): string {
 const CDN_BASE_URL = 'https://cdn.studyhacks.ai';
 
 export const PPT_STYLES: PPTStyle[] = [
-  {
-    id: 'work_result',
-    title: 'Work Report',
-    tagline: '商务红蓝、结构化汇报',
-    prompt:
-      '你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调成果量化、商务红蓝配色和多样化的高阶图表形式。',
-    preview: `${CDN_BASE_URL}/styles/work_result/preview.png`,
-    refs: [
-      `${CDN_BASE_URL}/styles/work_result/preview.png`,
-      `${CDN_BASE_URL}/styles/work_result/ref1.png`,
-      `${CDN_BASE_URL}/styles/work_result/ref2.png`,
-      `${CDN_BASE_URL}/styles/work_result/ref3.png`,
-      `${CDN_BASE_URL}/styles/work_result/ref4.png`,
-      `${CDN_BASE_URL}/styles/work_result/ref5.png`,
-      `${CDN_BASE_URL}/styles/work_result/ref6.png`,
-      `${CDN_BASE_URL}/styles/work_result/ref7.png`,
-      `${CDN_BASE_URL}/styles/work_result/ref8.png`,
-    ],
+{
+    "id": "work_result",
+    "title": "Work Report",
+    "tagline": "商务红蓝、结构化汇报",
+    "prompt": "你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调成果量化、商务红蓝配色和多样化的高阶图表形式。",
+    "preview": "https://cdn.studyhacks.ai/styles/work_result/preview.png",
+    "refs": [
+      "https://cdn.studyhacks.ai/styles/work_result/preview.png",
+      "https://cdn.studyhacks.ai/styles/work_result/ref1.png",
+      "https://cdn.studyhacks.ai/styles/work_result/ref2.png",
+      "https://cdn.studyhacks.ai/styles/work_result/ref3.png",
+      "https://cdn.studyhacks.ai/styles/work_result/ref4.png",
+      "https://cdn.studyhacks.ai/styles/work_result/ref5.png",
+      "https://cdn.studyhacks.ai/styles/work_result/ref6.png",
+      "https://cdn.studyhacks.ai/styles/work_result/ref7.png",
+      "https://cdn.studyhacks.ai/styles/work_result/ref8.png"
+    ]
   },
   {
-    id: 'red_tech',
-    title: 'Red Tech',
-    tagline: '深红科技、高冲击力',
-    prompt:
-      '你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调极高信息密度、强视觉冲击力和严谨的商务结构。',
-    preview: `${CDN_BASE_URL}/styles/red_tech/preview.png`,
-    refs: [
-      `${CDN_BASE_URL}/styles/red_tech/preview.png`,
-      `${CDN_BASE_URL}/styles/red_tech/ref1.png`,
-      `${CDN_BASE_URL}/styles/red_tech/ref2.png`,
-      `${CDN_BASE_URL}/styles/red_tech/ref3.png`,
-      `${CDN_BASE_URL}/styles/red_tech/ref4.png`,
-      `${CDN_BASE_URL}/styles/red_tech/ref5.png`,
-      `${CDN_BASE_URL}/styles/red_tech/ref6.png`,
-    ],
+    "id": "red_tech",
+    "title": "Red Tech",
+    "tagline": "深红科技、高冲击力",
+    "prompt": "你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调极高信息密度、强视觉冲击力和严谨的商务结构。",
+    "preview": "https://cdn.studyhacks.ai/styles/red_tech/preview.png",
+    "refs": [
+      "https://cdn.studyhacks.ai/styles/red_tech/preview.png",
+      "https://cdn.studyhacks.ai/styles/red_tech/ref1.png",
+      "https://cdn.studyhacks.ai/styles/red_tech/ref2.png",
+      "https://cdn.studyhacks.ai/styles/red_tech/ref3.png",
+      "https://cdn.studyhacks.ai/styles/red_tech/ref4.png",
+      "https://cdn.studyhacks.ai/styles/red_tech/ref5.png",
+      "https://cdn.studyhacks.ai/styles/red_tech/ref6.png"
+    ]
   },
   {
-    id: 'scholar',
-    title: 'Scholar',
-    tagline: '深红褐、学术严谨',
-    prompt:
-      '你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调学术严谨性、深红配色和结构化呈现。',
-    preview: `${CDN_BASE_URL}/styles/scholar/preview.png`,
-    refs: [
-      `${CDN_BASE_URL}/styles/scholar/preview.png`,
-      `${CDN_BASE_URL}/styles/scholar/ref1.png`,
-      `${CDN_BASE_URL}/styles/scholar/ref2.png`,
-      `${CDN_BASE_URL}/styles/scholar/ref3.png`,
-      `${CDN_BASE_URL}/styles/scholar/ref4.png`,
-      `${CDN_BASE_URL}/styles/scholar/ref5.png`,
-      `${CDN_BASE_URL}/styles/scholar/ref6.png`,
-    ],
+    "id": "scholar",
+    "title": "Scholar",
+    "tagline": "深红褐、学术严谨",
+    "prompt": "你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调学术严谨性、深红配色和结构化呈现。",
+    "preview": "https://cdn.studyhacks.ai/styles/scholar/preview.png",
+    "refs": [
+      "https://cdn.studyhacks.ai/styles/scholar/preview.png",
+      "https://cdn.studyhacks.ai/styles/scholar/ref1.png",
+      "https://cdn.studyhacks.ai/styles/scholar/ref2.png",
+      "https://cdn.studyhacks.ai/styles/scholar/ref3.png",
+      "https://cdn.studyhacks.ai/styles/scholar/ref4.png",
+      "https://cdn.studyhacks.ai/styles/scholar/ref5.png",
+      "https://cdn.studyhacks.ai/styles/scholar/ref6.png"
+    ]
   },
   {
-    id: 'scholar_green',
-    title: 'Eco Scholar',
-    tagline: '墨绿自然、生态研究',
-    prompt:
-      '你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调逻辑严密、多模块对比和学术美感。',
-    preview: `${CDN_BASE_URL}/styles/scholar_green/preview.png`,
-    refs: [`${CDN_BASE_URL}/styles/scholar_green/preview.png`],
+    "id": "scholar_green",
+    "title": "Eco Scholar",
+    "tagline": "墨绿自然、生态研究",
+    "prompt": "你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调逻辑严密、多模块对比和学术美感。",
+    "preview": "https://cdn.studyhacks.ai/styles/scholar_green/preview.png",
+    "refs": [
+      "https://cdn.studyhacks.ai/styles/scholar_green/preview.png"
+    ]
   },
   {
-    id: 'claymation',
-    title: 'Claymation',
-    tagline: '治愈黏土、3D 质感',
-    prompt:
-      '你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调 3D 材质感、治愈色系和圆润的手工痕迹。',
-    preview: `${CDN_BASE_URL}/styles/claymation/preview.png`,
-    refs: [
-      `${CDN_BASE_URL}/styles/claymation/ref1.png`,
-      `${CDN_BASE_URL}/styles/claymation/ref2.png`,
-      `${CDN_BASE_URL}/styles/claymation/ref3.png`,
-      `${CDN_BASE_URL}/styles/claymation/ref4.png`,
-      `${CDN_BASE_URL}/styles/claymation/ref5.png`,
-      `${CDN_BASE_URL}/styles/claymation/ref6.png`,
-      `${CDN_BASE_URL}/styles/claymation/ref7.png`,
+    "id": "claymation",
+    "title": "Claymation",
+    "tagline": "治愈黏土、3D 质感",
+    "prompt": "你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调 3D 材质感、治愈色系和圆润的手工痕迹。",
+    "preview": "https://cdn.studyhacks.ai/styles/claymation/preview.png",
+    "refs": [
+      "https://cdn.studyhacks.ai/styles/claymation/ref1.png",
+      "https://cdn.studyhacks.ai/styles/claymation/ref2.png",
+      "https://cdn.studyhacks.ai/styles/claymation/ref3.png",
+      "https://cdn.studyhacks.ai/styles/claymation/ref4.png",
+      "https://cdn.studyhacks.ai/styles/claymation/ref5.png",
+      "https://cdn.studyhacks.ai/styles/claymation/ref6.png",
+      "https://cdn.studyhacks.ai/styles/claymation/ref7.png"
     ],
-    visualSpec: {
-      header: {
-        position: 'top-left' as const,
-        offsetY: '5-8%',
-        fontSize: '约40-48px（3D黏土立体字）',
-        fontWeight: 'extra-bold' as const,
-        color: '#5D4037（深褐土色/Deep Earth）',
-        fontFamily: '圆润敦实的3D黏土质感字体',
+    "visualSpec": {
+      "header": {
+        "position": "top-left" as const,
+        "offsetY": "5-8%",
+        "fontSize": "约40-48px（3D黏土立体字）",
+        "fontWeight": "extra-bold" as const,
+        "color": "#5D4037（深褐土色/Deep Earth）",
+        "fontFamily": "圆润敦实的3D黏土质感字体"
       },
-      background: {
-        type: 'solid' as const,
-        value: '#F6F2EA（温暖奶油白）或极浅暖灰',
-        texture: '细腻的纸张 or 布面纹理',
+      "background": {
+        "type": "solid" as const,
+        "value": "#F6F2EA（温暖奶油白）或极浅暖灰",
+        "texture": "细腻的纸张 or 布面纹理"
       },
-      body: {
-        fontSize: '16-18px',
-        lineHeight: '1.5',
-        color: '#4E342E（深灰褐）',
-        fontFamily: '圆角无衬线体（Rounded Sans-serif）',
+      "body": {
+        "fontSize": "16-18px",
+        "lineHeight": "1.5",
+        "color": "#4E342E（深灰褐）",
+        "fontFamily": "圆角无衬线体（Rounded Sans-serif）"
       },
-      accentColor: '#8D6E63（陶土红/Terracotta）',
-      secondaryColor: '#81C784（薄荷绿）',
-      container: {
-        borderRadius: '12-16px（圆润边缘）',
-        backgroundColor: '压平的黏土片效果（#FAF8F5）',
-        shadow: '柔和自然阴影（Ambient Occlusion）',
+      "accentColor": "#8D6E63（陶土红/Terracotta）",
+      "secondaryColor": "#81C784（薄荷绿）",
+      "container": {
+        "borderRadius": "12-16px（圆润边缘）",
+        "backgroundColor": "压平的黏土片效果（#FAF8F5）",
+        "shadow": "柔和自然阴影（Ambient Occlusion）"
+      }
+    }
+  },
+  {
+    "id": "dieter-rams",
+    "title": "Dieter Rams",
+    "tagline": "少即是多、绝对秩序",
+    "prompt": "你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调极致克制、纯白背景、严谨网格和洋红色点缀。",
+    "preview": "https://cdn.studyhacks.ai/styles/minimalism-magenta/preview.png",
+    "refs": [
+      "https://cdn.studyhacks.ai/styles/minimalism-magenta/preview.png",
+      "https://cdn.studyhacks.ai/styles/minimalism-magenta/ref1.png"
+    ]
+  },
+  {
+    "id": "illustration-lab",
+    "title": "Illustration",
+    "tagline": "现代插画、活力商务",
+    "prompt": "你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调扁平化人物、明快配色和模块化内容组合。",
+    "preview": "https://cdn.studyhacks.ai/styles/modern_illustration/preview.png",
+    "refs": [
+      "https://cdn.studyhacks.ai/styles/modern_illustration/preview.png",
+      "https://cdn.studyhacks.ai/styles/modern_illustration/ref1.png",
+      "https://cdn.studyhacks.ai/styles/modern_illustration/ref2.png",
+      "https://cdn.studyhacks.ai/styles/modern_illustration/ref3.png",
+      "https://cdn.studyhacks.ai/styles/modern_illustration/ref4.png",
+      "https://cdn.studyhacks.ai/styles/modern_illustration/ref5.png",
+      "https://cdn.studyhacks.ai/styles/modern_illustration/ref6.png"
+    ]
+  },
+  {
+    "id": "data_vision",
+    "title": "Data Vision",
+    "tagline": "数据仪表板、科技质感",
+    "prompt": "你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调网格化布局、专业图表和高密度数据展示。",
+    "preview": "https://cdn.studyhacks.ai/styles/data_vision/preview.png",
+    "refs": [
+      "https://cdn.studyhacks.ai/styles/data_vision/ref1.png",
+      "https://cdn.studyhacks.ai/styles/data_vision/ref2.png",
+      "https://cdn.studyhacks.ai/styles/data_vision/ref3.png",
+      "https://cdn.studyhacks.ai/styles/data_vision/ref4.png",
+      "https://cdn.studyhacks.ai/styles/data_vision/ref5.png",
+      "https://cdn.studyhacks.ai/styles/data_vision/ref6.png",
+      "https://cdn.studyhacks.ai/styles/data_vision/ref7.png",
+      "https://cdn.studyhacks.ai/styles/data_vision/ref8.png"
+    ]
+  },
+  {
+    "id": "vintage-minimalism",
+    "title": "复古简约",
+    "tagline": "温暖学术、人文主义",
+    "prompt": "你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调纸张质感、赤陶红配色和优雅的衬线体。",
+    "preview": "https://cdn.studyhacks.ai/styles/vintage-minimalism/preview.png",
+    "refs": [
+      "https://cdn.studyhacks.ai/styles/vintage-minimalism/preview.png"
+    ]
+  },
+  {
+    "id": "leader_love",
+    "title": "领导最爱",
+    "tagline": "商务大气、科技蓝",
+    "prompt": "你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调商务大气、信息丰富和高可信度。",
+    "preview": "https://cdn.studyhacks.ai/styles/leader_love/preview.png",
+    "refs": [
+      "https://cdn.studyhacks.ai/styles/leader_love/ref1.png",
+      "https://cdn.studyhacks.ai/styles/leader_love/ref4.png",
+      "https://cdn.studyhacks.ai/styles/leader_love/ref5.png",
+      "https://cdn.studyhacks.ai/styles/leader_love/ref6.png",
+      "https://cdn.studyhacks.ai/styles/leader_love/ref7.png",
+      "https://cdn.studyhacks.ai/styles/leader_love/ref8.png"
+    ]
+  },
+  {
+    "id": "simple_business",
+    "title": "简约商务",
+    "tagline": "现代简约、蓝黑配色",
+    "prompt": "你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调呼吸感、L型边框装饰和标志性的蓝黑配色。",
+    "preview": "https://cdn.studyhacks.ai/styles/simple_business/preview.png",
+    "refs": [
+      "https://cdn.studyhacks.ai/styles/simple_business/ref1.png",
+      "https://cdn.studyhacks.ai/styles/simple_business/ref2.png",
+      "https://cdn.studyhacks.ai/styles/simple_business/ref3.png",
+      "https://cdn.studyhacks.ai/styles/simple_business/ref4.png",
+      "https://cdn.studyhacks.ai/styles/simple_business/ref5.png"
+    ]
+  },
+  {
+    "id": "gold_black_3d_acrylic",
+    "title": "3D黑金透明亚克力",
+    "tagline": "3D透明元素华丽的黑金风格",
+    "preview": "https://tempfile.aiquickdraw.com/images/1769154208510-knu8d1gl88.png",
+    "refs": [
+      "https://cdn.studyhacks.ai/studyhacks-ppt/styles/temp-1769153576738/1769153969108-59d2e118-23c3-4f9d-9d38-466eb0f32c98.jpg",
+      "https://cdn.studyhacks.ai/studyhacks-ppt/styles/temp-1769153576738/1769153970239-ab75d658-2c13-4b7b-8ddc-4e0f47a6416f.jpg",
+      "https://cdn.studyhacks.ai/studyhacks-ppt/styles/temp-1769153576738/1769153970718-c2722ed8-98d4-429d-a9d8-34de311aef98.jpg"
+    ],
+    "prompt": "你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调深色背景（黑色），磨砂质感，以及3D透明亚克力容器风格。",
+    "visualSpec": {
+      "header": {
+        "position": "top-center" as const,
+        "fontSize": "42-48px",
+        "fontWeight": "bold" as const,
+        "color": "#FFD700",
+        "fontFamily": "sans-serif"
       },
-    },
-  },
-  {
-    id: 'dieter-rams',
-    title: 'Dieter Rams',
-    tagline: '少即是多、绝对秩序',
-    prompt:
-      '你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调极致克制、纯白背景、严谨网格和洋红色点缀。',
-    preview: `${CDN_BASE_URL}/styles/minimalism-magenta/preview.png`,
-    refs: [
-      `${CDN_BASE_URL}/styles/minimalism-magenta/preview.png`,
-      `${CDN_BASE_URL}/styles/minimalism-magenta/ref1.png`,
-    ],
-  },
-  {
-    id: 'illustration-lab',
-    title: 'Illustration',
-    tagline: '现代插画、活力商务',
-    prompt:
-      '你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调扁平化人物、明快配色和模块化内容组合。',
-    preview: `${CDN_BASE_URL}/styles/modern_illustration/preview.png`,
-    refs: [
-      `${CDN_BASE_URL}/styles/modern_illustration/preview.png`,
-      `${CDN_BASE_URL}/styles/modern_illustration/ref1.png`,
-      `${CDN_BASE_URL}/styles/modern_illustration/ref2.png`,
-      `${CDN_BASE_URL}/styles/modern_illustration/ref3.png`,
-      `${CDN_BASE_URL}/styles/modern_illustration/ref4.png`,
-      `${CDN_BASE_URL}/styles/modern_illustration/ref5.png`,
-      `${CDN_BASE_URL}/styles/modern_illustration/ref6.png`,
-    ],
-  },
-  {
-    id: 'data_vision',
-    title: 'Data Vision',
-    tagline: '数据仪表板、科技质感',
-    prompt:
-      '你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调网格化布局、专业图表和高密度数据展示。',
-    preview: `${CDN_BASE_URL}/styles/data_vision/preview.png`,
-    refs: [
-      `${CDN_BASE_URL}/styles/data_vision/ref1.png`,
-      `${CDN_BASE_URL}/styles/data_vision/ref2.png`,
-      `${CDN_BASE_URL}/styles/data_vision/ref3.png`,
-      `${CDN_BASE_URL}/styles/data_vision/ref4.png`,
-      `${CDN_BASE_URL}/styles/data_vision/ref5.png`,
-      `${CDN_BASE_URL}/styles/data_vision/ref6.png`,
-      `${CDN_BASE_URL}/styles/data_vision/ref7.png`,
-      `${CDN_BASE_URL}/styles/data_vision/ref8.png`,
-    ],
-  },
-  {
-    id: 'vintage-minimalism',
-    title: '复古简约',
-    tagline: '温暖学术、人文主义',
-    prompt:
-      '你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调纸张质感、赤陶红配色和优雅的衬线体。',
-    preview: `${CDN_BASE_URL}/styles/vintage-minimalism/preview.png`,
-    refs: [`${CDN_BASE_URL}/styles/vintage-minimalism/preview.png`],
-  },
-  {
-    id: 'leader_love',
-    title: '领导最爱',
-    tagline: '商务大气、科技蓝',
-    prompt:
-      '你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调商务大气、信息丰富和高可信度。',
-    preview: `${CDN_BASE_URL}/styles/leader_love/preview.png`,
-    refs: [
-      `${CDN_BASE_URL}/styles/leader_love/ref1.png`,
-      `${CDN_BASE_URL}/styles/leader_love/ref4.png`,
-      `${CDN_BASE_URL}/styles/leader_love/ref5.png`,
-      `${CDN_BASE_URL}/styles/leader_love/ref6.png`,
-      `${CDN_BASE_URL}/styles/leader_love/ref7.png`,
-      `${CDN_BASE_URL}/styles/leader_love/ref8.png`,
-    ],
-  },
-  {
-    id: 'simple_business',
-    title: '简约商务',
-    tagline: '现代简约、蓝黑配色',
-    prompt:
-      '你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调呼吸感、L型边框装饰和标志性的蓝黑配色。',
-    preview: `${CDN_BASE_URL}/styles/simple_business/preview.png`,
-    refs: [
-      `${CDN_BASE_URL}/styles/simple_business/ref1.png`,
-      `${CDN_BASE_URL}/styles/simple_business/ref2.png`,
-      `${CDN_BASE_URL}/styles/simple_business/ref3.png`,
-      `${CDN_BASE_URL}/styles/simple_business/ref4.png`,
-      `${CDN_BASE_URL}/styles/simple_business/ref5.png`,
-    ],
-  },
+      "background": {
+        "type": "solid" as const,
+        "value": "#121212",
+        "texture": "none"
+      },
+      "body": {
+        "fontSize": "16-18px",
+        "lineHeight": "1.5",
+        "color": "#FFFFFF",
+        "fontFamily": "sans-serif"
+      },
+      "accentColor": "#FFD700",
+      "secondaryColor": "#AAAAAA",
+      "container": {
+        "borderRadius": "12px",
+        "backgroundColor": "rgba(255,255,255,0.05)",
+        "shadow": "0px 4px 12px rgba(0, 0, 0, 0.25)"
+      }
+    }
+  }
 ];
 
 export const SLIDES2_STYLE_PRESETS = PPT_STYLES;

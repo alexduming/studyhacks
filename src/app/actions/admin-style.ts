@@ -86,7 +86,7 @@ JSON 结构：
           Authorization: `Bearer ${OPENROUTER_API_KEY}`,
         },
         body: JSON.stringify({
-          model: 'google/gemini-3-flash-preview', // 用户指定使用 gemini-3-flash-preview
+          model: 'google/gemini-2.0-flash-001', // 优化：使用目前 OpenRouter 上最稳的 Gemini 2.0 Flash
           messages: [
             {
               role: 'user',
@@ -99,21 +99,37 @@ JSON 结构：
               ],
             },
           ],
+          response_format: { type: 'json_object' }, // 强制要求 JSON 输出
         }),
       }
     );
 
     const data = await response.json();
+
+    if (!data.choices || !data.choices[0]?.message?.content) {
+      console.error('[Admin Style] OpenRouter Error Response:', JSON.stringify(data, null, 2));
+      throw new Error(data.error?.message || 'OpenRouter 未返回有效内容');
+    }
+
     const content = data.choices[0].message.content.trim();
-    // 尝试解析 JSON
-    const cleanJson = content
-      .replace(/```json/gi, '')
-      .replace(/```/g, '')
-      .trim();
-    return JSON.parse(cleanJson);
-  } catch (error) {
-    console.error('Style analysis failed:', error);
-    throw new Error('分析风格失败，请稍后再试');
+    console.log('[Admin Style] AI Original Content:', content);
+
+    // 鲁棒的 JSON 提取逻辑
+    let cleanJson = content;
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      cleanJson = jsonMatch[0];
+    }
+
+    try {
+      return JSON.parse(cleanJson);
+    } catch (parseError) {
+      console.error('[Admin Style] JSON Parse Failed. Content:', content);
+      throw new Error('AI 返回格式非标准 JSON，请重试');
+    }
+  } catch (error: any) {
+    console.error('Style analysis failed detailed error:', error);
+    throw new Error(`风格分析失败: ${error.message || '未知错误'}`);
   }
 }
 
@@ -291,7 +307,7 @@ export async function saveStyleToConfigAction(style: PPTStyle) {
       '\n' +
       stylesJson.substring(1, stylesJson.length - 1).trim() +
       '\n' +
-      fileContent.substring(fileContent.lastIndexOf(endTag));
+      fileContent.substring(fileContent.indexOf('];', startIndex + startTag.length));
 
     await fs.writeFile(CONFIG_FILE_PATH, newContent, 'utf-8');
     return { success: true };
@@ -322,7 +338,7 @@ export async function deleteStyleFromConfigAction(id: string) {
       '\n' +
       stylesJson.substring(1, stylesJson.length - 1).trim() +
       '\n' +
-      fileContent.substring(fileContent.lastIndexOf('];'));
+      fileContent.substring(fileContent.indexOf('];', startIndex + startTag.length));
 
     await fs.writeFile(CONFIG_FILE_PATH, newContent, 'utf-8');
     return { success: true };

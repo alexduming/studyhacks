@@ -211,6 +211,7 @@
     "parsing_file": "Parsing {name} ({current}/{total})",
     "default_style_prompt": "You are an expert UI/UX presentation designer. Please use a professional, information-dense PPT visual system and maintain consistent typography.",
     "region_note_default": "Please refine the visual based on the overall context.",
+    "_comment_rendering_page_prompt": "⚠️ DEPRECATED - DO NOT USE! If page numbers are included in prompts, AI will render them into the images. Style consistency is achieved through anchorImageUrl (anchor images), not text instructions.",
     "rendering_page_prompt": "Currently rendering page {current}/{total}, ensure overall visual consistency.",
     "regional_edit_instruction": "Regional Edit Instruction",
     "pptx_export": {

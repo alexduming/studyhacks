@@ -373,17 +373,45 @@ export async function parseLinkContentAction(rawUrl: string): Promise<string> {
  * - 会自动识别文件类型并使用对应的解析方法
  * - 图片文件会使用 AI 视觉模型进行 OCR 识别
  */
-export async function parseFileAction(formData: FormData) {
-  const file = formData.get('file') as File;
-  if (!file) {
-    throw new Error('No file uploaded');
+export async function parseFileAction(input: FormData | { fileUrl: string; fileType?: string; fileName?: string }) {
+  let buffer: Buffer;
+  let fileType = '';
+  let fileName = '';
+
+  // 方式1：通过 FormData 传递（小文件）
+  if (input instanceof FormData) {
+    const file = input.get('file') as File;
+    if (!file) {
+      throw new Error('No file uploaded');
+    }
+    buffer = Buffer.from(await file.arrayBuffer());
+    fileType = file.type;
+    fileName = file.name.toLowerCase();
+  }
+  // 方式2：通过 URL 传递（大文件，已上传到 R2）
+  else {
+    const { fileUrl } = input;
+    if (!fileUrl) {
+      throw new Error('No file URL provided');
+    }
+    console.log('[Parse] Downloading file from URL:', fileUrl);
+    
+    // 下载文件
+    const response = await fetch(fileUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to download file: ${response.statusText}`);
+    }
+    
+    buffer = Buffer.from(await response.arrayBuffer());
+    
+    // 尝试从 input 或 Content-Type 推断类型
+    fileType = input.fileType || response.headers.get('content-type') || '';
+    fileName = input.fileName?.toLowerCase() || fileUrl.split('/').pop()?.toLowerCase() || '';
+    
+    console.log('[Parse] File downloaded. Size:', (buffer.length / 1024 / 1024).toFixed(2), 'MB');
   }
 
   try {
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const fileType = file.type;
-    const fileName = file.name.toLowerCase();
-
     let extractedText = '';
 
     // 检查是否为图片文件
@@ -398,7 +426,17 @@ export async function parseFileAction(formData: FormData) {
     if (isImage) {
       // 使用 AI OCR 识别图片中的文字
       console.log('[Parse] 检测到图片文件，使用 OCR 识别...');
-      extractedText = await parseImageAction(formData);
+      
+      // 如果是 FormData 且是图片，复用现有的 parseImageAction
+      // 注意：parseImageAction 需要 FormData，如果是 URL 模式，我们需要重构 OCR 逻辑支持 URL
+      if (input instanceof FormData) {
+        extractedText = await parseImageAction(input);
+      } else {
+        // 对于大图片 URL，目前暂时不支持 OCR（因为 OCR 逻辑强绑定了 FormData）
+        // 但通常大文件是 PDF/DOCX，图片很少超过 4.5MB
+        // 如果真有需求，需要改造 parseImageAction 支持 URL
+        throw new Error('OCR via URL is not supported yet. Please use smaller images.');
+      }
     } else if (fileType === 'application/pdf' || fileName.endsWith('.pdf')) {
       const data = await pdf(buffer);
       extractedText = data.text;
@@ -423,6 +461,11 @@ export async function parseFileAction(formData: FormData) {
 
     // Basic cleaning
     return extractedText.trim();
+  } catch (error) {
+    console.error('File parsing error:', error);
+    throw new Error('Failed to parse file');
+  }
+}
   } catch (error) {
     console.error('File parsing error:', error);
     throw new Error('Failed to parse file');

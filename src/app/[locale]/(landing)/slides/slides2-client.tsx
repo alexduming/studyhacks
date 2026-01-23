@@ -793,13 +793,28 @@ export default function Slides2Client({
       .join('\n');
   };
 
+  /**
+   * 🎯 构建 Slide 提示词
+   * 
+   * ⚠️ 重要注意事项：
+   * - 页码信息（index, total）仅用于传递给 deckContext，不应直接添加到 prompt 中
+   * - 如果在 prompt 中包含类似"当前渲染第 X/Y 页"的文案，AI 可能会将其渲染到图片上
+   * - 风格一致性通过 anchorImageUrl（锚定图片）和参考图实现，无需在 prompt 中声明
+   * 
+   * 非程序员解释：
+   * - 这个函数负责生成传递给 AI 的指令文本
+   * - 我们不在指令中包含"第几页"这样的信息，因为 AI 可能会把它画到图片上
+   * - 风格一致性是通过提供参考图片来实现的，不是通过文字指令
+   */
   const buildSlidePrompt = (
     slide: SlideData,
     options?: {
       overrideContent?: string;
       regions?: RegionDefinition[];
       sourceContent?: string;
+      /** ⚠️ 仅用于传递给 deckContext，不得添加到 prompt 中 */
       index?: number;
+      /** ⚠️ 仅用于传递给 deckContext，不得添加到 prompt 中 */
       total?: number;
     }
   ) => {
@@ -816,15 +831,11 @@ export default function Slides2Client({
         : 'Strictly follow the provided outline without inventing new facts.';
     const regionInstruction = buildRegionInstructions(options?.regions);
 
+    // ⚠️ 注意：不要在这里添加 index/total 相关的文案！
+    // 风格一致性由 anchorImageUrl 参数（在 generateSlide 中传递）保证
     return [
       options?.sourceContent
         ? `${AUTO_MODE_PREFIX}\n\n文章内容:\n${options.sourceContent}`
-        : null,
-      options?.index !== undefined && options?.total !== undefined
-        ? t_aippt('v2.rendering_page_prompt', {
-            current: options.index + 1,
-            total: options.total,
-          })
         : null,
       `Slide Title: "${slide.title}"`,
       `Key Content:\n${baseContent}`,
@@ -1053,7 +1064,23 @@ export default function Slides2Client({
       }
     }
 
-    // 正常生成模式（无选区）
+    // 🎯 正常生成模式（无选区）
+    // 
+    // 非程序员解释 - 风格一致性机制：
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 问题：多页 PPT 如何保持风格一致？
+    // 
+    // 解决方案：锚定机制（Anchor Mechanism）
+    // 1. 第 1-2 页：使用风格模板的参考图（通常 6 张）
+    // 2. 第 3 页开始：在参考图基础上，添加第 1 页生成的图片作为"风格锚定"
+    //    - 例如：原本 6 张参考图 → 现在变成 7 张（第 1 页的图 + 原有 6 张）
+    // 3. AI 会分析锚定图片的排版、配色、字体等"设计 DNA"
+    // 4. 新生成的页面会严格遵循这些视觉规则
+    // 
+    // ⚠️ 重要：风格一致性通过 anchorImageUrl（图片参考）实现
+    //    不需要在 prompt 中添加"第几页"等文字说明
+    //    文字说明可能会被 AI 渲染到图片上！
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     const task = await createKieTaskWithFallbackAction({
       prompt,
       styleId: selectedStyleId || undefined,
@@ -1064,13 +1091,15 @@ export default function Slides2Client({
       isEnhancedMode,
       outputLanguage: language,
       refundCredits: resolution === '4K' ? 12 : 6,
-      // 🎯 关键：传递Deck上下文以保持一致性
+      // 🎯 传递 Deck 上下文以保持一致性
+      // - currentSlide/totalSlides: 当前页码信息（仅用于后端日志）
+      // - anchorImageUrl: 锚定图片 URL（第 3 页开始会传入第 1 页的 URL）
       deckContext:
         options?.index !== undefined && options?.total !== undefined
           ? {
               currentSlide: options.index + 1, // 从1开始计数
               totalSlides: options.total,
-              anchorImageUrl: options.anchorImageUrl,
+              anchorImageUrl: options.anchorImageUrl, // 🔑 核心：锚定图片
             }
           : undefined,
     });
@@ -1293,10 +1322,29 @@ export default function Slides2Client({
       }
 
       // ============================================================
-      // 🎯 一致性锚定机制 (Consistency Anchoring)
+      // 🎯 风格一致性锚定机制 (Style Consistency Anchoring)
       // ============================================================
-      // 策略：记录第二张（第一张内页）成功生成的图片URL，传递给后续内页生成
-      // 第一页（封面）不作为锚定源
+      // 非程序员解释：
+      // 
+      // 问题：生成多页 PPT 时，如何确保每一页的视觉风格保持一致？
+      // 
+      // 解决方案：使用"锚定图片"（Anchor Image）作为风格参考
+      // 
+      // 具体流程：
+      // 1. 第 1 页（封面）：使用风格模板的参考图生成（6-8张参考图）
+      // 2. 第 2 页（第一张内页）：同样使用风格模板的参考图生成
+      // 3. 第 3 页开始：
+      //    - 将第 2 页生成的图片作为"锚定图片"
+      //    - 连同原有的风格参考图一起传递给 AI（共 7-9 张）
+      //    - AI 会分析锚定图片的设计元素（排版、配色、字体等）
+      //    - 确保新页面与锚定图片保持一致的"设计 DNA"
+      // 
+      // 为什么选择第 2 页作为锚定源？
+      // - 第 1 页通常是封面，排版与内页差异较大
+      // - 第 2 页是第一张内页，更能代表整体 PPT 的视觉风格
+      // 
+      // ⚠️ 注意：锚定是通过传递图片 URL 实现的，不是通过文字指令！
+      //    不要在 prompt 中添加类似"当前第 X 页"的文案，AI 会把它画到图片上！
       // ============================================================
       let anchorImageUrl: string | undefined;
 
@@ -1326,9 +1374,13 @@ export default function Slides2Client({
             sourceContent: shouldUseSourceContent
               ? autoSourceRef.current
               : undefined,
-            index: i, // 始终传递index，用于视觉一致性
-            total: workingSlides.length, // 始终传递total
-            // 🎯 从第三页（index 2）开始，使用锚定图片（锚定源为index 1）
+            // ⚠️ 重要：index 和 total 仅用于后端日志，不会出现在 prompt 中
+            index: i,
+            total: workingSlides.length,
+            // 🎯 风格锚定：从第 3 页（index 2）开始，传入第 2 页的图片作为锚定
+            // - i = 0（第 1 页）: 无锚定，使用风格模板参考图
+            // - i = 1（第 2 页）: 无锚定，使用风格模板参考图
+            // - i >= 2（第 3 页起）: 使用 anchorImageUrl（第 2 页的图片）
             anchorImageUrl: i > 1 ? anchorImageUrl : undefined,
           });
 
@@ -1347,10 +1399,14 @@ export default function Slides2Client({
             }
           }
 
-          // 🎯 第一张内页（index 1）生成成功后，记录其URL作为锚定
+          // 🎯 第 2 页（index 1）生成成功后，记录其 URL 作为后续页面的锚定参考
+          // 非程序员解释：
+          // - 第 2 页是第一张内页，代表了 PPT 的主要视觉风格
+          // - 将它的 URL 保存下来，后续页面生成时会作为参考图传递给 AI
+          // - 这样 AI 就能保持整个 PPT 的视觉一致性
           if (i === 1 && resultUrl) {
             anchorImageUrl = resultUrl;
-            console.log('📌 内页锚定成功 (Index 1):', anchorImageUrl);
+            console.log('📌 风格锚定已设置（使用第 2 页作为参考）:', anchorImageUrl);
           }
 
           successCount++;
