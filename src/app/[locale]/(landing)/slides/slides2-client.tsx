@@ -3266,19 +3266,22 @@ export default function Slides2Client({
     if (!editingSlide) return null;
     return (
       <Dialog open onOpenChange={() => setEditingSlide(null)}>
-        <DialogContent className="border-border bg-background/98 max-h-[90vh] w-[90vw] max-w-[1400px] gap-0 overflow-hidden p-0 shadow-[0_0_100px_rgba(0,0,0,0.8)] backdrop-blur-3xl dark:bg-[#0E1424]/98">
-          <div className="flex h-full flex-col">
+        <DialogContent 
+          size="full"
+          className="border-border bg-background/98 h-[90vh] w-[90vw] max-w-[1800px] gap-0 overflow-hidden p-0 shadow-[0_0_100px_rgba(0,0,0,0.8)] backdrop-blur-3xl dark:bg-[#0E1424]/98"
+        >
+          <div className="flex h-full flex-col overflow-hidden">
             {/* 移除了顶部标题栏，保留 DialogContent 默认的关闭按钮 */}
             
-            <div className="grid flex-1 overflow-hidden lg:grid-cols-[5fr_380px]">
-              {/* 左侧：视觉编辑核心区 */}
+            <div className="grid h-0 min-h-full overflow-hidden lg:grid-cols-[5fr_520px] lg:grid-rows-[minmax(0,1fr)]">
+              {/* 左侧：视觉编辑核心区（增加了宽度比例：从 5fr 改为 7fr，右侧从 380px 改为 340px） */}
               <div className="bg-muted/30 flex flex-col overflow-hidden p-6 dark:bg-black/40">
                 <div className="flex flex-1 flex-col gap-6 overflow-hidden">
                   {/* 1. 待编辑图片 - 撑满宽度 */}
                   <div className="relative flex min-h-120 flex-1 flex-col">
                     <div
                       ref={editCanvasRef}
-                      className="group hover:border-primary/20 border-border bg-muted/50 relative h-full w-full cursor-crosshair overflow-hidden rounded-2xl border shadow-[0_40px_100px_rgba(0,0,0,0.6)] transition-all dark:bg-black/60"
+                      className="group hover:border-primary/20 border-border bg-muted/50 relative h-full w-full cursor-crosshair overflow-hidden rounded-2xl border shadow-lg transition-all dark:bg-black/60 dark:shadow-[0_40px_100px_rgba(0,0,0,0.6)]"
                       onPointerDown={handleCanvasPointerDown}
                       onPointerMove={handleCanvasPointerMove}
                       onPointerUp={finalizeRegion}
@@ -3329,42 +3332,42 @@ export default function Slides2Client({
                 </div>
               </div>
 
-              {/* 右侧：指令侧边栏 */}
-              <div className="border-border bg-muted/20 flex flex-col overflow-hidden border-l dark:bg-[#0A0D18]/50">
-                <div className="flex min-h-0 flex-1 flex-col p-6">
-                  <div className="mb-6">
-                    <div className="flex items-center gap-2">
-                      <Crop className="text-primary h-4 w-4" />
-                      <Label className="text-foreground text-sm font-medium">
-                        {t_aippt('v2.edit_dialog_title')}
-                      </Label>
-                    </div>
-                    <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
-                      {t_aippt('v2.edit_dialog_desc')}
-                    </p>
+              {/* 右侧：指令侧边栏 - 固定三段式布局 */}
+              <div className="border-border bg-muted/20 flex h-0 min-h-full flex-col border-l dark:bg-[#0A0D18]/50">
+                {/* 顶部标题区域 - 固定不滚动 */}
+                <div className="flex-none border-b border-border/50 px-5 py-3">
+                  <div className="flex items-center gap-2">
+                    <Crop className="text-primary h-4 w-4" />
+                    <Label className="text-foreground text-sm font-medium">
+                      {t_aippt('v2.edit_dialog_title')}
+                    </Label>
                   </div>
-
-                  <ScrollArea className="flex-1">
-                    <div className="space-y-4 pr-2 pb-6">
-                      {editRegions.length === 0 ? (
-                        <div className="border-border bg-muted/30 flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-center dark:bg-white/[0.01]">
-                          <Crop className="text-muted-foreground/30 mb-3 h-8 w-8 dark:text-white/20" />
-                          <p className="text-muted-foreground text-xs dark:text-white/40">
-                            {t_aippt('v2.drag_to_select')}
-                          </p>
-                          <p className="text-muted-foreground/60 mt-1 text-[10px]">
-                            在左侧图片上拖拽框选区域
-                          </p>
-                        </div>
-                      ) : (
-                        renderRegionList()
-                      )}
-                    </div>
-                  </ScrollArea>
+                  <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
+                    {t_aippt('v2.edit_dialog_desc')}
+                  </p>
                 </div>
 
-                {/* Footer Action */}
-                <div className="border-border bg-muted/30 border-t p-6 dark:bg-[#080A12]">
+                {/* 中间可滚动区域 - 强制滚动 */}
+                <div className="flex-1 overflow-y-auto overscroll-contain">
+                  <div className="space-y-4 p-5">
+                    {editRegions.length === 0 ? (
+                      <div className="border-border bg-muted/30 flex flex-col items-center justify-center rounded-xl border border-dashed py-12 text-center dark:bg-white/[0.01]">
+                        <Crop className="text-muted-foreground/30 mb-3 h-8 w-8 dark:text-white/20" />
+                        <p className="text-muted-foreground text-xs dark:text-white/40">
+                          {t_aippt('v2.drag_to_select')}
+                        </p>
+                        <p className="text-muted-foreground/60 mt-1 text-[10px]">
+                          在左侧图片上拖拽框选区域
+                        </p>
+                      </div>
+                    ) : (
+                      renderRegionList()
+                    )}
+                  </div>
+                </div>
+
+                {/* 底部按钮区域 - 固定在底部不滚动 */}
+                <div className="border-border bg-muted/30 flex-none border-t px-5 py-3 dark:bg-[#080A12]">
                   <Button
                     className="bg-primary hover:bg-primary/90 text-primary-foreground h-12 w-full rounded-xl text-base font-semibold transition-all active:scale-[0.98]"
                     disabled={pendingEditSubmit}
