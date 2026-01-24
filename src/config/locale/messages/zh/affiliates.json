@@ -1,0 +1,58 @@
+{
+  "title": "教练计划",
+  "description": "邀请朋友使用 Studyhacks，获得积分与返现奖励。",
+  "invite_card": {
+    "title": "邀请",
+    "badge": "初级",
+    "description": "邀请用户注册，双方各获得 30 积分奖励，邀请用户购买后，邀请人获得订单金额20%的现金佣金",
+    "copy_button": "复制邀请链接",
+    "edit_tooltip": "修改邀请码"
+  },
+  "reward_card": {
+    "title": "奖励",
+    "badge": "余额",
+    "description": "已邀请 {total} 人，{paid} 人已支付；总奖励金额：{totalAmount}，已提现：{withdrawn}，剩余可提现：{balance}",
+    "withdraw_button": "提现",
+    "withdraw_dialog": {
+      "title": "提现资金",
+      "description": "输入提现金额和账户信息。",
+      "amount_label": "金额",
+      "method_label": "方式",
+      "account_label": "账户",
+      "submit_button": "提交"
+    }
+  },
+  "panel": {
+    "title": "联盟",
+    "subtitle": "我的联盟管理",
+    "tabs": {
+      "invitation": "邀请",
+      "reward": "奖励",
+      "withdraw": "提现"
+    },
+    "invitation_table": {
+      "user": "邀请用户",
+      "code": "邀请码",
+      "time": "邀请时间",
+      "status": "付费状态",
+      "amount": "首次付费金额",
+      "no_data": "无数据"
+    },
+    "reward_table": {
+      "id": "ID",
+      "amount": "金额",
+      "status": "状态",
+      "type": "类型",
+      "time": "时间",
+      "no_data": "无数据"
+    },
+    "withdraw_table": {
+      "id": "ID",
+      "amount": "金额",
+      "status": "状态",
+      "method": "方式",
+      "time": "时间",
+      "no_data": "无数据"
+    }
+  }
+}

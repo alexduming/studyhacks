@@ -6,7 +6,6 @@ import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import { SmartIcon } from '@/shared/blocks/common';
-import { PaymentModal } from '@/shared/blocks/payment/payment-modal';
 import { Badge } from '@/shared/components/ui/badge';
 import { Button } from '@/shared/components/ui/button';
 import {
@@ -16,13 +15,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/shared/components/ui/card';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/shared/components/ui/select';
 import { useAppContext } from '@/shared/contexts/app';
 import { getCookie } from '@/shared/lib/cookie';
 import { cn } from '@/shared/lib/utils';
@@ -56,22 +48,12 @@ function getCurrenciesFromItem(item: PricingItem | null): PricingCurrency[] {
 // Helper function to select initial currency based on locale
 function getInitialCurrency(
   currencies: PricingCurrency[],
-  locale: string,
+  _locale: string,
   defaultCurrency: string
 ): string {
+  // 货币切换入口已被移除，为确保 Stripe 仍以默认币种结算
+  // 这里始终返回定价项的默认 currency
   if (currencies.length === 0) return defaultCurrency;
-
-  // If locale is 'zh', prefer CNY
-  if (locale === 'zh') {
-    const cnyCurrency = currencies.find(
-      (c) => c.currency.toLowerCase() === 'cny'
-    );
-    if (cnyCurrency) {
-      return cnyCurrency.currency;
-    }
-  }
-
-  // Otherwise return default currency
   return defaultCurrency;
 }
 
@@ -86,13 +68,7 @@ export function Pricing({
 }) {
   const locale = useLocale();
   const t = useTranslations('pricing.page');
-  const {
-    user,
-    isShowPaymentModal,
-    setIsShowSignModal,
-    setIsShowPaymentModal,
-    configs,
-  } = useAppContext();
+  const { user, setIsShowSignModal, configs } = useAppContext();
 
   // 月付/年付切换状态管理
   // 业务说明：这个状态用来控制显示月付还是年付的定价方案
@@ -120,9 +96,6 @@ export function Pricing({
   const visibleItems = pricing.items
     ? pricing.items.filter((item) => !item.group || item.group === group)
     : [];
-
-  // current pricing item
-  const [pricingItem, setPricingItem] = useState<PricingItem | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [productId, setProductId] = useState<string | null>(null);
@@ -223,12 +196,8 @@ export function Pricing({
     const displayedItem =
       itemCurrencies[item.product_id]?.displayedItem || item;
 
-    if (configs.select_payment_enabled === 'true') {
-      setPricingItem(displayedItem);
-      setIsShowPaymentModal(true);
-    } else {
-      handleCheckout(displayedItem, configs.default_payment_provider);
-    }
+    // Always direct checkout to avoid extra modal steps
+    handleCheckout(displayedItem, configs.default_payment_provider);
   };
 
   const getAffiliateMetadata = ({
@@ -264,7 +233,8 @@ export function Pricing({
 
   const handleCheckout = async (
     item: PricingItem,
-    paymentProvider?: string
+    paymentProvider?: string,
+    forceCny: boolean = false
   ) => {
     try {
       if (!user) {
@@ -278,7 +248,7 @@ export function Pricing({
 
       const params = {
         product_id: item.product_id,
-        currency: item.currency,
+        currency: forceCny ? 'CNY' : item.currency,
         locale: locale || 'en',
         payment_provider: paymentProvider || '',
         metadata: affiliateMetadata,
@@ -298,7 +268,7 @@ export function Pricing({
       if (response.status === 401) {
         setIsLoading(false);
         setProductId(null);
-        setPricingItem(null);
+        // setPricingItem(null); // Fix: Removed undefined function call
         setIsShowSignModal(true);
         return;
       }
@@ -359,41 +329,46 @@ export function Pricing({
           - 点击 "Pay monthly" 会显示所有月付方案（group === 'monthly'）
           - 点击 "Pay yearly" 会显示所有年付方案（group === 'yearly'）
           - 选中的按钮会高亮显示，未选中的按钮显示为灰色
+          - 年付按钮右上角显示 "Save 30%" 标签，突出显示优惠
         */}
         {pricing.groups && pricing.groups.length > 0 && (
           <div className="mx-auto mt-8 mb-16 flex w-full justify-center md:max-w-lg">
-            <div className="border-border/60 bg-muted/60 inline-flex items-center gap-2 rounded-full border px-1 py-1 text-xs">
+            <div className="border-border/60 bg-muted/60 inline-flex items-center gap-2 rounded-full border px-1 py-1 text-xs overflow-visible">
               {/* 月付按钮 */}
               <button
                 type="button"
                 onClick={() => setGroup('monthly')}
                 className={cn(
-                  'rounded-full px-3 py-1 text-xs font-medium transition-colors',
+                  'rounded-full px-3 py-1 text-sm font-medium transition-colors',
                   group === 'monthly'
                     ? 'bg-primary text-primary-foreground'
                     : 'text-muted-foreground hover:text-foreground'
                 )}
               >
-                Pay monthly
+                {t('pay_monthly')}
               </button>
 
               {/* 中间提示文案：年付更省钱（仅在中等以上屏幕显示） */}
-              <span className="text-muted-foreground hidden text-[11px] md:inline">
-                Save more with annual billing
+              <span className="text-muted-foreground hidden text-[14px] md:inline">
+                {t('save_more_with_annual_billing')}
               </span>
 
-              {/* 年付按钮 */}
+              {/* 年付按钮 - 右上角添加 "Save 30%" 标签 */}
               <button
                 type="button"
                 onClick={() => setGroup('yearly')}
                 className={cn(
-                  'rounded-full px-3 py-1 text-xs font-medium transition-colors',
+                  'relative rounded-full px-3 py-1 text-sm font-medium transition-colors overflow-visible',
                   group === 'yearly'
                     ? 'bg-primary text-primary-foreground'
                     : 'text-muted-foreground hover:text-foreground'
                 )}
               >
-                Pay yearly
+                {t('pay_yearly')}
+                {/* 右上角 "Save 30%" 标签，悬浮在按钮右上角，有微微重叠但不遮挡文字 */}
+                <span className="absolute right-0 top-0 z-10 -translate-y-4/5 translate-x-1/2 rounded-full bg-emerald-500 px-1.5 py-0.5 text-[16px] font-bold text-white shadow-md whitespace-nowrap">
+                  {t('save_30_percent')}
+                </span>
               </button>
             </div>
           </div>
@@ -440,12 +415,12 @@ export function Pricing({
                       )}
                     >
                       {item.interval === 'year'
-                        ? 'Pay annually'
-                        : 'Pay monthly'}
+                        ? t('pay_annually')
+                        : t('pay_monthly')}
                     </span>
                     {item.interval === 'year' && (
                       <span className="rounded-full bg-emerald-400 px-2 py-0.5 text-[11px] font-bold text-emerald-950">
-                        Save 30%
+                        {t('save_30_percent')}
                       </span>
                     )}
                   </div>
@@ -474,32 +449,6 @@ export function Pricing({
                       )}
                     </div>
 
-                    {currencies.length > 1 && (
-                      <Select
-                        value={selectedCurrency}
-                        onValueChange={(currency) =>
-                          handleCurrencyChange(item.product_id, currency)
-                        }
-                      >
-                        <SelectTrigger
-                          size="sm"
-                          className="border-muted-foreground/30 bg-background/50 h-6 min-w-[60px] px-2 text-xs"
-                        >
-                          <SelectValue placeholder="Currency" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {currencies.map((currency) => (
-                            <SelectItem
-                              key={currency.currency}
-                              value={currency.currency}
-                              className="text-xs"
-                            >
-                              {currency.currency.toUpperCase()}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
                   </div>
 
                   <CardDescription className="text-sm">
@@ -509,6 +458,26 @@ export function Pricing({
                     <span className="text-muted-foreground text-sm">
                       {item.tip}
                     </span>
+                  )}
+
+                  {locale === 'zh' && item.cn_amount && item.cn_amount > 0 && (
+                    <div className="text-muted-foreground mt-4 flex items-center justify-start gap-2 text-xs">
+                      <span>{t('or_pay_with') || 'Or pay with'}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleCheckout(item, undefined, true)}
+                        className="border-input bg-background hover:bg-accent hover:text-accent-foreground inline-flex items-center gap-2 rounded-md border px-2 py-1 transition-colors"
+                      >
+                        <SmartIcon
+                          name="RiWechatPayFill"
+                          className="size-5 text-[#09B83E]"
+                        />
+                        <SmartIcon
+                          name="RiAlipayFill"
+                          className="size-5 text-[#1678FF]"
+                        />
+                      </button>
+                    </div>
                   )}
 
                   {isCurrentPlan ? (
@@ -571,14 +540,6 @@ export function Pricing({
           })}
         </div>
       </div>
-
-      <PaymentModal
-        isLoading={isLoading}
-        pricingItem={pricingItem}
-        onCheckout={(item, paymentProvider) =>
-          handleCheckout(item, paymentProvider)
-        }
-      />
     </section>
   );
 }

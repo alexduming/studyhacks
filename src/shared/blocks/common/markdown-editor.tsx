@@ -43,7 +43,10 @@ export function MarkdownEditor({
     <div
       className="overflow-hidden rounded-md border"
       ref={ref}
-      style={{ height: '400px' }}
+      style={{
+        minHeight: `${minHeight}px`,
+        height: '100%',
+      }}
     />
   );
 }
