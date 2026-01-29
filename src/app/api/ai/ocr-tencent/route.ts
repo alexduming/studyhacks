@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import sharp from 'sharp';
 
 export const runtime = 'nodejs';
-export const maxDuration = 30; // 腾讯云 OCR 通常 1-3 秒
+export const maxDuration = 60; // 增加到 60s，应对大图识别
 
 // 腾讯云配置
 const SECRET_ID = process.env.TENCENT_SECRET_ID || '';
@@ -303,9 +303,9 @@ export async function POST(
 
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
-          // 设置 20 秒超时（大图片需要更长时间）
+          // 设置 45 秒超时（应对 CDN 响应慢的情况）
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 20000);
+          const timeoutId = setTimeout(() => controller.abort(), 45000);
 
           const imageResponse = await fetch(imageUrl, {
             signal: controller.signal,
@@ -391,6 +391,8 @@ export async function POST(
         Authorization: authorization,
       },
       body: payload,
+      // 增加内部 fetch 的超时
+      signal: AbortSignal.timeout(45000)
     });
 
     const data = await response.json();

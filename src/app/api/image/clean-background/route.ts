@@ -186,19 +186,40 @@ export async function POST(request: NextRequest): Promise<NextResponse<CleanBack
     );
     console.log('[CLEAN-BG] 输出结果:', JSON.stringify(result, null, 2).substring(0, 500));
 
-    // fal.ai inpaint 返回格式: { images: [{ url: "..." }] }
-    let resultUrl: string;
+    // 兼容多种返回格式
+    let resultUrl: string = '';
+    
     if (result?.images && Array.isArray(result.images) && result.images.length > 0) {
       resultUrl = result.images[0].url;
       console.log('[CLEAN-BG] 输出格式: images 数组');
     } else if (result?.image?.url) {
       resultUrl = result.image.url;
       console.log('[CLEAN-BG] 输出格式: image 对象');
+    } else if (result?.url) {
+      resultUrl = result.url;
+      console.log('[CLEAN-BG] 输出格式: 直接 url');
     } else if (typeof result === 'string') {
       resultUrl = result;
       console.log('[CLEAN-BG] 输出格式: 字符串');
     } else {
-      console.error('[CLEAN-BG] ❌ 意外的输出格式:', JSON.stringify(result));
+      console.log('[CLEAN-BG] ❓ 未知格式，完整结果:', JSON.stringify(result));
+      // 如果实在找不到，尝试从对象中搜寻第一个包含 http 的字符串
+      const findUrl = (obj: any): string | null => {
+        if (!obj) return null;
+        for (const key in obj) {
+          if (typeof obj[key] === 'string' && obj[key].startsWith('http')) return obj[key];
+          if (typeof obj[key] === 'object' && obj[key] !== null) {
+            const nested = findUrl(obj[key]);
+            if (nested) return nested;
+          }
+        }
+        return null;
+      };
+      resultUrl = findUrl(result) || '';
+    }
+
+    if (!resultUrl) {
+      console.error('[CLEAN-BG] ❌ 无法提取 URL，结果:', JSON.stringify(result));
       throw new Error('fal.ai 返回了意外的输出格式');
     }
 

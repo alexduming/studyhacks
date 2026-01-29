@@ -224,6 +224,15 @@ export default function Slides2Client({
   const [activeRegionId, setActiveRegionId] = useState<string | null>(null);
   const [pendingEditSubmit, setPendingEditSubmit] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  
+  // 🎯 编辑对话框中的临时设置状态
+  const [editDialogImageUrl, setEditDialogImageUrl] = useState<string | null>(null);
+  
+  // 🎯 主列表编辑模式状态
+  const [isDetailEditMode, setIsDetailEditMode] = useState(false); // 详情页是否处于编辑模式
+  const [detailEditSnapshots, setDetailEditSnapshots] = useState<Record<string, string>>({}); // 保存编辑前的快照
+  const [pendingVersionChanges, setPendingVersionChanges] = useState<Record<string, boolean>>({});
+  const [isSavingVersionChange, setIsSavingVersionChange] = useState<string | null>(null);
 
   // 🎯 PPTX 导出进度状态
   const [pptxExportProgress, setPptxExportProgress] = useState({
@@ -358,6 +367,8 @@ export default function Slides2Client({
       setEditRegions([]);
       setDraftRegion(null);
       setActiveRegionId(null);
+      // 🎯 初始化编辑对话框的临时设置状态
+      setEditDialogImageUrl(editingSlide.imageUrl || null);
     }
   }, [editingSlide]);
 
@@ -1624,9 +1635,9 @@ export default function Slides2Client({
       isOpen: true,
       currentSlide: 0,
       totalSlides: completed.length,
-      currentStep: '正在初始化...',
+      currentStep: t_aippt('v2.pptx_export.initializing'),
       overallProgress: 0,
-      logs: ['🚀 开始导出 PPTX...'],
+      logs: [t_aippt('v2.pptx_export.starting_export_log')],
     });
 
     // 🎯 关键：使用 requestAnimationFrame + 较长延迟确保 DOM 更新完成
@@ -1694,7 +1705,7 @@ export default function Slides2Client({
         let ocrData: any = null;
         try {
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 30000);
+          const timeoutId = setTimeout(() => controller.abort(), 60000); // 增加到 60s
           const response = await fetch('/api/ai/ocr-tencent', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1710,29 +1721,28 @@ export default function Slides2Client({
             } else {
               addLog(`  ⚠️ ${t_aippt('v2.pptx_export.no_text_found')}`);
             }
+          } else {
+            addLog(`  ${t_aippt('v2.pptx_export.ocr_error', { status: response.status })}`);
           }
         } catch (e) {
-          addLog(`  ⚠️ ${t_aippt('v2.pptx_export.processing_failed')}`);
+          addLog(`  ${t_aippt('v2.pptx_export.ocr_timeout')}`);
+          console.error('[PPTX Export] OCR 失败:', e);
         }
 
-        // 🎯 步骤2: 用 OCR 结果精确移除文字（串行执行，确保精确性）
+        // 🎯 步骤2: 用 OCR 结果精确移除文字（已升级为极速 FAL LaMa 方案）
         addLog(`  ${t_aippt('v2.pptx_export.cleaning_background')}`);
         updateProgress(i, t_aippt('v2.pptx_export.cleaning_background'), 1);
 
-        // 提取 OCR 识别出的所有文本内容
-        const ocrTexts: string[] = ocrData?.blocks?.map((block: any) => block.text) || [];
-
         try {
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 120000);
-          const response = await fetch('/api/image/inpaint-lama', {
+          const timeoutId = setTimeout(() => controller.abort(), 60000); // 1分钟超时
+          const response = await fetch('/api/image/precise-inpaint', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               imageUrl: slide.imageUrl,
-              textBoxes: [],
-              imageSize: { width: 1920, height: 1080 },
-              ocrTexts: ocrTexts, // 传入 OCR 识别的文本，用于精确移除
+              textBoxes: ocrData?.blocks?.map((b: any) => b.bbox) || [],
+              imageSize: ocrData?.imageSize || { width: 1920, height: 1080 },
             }),
             signal: controller.signal,
           });
@@ -1741,10 +1751,12 @@ export default function Slides2Client({
             const data = await response.json();
             if (data?.success && data.imageUrl) {
               backgroundUrl = data.imageUrl;
+              addLog(`  ✅ ${t_aippt('v2.pptx_export.background_cleaned')}`);
             }
           }
         } catch (e) {
-          // 静默处理，使用原图
+          addLog(`  ⚠️ ${t_aippt('v2.pptx_export.cleaning_failed_using_original')}`);
+          console.warn('[PPTX Export] 背景清理失败，使用原图:', e);
         }
 
         // 如果是第一张幻灯片且 OCR 失败，提示用户
@@ -2887,6 +2899,82 @@ export default function Slides2Client({
     setHistorySlideId(slideId);
   };
 
+  /**
+   * 🎯 进入详情页编辑模式
+   */
+  const enterDetailEditMode = () => {
+    // 保存当前状态快照
+    const snapshots: Record<string, string> = {};
+    slides.forEach((slide) => {
+      if (slide.imageUrl) {
+        snapshots[slide.id] = slide.imageUrl;
+      }
+    });
+    setDetailEditSnapshots(snapshots);
+    setIsDetailEditMode(true);
+    setPendingVersionChanges({});
+  };
+
+  /**
+   * 🎯 保存详情页编辑更改
+   */
+  const saveDetailEditChanges = async () => {
+    if (!presentationRecordId) {
+      toast.error(t_aippt('v2.save_settings_failed'));
+      return;
+    }
+
+    setIsSavingVersionChange('all');
+    try {
+      setTimeout(async () => {
+        try {
+          const currentSlides = slidesRef.current;
+          await updatePresentationAction(presentationRecordId, {
+            content: JSON.stringify(currentSlides),
+          });
+          console.log('[SaveDetailEdit] 所有版本选择已保存到数据库');
+          toast.success(t_aippt('v2.save_settings_success'));
+          
+          // 退出编辑模式
+          setIsDetailEditMode(false);
+          setDetailEditSnapshots({});
+          setPendingVersionChanges({});
+        } catch (saveError) {
+          console.error('[SaveDetailEdit] 保存失败:', saveError);
+          toast.error(t_aippt('v2.save_settings_failed'));
+        } finally {
+          setIsSavingVersionChange(null);
+        }
+      }, 200);
+    } catch (error) {
+      console.error('[SaveDetailEdit] 保存失败:', error);
+      setIsSavingVersionChange(null);
+      toast.error(t_aippt('v2.save_settings_failed'));
+    }
+  };
+
+  /**
+   * 🎯 取消详情页编辑更改
+   */
+  const cancelDetailEditChanges = () => {
+    // 恢复快照
+    setSlides((prev) =>
+      prev.map((slide) => {
+        const snapshotUrl = detailEditSnapshots[slide.id];
+        if (snapshotUrl) {
+          return { ...slide, imageUrl: snapshotUrl };
+        }
+        return slide;
+      })
+    );
+    
+    // 退出编辑模式
+    setIsDetailEditMode(false);
+    setDetailEditSnapshots({});
+    setPendingVersionChanges({});
+    toast.info(t_aippt('v2.edit_cancelled'));
+  };
+
   const handleCanvasPointerDown = (
     event: React.PointerEvent<HTMLDivElement>
   ) => {
@@ -3287,10 +3375,11 @@ export default function Slides2Client({
                       onPointerUp={finalizeRegion}
                       onPointerLeave={finalizeRegion}
                     >
-                      {editingSlide.imageUrl ? (
+                      {/* 🎯 使用临时选择的版本 URL（editDialogImageUrl），支持版本切换预览 */}
+                      {editDialogImageUrl ? (
                         <div className="relative h-full w-full">
                           <Image
-                            src={editingSlide.imageUrl}
+                            src={editDialogImageUrl}
                             alt={editingSlide.title}
                             fill
                             className="pointer-events-none object-contain"
@@ -3350,6 +3439,81 @@ export default function Slides2Client({
                 {/* 中间可滚动区域 - 强制滚动 */}
                 <div className="flex-1 overflow-y-auto overscroll-contain">
                   <div className="space-y-4 p-5">
+                    {/* 🎯 版本选择区域 - 简化版，只显示缩略图 */}
+                    {(() => {
+                      const histories = editingSlide.history || [];
+                      if (histories.length === 0 && !editingSlide.imageUrl) return null;
+                      
+                      return (
+                        <div className="border-border bg-muted/30 rounded-xl border p-3 dark:bg-white/[0.02]">
+                          <div className="mb-2 flex items-center justify-between">
+                            <Label className="text-foreground text-xs font-medium">
+                              {t_aippt('v2.version_selection')}
+                            </Label>
+                            {histories.length > 0 && (
+                              <span className="text-muted-foreground text-[10px]">
+                                {histories.length} {t_aippt('v2.history').toLowerCase()}
+                              </span>
+                            )}
+                          </div>
+                          <div className="scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted-foreground/20 flex gap-2 overflow-x-auto pb-1">
+                            {/* 显示所有历史版本（新的在前） */}
+                            {histories.map((entry, historyIndex) => (
+                              <button
+                                key={entry.id}
+                                className={cn(
+                                  'group hover:border-primary relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all',
+                                  editDialogImageUrl === entry.imageUrl
+                                    ? 'border-primary shadow-[0_0_0_2px_rgba(139,108,255,0.3)]'
+                                    : 'border-border/50 hover:border-primary/60'
+                                )}
+                                onClick={() => setEditDialogImageUrl(entry.imageUrl)}
+                                title={`版本 ${histories.length - historyIndex} - ${new Date(entry.createdAt).toLocaleString()}`}
+                              >
+                                <img
+                                  src={entry.imageUrl}
+                                  alt={`版本 ${histories.length - historyIndex}`}
+                                  className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                                />
+                                <div className="absolute right-0 bottom-0 left-0 bg-gradient-to-t from-black/70 to-transparent px-1 py-0.5">
+                                  <span className="text-[8px] font-medium text-white">
+                                    v{histories.length - historyIndex}
+                                  </span>
+                                </div>
+                                {editDialogImageUrl === entry.imageUrl && (
+                                  <div className="absolute top-0.5 right-0.5">
+                                    <Check className="text-primary h-3 w-3 drop-shadow-md" />
+                                  </div>
+                                )}
+                              </button>
+                            ))}
+                            {/* 如果没有历史但有当前图片，显示原始版本 */}
+                            {histories.length === 0 && editingSlide.imageUrl && (
+                              <div
+                                className="border-primary relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg border-2 shadow-[0_0_0_2px_rgba(139,108,255,0.3)]"
+                                title={t_aippt('v2.original_version')}
+                              >
+                                <img
+                                  src={editingSlide.imageUrl}
+                                  alt={t_aippt('v2.original_version')}
+                                  className="h-full w-full object-cover"
+                                />
+                                <div className="absolute right-0 bottom-0 left-0 bg-gradient-to-t from-black/70 to-transparent px-1 py-0.5">
+                                  <span className="text-[8px] font-medium text-white">
+                                    {t_aippt('v2.original_version')}
+                                  </span>
+                                </div>
+                                <div className="absolute top-0.5 right-0.5">
+                                  <Check className="text-primary h-3 w-3 drop-shadow-md" />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* 原有的局部编辑选区区域 */}
                     {editRegions.length === 0 ? (
                       <div className="border-border bg-muted/30 flex flex-col items-center justify-center rounded-xl border border-dashed py-12 text-center dark:bg-white/[0.01]">
                         <Crop className="text-muted-foreground/30 mb-3 h-8 w-8 dark:text-white/20" />
@@ -3368,6 +3532,7 @@ export default function Slides2Client({
 
                 {/* 底部按钮区域 - 固定在底部不滚动 */}
                 <div className="border-border bg-muted/30 flex-none border-t px-5 py-3 dark:bg-[#080A12]">
+                  {/* 🎯 重新生成按钮 - 使用 AI 重新生成图片 */}
                   <Button
                     className="bg-primary hover:bg-primary/90 text-primary-foreground h-12 w-full rounded-xl text-base font-semibold transition-all active:scale-[0.98]"
                     disabled={pendingEditSubmit}
@@ -3498,86 +3663,287 @@ export default function Slides2Client({
           </div>
 
           {/* 操作按钮区域 */}
-          <div className="mb-10 flex flex-wrap items-center gap-4">
-            <Button
-              variant="outline"
-              className="h-11 rounded-xl px-6"
-              onClick={handleDownloadPDF}
-            >
-              <FileText className="mr-2 h-4 w-4" />
-              {t_aippt('v2.download_pdf')}
-            </Button>
-            <Button
-              variant="outline"
-              className="h-11 rounded-xl px-6"
-              onClick={handleDownloadPPTX}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              {t_aippt('v2.export_pptx')}
-            </Button>
-            <Button
-              variant="outline"
-              className="h-11 rounded-xl px-6"
-              onClick={handleDownloadImages}
-            >
-              <Images className="mr-2 h-4 w-4" />
-              {t_aippt('v2.download_images')}
-            </Button>
-            <Button
-              className="h-11 rounded-xl px-8 font-bold"
-              onClick={() => setViewMode('studio')}
-            >
-              <WandSparkles className="mr-2 h-4 w-4" />
-              {t_aippt('v2.edit_in_studio')}
-            </Button>
+          <div className="mb-10 space-y-4">
+            {/* 主操作按钮 */}
+            <div className="flex flex-wrap items-center gap-4">
+              {!isDetailEditMode ? (
+                <>
+                  {/* 默认模式：只读预览 */}
+                  <Button
+                    variant="outline"
+                    className="h-11 rounded-xl px-6"
+                    onClick={handleDownloadPDF}
+                  >
+                    <FileText className="mr-2 h-4 w-4" />
+                    {t_aippt('v2.download_pdf')}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-11 rounded-xl px-6"
+                    onClick={handleDownloadPPTX}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    {t_aippt('v2.export_pptx')}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-11 rounded-xl px-6"
+                    onClick={handleDownloadImages}
+                  >
+                    <Images className="mr-2 h-4 w-4" />
+                    {t_aippt('v2.download_images')}
+                  </Button>
+                  {/* 进入编辑模式按钮 */}
+                  <Button
+                    variant="outline"
+                    className="h-11 rounded-xl px-6"
+                    onClick={enterDetailEditMode}
+                  >
+                    <WandSparkles className="mr-2 h-4 w-4" />
+                    {t_aippt('v2.edit')}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  {/* 编辑模式：显示保存和取消按钮 */}
+                  <Button
+                    variant="outline"
+                    className="h-11 rounded-xl px-8"
+                    onClick={cancelDetailEditChanges}
+                    disabled={isSavingVersionChange === 'all'}
+                  >
+                    <X className="mr-2 h-4 w-4" />
+                    {t_aippt('v2.cancel_edit')}
+                  </Button>
+                  <Button
+                    className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 h-11 rounded-xl px-8 font-bold text-white shadow-lg shadow-green-500/30"
+                    onClick={saveDetailEditChanges}
+                    disabled={isSavingVersionChange === 'all' || Object.keys(pendingVersionChanges).length === 0}
+                  >
+                    {isSavingVersionChange === 'all' ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        {t_aippt('v2.saving')}
+                      </>
+                    ) : (
+                      <>
+                        <Check className="mr-2 h-4 w-4" />
+                        {t_aippt('v2.save_changes')}
+                        {Object.keys(pendingVersionChanges).length > 0 && (
+                          <span className="ml-2 rounded-full bg-white/20 px-2 py-0.5 text-xs">
+                            {Object.keys(pendingVersionChanges).length}
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </Button>
+                </>
+              )}
+            </div>
+            
+            {/* 编辑模式提示 */}
+            {isDetailEditMode && (
+              <div className="bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400 flex items-center gap-3 rounded-xl border px-4 py-3">
+                <div className="relative flex h-2 w-2">
+                  <span className="bg-blue-400 absolute inline-flex h-full w-full animate-ping rounded-full opacity-75"></span>
+                  <span className="bg-blue-500 relative inline-flex h-2 w-2 rounded-full"></span>
+                </div>
+                <span className="text-sm">
+                  {t_aippt('v2.edit_mode_active_hint')}
+                </span>
+              </div>
+            )}
+            
+            {/* 水印控制区域 - 始终显示 */}
+            <div className="border-border/50 bg-muted/30 flex flex-wrap items-center gap-4 rounded-xl border px-4 py-3">
+              <div className="flex items-center gap-2">
+                <Label className="text-muted-foreground text-xs font-medium">
+                  {t_aippt('v2.watermark_control')}
+                </Label>
+                <Switch
+                  checked={showWatermark}
+                  onCheckedChange={setShowWatermark}
+                  className="scale-90"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-muted-foreground text-xs font-medium">
+                  {t_aippt('v2.watermark_text')}
+                </Label>
+                <Input
+                  value={watermarkText}
+                  onChange={(e) => setWatermarkText(e.target.value)}
+                  className="h-8 w-[200px] text-xs"
+                  placeholder="Gen by StudyHacks"
+                />
+              </div>
+              <div className="text-muted-foreground text-[11px]">
+                {t_aippt('v2.watermark_global_hint')}
+              </div>
+            </div>
           </div>
 
           {/* 幻灯片网格 */}
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {slides.map((slide, index) => (
-              <div key={slide.id} className="group space-y-3">
-                <div
-                  className="border-border/50 bg-card hover:border-primary/40 hover:shadow-primary/10 relative aspect-[16/9] cursor-zoom-in overflow-hidden rounded-2xl border transition-all hover:shadow-lg"
-                  onClick={() =>
-                    slide.imageUrl && setLightboxUrl(slide.imageUrl)
-                  }
-                >
-                  {slide.imageUrl ? (
-                    <>
-                      <Image
-                        src={slide.imageUrl}
-                        alt={slide.title}
-                        fill
-                        className="object-cover transition-transform group-hover:scale-105"
-                        unoptimized
-                        onClick={() => setLightboxUrl(slide.imageUrl!)}
-                      />
-                      {showWatermark && (
-                        <div className="absolute right-3 bottom-3 z-10 rounded bg-black/40 px-2 py-1 text-[10px] text-white/60 backdrop-blur-sm">
-                          {watermarkText}
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <div className="text-muted-foreground flex h-full flex-col items-center justify-center text-xs">
-                      <Images className="mb-2 h-8 w-8 opacity-20" />
-                      {t_aippt('v2.no_images_generated')}
+          <div className="grid gap-8 sm:grid-cols-1 lg:grid-cols-2">
+            {slides.map((slide, index) => {
+              const histories = slide.history || [];
+              const hasPendingChanges = pendingVersionChanges[slide.id];
+              
+              return (
+                <Card key={slide.id} className="bg-card/50 relative overflow-hidden p-4 dark:bg-white/[0.03]">
+                  {/* 未保存更改标记 - 只在编辑模式显示 */}
+                  {isDetailEditMode && hasPendingChanges && (
+                    <div className="absolute top-2 right-2 z-10">
+                      <div className="bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-medium backdrop-blur-sm">
+                        <span className="relative flex h-1.5 w-1.5">
+                          <span className="bg-amber-400 absolute inline-flex h-full w-full animate-ping rounded-full opacity-75"></span>
+                          <span className="bg-amber-500 relative inline-flex h-1.5 w-1.5 rounded-full"></span>
+                        </span>
+                        {t_aippt('v2.unsaved')}
+                      </div>
                     </div>
                   )}
-                  <div className="bg-background/80 text-foreground absolute top-3 left-3 flex h-6 w-6 items-center justify-center rounded-lg text-[10px] font-bold backdrop-blur-md">
-                    {index + 1}
+                  
+                  {/* 幻灯片编号和标题 */}
+                  <div className="mb-3 flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="text-muted-foreground mb-1 flex items-center gap-2 text-xs tracking-[0.2em] uppercase">
+                        <span className="text-foreground">
+                          {t_aippt('v2.page')} {index + 1}
+                        </span>
+                      </div>
+                      <h3 className="text-foreground line-clamp-1 text-base font-semibold">
+                        {slide.title}
+                      </h3>
+                      <p className="text-muted-foreground mt-1 line-clamp-2 text-xs leading-relaxed">
+                        {slide.content}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div className="px-1">
-                  <h3 className="group-hover:text-primary text-foreground line-clamp-1 text-sm font-semibold transition-colors">
-                    {slide.title}
-                  </h3>
-                  <p className="text-muted-foreground mt-1 line-clamp-2 text-xs leading-relaxed">
-                    {slide.content}
-                  </p>
-                </div>
-              </div>
-            ))}
+                  
+                  {/* 图片预览区 */}
+                  <div
+                    className="border-border bg-muted/50 relative aspect-[16/9] cursor-zoom-in overflow-hidden rounded-2xl border dark:bg-black/20"
+                    onClick={() => slide.imageUrl && setLightboxUrl(slide.imageUrl)}
+                  >
+                    {slide.imageUrl ? (
+                      <>
+                        <Image
+                          src={slide.imageUrl}
+                          alt={slide.title}
+                          fill
+                          className="object-cover transition-transform hover:scale-[1.02]"
+                          unoptimized
+                        />
+                        {showWatermark && (
+                          <div className="bg-background/80 text-muted-foreground absolute right-3 bottom-3 z-10 rounded px-2 py-1 text-[10px] font-medium backdrop-blur-sm dark:bg-black/40 dark:text-white/60">
+                            {watermarkText}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="text-muted-foreground flex h-full flex-col items-center justify-center text-xs">
+                        <Images className="mb-2 h-8 w-8 opacity-20" />
+                        {t_aippt('v2.no_images_generated')}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* 历史版本和操作按钮区域 - 只在编辑模式显示 */}
+                  {isDetailEditMode && (
+                    <div className="mt-3 flex items-center gap-2">
+                      {/* 历史版本缩略图滚动区域 */}
+                      <div className="flex-1 overflow-hidden">
+                        <div className="scrollbar-thin scrollbar-track-transparent scrollbar-thumb-muted-foreground/20 flex gap-2 overflow-x-auto pb-1">
+                          {/* 显示所有历史版本（新的在前） */}
+                          {histories.map((entry, historyIndex) => (
+                            <button
+                              key={entry.id}
+                              className={cn(
+                                'group hover:border-primary relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all',
+                                slide.imageUrl === entry.imageUrl
+                                  ? 'border-primary shadow-[0_0_0_2px_rgba(139,108,255,0.3)]'
+                                  : 'border-border/50 hover:border-primary/60'
+                              )}
+                              onClick={() => {
+                                // 切换到历史版本
+                                setSlides((prev) =>
+                                  prev.map((s) =>
+                                    s.id === slide.id
+                                      ? { ...s, imageUrl: entry.imageUrl }
+                                      : s
+                                  )
+                                );
+                                // 标记该 slide 有未保存的版本更改
+                                setPendingVersionChanges((prev) => ({
+                                  ...prev,
+                                  [slide.id]: true,
+                                }));
+                              }}
+                              title={`版本 ${histories.length - historyIndex} - ${new Date(entry.createdAt).toLocaleString()}`}
+                            >
+                              <img
+                                src={entry.imageUrl}
+                                alt={`版本 ${histories.length - historyIndex}`}
+                                className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                              />
+                              <div className="absolute right-0 bottom-0 left-0 bg-gradient-to-t from-black/70 to-transparent px-1 py-0.5">
+                                <span className="text-[8px] font-medium text-white">
+                                  v{histories.length - historyIndex}
+                                </span>
+                              </div>
+                              {slide.imageUrl === entry.imageUrl && (
+                                <div className="absolute top-0.5 right-0.5">
+                                  <Check className="text-primary h-3 w-3 drop-shadow-md" />
+                                </div>
+                              )}
+                            </button>
+                          ))}
+                          {/* 如果没有历史但有当前图片，显示原始版本 */}
+                          {histories.length === 0 && slide.imageUrl && (
+                            <div
+                              className="border-primary relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg border-2 shadow-[0_0_0_2px_rgba(139,108,255,0.3)]"
+                              title="原始版本"
+                            >
+                              <img
+                                src={slide.imageUrl}
+                                alt="原始版本"
+                                className="h-full w-full object-cover"
+                              />
+                              <div className="absolute right-0 bottom-0 left-0 bg-gradient-to-t from-black/70 to-transparent px-1 py-0.5">
+                                <span className="text-[8px] font-medium text-white">
+                                  原始
+                                </span>
+                              </div>
+                              <div className="absolute top-0.5 right-0.5">
+                                <Check className="text-primary h-3 w-3 drop-shadow-md" />
+                              </div>
+                            </div>
+                          )}
+                          {/* 如果没有图片，显示空状态 */}
+                          {!slide.imageUrl && histories.length === 0 && (
+                            <div className="text-muted-foreground/50 flex h-12 items-center text-xs">
+                              {t_aippt('v2.no_history')}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* 单张编辑按钮 - 编辑模式下可以打开Dialog进行局部编辑 */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-10 flex-shrink-0 rounded-xl px-4 text-xs"
+                        onClick={() => openEditDialog(slide)}
+                      >
+                        <WandSparkles className="mr-1.5 h-4 w-4" />
+                        {t_aippt('v2.regional_edit')}
+                      </Button>
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
           </div>
         </div>
       </ConsoleLayout>

@@ -214,3 +214,4 @@ if (hasReferenceImage) {
 **修复类型**: Prompt优化  
 **预期效果**: 风格相似度从 40% → 80%+
 
+
