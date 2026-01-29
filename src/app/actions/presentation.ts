@@ -168,8 +168,23 @@ export async function getUserPresentationsAction() {
 
     if (item.content) {
       try {
-        const slides = JSON.parse(item.content);
-        if (Array.isArray(slides)) {
+        const parsed = JSON.parse(item.content);
+        // 支持新旧两种格式
+        let slides: any[];
+        let meta: any = {};
+        let isNewFormat = false;
+
+        if (Array.isArray(parsed)) {
+          slides = parsed;
+        } else if (parsed?.slides && Array.isArray(parsed.slides)) {
+          slides = parsed.slides;
+          meta = parsed._meta || {};
+          isNewFormat = true;
+        } else {
+          slides = [];
+        }
+
+        if (slides.length > 0) {
           let hasChange = false;
 
           const normalizedSlides = slides.map((slide: any) => {
@@ -196,7 +211,15 @@ export async function getUserPresentationsAction() {
           }
 
           if (hasChange) {
-            nextContent = JSON.stringify(normalizedSlides);
+            // 保持原有格式
+            if (isNewFormat) {
+              nextContent = JSON.stringify({
+                slides: normalizedSlides,
+                _meta: meta,
+              });
+            } else {
+              nextContent = JSON.stringify(normalizedSlides);
+            }
             shouldUpdate = true;
           }
         }
@@ -250,8 +273,23 @@ export async function getPresentationAction(id: string) {
 
   if (record.content) {
     try {
-      const slides = JSON.parse(record.content);
-      if (Array.isArray(slides)) {
+      const parsed = JSON.parse(record.content);
+      // 支持新旧两种格式
+      let slides: any[];
+      let meta: any = {};
+      let isNewFormat = false;
+
+      if (Array.isArray(parsed)) {
+        slides = parsed;
+      } else if (parsed?.slides && Array.isArray(parsed.slides)) {
+        slides = parsed.slides;
+        meta = parsed._meta || {};
+        isNewFormat = true;
+      } else {
+        slides = [];
+      }
+
+      if (slides.length > 0) {
         let hasChange = false;
 
         const normalizedSlides = slides.map((slide: any) => {
@@ -277,7 +315,15 @@ export async function getPresentationAction(id: string) {
         }
 
         if (hasChange) {
-          nextContent = JSON.stringify(normalizedSlides);
+          // 保持原有格式
+          if (isNewFormat) {
+            nextContent = JSON.stringify({
+              slides: normalizedSlides,
+              _meta: meta,
+            });
+          } else {
+            nextContent = JSON.stringify(normalizedSlides);
+          }
           shouldUpdate = true;
         }
       }

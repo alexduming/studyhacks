@@ -81,6 +81,7 @@ import {
 import { Textarea } from '@/shared/components/ui/textarea';
 import { useAppContext } from '@/shared/contexts/app';
 import { calculatePPTXCoords, pxToPoint } from '@/shared/lib/ocr-utils';
+import { mergeTextBlocks } from '@/shared/lib/text-merge';
 import { cn } from '@/shared/lib/utils';
 
 type SlideStatus = 'pending' | 'generating' | 'completed' | 'failed';
@@ -171,18 +172,29 @@ export default function Slides2Client({
     if (initialPresentation?.content) {
       try {
         const parsed = JSON.parse(initialPresentation.content);
+        // 支持新格式（包含 _meta）和旧格式（直接是数组）
+        let slidesData: any[];
+        
         if (Array.isArray(parsed)) {
-          // 🎯 鲁棒性增强：修复状态不一致问题。如果已经有图片，状态应该是已完成
-          return parsed.map((s: any) => ({
-            ...s,
-            status:
-              s.imageUrl &&
-              (s.status === 'pending' || s.status === 'generating')
-                ? 'completed'
-                : s.status,
-          }));
+          // 旧格式：content 直接是数组
+          slidesData = parsed;
+        } else if (parsed?.slides && Array.isArray(parsed.slides)) {
+          // 新格式：content 是 { slides: [...], _meta: {...} }
+          slidesData = parsed.slides;
+        } else {
+          console.error('Invalid slides data format:', parsed);
+          return [];
         }
-        return parsed;
+
+        // 🎯 鲁棒性增强：修复状态不一致问题。如果已经有图片，状态应该是已完成
+        return slidesData.map((s: any) => ({
+          ...s,
+          status:
+            s.imageUrl &&
+            (s.status === 'pending' || s.status === 'generating')
+              ? 'completed'
+              : s.status,
+        }));
       } catch (error) {
         console.error('Failed to parse saved presentation', error);
       }
@@ -206,7 +218,20 @@ export default function Slides2Client({
     'left'
   );
   const [watermarkText, setWatermarkText] = useState('Gen by StudyHacks');
-  const [showWatermark, setShowWatermark] = useState(true);
+  const [showWatermark, setShowWatermark] = useState(() => {
+    // 从 initialPresentation 的 content 中读取水印设置
+    if (initialPresentation?.content) {
+      try {
+        const data = JSON.parse(initialPresentation.content);
+        if (data?._meta?.showWatermark !== undefined) {
+          return data._meta.showWatermark;
+        }
+      } catch (e) {
+        // 解析失败，使用默认值
+      }
+    }
+    return true; // 默认显示水印
+  });
   const [isEnhancedMode, setIsEnhancedMode] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isParsingFiles, setIsParsingFiles] = useState(false);
@@ -1453,8 +1478,9 @@ export default function Slides2Client({
 
             // 🎯 增量保存：每生成一张，就同步更新一次数据库，防止预览失效
             if (recordId) {
+              const contentWithMeta = buildContentWithMeta(workingSlides);
               await updatePresentationAction(recordId, {
-                content: JSON.stringify(workingSlides),
+                content: JSON.stringify(contentWithMeta),
                 thumbnailUrl:
                   workingSlides.find((s) => s.imageUrl)?.imageUrl || resultUrl,
               });
@@ -1533,9 +1559,10 @@ export default function Slides2Client({
         );
         const finalThumbnail = firstSuccess?.imageUrl;
 
+        const contentWithMeta = buildContentWithMeta(workingSlides);
         await updatePresentationAction(recordId, {
           status: finalStatus,
-          content: JSON.stringify(workingSlides),
+          content: JSON.stringify(contentWithMeta),
           thumbnailUrl: finalThumbnail || undefined,
         });
       }
@@ -1854,7 +1881,13 @@ export default function Slides2Client({
           const imgWidth = ocrData.imageSize?.width || 1920;
           const imgHeight = ocrData.imageSize?.height || 1080;
 
-          for (const block of ocrData.blocks) {
+          // 🎯 智能合并文本块 (多行变段落)
+          const rawBlocks = ocrData.blocks || [];
+          const mergedBlocks = mergeTextBlocks(rawBlocks);
+          
+          console.log(`[PPTX Export] 文本块合并: ${rawBlocks.length} -> ${mergedBlocks.length}`);
+
+          for (const block of mergedBlocks) {
             try {
               // 计算坐标
               const coords = calculatePPTXCoords(
@@ -1881,29 +1914,27 @@ export default function Slides2Client({
               const fontFace = hasChineseChar ? 'Microsoft YaHei' : 'Arial';
 
               // 添加文本框
-              // 注意：坐标直接使用 OCR 返回的精确位置，不添加额外系数
-              // align 和 valign 设为 left/top 确保文字从左上角开始
               pptSlide.addText(block.text, {
                 x: coords.x,
                 y: coords.y,
-                w: coords.w || 1,
-                h: coords.h || 0.5,
+                w: coords.w || 1, // 如果是多行，宽度取最宽的
+                h: coords.h || 0.5, // 高度已在 merge 时累加
                 fontSize: fontSizePt,
                 fontFace: fontFace,
                 color: colorHex,
                 bold: block.isBold || false,
                 align: 'left', // 始终左对齐，因为 OCR bbox 已经是精确位置
                 valign: 'top',
-                autoFit: false,
-                lineSpacingMultiple: block.lineHeight || 1.0,
+                autoFit: true, // 开启自动适应，处理多行溢出
+                wrap: true,    // 允许换行
+                lineSpacingMultiple: 1.1, // 稍微增加行间距
                 fill: { type: 'none' },
               });
             } catch (textError) {
-              // 静默处理，不显示给用户
               console.warn(`Text box add failed: ${block.text?.substring(0, 20)}...`);
             }
           }
-          addLog(`✅ ${t_aippt('v2.pptx_export.text_added', { count: ocrData.blocks.length })}`);
+          addLog(`✅ ${t_aippt('v2.pptx_export.text_added', { count: mergedBlocks.length })}`);
         }
 
         // 完成这张幻灯片
@@ -2900,6 +2931,45 @@ export default function Slides2Client({
   };
 
   /**
+   * 🎯 构建包含元数据的 content JSON
+   * 统一处理新旧格式，确保 _meta 始终存在
+   */
+  const buildContentWithMeta = (slidesData: SlideData[]) => {
+    return {
+      slides: slidesData,
+      _meta: {
+        showWatermark,
+        watermarkText,
+      },
+    };
+  };
+
+  /**
+   * 🎯 保存水印设置到数据库
+   */
+  const saveWatermarkSettings = async (newShowWatermark: boolean) => {
+    if (!presentationRecordId) return;
+
+    try {
+      const currentSlides = slidesRef.current;
+      const contentWithMeta = {
+        slides: currentSlides,
+        _meta: {
+          showWatermark: newShowWatermark,
+          watermarkText,
+        },
+      };
+
+      await updatePresentationAction(presentationRecordId, {
+        content: JSON.stringify(contentWithMeta),
+      });
+      console.log('[WatermarkSettings] 水印设置已保存到数据库:', { showWatermark: newShowWatermark });
+    } catch (error) {
+      console.error('[WatermarkSettings] 保存水印设置失败:', error);
+    }
+  };
+
+  /**
    * 🎯 进入详情页编辑模式
    */
   const enterDetailEditMode = () => {
@@ -3566,10 +3636,11 @@ export default function Slides2Client({
                             try {
                               // 使用 ref 获取最新的 slides 状态
                               const currentSlides = slidesRef.current;
+                              const contentWithMeta = buildContentWithMeta(currentSlides);
                               await updatePresentationAction(
                                 presentationRecordId,
                                 {
-                                  content: JSON.stringify(currentSlides),
+                                  content: JSON.stringify(contentWithMeta),
                                 }
                               );
                               console.log('[Edit] 历史记录已保存到数据库');
@@ -3762,12 +3833,23 @@ export default function Slides2Client({
                 </Label>
                 <Switch
                   checked={showWatermark}
-                  onCheckedChange={setShowWatermark}
+                  onCheckedChange={(checked) => {
+                    setShowWatermark(checked);
+                    saveWatermarkSettings(checked);
+                  }}
                   className="scale-90"
                 />
               </div>
-              <div className="flex items-center gap-2">
-                <Label className="text-muted-foreground text-xs font-medium">
+              {/* 水印文字输入框 - 带动画效果 */}
+              <div 
+                className={cn(
+                  "flex items-center gap-2 transition-all duration-300 ease-in-out",
+                  showWatermark 
+                    ? "opacity-100 max-w-full" 
+                    : "opacity-0 max-w-0 overflow-hidden"
+                )}
+              >
+                <Label className="text-muted-foreground text-xs font-medium whitespace-nowrap">
                   {t_aippt('v2.watermark_text')}
                 </Label>
                 <Input
@@ -3775,6 +3857,7 @@ export default function Slides2Client({
                   onChange={(e) => setWatermarkText(e.target.value)}
                   className="h-8 w-[200px] text-xs"
                   placeholder="Gen by StudyHacks"
+                  disabled={!showWatermark}
                 />
               </div>
               <div className="text-muted-foreground text-[11px]">
