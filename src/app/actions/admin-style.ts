@@ -4,6 +4,7 @@ import fs from 'fs/promises';
 import path from 'path';
 
 import {
+  generateVisualSpecPrompt,
   PPT_STYLES,
   PPTStyle,
   VisualSpecification,
@@ -144,6 +145,7 @@ JSON 结构：
 export async function generateAdminStylePreviewAction(params: {
   prompt: string;
   imageUrls: string[];
+  visualSpec?: VisualSpecification;
   previewTheme?: string; // 可自定义的预览主题，默认为"Studyhacks产品介绍"
 }) {
   // 使用自定义主题或默认主题
@@ -161,18 +163,22 @@ export async function generateAdminStylePreviewAction(params: {
 
 【风格参考要求 - 重要】
 - 参考图仅作为视觉风格参考（配色、字体风格、布局结构、装饰元素风格等）
-- 必须基于"Studyhacks产品介绍"主题创作全新的封面设计
+- 必须基于"${theme}"主题创作全新的封面设计
 - 禁止直接复制或复刻参考图的内容、文字、图标或具体布局
 - 只学习参考图的"设计DNA"（如配色方案、视觉质感、排版风格），但内容必须完全原创
 - 参考图的作用是告诉你"应该用什么风格"，而不是"应该画什么内容"
 
 【生成原则】
 - 保持参考图的视觉风格一致性（配色、字体、质感）
-- 但内容、布局、元素必须围绕"Studyhacks产品介绍"主题全新创作`;
+- 但内容、布局、元素必须围绕"${theme}"主题全新创作`;
 
-  // 将风格提示词与内容提示词结合
-  // 注意：createKieTaskAction 会在最后追加参考图提示，但我们的明确指令应该优先
-  const finalPrompt = `${contentPrompt}\n\n【风格描述】${params.prompt}`;
+  // 将视觉规范 JSON 转换为提示词
+  const visualSpecPrompt = params.visualSpec
+    ? generateVisualSpecPrompt(params.visualSpec)
+    : '';
+
+  // 将风格提示词、视觉规范提示词与内容提示词结合
+  const finalPrompt = `${contentPrompt}\n\n【风格描述】${params.prompt}${visualSpecPrompt}`;
 
   return await createKieTaskAction({
     prompt: finalPrompt,

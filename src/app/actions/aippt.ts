@@ -638,11 +638,20 @@ export async function createKieTaskAction(params: {
     if (style && params.isPromptEnhancedMode !== false) {
       styleSuffix = style.prompt;
 
-      // 🎯 关键：如果风格定义了参考图，将其加入参考图列表
+      // 🎯 关键：如果风格定义了参考图或预览图，将其加入参考图列表
+      let styleRefs: string[] = [];
+      if (style.preview) {
+        styleRefs.push(resolveImageUrl(style.preview));
+      }
       if (style.refs && style.refs.length > 0) {
-        const styleRefs = style.refs.map(resolveImageUrl);
+        styleRefs = [...styleRefs, ...style.refs.map(resolveImageUrl)];
+      }
+
+      if (styleRefs.length > 0) {
+        // 去重
+        const uniqueStyleRefs = Array.from(new Set(styleRefs));
         // 将风格参考图放在前面
-        referenceImages = [...styleRefs, ...referenceImages];
+        referenceImages = [...uniqueStyleRefs, ...referenceImages];
       }
     }
   }

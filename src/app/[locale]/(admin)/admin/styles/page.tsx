@@ -135,6 +135,7 @@ export default function AdminStylesPage() {
     try {
       const task = await generateAdminStylePreviewAction({
         prompt: analysisResult.prompt,
+        visualSpec: analysisResult.visualSpec,
         imageUrls: images,
         previewTheme: previewTheme,
       });
@@ -188,7 +189,8 @@ export default function AdminStylesPage() {
       const newStyle: PPTStyle = {
         ...styleInfo,
         preview: previewImageUrl,
-        refs: images,
+        // 🎯 关键：将生成的预览图也加入参考图列表，确保未来生成时 AI 能参考到
+        refs: [previewImageUrl, ...images],
         prompt: analysisResult.prompt,
         visualSpec: analysisResult.visualSpec,
       };
@@ -210,6 +212,25 @@ export default function AdminStylesPage() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleEdit = (style: PPTStyle) => {
+    setStyleInfo({
+      id: style.id,
+      title: style.title,
+      tagline: style.tagline,
+    });
+    // 过滤掉 preview 图，避免 refs 列表重复堆叠
+    const originalRefs =
+      style.refs?.filter((url) => url !== style.preview) || [];
+    setImages(originalRefs);
+    setAnalysisResult({
+      prompt: style.prompt,
+      visualSpec: style.visualSpec || {},
+    });
+    setPreviewImageUrl(style.preview);
+    setStep(4); // 直接跳到最后一步，用户可以按需返回
+    setIsAddModalOpen(true);
   };
 
   const handleDelete = async (id: string) => {
@@ -235,7 +256,7 @@ export default function AdminStylesPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-1 flex-col bg-[#05080F]">
+    <div className="flex min-h-screen flex-1 flex-col bg-background">
       <Header
         crumbs={[
           { title: 'Admin', url: '/admin' },
@@ -261,7 +282,7 @@ export default function AdminStylesPage() {
             {localStyles.map((style) => (
               <Card
                 key={style.id}
-                className="group hover:border-primary/50 relative overflow-hidden border-white/10 bg-white/5 shadow-xl transition-all duration-300"
+                className="group hover:border-primary/50 relative overflow-hidden border-border bg-card shadow-xl transition-all duration-300"
               >
                 <div className="aspect-[16/10] overflow-hidden">
                   <img
@@ -272,38 +293,36 @@ export default function AdminStylesPage() {
                 </div>
                 <div className="p-4">
                   <div className="mb-2 flex items-center justify-between">
-                    <h3 className="text-lg font-bold text-white">
+                    <h3 className="text-lg font-bold text-foreground">
                       {style.title}
                     </h3>
                     <Badge
                       variant="outline"
-                      className="border-white/10 text-[10px] text-white/40"
+                      className="border-border text-[10px] text-muted-foreground"
                     >
                       {style.id}
                     </Badge>
                   </div>
-                  <p className="mb-4 line-clamp-2 text-sm text-white/60">
+                  <p className="mb-4 line-clamp-2 text-sm text-muted-foreground">
                     {style.tagline}
                   </p>
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] tracking-widest text-white/30 uppercase">
+                    <span className="text-[10px] tracking-widest text-muted-foreground/60 uppercase">
                       {style.refs?.length || 0} REFS
                     </span>
                     <div className="flex gap-2">
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-white/40 hover:text-white"
-                        onClick={() => {
-                          /* TODO: Edit */
-                        }}
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                        onClick={() => handleEdit(style)}
                       >
                         <Edit3 className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-white/40 hover:bg-red-500/10 hover:text-red-500"
+                        className="h-8 w-8 text-muted-foreground hover:bg-red-500/10 hover:text-red-500"
                         onClick={() => handleDelete(style.id)}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -325,16 +344,16 @@ export default function AdminStylesPage() {
         >
           <DialogContent
             size="full"
-            className="flex h-[80vh] w-[80vw] max-w-none flex-col overflow-hidden border-white/10 bg-[#0A1427] p-0 text-white"
+            className="flex h-[80vh] w-[80vw] max-w-none flex-col overflow-hidden border-border bg-background p-0 text-foreground"
           >
-            <DialogHeader className="border-b border-white/5 px-6 pt-6 pb-4">
+            <DialogHeader className="border-b border-border px-6 pt-6 pb-4">
               <div className="flex items-center justify-between">
                 <div>
                   <DialogTitle className="flex items-center gap-2 text-2xl font-bold">
                     <Sparkles className="text-primary h-6 w-6" />
-                    添加新风格到库
+                    {styleInfo.id ? '编辑风格' : '添加新风格到库'}
                   </DialogTitle>
-                  <DialogDescription className="mt-1 text-white/40">
+                  <DialogDescription className="mt-1 text-muted-foreground">
                     通过 AI 分析图片并自动生成提示词与视觉规范
                   </DialogDescription>
                 </div>
@@ -345,7 +364,7 @@ export default function AdminStylesPage() {
                     setIsAddModalOpen(false);
                     resetForm();
                   }}
-                  className="text-white/40 hover:text-white"
+                  className="text-muted-foreground hover:text-foreground"
                 >
                   <X className="h-5 w-5" />
                 </Button>
@@ -362,7 +381,7 @@ export default function AdminStylesPage() {
                           ? 'bg-primary text-white'
                           : step > s
                             ? 'bg-primary/30 text-primary'
-                            : 'bg-white/5 text-white/30'
+                            : 'bg-muted text-muted-foreground'
                       )}
                     >
                       {step > s ? <CheckCircle2 className="h-4 w-4" /> : s}
@@ -371,7 +390,7 @@ export default function AdminStylesPage() {
                       <div
                         className={cn(
                           'h-0.5 flex-1',
-                          step > s ? 'bg-primary' : 'bg-white/5'
+                          step > s ? 'bg-primary' : 'bg-muted'
                         )}
                       />
                     )}
@@ -386,14 +405,14 @@ export default function AdminStylesPage() {
               {step === 1 && (
                 <div className="grid h-full grid-cols-3 gap-6">
                   <div className="col-span-2 space-y-4">
-                    <Label className="text-base font-medium text-white/80">
+                    <Label className="text-base font-medium text-foreground/80">
                       上传参考图片
                     </Label>
                     <div className="grid grid-cols-3 gap-4">
                       {images.map((url, i) => (
                         <div
                           key={i}
-                          className="group hover:border-primary/50 relative aspect-video overflow-hidden rounded-lg border border-white/10 transition-all"
+                          className="group hover:border-primary/50 relative aspect-video overflow-hidden rounded-lg border border-border transition-all"
                         >
                           <img
                             src={url}
@@ -411,13 +430,13 @@ export default function AdminStylesPage() {
                           </button>
                         </div>
                       ))}
-                      <label className="hover:border-primary/50 hover:bg-primary/5 flex aspect-video cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-white/10 transition-all">
+                      <label className="hover:border-primary/50 hover:bg-primary/5 flex aspect-video cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-border transition-all">
                         {isUploading ? (
                           <Loader2 className="text-primary h-8 w-8 animate-spin" />
                         ) : (
                           <>
-                            <Plus className="h-8 w-8 text-white/40" />
-                            <span className="mt-2 text-xs text-white/40">
+                            <Plus className="h-8 w-8 text-muted-foreground/40" />
+                            <span className="mt-2 text-xs text-muted-foreground/40">
                               上传图片
                             </span>
                           </>
@@ -452,7 +471,7 @@ export default function AdminStylesPage() {
                       )}
                     </Button>
                     {images.length > 0 && (
-                      <p className="mt-3 text-center text-sm text-white/50">
+                      <p className="mt-3 text-center text-sm text-muted-foreground/50">
                         已上传 {images.length} 张图片
                       </p>
                     )}
@@ -464,7 +483,7 @@ export default function AdminStylesPage() {
               {step === 2 && (
                 <div className="grid h-full grid-cols-2 gap-6">
                   <div className="space-y-4">
-                    <Label className="text-base font-medium text-white/80">
+                    <Label className="text-base font-medium text-foreground/80">
                       提示词
                     </Label>
                     <Textarea
@@ -474,16 +493,16 @@ export default function AdminStylesPage() {
                           prev ? { ...prev, prompt: e.target.value } : null
                         )
                       }
-                      className="min-h-[200px] resize-none border-white/10 bg-white/5 text-sm leading-relaxed"
+                      className="min-h-[200px] resize-none border-border bg-muted/30 text-sm leading-relaxed"
                       placeholder="AI 生成的提示词..."
                     />
                   </div>
                   <div className="flex flex-col space-y-4">
-                    <Label className="text-base font-medium text-white/80">
+                    <Label className="text-base font-medium text-foreground/80">
                       视觉规范
                     </Label>
-                    <ScrollArea className="flex-1 rounded-lg border border-white/10 bg-black/40 p-4 font-mono text-xs">
-                      <pre className="text-primary/80">
+                    <ScrollArea className="flex-1 rounded-lg border border-border bg-muted/50 p-4 font-mono text-xs">
+                      <pre className="text-primary">
                         {JSON.stringify(analysisResult?.visualSpec, null, 2)}
                       </pre>
                     </ScrollArea>
@@ -512,7 +531,7 @@ export default function AdminStylesPage() {
                         <Button
                           onClick={() => setPreviewImageUrl(null)}
                           variant="outline"
-                          className="h-11 border-white/10 hover:bg-white/5"
+                          className="h-11 border-border hover:bg-muted"
                         >
                           重新生成
                         </Button>
@@ -528,16 +547,16 @@ export default function AdminStylesPage() {
                     <div className="w-full max-w-2xl space-y-6">
                       <div className="space-y-4">
                         <div className="space-y-2">
-                          <Label className="text-base font-medium text-white/80">
+                          <Label className="text-base font-medium text-foreground/80">
                             预览主题
                           </Label>
                           <Input
                             value={previewTheme}
                             onChange={(e) => setPreviewTheme(e.target.value)}
                             placeholder="例如：Studyhacks产品介绍"
-                            className="h-11 border-white/10 bg-white/5"
+                            className="h-11 border-border bg-muted/30"
                           />
-                          <p className="text-xs text-white/50">
+                          <p className="text-xs text-muted-foreground/50">
                             这将作为生成预览图的主题内容，参考图仅作为视觉风格参考
                           </p>
                         </div>
@@ -548,7 +567,7 @@ export default function AdminStylesPage() {
                         </div>
                         <div className="space-y-2">
                           <h4 className="text-2xl font-bold">生成预览图</h4>
-                          <p className="mx-auto max-w-md text-sm text-white/50">
+                          <p className="mx-auto max-w-md text-sm text-muted-foreground/50">
                             使用 KIE 引擎生成"{previewTheme}
                             "封面，验证风格还原度
                           </p>
@@ -581,11 +600,12 @@ export default function AdminStylesPage() {
                 <div className="grid h-full grid-cols-2 gap-6">
                   <div className="space-y-5">
                     <div className="space-y-2">
-                      <Label className="text-base font-medium text-white/80">
+                      <Label className="text-base font-medium text-foreground/80">
                         风格 ID
                       </Label>
                       <Input
                         value={styleInfo.id}
+                        disabled={!!styleInfo.id}
                         onChange={(e) =>
                           setStyleInfo((prev) => ({
                             ...prev,
@@ -593,11 +613,11 @@ export default function AdminStylesPage() {
                           }))
                         }
                         placeholder="如：minimal_blue"
-                        className="h-11 border-white/10 bg-white/5"
+                        className="h-11 border-border bg-muted/30"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-base font-medium text-white/80">
+                      <Label className="text-base font-medium text-foreground/80">
                         风格标题
                       </Label>
                       <Input
@@ -609,11 +629,11 @@ export default function AdminStylesPage() {
                           }))
                         }
                         placeholder="如：科技简约"
-                        className="h-11 border-white/10 bg-white/5"
+                        className="h-11 border-border bg-muted/30"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-base font-medium text-white/80">
+                      <Label className="text-base font-medium text-foreground/80">
                         副标题 / 描述
                       </Label>
                       <Input
@@ -625,7 +645,7 @@ export default function AdminStylesPage() {
                           }))
                         }
                         placeholder="一句话概括核心特征"
-                        className="h-11 border-white/10 bg-white/5"
+                        className="h-11 border-border bg-muted/30"
                       />
                     </div>
                   </div>
@@ -633,11 +653,11 @@ export default function AdminStylesPage() {
                     <div className="bg-primary/5 border-primary/20 rounded-xl border p-6">
                       <div className="mb-3 flex items-center gap-2">
                         <CheckCircle2 className="text-primary h-5 w-5" />
-                        <h4 className="text-lg font-bold text-white">
+                        <h4 className="text-lg font-bold text-foreground">
                           准备就绪
                         </h4>
                       </div>
-                      <p className="text-sm text-white/50">
+                      <p className="text-sm text-muted-foreground/50">
                         点击下方按钮保存到风格库，配置将立即生效
                       </p>
                     </div>
@@ -665,14 +685,14 @@ export default function AdminStylesPage() {
             </div>
 
             {/* 底部操作栏 */}
-            <div className="flex items-center justify-between border-t border-white/5 bg-white/5 px-6 py-4">
+            <div className="flex items-center justify-between border-t border-border bg-muted/50 px-6 py-4">
               <Button
                 variant="ghost"
                 onClick={() => {
                   setIsAddModalOpen(false);
                   resetForm();
                 }}
-                className="text-white/50 hover:bg-white/5 hover:text-white"
+                className="text-muted-foreground/50 hover:bg-muted hover:text-foreground"
               >
                 取消
               </Button>
@@ -681,7 +701,7 @@ export default function AdminStylesPage() {
                   <Button
                     variant="outline"
                     onClick={() => setStep((prev) => prev - 1)}
-                    className="border-white/10 hover:bg-white/5"
+                    className="border-border hover:bg-muted"
                   >
                     上一步
                   </Button>

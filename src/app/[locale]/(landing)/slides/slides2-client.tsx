@@ -1370,17 +1370,24 @@ export default function Slides2Client({
 
       const sharedStyleImages = [];
 
-      // 🎯 核心优化：如果选择了内置风格，自动提取该风格的参考图
+      // 🎯 核心优化：如果选择了内置风格，自动提取该风格的预览图和参考图
       if (selectedStyleId) {
         const style = SLIDES2_STYLE_PRESETS.find(
           (s) => s.id === selectedStyleId
         );
-        if (style?.refs && style.refs.length > 0) {
-          sharedStyleImages.push(...style.refs);
-          console.log(
-            `[风格库] 已自动添加风格「${style.title}」的参考图:`,
-            style.refs
-          );
+        if (style) {
+          // 同时添加预览图和参考图
+          const allRefs = [];
+          if (style.preview) allRefs.push(style.preview);
+          if (style.refs && style.refs.length > 0) allRefs.push(...style.refs);
+
+          if (allRefs.length > 0) {
+            sharedStyleImages.push(...allRefs);
+            console.log(
+              `[风格库] 已自动添加风格「${style.title}」的参考图 (预览图 + 原始参考):`,
+              allRefs
+            );
+          }
         }
       }
 

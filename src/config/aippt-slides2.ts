@@ -425,6 +425,84 @@ export const PPT_STYLES: PPTStyle[] = [
         "shadow": "0px 2px 4px rgba(0, 0, 0, 0.1)"
       }
     }
+  },
+  {
+    "id": "minimalism_line_1",
+    "title": "现代线条简约",
+    "tagline": "线性插画",
+    "preview": "https://tempfile.aiquickdraw.com/workers/nano/image_1769753422948_x9t4qu.png",
+    "refs": [
+      "https://tempfile.aiquickdraw.com/workers/nano/image_1769753422948_x9t4qu.png",
+      "https://cdn.studyhacks.ai/studyhacks-ppt/styles/temp-1769752273084/1769752284159-1bff9435-e0f0-4c0d-b23e-17d8fdd9c0f3.jpg",
+      "https://cdn.studyhacks.ai/studyhacks-ppt/styles/temp-1769752273084/1769752675303-a9d9d485-18b2-4fbe-ae9d-c2596efa90df.jpg"
+    ],
+    "prompt": "你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调手绘插画、简洁排版和信息图表的清晰呈现。",
+    "visualSpec": {
+      "header": {
+        "position": "top-left" as const,
+        "fontSize": "42-48px",
+        "fontWeight": "bold" as const,
+        "color": "#222222",
+        "fontFamily": "sans-serif"
+      },
+      "background": {
+        "type": "solid" as const,
+        "value": "#FFFFFF",
+        "texture": null
+      },
+      "body": {
+        "fontSize": "16-18px",
+        "lineHeight": "1.5",
+        "color": "#333333",
+        "fontFamily": "sans-serif"
+      },
+      "accentColor": "#e74c3c",
+      "secondaryColor": "#3498db",
+      "container": {
+        "borderRadius": "12px",
+        "backgroundColor": "#F5F5F5",
+        "shadow": "slight drop shadow"
+      }
+    }
+  },
+  {
+    "id": "document_1",
+    "title": "现代扁平插画",
+    "tagline": "现代扁平插画",
+    "preview": "https://tempfile.aiquickdraw.com/workers/nano/image_1769753671408_jpskdi.png",
+    "refs": [
+      "https://tempfile.aiquickdraw.com/workers/nano/image_1769753671408_jpskdi.png",
+      "https://cdn.studyhacks.ai/studyhacks-ppt/styles/temp-1769753546556/1769753629561-1a44f0c2-7e5f-40ea-8897-415db43a34d5.png",
+      "https://cdn.studyhacks.ai/studyhacks-ppt/styles/temp-1769753546556/1769753630573-ce490e3e-e3c1-4ae3-a381-b6843160ee83.png"
+    ],
+    "prompt": "你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调鲜明的撞色、手绘感图形、复古文字。",
+    "visualSpec": {
+      "header": {
+        "position": "top-left" as const,
+        "fontSize": "42-48px",
+        "fontWeight": "bold" as const,
+        "color": "#F0E68C",
+        "fontFamily": "Bebas Neue"
+      },
+      "background": {
+        "type": "solid" as const,
+        "value": "#6495ED",
+        "texture": null
+      },
+      "body": {
+        "fontSize": "16-18px",
+        "lineHeight": "1.5",
+        "color": "#000000",
+        "fontFamily": "Arial"
+      },
+      "accentColor": "#F0E68C",
+      "secondaryColor": "#FFFFFF",
+      "container": {
+        "borderRadius": "0",
+        "backgroundColor": "rgba(255,255,255,0.8)",
+        "shadow": "none"
+      }
+    }
   }
 ];
 
