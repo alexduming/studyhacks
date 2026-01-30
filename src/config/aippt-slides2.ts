@@ -2,7 +2,7 @@ export const AUTO_MODE_PREFIX = '[AUTO_PAGE]';
 
 export interface VisualSpecification {
   header?: {
-    position: 'top-left' | 'top-right' | 'top-center';
+    position: 'top-left' | 'top-right' | 'top-center' | 'variable';
     offsetY?: string;
     fontSize?: string;
     fontWeight?: 'normal' | 'bold' | 'extra-bold';
