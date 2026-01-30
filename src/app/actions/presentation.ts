@@ -239,10 +239,13 @@ export async function getUserPresentationsAction() {
         .where(eq(presentation.id, item.id));
     }
 
+    // 🔧 将 Date 对象转换为 ISO 字符串，避免 Server Components 序列化错误
     patchedResults.push({
       ...item,
       content: nextContent,
       thumbnailUrl: nextThumbnail,
+      createdAt: item.createdAt ? item.createdAt.toISOString() : null,
+      updatedAt: item.updatedAt ? item.updatedAt.toISOString() : null,
     });
   }
 
@@ -343,10 +346,13 @@ export async function getPresentationAction(id: string) {
       .where(eq(presentation.id, record.id));
   }
 
+  // 🔧 将 Date 对象转换为 ISO 字符串，避免 Server Components 序列化错误
   return {
     ...record,
     content: nextContent,
     thumbnailUrl: nextThumbnail,
+    createdAt: record.createdAt ? record.createdAt.toISOString() : null,
+    updatedAt: record.updatedAt ? record.updatedAt.toISOString() : null,
   };
 }
 
