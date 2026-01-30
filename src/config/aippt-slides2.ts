@@ -383,6 +383,48 @@ export const PPT_STYLES: PPTStyle[] = [
         "shadow": "0px 4px 12px rgba(0, 0, 0, 0.25)"
       }
     }
+  },
+  {
+    "id": "Y2K",
+    "title": "Y2K 数字复古",
+    "tagline": "千禧复古",
+    "preview": "https://tempfile.aiquickdraw.com/workers/nano/image_1769751424269_fqtspl.png",
+    "refs": [
+      "https://cdn.studyhacks.ai/studyhacks-ppt/styles/temp-1769750745625/1769750891450-ffd524b6-2a74-4bb0-96f8-fd11ff98c120.png",
+      "https://cdn.studyhacks.ai/studyhacks-ppt/styles/temp-1769750745625/1769750892555-c4a48f0b-83bc-48ea-af22-c02eb4d88cec.png",
+      "https://cdn.studyhacks.ai/studyhacks-ppt/styles/temp-1769750745625/1769750892964-252064cb-a8b5-4499-ae1d-f51852469c54.png",
+      "https://cdn.studyhacks.ai/studyhacks-ppt/styles/temp-1769750745625/1769750893272-a7da00d0-f1ee-4cb6-9244-4ef6f1242e8c.png",
+      "https://cdn.studyhacks.ai/studyhacks-ppt/styles/temp-1769750745625/1769750893635-97d80b49-5f5a-42e6-b9ce-1c88a6aa6a16.png",
+      "https://cdn.studyhacks.ai/studyhacks-ppt/styles/temp-1769750745625/1769750893989-2e85f7a7-7675-48de-a1c7-701db73d5916.png"
+    ],
+    "prompt": "你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调 Windows 95 复古风，糖果色，卡通手绘元素，不规则排版。",
+    "visualSpec": {
+      "header": {
+        "position": "variable" as const,
+        "fontSize": "36-60px",
+        "fontWeight": "bold" as const,
+        "color": "#4A90E2",
+        "fontFamily": "Arial, sans-serif"
+      },
+      "background": {
+        "type": "solid" as const,
+        "value": "#FFFFF0",
+        "texture": "none"
+      },
+      "body": {
+        "fontSize": "14-16px",
+        "lineHeight": "1.4",
+        "color": "#000000",
+        "fontFamily": "Arial, sans-serif"
+      },
+      "accentColor": "#FF69B4",
+      "secondaryColor": "#90EE90",
+      "container": {
+        "borderRadius": "4px",
+        "backgroundColor": "#FFFFFF",
+        "shadow": "0px 2px 4px rgba(0, 0, 0, 0.1)"
+      }
+    }
   }
 ];
 
