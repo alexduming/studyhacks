@@ -258,6 +258,7 @@
       "ocr_timeout": "❌ OCR 识别超时或网络错误"
     },
     "membership_required": "此功能仅限会员使用",
-    "vip_feature_only": "会员专属功能"
+    "vip_feature_only": "会员专属功能",
+    "login_required": "请先登录后再使用此功能"
   }
 }

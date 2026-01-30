@@ -328,7 +328,12 @@ export default function Slides2Client({
     },
     onError: (error) => {
       console.error('Outline error', error);
-      toast.error(t_aippt('v2.pagination_failed') + error.message);
+      const errorMsg = error.message || '';
+      if (errorMsg.includes('Unauthorized') || errorMsg.includes('401')) {
+        toast.error(t_aippt('v2.login_required'));
+      } else {
+        toast.error(t_aippt('v2.pagination_failed') + errorMsg);
+      }
     },
   });
 
@@ -435,6 +440,12 @@ export default function Slides2Client({
   }, [slides.length]); // 只在 slides 数量变化时运行（避免频繁更新）
 
   const handleApiError = (error: any) => {
+    const errorMsg = error?.message || '';
+    if (errorMsg.includes('Unauthorized') || errorMsg.includes('401')) {
+      toast.error(t_aippt('v2.login_required'));
+      return;
+    }
+
     const message =
       typeof error?.message === 'string'
         ? error.message
@@ -1311,6 +1322,11 @@ export default function Slides2Client({
   };
 
   const handleAutoPaginate = async () => {
+    if (!user) {
+      toast.error(t_aippt('v2.login_required'));
+      return;
+    }
+
     try {
       setSlides([]);
       setCompletion('');
@@ -1328,6 +1344,11 @@ export default function Slides2Client({
   };
 
   const handleStartGeneration = async () => {
+    if (!user) {
+      toast.error(t_aippt('v2.login_required'));
+      return;
+    }
+
     // 🚀 立即设置生成状态，提升 UI 响应速度，防止重复点击
     setIsGenerating(true);
     try {
@@ -1812,72 +1833,56 @@ export default function Slides2Client({
           }
         }
 
-        // 🎯 步骤4: 将背景添加到 PPTX
-        updateProgress(i, t_aippt('v2.pptx_export.building_slide'), 2);
-        addLog(t_aippt('v2.pptx_export.building_slide'));
-        console.log(
-          `[PPTX Export] 步骤4: 处理背景图片 URL:`,
-          backgroundUrl.substring(0, 80)
-        );
+          // 🎯 步骤4: 将背景添加到 PPTX (增强稳定性)
+          updateProgress(i, t_aippt('v2.pptx_export.building_slide'), 2);
+          addLog(t_aippt('v2.pptx_export.building_slide'));
 
-        try {
-          // 转换为 base64
-          let imageData: string;
-          if (backgroundUrl.startsWith('data:')) {
-            imageData = backgroundUrl.split(',')[1];
-          } else {
-            let buffer: ArrayBuffer;
-            console.log(`[PPTX Export] 开始下载图片...`);
-
-            try {
-              if (
-                !backgroundUrl.startsWith('/') &&
-                !backgroundUrl.startsWith(window.location.origin)
-              ) {
-                buffer = await urlToBuffer(backgroundUrl);
-              } else {
-                const response = await fetch(backgroundUrl);
-                if (!response.ok) {
-                  throw new Error(`HTTP ${response.status}`);
+          try {
+            let imageData: string = '';
+            
+            // 增强：如果是处理后的远程图片，先尝试直接 fetch，失败再走代理
+            const fetchImageAsBase64 = async (url: string): Promise<string> => {
+              try {
+                const response = await fetch(url, { mode: 'cors' });
+                if (!response.ok) throw new Error('CORS fetch failed');
+                const buffer = await response.arrayBuffer();
+                return Buffer.from(buffer).toString('base64');
+              } catch (e) {
+                // 如果直接获取失败（CORS），走代理
+                console.log(`[PPTX Export] 尝试走代理下载: ${url.substring(0, 50)}`);
+                const buffer = await urlToBuffer(url);
+                const uint8 = new Uint8Array(buffer);
+                let binary = '';
+                for (let j = 0; j < uint8.length; j += 8192) {
+                  binary += String.fromCharCode.apply(null, Array.from(uint8.subarray(j, j + 8192)));
                 }
-                buffer = await response.arrayBuffer();
+                return btoa(binary);
               }
-              console.log(
-                `[PPTX Export] 图片下载完成，大小:`,
-                buffer.byteLength
-              );
-            } catch (downloadError) {
-              console.error(`[PPTX Export] 图片下载失败:`, downloadError);
-              throw downloadError;
+            };
+
+            if (backgroundUrl.startsWith('data:')) {
+              imageData = backgroundUrl.split(',')[1];
+            } else {
+              imageData = await fetchImageAsBase64(backgroundUrl);
             }
 
-            const bytes = new Uint8Array(buffer);
-            let binary = '';
-            const chunkSize = 0x8000;
-            for (let j = 0; j < bytes.length; j += chunkSize) {
-              const chunk = bytes.subarray(
-                j,
-                Math.min(j + chunkSize, bytes.length)
-              );
-              binary += String.fromCharCode.apply(null, Array.from(chunk));
+            if (imageData) {
+              pptSlide.addImage({
+                data: `image/png;base64,${imageData}`,
+                x: 0,
+                y: 0,
+                w: slideWidth,
+                h: slideHeight,
+              });
+              console.log(`[PPTX Export] ✅ 幻灯片 ${i + 1} 背景添加成功`);
+            } else {
+              throw new Error('Image data is empty');
             }
-            imageData = btoa(binary);
+          } catch (imgError) {
+            console.error(`[PPTX Export] ❌ 幻灯片 ${i + 1} 背景处理失败:`, imgError);
+            addLog(`⚠️ ${t_aippt('v2.pptx_export.processing_failed')}`);
+            // 最后的保底：如果背景实在加不上，至少保证文字能加上
           }
-
-          // 添加背景图片
-          pptSlide.addImage({
-            data: `image/png;base64,${imageData}`,
-            x: 0,
-            y: 0,
-            w: slideWidth,
-            h: slideHeight,
-          });
-          console.log(`[PPTX Export] ✅ 背景图片已添加`);
-        } catch (imgError) {
-          console.error(`[PPTX Export] ❌ 背景图片处理失败:`, imgError);
-          addLog(`⚠️ ${t_aippt('v2.pptx_export.processing_failed')}`);
-          // 继续处理，不中断导出
-        }
 
         // 🎯 步骤5: 添加可编辑文本框
         updateProgress(i, t_aippt('v2.pptx_export.adding_text'), 3);
