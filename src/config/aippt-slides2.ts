@@ -447,8 +447,7 @@ export const PPT_STYLES: PPTStyle[] = [
       },
       "background": {
         "type": "solid" as const,
-        "value": "#FFFFFF",
-        "texture": null
+        "value": "#FFFFFF"
       },
       "body": {
         "fontSize": "16-18px",
@@ -486,8 +485,7 @@ export const PPT_STYLES: PPTStyle[] = [
       },
       "background": {
         "type": "solid" as const,
-        "value": "#6495ED",
-        "texture": null
+        "value": "#6495ED"
       },
       "body": {
         "fontSize": "16-18px",
