@@ -128,8 +128,27 @@ export async function POST(request: NextRequest) {
 
     if (record.content) {
       try {
-        const slides = JSON.parse(record.content);
-        if (Array.isArray(slides)) {
+        const parsed = JSON.parse(record.content);
+
+        // 🎯 支持新格式（包含 _meta）和旧格式（直接是数组）
+        // 非程序员解释：
+        // - 旧格式：content 直接是 slides 数组
+        // - 新格式：content 是 { slides: [...], _meta: {...} }
+        let slides: any[];
+        let hasMeta = false;
+        let metaData: any = null;
+
+        if (Array.isArray(parsed)) {
+          slides = parsed;
+        } else if (parsed?.slides && Array.isArray(parsed.slides)) {
+          slides = parsed.slides;
+          hasMeta = true;
+          metaData = parsed._meta || {};
+        } else {
+          slides = [];
+        }
+
+        if (slides.length > 0) {
           const nextSlides = slides.map((slide: any) => {
             if (slide?.id === slideId) {
               updated = true;
@@ -150,7 +169,12 @@ export async function POST(request: NextRequest) {
             nextThumbnail = firstImage;
           }
 
-          nextContent = JSON.stringify(nextSlides);
+          // 🎯 保持原有格式输出
+          if (hasMeta) {
+            nextContent = JSON.stringify({ slides: nextSlides, _meta: metaData });
+          } else {
+            nextContent = JSON.stringify(nextSlides);
+          }
         }
       } catch {
         // JSON 解析失败时忽略，避免影响主流程

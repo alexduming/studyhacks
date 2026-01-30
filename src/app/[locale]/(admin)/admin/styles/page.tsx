@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   analyzeStyleAction,
@@ -23,9 +23,12 @@ import {
   Upload,
   X,
 } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import {
+  getLocalizedTagline,
+  getLocalizedTitle,
   PPT_STYLES,
   PPTStyle,
   VisualSpecification,
@@ -50,6 +53,8 @@ import { cn } from '@/shared/lib/utils';
 
 export default function AdminStylesPage() {
   const router = useRouter();
+  const locale = useLocale(); // 🌐 获取当前语言环境
+  const t = useTranslations('admin.styles'); // 🌐 获取翻译函数
   const [localStyles, setLocalStyles] = useState<PPTStyle[]>(PPT_STYLES);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [step, setStep] = useState(1);
@@ -67,6 +72,12 @@ export default function AdminStylesPage() {
   const [analysisResult, setAnalysisResult] = useState<{
     prompt: string;
     visualSpec: VisualSpecification;
+    styleMeta?: {
+      id: string;
+      title: string;
+      tagline: string;
+    };
+    suggestedThemes?: string[];
   } | null>(null);
 
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
@@ -78,16 +89,16 @@ export default function AdminStylesPage() {
     tagline: '',
   });
 
-  // Handle Image Upload
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+  // 通用上传函数：支持 File 数组上传
+  // 将上传逻辑抽取出来，供文件选择和粘贴共用
+  const uploadFiles = useCallback(async (files: File[]) => {
+    if (files.length === 0) return;
 
     setIsUploading(true);
     const formData = new FormData();
     formData.append('path', tempFolder);
-    for (let i = 0; i < files.length; i++) {
-      formData.append('files', files[i]);
+    for (const file of files) {
+      formData.append('files', file);
     }
 
     try {
@@ -98,31 +109,87 @@ export default function AdminStylesPage() {
       const data = await res.json();
       if (data.code === 0) {
         setImages((prev) => [...prev, ...data.data.urls]);
-        toast.success('图片上传成功');
+        toast.success(t('messages.upload_success'));
       } else {
-        toast.error(data.message || '上传失败');
+        toast.error(data.message || t('messages.upload_failed'));
       }
     } catch (error) {
-      toast.error('上传过程中出错');
+      toast.error(t('messages.upload_error'));
     } finally {
       setIsUploading(false);
     }
+  }, [tempFolder]);
+
+  // Handle Image Upload (文件选择)
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    await uploadFiles(Array.from(files));
   };
+
+  // Handle Paste Upload (Ctrl+V 粘贴上传)
+  // 监听全局粘贴事件，当对话框打开且在第一步时，支持粘贴图片
+  useEffect(() => {
+    const handlePaste = async (e: ClipboardEvent) => {
+      // 只在对话框打开且在第一步（上传图片步骤）时处理粘贴
+      if (!isAddModalOpen || step !== 1) return;
+
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      const imageFiles: File[] = [];
+      for (const item of items) {
+        // 检查是否为图片类型
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) {
+            imageFiles.push(file);
+          }
+        }
+      }
+
+      if (imageFiles.length > 0) {
+        e.preventDefault(); // 阻止默认粘贴行为
+        await uploadFiles(imageFiles);
+      }
+    };
+
+    // 添加全局粘贴事件监听
+    document.addEventListener('paste', handlePaste);
+    return () => {
+      document.removeEventListener('paste', handlePaste);
+    };
+  }, [isAddModalOpen, step, uploadFiles]);
 
   // 1. 分析风格
   const handleAnalyze = async () => {
     if (images.length === 0) {
-      toast.error('请先上传参考图');
+      toast.error(t('messages.upload_required'));
       return;
     }
     setIsAnalyzing(true);
     try {
       const result = await analyzeStyleAction(images);
       setAnalysisResult(result);
+
+      // 自动填充风格信息（如果 AI 返回了 styleMeta）
+      if (result.styleMeta) {
+        setStyleInfo({
+          id: result.styleMeta.id || '',
+          title: result.styleMeta.title || '',
+          tagline: result.styleMeta.tagline || '',
+        });
+      }
+
+      // 设置第一个建议主题作为默认预览主题
+      if (result.suggestedThemes && result.suggestedThemes.length > 0) {
+        setPreviewTheme(result.suggestedThemes[0]);
+      }
+
       setStep(2);
-      toast.success('风格分析完成');
+      toast.success(t('messages.analysis_complete'));
     } catch (error: any) {
-      toast.error(error.message || '分析失败');
+      toast.error(error.message || t('messages.analysis_failed'));
     } finally {
       setIsAnalyzing(false);
     }
@@ -144,11 +211,11 @@ export default function AdminStylesPage() {
       // 实际上 createKieTaskAction 返回的是 task_id，需要轮询。
       // 为了管理员体验，我们在这里可以加一个简单的轮询逻辑
       if (task.task_id) {
-        toast.info('正在生成预览图，请稍候...');
+        toast.info(t('messages.preview_generating'));
         pollKieTask(task.task_id);
       }
     } catch (error: any) {
-      toast.error(error.message || '预览生成失败');
+      toast.error(error.message || t('messages.preview_failed'));
       setIsGenerating(false);
     }
   };
@@ -159,9 +226,9 @@ export default function AdminStylesPage() {
       if (data.status === 'completed' && data.imageUrl) {
         setPreviewImageUrl(data.imageUrl);
         setIsGenerating(false);
-        toast.success('预览图已生成');
+        toast.success(t('messages.preview_complete'));
       } else if (data.status === 'failed') {
-        toast.error('生成预览图失败');
+        toast.error(t('messages.preview_failed'));
         setIsGenerating(false);
       } else {
         // 继续轮询
@@ -180,7 +247,7 @@ export default function AdminStylesPage() {
       !analysisResult ||
       !previewImageUrl
     ) {
-      toast.error('请填写完整信息，并确保已生成预览图');
+      toast.error(t('messages.fill_required'));
       return;
     }
 
@@ -204,21 +271,22 @@ export default function AdminStylesPage() {
         }
         return [...prev, newStyle];
       });
-      toast.success('风格已添加到风格库');
+      toast.success(t('messages.style_saved'));
       setIsAddModalOpen(false);
       resetForm();
     } catch (error: any) {
-      toast.error(error.message || '保存失败');
+      toast.error(error.message || t('messages.save_failed'));
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleEdit = (style: PPTStyle) => {
+    // 🌐 编辑时使用本地化的标题和描述作为默认值
     setStyleInfo({
       id: style.id,
-      title: style.title,
-      tagline: style.tagline,
+      title: getLocalizedTitle(style, locale),
+      tagline: getLocalizedTagline(style, locale),
     });
     // 过滤掉 preview 图，避免 refs 列表重复堆叠
     const originalRefs =
@@ -234,14 +302,14 @@ export default function AdminStylesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('确定要删除这个风格吗？此操作不可撤销且会修改配置文件。'))
+    if (!confirm(t('messages.delete_confirm')))
       return;
     try {
       await deleteStyleFromConfigAction(id);
       setLocalStyles((prev) => prev.filter((s) => s.id !== id));
-      toast.success('风格已删除');
+      toast.success(t('messages.delete_success'));
     } catch (error: any) {
-      toast.error(error.message || '删除失败');
+      toast.error(error.message || t('messages.delete_failed'));
     }
   };
 
@@ -265,14 +333,14 @@ export default function AdminStylesPage() {
       />
       <Main>
         <MainHeader
-          title="风格库管理"
+          title={t('page_title')}
           extraActions={
             <Button
               onClick={() => setIsAddModalOpen(true)}
               className="bg-primary hover:bg-primary/90"
             >
               <Plus className="mr-2 h-4 w-4" />
-              添加新风格
+              {t('add_new_style')}
             </Button>
           }
         />
@@ -287,14 +355,14 @@ export default function AdminStylesPage() {
                 <div className="aspect-[16/10] overflow-hidden">
                   <img
                     src={style.preview}
-                    alt={style.title}
+                    alt={getLocalizedTitle(style, locale)}
                     className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                 </div>
                 <div className="p-4">
                   <div className="mb-2 flex items-center justify-between">
                     <h3 className="text-lg font-bold text-foreground">
-                      {style.title}
+                      {getLocalizedTitle(style, locale)}
                     </h3>
                     <Badge
                       variant="outline"
@@ -304,7 +372,7 @@ export default function AdminStylesPage() {
                     </Badge>
                   </div>
                   <p className="mb-4 line-clamp-2 text-sm text-muted-foreground">
-                    {style.tagline}
+                    {getLocalizedTagline(style, locale)}
                   </p>
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] tracking-widest text-muted-foreground/60 uppercase">
@@ -344,30 +412,20 @@ export default function AdminStylesPage() {
         >
           <DialogContent
             size="full"
-            className="flex h-[80vh] w-[80vw] max-w-none flex-col overflow-hidden border-border bg-background p-0 text-foreground"
+            className="flex h-[90vh] w-[85vw] max-w-none flex-col overflow-hidden border-border bg-background p-0 text-foreground"
           >
             <DialogHeader className="border-b border-border px-6 pt-6 pb-4">
               <div className="flex items-center justify-between">
                 <div>
                   <DialogTitle className="flex items-center gap-2 text-2xl font-bold">
                     <Sparkles className="text-primary h-6 w-6" />
-                    {styleInfo.id ? '编辑风格' : '添加新风格到库'}
+                    {styleInfo.id ? t('edit_style') : t('add_style_dialog_title')}
                   </DialogTitle>
                   <DialogDescription className="mt-1 text-muted-foreground">
-                    通过 AI 分析图片并自动生成提示词与视觉规范
+                    {t('dialog_description')}
                   </DialogDescription>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => {
-                    setIsAddModalOpen(false);
-                    resetForm();
-                  }}
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-5 w-5" />
-                </Button>
+                {/* 🎯 移除重复的关闭按钮 - DialogContent 默认已有关闭按钮 */}
               </div>
 
               {/* 简化的步骤指示器 */}
@@ -406,7 +464,7 @@ export default function AdminStylesPage() {
                 <div className="grid h-full grid-cols-3 gap-6">
                   <div className="col-span-2 space-y-4">
                     <Label className="text-base font-medium text-foreground/80">
-                      上传参考图片
+                      {t('step_1.upload_title')}
                     </Label>
                     <div className="grid grid-cols-3 gap-4">
                       {images.map((url, i) => (
@@ -437,7 +495,7 @@ export default function AdminStylesPage() {
                           <>
                             <Plus className="h-8 w-8 text-muted-foreground/40" />
                             <span className="mt-2 text-xs text-muted-foreground/40">
-                              上传图片
+                              {t('step_1.upload_placeholder')}
                             </span>
                           </>
                         )}
@@ -461,18 +519,18 @@ export default function AdminStylesPage() {
                       {isAnalyzing ? (
                         <>
                           <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                          分析中...
+                          {t('step_1.analyzing')}
                         </>
                       ) : (
                         <>
                           <Sparkles className="mr-2 h-5 w-5" />
-                          分析风格
+                          {t('step_1.analyze_button')}
                         </>
                       )}
                     </Button>
                     {images.length > 0 && (
                       <p className="mt-3 text-center text-sm text-muted-foreground/50">
-                        已上传 {images.length} 张图片
+                        {t('step_1.uploaded_count', { count: images.length })}
                       </p>
                     )}
                   </div>
@@ -484,7 +542,7 @@ export default function AdminStylesPage() {
                 <div className="grid h-full grid-cols-2 gap-6">
                   <div className="space-y-4">
                     <Label className="text-base font-medium text-foreground/80">
-                      提示词
+                      {t('step_2.prompt_label')}
                     </Label>
                     <Textarea
                       value={analysisResult?.prompt}
@@ -494,24 +552,18 @@ export default function AdminStylesPage() {
                         )
                       }
                       className="min-h-[200px] resize-none border-border bg-muted/30 text-sm leading-relaxed"
-                      placeholder="AI 生成的提示词..."
+                      placeholder={t('step_2.prompt_placeholder')}
                     />
                   </div>
                   <div className="flex flex-col space-y-4">
                     <Label className="text-base font-medium text-foreground/80">
-                      视觉规范
+                      {t('step_2.visual_spec_label')}
                     </Label>
                     <ScrollArea className="flex-1 rounded-lg border border-border bg-muted/50 p-4 font-mono text-xs">
                       <pre className="text-primary">
                         {JSON.stringify(analysisResult?.visualSpec, null, 2)}
                       </pre>
                     </ScrollArea>
-                    <Button
-                      onClick={() => setStep(3)}
-                      className="bg-primary hover:bg-primary/90 mt-auto h-11"
-                    >
-                      下一步：生成预览
-                    </Button>
                   </div>
                 </div>
               )}
@@ -533,13 +585,13 @@ export default function AdminStylesPage() {
                           variant="outline"
                           className="h-11 border-border hover:bg-muted"
                         >
-                          重新生成
+                          {t('step_3.regenerate')}
                         </Button>
                         <Button
                           onClick={() => setStep(4)}
                           className="bg-primary hover:bg-primary/90 h-11"
                         >
-                          满意，继续
+                          {t('step_3.continue')}
                         </Button>
                       </div>
                     </div>
@@ -548,16 +600,36 @@ export default function AdminStylesPage() {
                       <div className="space-y-4">
                         <div className="space-y-2">
                           <Label className="text-base font-medium text-foreground/80">
-                            预览主题
+                            {t('step_3.preview_theme_label')}
                           </Label>
                           <Input
                             value={previewTheme}
                             onChange={(e) => setPreviewTheme(e.target.value)}
-                            placeholder="例如：Studyhacks产品介绍"
+                            placeholder={t('step_3.preview_theme_placeholder')}
                             className="h-11 border-border bg-muted/30"
                           />
+                          {/* 建议主题快捷选择 */}
+                          {analysisResult?.suggestedThemes && analysisResult.suggestedThemes.length > 0 && (
+                            <div className="flex flex-wrap gap-2 pt-2">
+                              <span className="text-xs text-muted-foreground/50">{t('step_3.suggested_themes')}</span>
+                              {analysisResult.suggestedThemes.map((theme, index) => (
+                                <button
+                                  key={index}
+                                  onClick={() => setPreviewTheme(theme)}
+                                  className={cn(
+                                    "rounded-full px-3 py-1 text-xs transition-all",
+                                    previewTheme === theme
+                                      ? "bg-primary text-white"
+                                      : "bg-muted hover:bg-primary/20 text-muted-foreground hover:text-foreground"
+                                  )}
+                                >
+                                  {theme}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                           <p className="text-xs text-muted-foreground/50">
-                            这将作为生成预览图的主题内容，参考图仅作为视觉风格参考
+                            {t('step_3.theme_hint')}
                           </p>
                         </div>
                       </div>
@@ -566,10 +638,9 @@ export default function AdminStylesPage() {
                           <ImageIcon className="text-primary h-16 w-16" />
                         </div>
                         <div className="space-y-2">
-                          <h4 className="text-2xl font-bold">生成预览图</h4>
+                          <h4 className="text-2xl font-bold">{t('step_3.generate_title')}</h4>
                           <p className="mx-auto max-w-md text-sm text-muted-foreground/50">
-                            使用 KIE 引擎生成"{previewTheme}
-                            "封面，验证风格还原度
+                            {t('step_3.generate_description', { theme: previewTheme })}
                           </p>
                         </div>
                         <Button
@@ -580,12 +651,12 @@ export default function AdminStylesPage() {
                           {isGenerating ? (
                             <>
                               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                              生成中...
+                              {t('step_3.generating')}
                             </>
                           ) : (
                             <>
                               <ImageIcon className="mr-2 h-5 w-5" />
-                              生成预览图
+                              {t('step_3.generate_button')}
                             </>
                           )}
                         </Button>
@@ -601,7 +672,7 @@ export default function AdminStylesPage() {
                   <div className="space-y-5">
                     <div className="space-y-2">
                       <Label className="text-base font-medium text-foreground/80">
-                        风格 ID
+                        {t('step_4.style_id_label')}
                       </Label>
                       <Input
                         value={styleInfo.id}
@@ -612,13 +683,13 @@ export default function AdminStylesPage() {
                             id: e.target.value,
                           }))
                         }
-                        placeholder="如：minimal_blue"
+                        placeholder={t('step_4.style_id_placeholder')}
                         className="h-11 border-border bg-muted/30"
                       />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-base font-medium text-foreground/80">
-                        风格标题
+                        {t('step_4.style_title_label')}
                       </Label>
                       <Input
                         value={styleInfo.title}
@@ -628,13 +699,13 @@ export default function AdminStylesPage() {
                             title: e.target.value,
                           }))
                         }
-                        placeholder="如：科技简约"
+                        placeholder={t('step_4.style_title_placeholder')}
                         className="h-11 border-border bg-muted/30"
                       />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-base font-medium text-foreground/80">
-                        副标题 / 描述
+                        {t('step_4.tagline_label')}
                       </Label>
                       <Input
                         value={styleInfo.tagline}
@@ -644,7 +715,7 @@ export default function AdminStylesPage() {
                             tagline: e.target.value,
                           }))
                         }
-                        placeholder="一句话概括核心特征"
+                        placeholder={t('step_4.tagline_placeholder')}
                         className="h-11 border-border bg-muted/30"
                       />
                     </div>
@@ -654,11 +725,11 @@ export default function AdminStylesPage() {
                       <div className="mb-3 flex items-center gap-2">
                         <CheckCircle2 className="text-primary h-5 w-5" />
                         <h4 className="text-lg font-bold text-foreground">
-                          准备就绪
+                          {t('step_4.ready_title')}
                         </h4>
                       </div>
                       <p className="text-sm text-muted-foreground/50">
-                        点击下方按钮保存到风格库，配置将立即生效
+                        {t('step_4.ready_description')}
                       </p>
                     </div>
                     <Button
@@ -670,12 +741,12 @@ export default function AdminStylesPage() {
                       {isSaving ? (
                         <>
                           <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                          保存中...
+                          {t('step_4.saving')}
                         </>
                       ) : (
                         <>
                           <Save className="mr-2 h-5 w-5" />
-                          添加到风格库
+                          {t('step_4.save_button')}
                         </>
                       )}
                     </Button>
@@ -694,7 +765,7 @@ export default function AdminStylesPage() {
                 }}
                 className="text-muted-foreground/50 hover:bg-muted hover:text-foreground"
               >
-                取消
+                {t('actions.cancel')}
               </Button>
               <div className="flex gap-3">
                 {step > 1 && (
@@ -703,7 +774,17 @@ export default function AdminStylesPage() {
                     onClick={() => setStep((prev) => prev - 1)}
                     className="border-border hover:bg-muted"
                   >
-                    上一步
+                    {t('actions.previous')}
+                  </Button>
+                )}
+                {/* Step 2 时显示【下一步：生成预览】按钮 */}
+                {step === 2 && (
+                  <Button
+                    onClick={() => setStep(3)}
+                    className="bg-primary hover:bg-primary/90"
+                  >
+                    <ChevronRight className="mr-1 h-4 w-4" />
+                    {t('actions.next_preview')}
                   </Button>
                 )}
               </div>

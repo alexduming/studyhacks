@@ -44,6 +44,7 @@ import { toast } from 'sonner';
 
 import { useSession } from '@/core/auth/client';
 import {
+  getLocalizedTitle,
   PPT_RATIOS,
   PPT_SIZES,
   SLIDES2_STYLE_PRESETS,
@@ -555,6 +556,7 @@ export default function Slides2Client({
   // 非程序员解释：
   // - 生成后的图片先用临时链接快速展示
   // - 后台把图片保存到 R2，并把数据库里的链接替换为永久链接
+  // - 🔧 修复：持久化成功后，更新本地 slides 状态，确保 UI 显示永久链接
   const persistSlideImageToR2 = async (slideId: string, imageUrl: string) => {
     if (!presentationRecordId || !imageUrl) return;
     // 如果已经是永久链接，就不用重复保存
@@ -562,7 +564,7 @@ export default function Slides2Client({
       return;
     }
     try {
-      await fetch('/api/presentation/replace-slide-image', {
+      const response = await fetch('/api/presentation/replace-slide-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -571,6 +573,19 @@ export default function Slides2Client({
           imageUrl,
         }),
       });
+
+      const result = await response.json();
+
+      // 🎯 关键修复：如果持久化成功，更新本地 slides 状态
+      // 这样 UI 显示的就是永久链接，而不是临时链接
+      if (result.success && result.data?.url && result.data.url !== imageUrl) {
+        console.log(`[R2 Persist] 图片已持久化: ${slideId} -> ${result.data.url}`);
+        setSlides((prev) =>
+          prev.map((s) =>
+            s.id === slideId ? { ...s, imageUrl: result.data.url } : s
+          )
+        );
+      }
     } catch (error) {
       console.warn('持久化到 R2 失败:', error);
     }
@@ -1405,7 +1420,7 @@ export default function Slides2Client({
           if (allRefs.length > 0) {
             sharedStyleImages.push(...allRefs);
             console.log(
-              `[风格库] 已自动添加风格「${style.title}」的参考图 (预览图 + 原始参考):`,
+              `[风格库] 已自动添加风格「${getLocalizedTitle(style, locale)}」的参考图 (预览图 + 原始参考):`,
               allRefs
             );
           }
@@ -2520,7 +2535,7 @@ export default function Slides2Client({
                   {style.preview && (
                     <img
                       src={style.preview}
-                      alt={style.title}
+                      alt={getLocalizedTitle(style, locale)}
                       className={cn(
                         'h-full w-full object-cover transition-transform duration-500',
                         selectedStyleId === style.id
@@ -2538,7 +2553,7 @@ export default function Slides2Client({
                     )}
                   >
                     <p className="text-foreground truncate text-[11px] font-medium">
-                      {style.title}
+                      {getLocalizedTitle(style, locale)}
                     </p>
                   </div>
                   {selectedStyleId === style.id && (
