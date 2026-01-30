@@ -8,6 +8,23 @@ import { presentation } from '@/config/db/schema';
 import { getSignUser as getCurrentUser } from '@/shared/models/user';
 
 /**
+ * 🔧 Presentation 数据类型（序列化后，用于 Server -> Client 传输）
+ * Date 对象已转换为 ISO 字符串，避免 React Server Components 序列化错误
+ */
+export type SerializedPresentation = {
+  id: string;
+  userId: string;
+  title: string;
+  content: string | null;
+  status: string;
+  kieTaskId: string | null;
+  styleId: string | null;
+  thumbnailUrl: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
+/**
  * Create a new presentation record
  */
 export async function createPresentationAction(params: {
@@ -143,7 +160,7 @@ export async function updateSlideImageAction(
 /**
  * Get user's presentations list
  */
-export async function getUserPresentationsAction() {
+export async function getUserPresentationsAction(): Promise<SerializedPresentation[]> {
   const user = await getCurrentUser();
   if (!user) {
     return [];
@@ -159,7 +176,7 @@ export async function getUserPresentationsAction() {
   // - 如果 content 里已经有图片链接，但状态仍是 generating/pending，就自动修正为 completed
   // - 如果 thumbnailUrl 为空，就尝试从 content 里找第一张图作为封面
   // 这样用户在 /library/presentations 里就能看到真实封面和完成状态
-  const patchedResults: typeof results = [];
+  const patchedResults: SerializedPresentation[] = [];
 
   for (const item of results) {
     let nextContent = item.content;
@@ -241,8 +258,13 @@ export async function getUserPresentationsAction() {
 
     // 🔧 将 Date 对象转换为 ISO 字符串，避免 Server Components 序列化错误
     patchedResults.push({
-      ...item,
+      id: item.id,
+      userId: item.userId,
+      title: item.title,
       content: nextContent,
+      status: item.status,
+      kieTaskId: item.kieTaskId,
+      styleId: item.styleId,
       thumbnailUrl: nextThumbnail,
       createdAt: item.createdAt ? item.createdAt.toISOString() : null,
       updatedAt: item.updatedAt ? item.updatedAt.toISOString() : null,
@@ -255,7 +277,7 @@ export async function getUserPresentationsAction() {
 /**
  * Get single presentation details
  */
-export async function getPresentationAction(id: string) {
+export async function getPresentationAction(id: string): Promise<SerializedPresentation | undefined> {
   const user = await getCurrentUser();
   if (!user) {
     throw new Error('Unauthorized');
@@ -348,8 +370,13 @@ export async function getPresentationAction(id: string) {
 
   // 🔧 将 Date 对象转换为 ISO 字符串，避免 Server Components 序列化错误
   return {
-    ...record,
+    id: record.id,
+    userId: record.userId,
+    title: record.title,
     content: nextContent,
+    status: record.status,
+    kieTaskId: record.kieTaskId,
+    styleId: record.styleId,
     thumbnailUrl: nextThumbnail,
     createdAt: record.createdAt ? record.createdAt.toISOString() : null,
     updatedAt: record.updatedAt ? record.updatedAt.toISOString() : null,

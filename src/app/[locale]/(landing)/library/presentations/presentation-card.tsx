@@ -26,7 +26,7 @@ interface PresentationCardProps {
     id: string;
     title: string;
     status: string;
-    createdAt: Date;
+    createdAt: string | null;  // 🔧 Server Action 返回 ISO 字符串
     thumbnailUrl: string | null;
     content: string | null;
   };
@@ -112,7 +112,9 @@ export function PresentationCard({ item }: PresentationCardProps) {
             <CardFooter className="text-muted-foreground flex items-center justify-between p-4 pt-0 text-sm">
               <div className="flex items-center">
                 <Clock className="mr-1 h-3 w-3" />
-                {new Date(item.createdAt).toLocaleDateString()}
+                {item.createdAt
+                  ? new Date(item.createdAt).toLocaleDateString()
+                  : '-'}
               </div>
             </CardFooter>
           </Card>

@@ -126,8 +126,8 @@ interface PresentationData {
   status: string;
   styleId?: string | null;
   thumbnailUrl?: string | null;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string | null;  // 🔧 Server Action 返回 ISO 字符串，避免序列化错误
+  updatedAt: string | null;  // 🔧 Server Action 返回 ISO 字符串，避免序列化错误
   userId: string;
 }
 
