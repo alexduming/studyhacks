@@ -12,7 +12,12 @@ export default async function AiTasksPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ page?: number; pageSize?: number; type?: string }>;
+  searchParams: Promise<{
+    page?: number;
+    pageSize?: number;
+    type?: string;
+    q?: string;
+  }>;
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
@@ -26,7 +31,7 @@ export default async function AiTasksPage({
 
   const t = await getTranslations('admin.ai-tasks');
 
-  const { page: pageNum, pageSize, type } = await searchParams;
+  const { page: pageNum, pageSize, type, q: search } = await searchParams;
   const page = pageNum || 1;
   const limit = pageSize || 30;
 
@@ -37,6 +42,7 @@ export default async function AiTasksPage({
 
   const total = await getAITasksCount({
     mediaType: type,
+    search,
   });
 
   const aiTasks = await getAITasks({
@@ -44,11 +50,17 @@ export default async function AiTasksPage({
     page,
     limit,
     mediaType: type,
+    search,
   });
 
   const table: Table = {
     columns: [
       { name: 'id', title: t('fields.task_id'), type: 'copy' },
+      {
+        name: 'transactionNo',
+        title: t('fields.transaction_no') || 'Transaction No',
+        type: 'copy',
+      },
       { name: 'createdAt', title: t('fields.created_at'), type: 'time' },
       { name: 'user', title: t('fields.user'), type: 'user' },
       { name: 'status', title: t('fields.status'), type: 'label' },
@@ -76,37 +88,37 @@ export default async function AiTasksPage({
       title: t('list.tabs.all'),
       name: 'all',
       url: '/admin/ai-tasks',
-      is_active: true,
+      is_active: !type,
     },
     {
       title: t('list.tabs.music'),
       name: 'music',
       url: '/admin/ai-tasks?type=music',
-      is_active: false,
+      is_active: type === 'music',
     },
     {
       title: t('list.tabs.image'),
       name: 'image',
       url: '/admin/ai-tasks?type=image',
-      is_active: false,
+      is_active: type === 'image',
     },
     {
       title: t('list.tabs.video'),
       name: 'video',
       url: '/admin/ai-tasks?type=video',
-      is_active: false,
+      is_active: type === 'video',
     },
     {
       title: t('list.tabs.audio'),
       name: 'audio',
       url: '/admin/ai-tasks?type=audio',
-      is_active: false,
+      is_active: type === 'audio',
     },
     {
       title: t('list.tabs.text'),
       name: 'text',
       url: '/admin/ai-tasks?type=text',
-      is_active: false,
+      is_active: type === 'text',
     },
   ];
 
@@ -114,7 +126,16 @@ export default async function AiTasksPage({
     <>
       <Header crumbs={crumbs} />
       <Main>
-        <MainHeader title={t('list.title')} tabs={tabs} actions={actions} />
+        <MainHeader
+          title={t('list.title')}
+          tabs={tabs}
+          actions={actions}
+          search={{
+            placeholder: t('list.search_placeholder') || 'Search Task ID or Transaction No',
+            name: 'q',
+            value: search,
+          }}
+        />
         <TableCard table={table} />
       </Main>
     </>

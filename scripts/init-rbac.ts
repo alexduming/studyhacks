@@ -400,7 +400,6 @@ async function initializeRBAC() {
 
           for (const permId of matchingPerms) {
             await db().insert(rolePermission).values({
-              id: getUuid(),
               roleId,
               permissionId: permId,
             });
@@ -409,7 +408,6 @@ async function initializeRBAC() {
           const permId = createdPermissions[permCode];
           if (permId) {
             await db().insert(rolePermission).values({
-              id: getUuid(),
               roleId,
               permissionId: permId,
             });
@@ -450,10 +448,13 @@ async function initializeRBAC() {
           );
 
         if (!existingUserRole) {
+          const now = new Date();
           await db().insert(userRole).values({
             id: getUuid(),
             userId: adminUser.id,
             roleId: superAdminRoleId,
+            createdAt: now,
+            updatedAt: now,
           });
           console.log(`   ✅ Assigned super_admin role to ${adminEmail}`);
         } else {

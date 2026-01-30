@@ -10,13 +10,23 @@
     "created_at": "Created At",
     "expires_at": "Expires At",
     "metadata": "Metadata",
-    "action": "Action"
+    "action": "Action",
+    "user_email": "User Email"
+  },
+  "create": {
+    "title": "Grant Credits",
+    "buttons": {
+      "submit": "Submit"
+    }
   },
   "list": {
     "title": "Credits",
     "crumbs": {
       "admin": "Admin",
       "credits": "Credits"
+    },
+    "buttons": {
+      "create": "Grant Credits"
     },
     "tabs": {
       "all": "All",

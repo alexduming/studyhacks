@@ -12,10 +12,12 @@
     "result": "结果",
     "created_at": "创建时间",
     "action": "操作",
-    "scene": "场景"
+    "scene": "场景",
+    "transaction_no": "交易编号"
   },
   "list": {
     "title": "AI任务",
+    "search_placeholder": "搜索 任务ID 或 交易编号",
     "crumbs": {
       "admin": "管理后台",
       "ai-tasks": "AI任务"
