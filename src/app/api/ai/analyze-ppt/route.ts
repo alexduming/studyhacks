@@ -71,9 +71,13 @@ export async function POST(req: Request) {
       slideCount
     );
 
-    const slideCountPrompt = slideCount
-      ? `Generate EXACTLY ${slideCount} slides.`
-      : 'Generate between 6-12 slides depending on the content depth.';
+    const isSingleSlide = slideCount === 1 || slideCount === '1';
+
+    const slideCountPrompt = isSingleSlide
+      ? `Generate EXACTLY 1 slide. Since there is ONLY ONE slide, DO NOT generate a cover page. Instead, summarize the core content and key points into this single slide. Focus on information density and value.`
+      : slideCount
+        ? `Generate EXACTLY ${slideCount} slides. NO MORE, NO LESS. If you generate more than ${slideCount} slides, the system will fail. If the user provided a lot of content, you MUST summarize it aggressively to fit into exactly ${slideCount} slides.`
+        : 'Generate between 6-12 slides depending on the content depth.';
 
     // 简单的语言检测
     const hasChineseChar = /[\u4e00-\u9fa5]/.test(prompt || '');
@@ -82,18 +86,10 @@ export async function POST(req: Request) {
       : 'The user input is in English. Output MUST be in English. Do NOT use Chinese.';
 
     // --- 文本分块与摘要策略 (Chunking Strategy) ---
-    // DeepSeek Context Limit: ~128k tokens.
-    // 100,000 chars ≈ 30k-50k tokens (Safe).
-    // 如果超过 100,000 字符，我们进行分块摘要
+    // ... (保持不变)
     const MAX_INPUT_CHARS = 100000;
     let contentToAnalyze = prompt;
 
-    // 如果文本超长，只取前 100,000 字符（第一阶段方案：简单截断）
-    // 为了更智能的完整分析，未来可以引入 Map-Reduce 架构：
-    // 1. Map: 将长文切分为多个块，分别生成摘要
-    // 2. Reduce: 将摘要合并，生成最终 PPT 大纲
-    // 目前受限于 Vercel 60s 超时，采用 "截断优先" 策略，
-    // 但通过 text-splitter 保证截断在自然段落，不破坏句子完整性。
     if (prompt && prompt.length > MAX_INPUT_CHARS) {
       console.log(
         `[Analyze PPT] Input too long (${prompt.length} chars). Truncating to safe limit.`
@@ -106,39 +102,54 @@ export async function POST(req: Request) {
 You are a professional presentation designer.
 Your goal is to create a JSON structure for a slide deck based on the user's input.
 ${slideCountPrompt}
-The output must be a valid JSON array where each object represents a slide.
 
-CRITICAL RULE:
-- ${languageInstruction}
-- Strictly maintain the same language as the user's input content.
-- If the input is in Chinese, ALL titles and content in the output JSON MUST be in Chinese.
-- If the input is in English, output in English.
-- Do NOT translate unless explicitly asked.
-- **The first slide MUST be a COVER PAGE.** It should only contain a Main Title (title) and a Subtitle (content). The content field for the first slide should be short and act as a subtitle or tagline (e.g. "Presentation by [Name]" or "Date"). It MUST NOT contain bullet points.
+CRITICAL RULES:
+1. ${languageInstruction}
+2. Strictly maintain the same language as the user's input content.
+3. If the input is in Chinese, ALL titles and content in the output JSON MUST be in Chinese.
+4. If the input is in English, output in English.
+5. Do NOT translate unless explicitly asked.
+6. **SLIDE STRUCTURE**:
+   ${
+     isSingleSlide
+       ? '- **NO COVER PAGE**: Since the user only requested 1 slide, skip the cover. Put the most important information, core insights, and key points directly on this slide.'
+       : '- **THE FIRST SLIDE MUST BE A COVER PAGE**: It should only contain a Main Title (title) and a Subtitle (content). The content field for the first slide should be short and act as a subtitle or tagline. It MUST NOT contain bullet points.'
+   }
+7. **STRICT SLIDE COUNT**: You MUST output exactly ${slideCount || 'the requested'} slides.
 
 Each slide object must have:
 - 'title': The title of the slide.
-- 'content': Key points (bullet points separated by \\n). For the first slide (Cover), this is just the subtitle string.
+- 'content': Key points (bullet points separated by \\n). ${isSingleSlide ? '' : 'For the first slide (Cover), this is just the subtitle string.'}
 
 Output ONLY the JSON array. Do not include markdown formatting like \`\`\`json or \`\`\`.
 
-Example Output:
+Example Output for ${isSingleSlide ? '1 slide' : '2 slides'}:
 [
-  {
+  ${
+    isSingleSlide
+      ? `{
+    "title": "Core Insights of the Content",
+    "content": "Key Point 1\\nKey Point 2\\nKey Point 3"
+  }`
+      : `{
     "title": "Presentation Title",
     "content": "Subtitle or Tagline"
   },
   {
     "title": "Slide Title",
     "content": "Point 1\\nPoint 2"
+  }`
   }
 ]
 `;
 
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) {
+      console.error('[Analyze PPT] DEEPSEEK_API_KEY is missing');
       throw new Error('DEEPSEEK_API_KEY is not set');
     }
+
+    console.log('[Analyze PPT] Starting DeepSeek API call...');
 
     // 手动发起 Fetch 请求
     const response = await fetch('https://api.deepseek.com/chat/completions', {
@@ -171,14 +182,40 @@ Example Output:
       const errorText = await response.text();
       console.error('[DeepSeek API Error]', response.status, errorText);
 
+      // 如果是积分扣除后 API 报错，我们需要退款
+      if (userId) {
+        try {
+          console.log(`💰 DeepSeek API 报错，自动退还用户 ${requiredCredits} 积分`);
+          await refundCredits({
+            userId,
+            credits: requiredCredits,
+            description: 'Refund for DeepSeek API error during PPT outline generation',
+          });
+        } catch (refundError) {
+          console.error('Failed to refund credits:', refundError);
+        }
+      }
+
       // Handle Context Length Error Specifically
       if (response.status === 400 && errorText.includes('context length')) {
-        throw new Error(
-          'Input content is too long for AI analysis. Please reduce the content length.'
+        return new Response(
+          JSON.stringify({
+            error: 'Input content is too long for AI analysis. Please reduce the content length.',
+          }),
+          {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          }
         );
       }
 
-      throw new Error(`DeepSeek API Error: ${response.status} ${errorText}`);
+      return new Response(
+        JSON.stringify({ error: `DeepSeek API Error: ${response.status}` }),
+        {
+          status: response.status,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     if (!response.body) {
@@ -192,13 +229,34 @@ Example Output:
 
     const stream = new ReadableStream({
       async start(controller) {
+        console.log('[Analyze PPT] Stream started');
         const reader = response.body!.getReader();
         let buffer = '';
 
         try {
           while (true) {
             const { done, value } = await reader.read();
-            if (done) break;
+            if (done) {
+              console.log('[Analyze PPT] Stream done');
+              // 确保最后一点 buffer 也能被处理
+              if (buffer) {
+                const lines = buffer.split('\n');
+                for (const line of lines) {
+                  const trimmed = line.trim();
+                  if (!trimmed || trimmed === 'data: [DONE]') continue;
+                  if (trimmed.startsWith('data: ')) {
+                    try {
+                      const data = JSON.parse(trimmed.slice(6));
+                      const content = data.choices?.[0]?.delta?.content;
+                      if (content) {
+                        controller.enqueue(encoder.encode(content));
+                      }
+                    } catch (e) {}
+                  }
+                }
+              }
+              break;
+            }
 
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split('\n');
@@ -212,17 +270,15 @@ Example Output:
                   const data = JSON.parse(trimmed.slice(6));
                   const content = data.choices?.[0]?.delta?.content;
                   if (content) {
-                    // 直接发送文本给前端
                     controller.enqueue(encoder.encode(content));
                   }
-                } catch (e) {
-                  // 忽略解析错误
-                }
+                } catch (e) {}
               }
             }
           }
           controller.close();
         } catch (e) {
+          console.error('[Analyze PPT] Stream error:', e);
           controller.error(e);
         }
       },
@@ -233,6 +289,7 @@ Example Output:
         'Content-Type': 'text/plain; charset=utf-8',
         'Cache-Control': 'no-cache',
         Connection: 'keep-alive',
+        'X-Content-Type-Options': 'nosniff',
       },
     });
   } catch (error: any) {
