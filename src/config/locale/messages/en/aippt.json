@@ -228,6 +228,10 @@
     "edit_mode_active_hint": "Edit mode active - Click history versions to switch images, then click 'Save Changes'",
     "unsaved": "Unsaved",
     "regional_edit": "Regional Edit",
+    "global_edit_title": "Global Edit",
+    "global_edit_badge": "Global",
+    "global_edit_placeholder": "Describe changes for the entire image, e.g., change the overall tone to warm colors, add a tech atmosphere...",
+    "global_edit_hint": "No need to select regions, just enter the modification description to adjust the entire image",
     "watermark_global_hint": "Watermark settings apply to all slides",
     "edit_cancelled": "Edit cancelled",
     "pptx_export": {

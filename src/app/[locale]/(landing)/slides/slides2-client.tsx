@@ -1367,26 +1367,27 @@ export default function Slides2Client({
    * 轮询任务状态，等待图片生成完成
    *
    * 🎯 2026-02-10 优化：根据 provider 动态调整超时时间
-   * - KIE：最长 180 秒（60 次 × 3 秒），因为 KIE 有时候需要 120-150 秒
+   * - KIE：最长 500 秒（100 次 × 5 秒），因为 KIE 有时候需要 300-400 秒
    * - FAL：最长 90 秒（30 次 × 3 秒），FAL 通常很快
    * - Replicate：最长 120 秒（40 次 × 3 秒）
    */
   const pollTask = async (taskId: string, provider?: string) => {
-    // 根据 provider 设置不同的最大尝试次数
+    // 根据 provider 设置不同的最大尝试次数和轮询间隔
     // KIE 比较慢，需要更长的超时时间
-    const maxAttempts =
-      provider === 'KIE'
-        ? 60 // KIE: 60 × 3s = 300s (5分钟)
-        : provider === 'Replicate'
-          ? 40 // Replicate: 40 × 3s = 120s (2分钟)
-          : 30; // FAL: 30 × 3s = 90s (1.5分钟)
+    const isKIE = provider === 'KIE';
+    const pollInterval = isKIE ? 5000 : 3000; // KIE 用 5 秒间隔，其他用 3 秒
+    const maxAttempts = isKIE
+      ? 100 // KIE: 100 × 5s = 500s (8分钟+)
+      : provider === 'Replicate'
+        ? 40 // Replicate: 40 × 3s = 120s (2分钟)
+        : 30; // FAL: 30 × 3s = 90s (1.5分钟)
 
     console.log(
-      `[pollTask] 开始轮询 ${provider || 'unknown'} 任务 ${taskId}，最大等待 ${maxAttempts * 3} 秒`
+      `[pollTask] 开始轮询 ${provider || 'unknown'} 任务 ${taskId}，最大等待 ${(maxAttempts * pollInterval) / 1000} 秒`
     );
 
     for (let i = 0; i < maxAttempts; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 3000));
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
       const status = await queryKieTaskWithFallbackAction(taskId, provider);
 
       // 任务失败，立即退出
@@ -1558,7 +1559,7 @@ export default function Slides2Client({
         setPresentationRecordId(record.id);
       }
 
-      const sharedStyleImages = [];
+      const sharedStyleImages: string[] = [];
 
       // 🎯 核心优化：如果选择了内置风格，自动提取该风格的预览图和参考图
       if (selectedStyleId) {
@@ -1567,7 +1568,7 @@ export default function Slides2Client({
         );
         if (style) {
           // 同时添加预览图和参考图
-          const allRefs = [];
+          const allRefs: string[] = [];
           if (style.preview) allRefs.push(style.preview);
           if (style.refs && style.refs.length > 0) allRefs.push(...style.refs);
 
@@ -3773,10 +3774,10 @@ export default function Slides2Client({
                   <div className="border-border bg-card/50 shrink-0 space-y-3 rounded-xl border p-4 dark:bg-white/[0.02]">
                     <div className="flex items-center gap-2">
                       <Label className="text-foreground text-sm font-medium">
-                        整体修改
+                        {t_aippt('v2.global_edit_title')}
                       </Label>
                       <span className="bg-primary/10 text-primary rounded-md px-2 py-0.5 text-[10px] font-medium">
-                        全局
+                        {t_aippt('v2.global_edit_badge')}
                       </span>
                     </div>
                     <div className="relative">
@@ -3785,11 +3786,11 @@ export default function Slides2Client({
                         onChange={(e) => setEditingPrompt(e.target.value)}
                         rows={3}
                         className="border-border bg-background/50 text-foreground ring-offset-background placeholder:text-muted-foreground/60 focus:border-primary focus:ring-primary/20 min-h-[80px] w-full resize-none rounded-xl border p-4 text-sm leading-relaxed transition-all focus:ring-2 focus:outline-none dark:bg-black/30 dark:text-white/90 dark:placeholder:text-white/30"
-                        placeholder="描述针对整个画面的修改需求，如：把整体色调改为暖色系、增加科技感氛围..."
+                        placeholder={t_aippt('v2.global_edit_placeholder')}
                       />
                     </div>
                     <p className="text-muted-foreground text-[11px]">
-                      无需框选区域，直接输入修改描述即可对整张图进行调整
+                      {t_aippt('v2.global_edit_hint')}
                     </p>
                   </div>
                 </div>
