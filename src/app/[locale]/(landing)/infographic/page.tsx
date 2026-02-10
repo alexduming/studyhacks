@@ -698,45 +698,6 @@ const InfographicPage = () => {
                     {t('upload.hint_batch')}
                   </span>
                 </div>
-
-                {/* 参考图上传（新功能）*/}
-                <div className="flex flex-wrap items-center gap-3">
-                  <input
-                    ref={referenceInputRef}
-                    id="infographic-reference-input"
-                    type="file"
-                    accept="image/*,.jpg,.jpeg,.png,.webp"
-                    onChange={handleReferenceImageSelect}
-                    className="hidden"
-                  />
-                  <Button
-                    asChild
-                    variant="outline"
-                    size="sm"
-                    disabled={isUploadingReference || isGenerating || isParsingFiles}
-                    className="border-primary/40 text-primary/80 hover:border-primary/70"
-                  >
-                    <label
-                      htmlFor="infographic-reference-input"
-                      className="flex cursor-pointer items-center"
-                    >
-                      {isUploadingReference ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          {t('upload.loading')}
-                        </>
-                      ) : (
-                        <>
-                          <FileImage className="mr-2 h-4 w-4" />
-                          {t('upload.button_label_reference')}
-                        </>
-                      )}
-                    </label>
-                  </Button>
-                  <span className="text-xs text-muted-foreground dark:text-gray-400">
-                    {t('upload.hint_reference')}
-                  </span>
-                </div>
               </div>
 
               {/* 单个文件预览 */}
@@ -821,39 +782,6 @@ const InfographicPage = () => {
                 </div>
               )}
 
-              {/* 参考图预览 */}
-              {referenceImage && referenceImageUrl && (
-                <div className="bg-primary/5 border-primary/30 mb-3 rounded-lg border p-3">
-                  <div className="mb-2 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <FileImage className="text-primary h-4 w-4" />
-                      <span className="text-sm font-medium text-foreground dark:text-white">
-                        {t('upload.reference_image_uploaded', {
-                          fileName: referenceImage.name,
-                        })}
-                      </span>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={() => {
-                        setReferenceImage(null);
-                        setReferenceImageUrl('');
-                      }}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={referenceImageUrl}
-                    alt="Reference"
-                    className="h-auto w-full max-w-[200px] rounded-lg border object-contain"
-                  />
-                </div>
-              )}
-
               {/* 文件解析进度提示 */}
               {isParsingFiles && parsingProgress && (
                 <div className="border-primary/30 bg-primary/10 text-primary/90 mb-3 flex items-start gap-2 rounded-lg border p-3 text-xs">
@@ -877,7 +805,7 @@ const InfographicPage = () => {
                 className="focus:border-primary mb-4 h-60 w-full resize-none rounded-lg border border-border dark:border-gray-600 bg-background/60 dark:bg-gray-800/60 p-4 text-sm text-foreground dark:text-white placeholder-muted-foreground dark:placeholder-gray-400 focus:outline-none"
               />
 
-              {/* 参数设置：宽高比 / 分辨率 / 格式 */}
+              {/* 参数设置：宽高比 / 分辨率 / 格式 / 参考图 */}
               <div className="mb-4 grid gap-4 md:grid-cols-3">
                 <div>
                   <label className="mb-2 block text-xs font-medium text-foreground/70 dark:text-gray-300">
@@ -927,6 +855,74 @@ const InfographicPage = () => {
                     <option value="png">PNG</option>
                     <option value="jpg">JPG</option>
                   </select>
+                </div>
+              </div>
+
+              {/* 参考图上传（移动到设置区下方） */}
+              <div className="mb-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <input
+                    ref={referenceInputRef}
+                    id="infographic-reference-input"
+                    type="file"
+                    accept="image/*,.jpg,.jpeg,.png,.webp"
+                    onChange={handleReferenceImageSelect}
+                    className="hidden"
+                  />
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    disabled={
+                      isUploadingReference || isGenerating || isParsingFiles
+                    }
+                    className="border-primary/40 text-primary/80 hover:border-primary/70"
+                  >
+                    <label
+                      htmlFor="infographic-reference-input"
+                      className="flex cursor-pointer items-center"
+                    >
+                      {isUploadingReference ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          {t('upload.loading')}
+                        </>
+                      ) : (
+                        <>
+                          <FileImage className="mr-2 h-4 w-4" />
+                          {t('upload.button_label_reference')}
+                        </>
+                      )}
+                    </label>
+                  </Button>
+
+                  {/* 参考图方形小缩略图预览 */}
+                  {referenceImage && referenceImageUrl && (
+                    <div className="group relative h-9 w-9 overflow-hidden rounded-md border border-primary/30 bg-muted/50">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={referenceImageUrl}
+                        alt="Reference Thumbnail"
+                        className="h-full w-full cursor-pointer object-cover transition-transform group-hover:scale-110"
+                        onClick={() => setEnlargedImageUrl(referenceImageUrl)}
+                        title={t('result.click_to_enlarge')}
+                      />
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setReferenceImage(null);
+                          setReferenceImageUrl('');
+                        }}
+                        className="absolute top-0 right-0 rounded-bl-md bg-black/60 p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                      >
+                        <X className="h-2.5 w-2.5" />
+                      </button>
+                    </div>
+                  )}
+
+                  <span className="text-xs text-muted-foreground dark:text-gray-400">
+                    {t('upload.hint_reference')}
+                  </span>
                 </div>
               </div>
 

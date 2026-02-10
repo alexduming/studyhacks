@@ -870,7 +870,7 @@ export async function createKieTaskWithFallbackAction(params: {
 
   // 定义优先级顺序
   // 如果指定了 provider，则它排第一，其他的按默认顺序排
-  let providerChain = ['FAL', 'KIE', 'Replicate'];
+  let providerChain = ['KIE', 'FAL', 'Replicate'];
 
   // 🎯 编辑模式判断逻辑优化
   // 1. 局部编辑：有原图 + 标记图
