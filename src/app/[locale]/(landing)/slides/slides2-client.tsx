@@ -1127,12 +1127,12 @@ export default function Slides2Client({
         }
 
         // 🎯 整体修改：只传当前图片作为参考 + 提示词
+        // 注意：不传 preferredProvider，让后端按 IMAGE_PROVIDER_PRIORITY 环境变量决定优先级
         const task = await createKieTaskWithFallbackAction({
           prompt: options.overrideContent,
           customImages: [slide.imageUrl], // 仅当前图片作为参考
           aspectRatio,
           imageSize: resolution,
-          preferredProvider: 'FAL',
           isEnhancedMode,
           outputLanguage: language,
           refundCredits: resolution === '4K' ? 12 : 6,
@@ -1206,13 +1206,13 @@ export default function Slides2Client({
     //    不需要在 prompt 中添加"第几页"等文字说明
     //    文字说明可能会被 AI 渲染到图片上！
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 注意：不传 preferredProvider，让后端按 IMAGE_PROVIDER_PRIORITY 环境变量决定优先级
     const task = await createKieTaskWithFallbackAction({
       prompt,
       styleId: selectedStyleId || undefined,
       customImages: styleImages,
       aspectRatio,
       imageSize: resolution,
-      preferredProvider: 'FAL',
       isEnhancedMode,
       outputLanguage: language,
       refundCredits: resolution === '4K' ? 12 : 6,
