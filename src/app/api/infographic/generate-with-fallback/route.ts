@@ -16,15 +16,54 @@ export const runtime = 'nodejs';
  *
  * 非程序员解释：
  * - 这个接口实现了"托底服务"功能
- * - 首先尝试使用 Replicate (google/nano-banana-pro) 生成图片（主力）
- * - 如果 Replicate 失败或不稳定，自动切换到 KIE（托底）
+ * - 提供商优先级通过环境变量 IMAGE_PROVIDER_PRIORITY 配置
+ * - 默认顺序：FAL（主力）→ KIE（托底）→ Replicate（最终托底）
+ * - 如果主力服务失败，自动切换到下一个提供商
  * - 这样可以大大提高生成成功率
  *
- * 降级策略：
- * Replicate (主服务) → KIE (托底服务)
+ * 配置方式：
+ * - 在 .env.local 文件中修改 IMAGE_PROVIDER_PRIORITY
+ * - 格式：用逗号分隔的提供商名称，从左到右依次尝试
+ * - 示例：IMAGE_PROVIDER_PRIORITY=FAL,KIE,Replicate
  */
 
 const KIE_BASE_URL = 'https://api.kie.ai/api/v1';
+
+/**
+ * 图片生成服务优先级配置（从环境变量读取）
+ *
+ * 非程序员解释：
+ * - 通过修改 .env.local 文件中的 IMAGE_PROVIDER_PRIORITY 就能快速切换主力/托底顺序
+ * - 格式：用逗号分隔的提供商名称，从左到右依次尝试
+ * - 示例：KIE,FAL,Replicate 表示 KIE主力，FAL托底，Replicate最终托底
+ * - 如果环境变量未设置或格式错误，默认使用 FAL,KIE,Replicate
+ * - 与 PPT 生成共用同一个环境变量，统一管理
+ */
+function getProviderPriority(): Array<'FAL' | 'KIE' | 'Replicate'> {
+  const priorityStr = process.env.IMAGE_PROVIDER_PRIORITY || 'FAL,KIE,Replicate';
+
+  // 解析逗号分隔的字符串，去除空格
+  const providers = priorityStr
+    .split(',')
+    .map(p => p.trim())
+    .filter(p => ['FAL', 'KIE', 'Replicate'].includes(p)) as Array<'FAL' | 'KIE' | 'Replicate'>;
+
+  // 如果解析后为空或少于1个提供商，使用默认配置
+  if (providers.length === 0) {
+    console.warn('[Infographic] ⚠️ IMAGE_PROVIDER_PRIORITY 配置无效，使用默认顺序: FAL,KIE,Replicate');
+    return ['FAL', 'KIE', 'Replicate'];
+  }
+
+  // 确保所有三个提供商都存在（防止配置遗漏）
+  const allProviders: Array<'FAL' | 'KIE' | 'Replicate'> = ['FAL', 'KIE', 'Replicate'];
+  const missingProviders = allProviders.filter(p => !providers.includes(p));
+
+  // 将遗漏的提供商追加到末尾
+  const finalProviders = [...providers, ...missingProviders];
+
+  console.log(`[Infographic] 📋 图片生成优先级: ${finalProviders.join(' -> ')}`);
+  return finalProviders;
+}
 
 interface GenerateParams {
   content: string;
@@ -661,27 +700,40 @@ export async function POST(request: NextRequest) {
       referenceImageUrl, // 传递参考图URL
     };
 
-    // 降级策略：依次尝试各个提供商（FAL 主力 → KIE 托底 → Replicate 最终托底）
-    const providers = [
+    // 定义所有可用的提供商配置（静态映射）
+    const providerConfigs: Record<
+      'FAL' | 'KIE' | 'Replicate',
       {
+        name: string;
+        key: string | undefined;
+        envKey: string | undefined;
+        fn: typeof tryGenerateWithFal;
+      }
+    > = {
+      FAL: {
         name: 'FAL',
-        key: configs.fal_key, // 优先从数据库配置获取
-        envKey: process.env.FAL_KEY, // 回退到环境变量
+        key: configs.fal_key,
+        envKey: process.env.FAL_KEY,
         fn: tryGenerateWithFal,
       },
-      {
+      KIE: {
         name: 'KIE',
         key: configs.kie_api_key,
         envKey: process.env.KIE_NANO_BANANA_PRO_KEY,
         fn: tryGenerateWithKie,
       },
-      {
+      Replicate: {
         name: 'Replicate',
         key: configs.replicate_api_token,
         envKey: process.env.REPLICATE_API_TOKEN,
         fn: tryGenerateWithReplicate,
       },
-    ];
+    };
+
+    // 根据环境变量 IMAGE_PROVIDER_PRIORITY 获取优先级顺序
+    // 非程序员解释：这里会读取环境变量，按配置的顺序排列提供商
+    const priorityOrder = getProviderPriority();
+    const providers = priorityOrder.map(name => providerConfigs[name]);
 
     const errors: string[] = [];
 
