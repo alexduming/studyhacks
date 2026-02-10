@@ -571,11 +571,17 @@ export default function Slides2Client({
   // - 生成后的图片先用临时链接快速展示
   // - 后台把图片保存到 R2，并把数据库里的链接替换为永久链接
   // - 🔧 修复：持久化成功后，更新本地 slides 状态，确保 UI 显示永久链接
-  const persistSlideImageToR2 = async (slideId: string, imageUrl: string) => {
-    if (!presentationRecordId || !imageUrl) return;
+  // - 🎯 2026-02-10 修复：返回 Promise 和持久化后的 URL，支持等待完成
+  const persistSlideImageToR2 = async (
+    slideId: string,
+    imageUrl: string
+  ): Promise<{ success: boolean; url?: string }> => {
+    if (!presentationRecordId || !imageUrl) {
+      return { success: false };
+    }
     // 如果已经是永久链接，就不用重复保存
     if (imageUrl.includes('cdn.studyhacks.ai') || imageUrl.includes('r2')) {
-      return;
+      return { success: true, url: imageUrl };
     }
     try {
       const response = await fetch('/api/presentation/replace-slide-image', {
@@ -601,9 +607,13 @@ export default function Slides2Client({
             s.id === slideId ? { ...s, imageUrl: result.data.url } : s
           )
         );
+        return { success: true, url: result.data.url };
       }
+
+      return { success: result.success, url: result.data?.url || imageUrl };
     } catch (error) {
       console.warn('持久化到 R2 失败:', error);
+      return { success: false, url: imageUrl };
     }
   };
 
@@ -1033,6 +1043,23 @@ export default function Slides2Client({
         console.log('[Edit Mode] 开始精简版局部编辑');
         console.log('[Edit Mode] 选区数量:', regionPayload.length);
 
+        // 🎯 2026-02-10 修复：编辑模式需要扣除积分
+        // 每次编辑消耗 6 积分（4K 分辨率消耗 12 积分）
+        const editCost = resolution === '4K' ? 12 : 6;
+        try {
+          await consumeCreditsAction({
+            credits: editCost,
+            description: `Regional Edit: ${slide.title || 'Slide'} (${regionPayload.length} regions)`,
+          });
+          console.log(`[Edit Mode] ✅ 已扣除 ${editCost} 积分`);
+        } catch (creditError: any) {
+          if (creditError.message.includes('Insufficient credits')) {
+            toast.error(t_aippt('v2.insufficient_credits'));
+            throw new Error('Insufficient credits for edit');
+          }
+          throw creditError;
+        }
+
         // 🎯 首次编辑前，先把原始图片存入历史记录
         const existingHistory = slide.history || [];
         if (existingHistory.length === 0) {
@@ -1094,8 +1121,29 @@ export default function Slides2Client({
         });
 
         return editResult.imageUrl;
-      } catch (error) {
+      } catch (error: any) {
         console.error('[Edit Mode] 局部编辑失败:', error);
+
+        // 🎯 2026-02-10 修复：编辑失败时退还积分（除非是积分不足导致的失败）
+        if (!error.message?.includes('Insufficient credits')) {
+          const editCost = resolution === '4K' ? 12 : 6;
+          try {
+            await refundCreditsAction({
+              credits: editCost,
+              description: `Refund for failed Regional Edit: ${slide.title || 'Slide'}`,
+            });
+            console.log(`[Edit Mode] ✅ 已退还 ${editCost} 积分`);
+            toast.info(
+              t_aippt('v2.refund_failed_slide').replace(
+                '{credits}',
+                String(editCost)
+              )
+            );
+          } catch (refundError) {
+            console.error('[Edit Mode] 退还积分失败:', refundError);
+          }
+        }
+
         throw error;
       }
     }
@@ -1112,6 +1160,23 @@ export default function Slides2Client({
           '[Global Edit Mode] 提示词:',
           options.overrideContent.substring(0, 100)
         );
+
+        // 🎯 2026-02-10 修复：整体修改模式需要扣除积分
+        // 每次编辑消耗 6 积分（4K 分辨率消耗 12 积分）
+        const editCost = resolution === '4K' ? 12 : 6;
+        try {
+          await consumeCreditsAction({
+            credits: editCost,
+            description: `Global Edit: ${slide.title || 'Slide'}`,
+          });
+          console.log(`[Global Edit Mode] ✅ 已扣除 ${editCost} 积分`);
+        } catch (creditError: any) {
+          if (creditError.message.includes('Insufficient credits')) {
+            toast.error(t_aippt('v2.insufficient_credits'));
+            throw new Error('Insufficient credits for edit');
+          }
+          throw creditError;
+        }
 
         // 🎯 首次编辑前，先把原始图片存入历史记录
         const existingHistory = slide.history || [];
@@ -1173,11 +1238,41 @@ export default function Slides2Client({
           provider: task.provider,
         });
 
-        void persistSlideImageToR2(slide.id, imageUrl);
+        // 🎯 2026-02-10 修复：整体修改是单独操作，需要立即持久化并等待完成
+        const persistResult = await persistSlideImageToR2(slide.id, imageUrl);
+        if (persistResult.success && persistResult.url) {
+          // 更新为 R2 链接
+          setSlides((prev) =>
+            prev.map((s) =>
+              s.id === slide.id ? { ...s, imageUrl: persistResult.url } : s
+            )
+          );
+        }
 
-        return imageUrl;
-      } catch (error) {
+        return persistResult.url || imageUrl;
+      } catch (error: any) {
         console.error('[Global Edit Mode] 整体修改失败:', error);
+
+        // 🎯 2026-02-10 修复：编辑失败时退还积分（除非是积分不足导致的失败）
+        if (!error.message?.includes('Insufficient credits')) {
+          const editCost = resolution === '4K' ? 12 : 6;
+          try {
+            await refundCreditsAction({
+              credits: editCost,
+              description: `Refund for failed Global Edit: ${slide.title || 'Slide'}`,
+            });
+            console.log(`[Global Edit Mode] ✅ 已退还 ${editCost} 积分`);
+            toast.info(
+              t_aippt('v2.refund_failed_slide').replace(
+                '{credits}',
+                String(editCost)
+              )
+            );
+          } catch (refundError) {
+            console.error('[Global Edit Mode] 退还积分失败:', refundError);
+          }
+        }
+
         throw error;
       }
     }
@@ -1261,23 +1356,62 @@ export default function Slides2Client({
       provider: task.provider,
     });
 
-    // 🎯 异步持久化到 R2（不阻塞 UI）
-    // 非程序员解释：先给用户看到结果，再悄悄把图片存到我们自己的永久仓库
-    void persistSlideImageToR2(slide.id, imageUrl);
+    // 🎯 2026-02-10 修改：移除这里的异步持久化调用
+    // 持久化已统一在最终保存时处理，避免重复调用和竞态条件
+    // void persistSlideImageToR2(slide.id, imageUrl);
 
     return imageUrl;
   };
 
+  /**
+   * 轮询任务状态，等待图片生成完成
+   *
+   * 🎯 2026-02-10 优化：根据 provider 动态调整超时时间
+   * - KIE：最长 180 秒（60 次 × 3 秒），因为 KIE 有时候需要 120-150 秒
+   * - FAL：最长 90 秒（30 次 × 3 秒），FAL 通常很快
+   * - Replicate：最长 120 秒（40 次 × 3 秒）
+   */
   const pollTask = async (taskId: string, provider?: string) => {
-    const maxAttempts = 33;
+    // 根据 provider 设置不同的最大尝试次数
+    // KIE 比较慢，需要更长的超时时间
+    const maxAttempts =
+      provider === 'KIE'
+        ? 60 // KIE: 60 × 3s = 300s (5分钟)
+        : provider === 'Replicate'
+          ? 40 // Replicate: 40 × 3s = 120s (2分钟)
+          : 30; // FAL: 30 × 3s = 90s (1.5分钟)
+
+    console.log(
+      `[pollTask] 开始轮询 ${provider || 'unknown'} 任务 ${taskId}，最大等待 ${maxAttempts * 3} 秒`
+    );
+
     for (let i = 0; i < maxAttempts; i++) {
       await new Promise((resolve) => setTimeout(resolve, 3000));
       const status = await queryKieTaskWithFallbackAction(taskId, provider);
-      if (status.data?.status === 'FAILED') break;
+
+      // 任务失败，立即退出
+      if (status.data?.status === 'FAILED') {
+        console.error(`[pollTask] 任务 ${taskId} 失败`);
+        break;
+      }
+
+      // 任务成功，返回结果
       if (status.data?.results?.length) {
+        console.log(`[pollTask] 任务 ${taskId} 完成，耗时约 ${(i + 1) * 3} 秒`);
         return status.data.results[0];
       }
+
+      // 每 10 次轮询输出一次进度
+      if ((i + 1) % 10 === 0) {
+        console.log(
+          `[pollTask] 任务 ${taskId} 仍在处理中... (${(i + 1) * 3}s / ${maxAttempts * 3}s)`
+        );
+      }
     }
+
+    console.error(
+      `[pollTask] 任务 ${taskId} 超时（等待了 ${maxAttempts * 3} 秒）`
+    );
     throw new Error(t_aippt('v2.generation_timeout'));
   };
 
@@ -1472,26 +1606,14 @@ export default function Slides2Client({
       //
       // 解决方案：使用"锚定图片"参考标题样式和整体风格，但内容区域灵活调整
       //
-      // 具体流程：
-      // 1. 第 1 页（封面）：使用风格模板的参考图生成（6-8张参考图）
-      // 2. 第 2 页（第一张内页）：同样使用风格模板的参考图生成
-      // 3. 第 3 页开始：
-      //    - 将第 2 页生成的图片作为"锚定图片"
-      //    - 连同原有的风格参考图一起传递给 AI（共 7-9 张）
-      //    - AI 会参考锚定图片的：
-      //      ✅ 标题样式（位置、字体、字号、颜色）← 严格遵循
-      //      ✅ 整体风格（配色方案、设计语言）← 严格遵循
-      //      ❌ 内容区域布局（列表、图表等）← 根据内容灵活调整
-      //    - 确保标题一致，但内容区域因页而异
+      // 🎯 2026-02-10 优化：三阶段并行生成
+      // - 阶段 1：并行生成第 1 页（封面）和第 2 页（内容页）
+      // - 阶段 2：等待第 2 页完成，获取锚定 URL
+      // - 阶段 3：并行生成第 3 页及以后（使用第 2 页作为锚定）
       //
       // 为什么选择第 2 页作为锚定源？
       // - 第 1 页通常是封面，排版与内页差异较大
       // - 第 2 页是第一张内页，更能代表整体 PPT 的视觉风格
-      //
-      // 🎯 微调目标（2026-01-23）：
-      // - 保持品牌一致性：标题样式让人一眼认出是同一套 PPT
-      // - 优化信息传达：内容区域根据实际信息需求灵活设计
-      // - 避免千篇一律：不要所有页面看起来像复制粘贴
       //
       // ⚠️ 注意：锚定是通过传递图片 URL 实现的，不是通过文字指令！
       //    不要在 prompt 中添加类似"当前第 X 页"的文案，AI 会把它画到图片上！
@@ -1500,46 +1622,41 @@ export default function Slides2Client({
 
       let successCount = 0;
 
-      for (let i = 0; i < workingSlides.length; i++) {
-        const slide = workingSlides[i];
+      // 🎯 辅助函数：生成单张幻灯片并处理结果
+      const generateAndProcessSlide = async (
+        slide: SlideData,
+        index: number,
+        anchorUrl?: string
+      ): Promise<{ success: boolean; url?: string }> => {
         setSlides((prev) =>
           prev.map((s) =>
             s.id === slide.id ? { ...s, status: 'generating' } : s
           )
         );
+
         try {
-          // 🎯 优化：在自动模式下，如果已经有AI分析的分页结果（slide有具体内容），就不传完整内容
-          // 非程序员解释：
-          // - 如果AI已经分析好了每页的标题和内容，就直接用这些内容生成，不需要再传完整内容
-          // - 只有在降级方案（AI分析失败，使用占位符）时，才需要传完整内容让NANO BANANA PRO自己推断
           const shouldUseSourceContent =
             pageMode === 'auto' &&
             (slide.content === 'Wait for generation...' ||
               !slide.content ||
               slide.title ===
-                `${t_aippt('outline_step.slide_title')} ${i + 1}`);
+                `${t_aippt('outline_step.slide_title')} ${index + 1}`);
 
           const resultUrl = await generateSlide(slide, {
             cachedStyleImages: sharedStyleImages,
             sourceContent: shouldUseSourceContent
               ? autoSourceRef.current
               : undefined,
-            // ⚠️ 重要：index 和 total 仅用于后端日志，不会出现在 prompt 中
-            index: i,
+            index: index,
             total: workingSlides.length,
-            // 🎯 风格锚定：从第 3 页（index 2）开始，传入第 2 页的图片作为锚定
-            // - i = 0（第 1 页）: 无锚定，使用风格模板参考图
-            // - i = 1（第 2 页）: 无锚定，使用风格模板参考图
-            // - i >= 2（第 3 页起）: 使用 anchorImageUrl（第 2 页的图片）
-            anchorImageUrl: i > 1 ? anchorImageUrl : undefined,
+            anchorImageUrl: anchorUrl,
           });
 
-          // 🎯 关键修复：立即更新本地对象引用
           if (resultUrl) {
             slide.imageUrl = resultUrl;
             slide.status = 'completed';
 
-            // 🎯 增量保存：每生成一张，就同步更新一次数据库，防止预览失效
+            // 增量保存到数据库
             if (recordId) {
               const contentWithMeta = buildContentWithMeta(workingSlides);
               await updatePresentationAction(recordId, {
@@ -1548,22 +1665,19 @@ export default function Slides2Client({
                   workingSlides.find((s) => s.imageUrl)?.imageUrl || resultUrl,
               });
             }
-          }
 
-          // 🎯 第 2 页（index 1）生成成功后，记录其 URL 作为后续页面的锚定参考
-          // 非程序员解释：
-          // - 第 2 页是第一张内页，代表了 PPT 的主要视觉风格
-          // - 将它的 URL 保存下来，后续页面生成时会作为参考图传递给 AI
-          // - 这样 AI 就能保持整个 PPT 的视觉一致性
-          if (i === 1 && resultUrl) {
-            anchorImageUrl = resultUrl;
-            console.log(
-              '📌 风格锚定已设置（使用第 2 页作为参考）:',
-              anchorImageUrl
+            setSlides((prev) =>
+              prev.map((s) =>
+                s.id === slide.id
+                  ? { ...s, imageUrl: resultUrl, status: 'completed' }
+                  : s
+              )
             );
+
+            return { success: true, url: resultUrl };
           }
 
-          successCount++;
+          return { success: false };
         } catch (error) {
           console.error('Slide generation failed', slide.id, error);
           slide.status = 'failed';
@@ -1573,7 +1687,7 @@ export default function Slides2Client({
             )
           );
 
-          // 🎯 修复：固定模式下，单页生成失败自动退费
+          // 固定模式下，单页生成失败自动退费
           if (pageMode !== 'auto') {
             const costPerSlide = resolution === '4K' ? 12 : 6;
             console.log(
@@ -1597,7 +1711,68 @@ export default function Slides2Client({
               );
             }
           }
+
+          return { success: false };
         }
+      };
+
+      // ============================================================
+      // 🚀 三阶段并行生成
+      // ============================================================
+
+      if (workingSlides.length === 1) {
+        // 只有 1 页：直接生成
+        console.log('📄 单页模式：直接生成');
+        const result = await generateAndProcessSlide(workingSlides[0], 0);
+        if (result.success) successCount++;
+      } else if (workingSlides.length >= 2) {
+        // 🎯 阶段 1：并行生成第 1 页（封面）和第 2 页（内容页）
+        console.log('🚀 阶段 1：并行生成第 1、2 页...');
+        const phase1Promises = [
+          generateAndProcessSlide(workingSlides[0], 0), // 第 1 页（封面）
+          generateAndProcessSlide(workingSlides[1], 1), // 第 2 页（内容页）
+        ];
+
+        const phase1Results = await Promise.all(phase1Promises);
+
+        // 统计成功数量
+        phase1Results.forEach((result) => {
+          if (result.success) successCount++;
+        });
+
+        // 🎯 阶段 2：获取第 2 页的 URL 作为锚定
+        if (phase1Results[1].success && phase1Results[1].url) {
+          anchorImageUrl = phase1Results[1].url;
+          console.log(
+            '📌 风格锚定已设置（使用第 2 页作为参考）:',
+            anchorImageUrl
+          );
+        }
+
+        // 🎯 阶段 3：并行生成第 3 页及以后（使用第 2 页作为锚定）
+        if (workingSlides.length > 2) {
+          console.log(
+            `🚀 阶段 3：并行生成第 3-${workingSlides.length} 页（共 ${workingSlides.length - 2} 页）...`
+          );
+          const phase3Promises = workingSlides.slice(2).map((slide, idx) =>
+            generateAndProcessSlide(
+              slide,
+              idx + 2, // 实际索引从 2 开始
+              anchorImageUrl // 使用第 2 页作为锚定
+            )
+          );
+
+          const phase3Results = await Promise.all(phase3Promises);
+
+          // 统计成功数量
+          phase3Results.forEach((result) => {
+            if (result.success) successCount++;
+          });
+        }
+
+        console.log(
+          `✅ 并行生成完成：${successCount}/${workingSlides.length} 页成功`
+        );
       }
 
       // Auto mode: Consume credits based on success count
@@ -1615,7 +1790,40 @@ export default function Slides2Client({
       }
 
       if (recordId) {
-        // 🎯 对最终结果做一次完整收敛，避免“已完成却无封面/无内容”的历史遗留问题
+        // ============================================================
+        // 🎯 2026-02-10 修复：在最终保存之前，等待所有图片持久化到 R2
+        // ============================================================
+        // 非程序员解释：
+        // - 之前的问题：图片生成后立即保存临时链接到数据库，R2 持久化是异步的
+        // - 最终保存时会覆盖掉 R2 链接，导致 Library 显示临时链接
+        // - 修复方案：在最终保存之前，等待所有图片持久化完成，然后用 R2 链接保存
+        // ============================================================
+        console.log('📦 开始持久化所有图片到 R2...');
+        const completedSlides = workingSlides.filter(
+          (slide) => slide.status === 'completed' && slide.imageUrl
+        );
+
+        // 并行持久化所有图片
+        const persistResults = await Promise.all(
+          completedSlides.map(async (slide) => {
+            const result = await persistSlideImageToR2(
+              slide.id,
+              slide.imageUrl!
+            );
+            if (result.success && result.url) {
+              // 更新 workingSlides 中的 URL 为 R2 链接
+              slide.imageUrl = result.url;
+            }
+            return { slideId: slide.id, ...result };
+          })
+        );
+
+        const persistedCount = persistResults.filter((r) => r.success).length;
+        console.log(
+          `✅ R2 持久化完成：${persistedCount}/${completedSlides.length} 张图片`
+        );
+
+        // 🎯 对最终结果做一次完整收敛，避免"已完成却无封面/无内容"的历史遗留问题
         const anyFailed = workingSlides.some(
           (slide) => slide.status === 'failed'
         );
@@ -1631,6 +1839,8 @@ export default function Slides2Client({
           content: JSON.stringify(contentWithMeta),
           thumbnailUrl: finalThumbnail || undefined,
         });
+
+        console.log('✅ 最终保存完成，所有链接已更新为 R2 永久链接');
       }
 
       toast.success(t_aippt('v2.all_completed'));
@@ -3763,11 +3973,11 @@ export default function Slides2Client({
                       }
                     }}
                   >
-                    {pendingEditSubmit ? (
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    ) : (
-                      <WandSparkles className="mr-2 h-5 w-5" />
-                    )}
+                    {/* 🎯 2026-02-10 修复：显示编辑消耗的积分 */}
+                    <CreditsCost
+                      credits={resolution === '4K' ? 12 : 6}
+                      className="bg-primary-foreground/20 text-primary-foreground mr-2"
+                    />
                     {t_aippt('v2.re_generate')}
                   </Button>
                 </div>

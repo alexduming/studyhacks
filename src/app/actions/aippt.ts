@@ -28,8 +28,97 @@ const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
 /**
+ * 检测文本的主要语言
+ *
+ * 非程序员解释：
+ * - 这个函数通过检测文本中的中文字符比例来判断语言
+ * - 如果中文字符占比超过 5%，则认为是中文内容
+ * - 这样可以准确判断用户输入的语言，避免 AI 自己猜测导致语言混乱
+ *
+ * @param text 要检测的文本
+ * @returns 'zh' 表示中文，'en' 表示英文
+ */
+function detectLanguage(text: string): 'zh' | 'en' {
+  if (!text) return 'en';
+
+  // 统计中文字符数量（包括中文标点）
+  const chineseChars = text.match(/[\u4e00-\u9fa5\u3000-\u303f\uff00-\uffef]/g) || [];
+  const totalChars = text.replace(/\s/g, '').length; // 去除空白字符后的总长度
+
+  if (totalChars === 0) return 'en';
+
+  // 如果中文字符占比超过 5%，则认为是中文内容
+  // 这个阈值可以处理混合内容（如中文内容中包含英文术语）
+  const chineseRatio = chineseChars.length / totalChars;
+
+  return chineseRatio > 0.05 ? 'zh' : 'en';
+}
+
+/**
+ * 生成语言约束提示词
+ *
+ * 非程序员解释：
+ * - 这个函数根据语言设置生成强制性的语言约束指令
+ * - 'auto' 模式会自动检测用户输入的语言，并明确告诉 AI 应该使用什么语言
+ * - 这样可以避免 AI 自己判断语言导致的不一致问题
+ *
+ * @param outputLanguage 语言设置：'auto' | 'zh' | 'en'
+ * @param userContent 用户输入的内容（用于 auto 模式下的语言检测）
+ * @returns 语言约束提示词
+ */
+function generateLanguagePrompt(
+  outputLanguage: 'auto' | 'zh' | 'en' | undefined,
+  userContent: string
+): string {
+  if (outputLanguage === 'zh') {
+    return `\n\n[Language Requirement - CRITICAL]
+⚠️ MANDATORY: ALL text in the generated image MUST be in Simplified Chinese (简体中文).
+- Title: Chinese
+- Subtitle: Chinese
+- Body text: Chinese
+- Labels: Chinese
+- Any other text: Chinese
+Do NOT use English for any visible text. Translate any English system instructions to Chinese if they appear in the final output.`;
+  } else if (outputLanguage === 'en') {
+    return `\n\n[Language Requirement - CRITICAL]
+⚠️ MANDATORY: ALL text in the generated image MUST be in English.
+- Title: English
+- Subtitle: English
+- Body text: English
+- Labels: English
+- Any other text: English
+Do NOT use Chinese or any other language for any visible text.`;
+  } else {
+    // Auto 模式：主动检测语言并明确告诉 AI
+    const detectedLang = detectLanguage(userContent);
+
+    if (detectedLang === 'zh') {
+      return `\n\n[Language Requirement - CRITICAL]
+⚠️ DETECTED LANGUAGE: Chinese (中文)
+⚠️ MANDATORY: Since the user's input content is in Chinese, ALL text in the generated image MUST be in Simplified Chinese (简体中文).
+- Title: Chinese (中文标题)
+- Subtitle: Chinese (中文副标题)
+- Body text: Chinese (中文正文)
+- Labels: Chinese (中文标签)
+- Any other text: Chinese
+Do NOT mix languages. Do NOT use English for any visible text. Keep the entire slide in Chinese.`;
+    } else {
+      return `\n\n[Language Requirement - CRITICAL]
+⚠️ DETECTED LANGUAGE: English
+⚠️ MANDATORY: Since the user's input content is in English, ALL text in the generated image MUST be in English.
+- Title: English
+- Subtitle: English
+- Body text: English
+- Labels: English
+- Any other text: English
+Do NOT mix languages. Do NOT use Chinese for any visible text. Keep the entire slide in English.`;
+    }
+  }
+}
+
+/**
  * 图片生成服务优先级配置（从环境变量读取）
- * 
+ *
  * 非程序员解释：
  * - 通过修改 .env.local 文件中的 IMAGE_PROVIDER_PRIORITY 就能快速切换主力/托底顺序
  * - 格式：用逗号分隔的提供商名称，从左到右依次尝试
@@ -648,6 +737,10 @@ export async function refundCreditsAction(params: {
 
 /**
  * Create Image Generation Task via KIE API
+ *
+ * 🎯 2026-02-10 更新：支持编辑模式
+ * KIE 的 nano-banana-pro 模型通过 image_input 参数支持编辑功能
+ * 编辑模式下，将带标记的图片作为 image_input 传入即可
  */
 export async function createKieTaskAction(params: {
   prompt: string;
@@ -658,68 +751,88 @@ export async function createKieTaskAction(params: {
   isEnhancedMode?: boolean;
   isPromptEnhancedMode?: boolean;
   outputLanguage?: 'auto' | 'zh' | 'en';
+  /** 🎯 编辑模式：原始图片URL（用于局部编辑） */
+  editImageUrl?: string;
+  /** 🎯 编辑模式：mask 图片（Base64 或 URL） */
+  maskImage?: string;
+  /** 🎯 编辑模式：带标记的图片（用于编辑） */
+  markedImage?: string;
+  /** Deck上下文：传递当前页码信息以增强视觉一致性 */
+  deckContext?: DeckContext;
 }) {
   const endpoint = 'https://api.kie.ai/api/v1/jobs/createTask';
+
+  // 🎯 判断是否为编辑模式
+  const isEditMode = !!(params.editImageUrl || params.markedImage);
 
   // Styles
   let styleSuffix = '';
   // 处理参考图片 URL：确保是公网可访问的
-  let referenceImages: string[] = (params.customImages || []).map(
-    resolveImageUrl
-  );
+  let referenceImages: string[] = [];
 
-  if (params.styleId) {
-    const style = PPT_STYLES.find((s) => s.id === params.styleId);
-    if (style && params.isPromptEnhancedMode !== false) {
-      styleSuffix = style.prompt;
+  // 🎯 编辑模式下，使用带标记的图片作为参考
+  if (isEditMode && params.markedImage) {
+    referenceImages = [params.markedImage];
+    console.log('[KIE] 🎨 编辑模式：使用带标记的图片');
+  } else {
+    // 非编辑模式：正常处理参考图片
+    referenceImages = (params.customImages || []).map(resolveImageUrl);
 
-      // 🎯 关键：如果风格定义了参考图或预览图，将其加入参考图列表
-      let styleRefs: string[] = [];
-      if (style.preview) {
-        styleRefs.push(resolveImageUrl(style.preview));
-      }
-      if (style.refs && style.refs.length > 0) {
-        styleRefs = [...styleRefs, ...style.refs.map(resolveImageUrl)];
-      }
+    if (params.styleId) {
+      const style = PPT_STYLES.find((s) => s.id === params.styleId);
+      if (style && params.isPromptEnhancedMode !== false) {
+        styleSuffix = style.prompt;
 
-      if (styleRefs.length > 0) {
-        // 去重
-        const uniqueStyleRefs = Array.from(new Set(styleRefs));
-        // 将风格参考图放在前面
-        referenceImages = [...uniqueStyleRefs, ...referenceImages];
+        // 🎯 关键：如果风格定义了参考图或预览图，将其加入参考图列表
+        let styleRefs: string[] = [];
+        if (style.preview) {
+          styleRefs.push(resolveImageUrl(style.preview));
+        }
+        if (style.refs && style.refs.length > 0) {
+          styleRefs = [...styleRefs, ...style.refs.map(resolveImageUrl)];
+        }
+
+        if (styleRefs.length > 0) {
+          // 去重
+          const uniqueStyleRefs = Array.from(new Set(styleRefs));
+          // 将风格参考图放在前面
+          referenceImages = [...uniqueStyleRefs, ...referenceImages];
+        }
       }
     }
   }
 
-  // Language Strategy Prompt
-  let languagePrompt = '';
-  if (params.outputLanguage === 'zh') {
-    languagePrompt = `\n\n[Language Requirement]\nIMPORTANT: The output text in the image MUST be in Simplified Chinese (简体中文). Translate any English system instructions to Chinese if they appear in the final output.`;
-  } else if (params.outputLanguage === 'en') {
-    languagePrompt = `\n\n[Language Requirement]\nIMPORTANT: The output text in the image MUST be in English.`;
-  } else {
-    // Auto
-    languagePrompt = `\n\n[Language Requirement]\nIMPORTANT: Strictly maintain the language of the user's input content. If the user input is Chinese, the output text MUST be in Chinese. If the user input is English, the output text MUST be in English.`;
-  }
+  // 🎯 2026-02-10 更新：使用统一的语言检测和提示词生成函数
+  // 这样可以确保 auto 模式下准确检测用户输入的语言，避免语言混乱
+  const languagePrompt = generateLanguagePrompt(params.outputLanguage, params.prompt);
 
   // Content Strategy Prompt
   const contentStrategy = params.isEnhancedMode
-    ? `\n\n[Content Enhancement Strategy]\nIf user provided content is detailed, use it directly. If content is simple/sparse, use your professional knowledge to expand on the subject to create a rich, complete slide, BUT you must STRICTLY preserve any specific data, numbers, and professional terms provided. Do NOT invent false data. For sparse content, use advanced layout techniques (grid, whitespace, font size) to fill the space professionally without forced filling.${languagePrompt}`
-    : `\n\n[Strict Mode]\nSTRICTLY follow the provided text for Title and Content. Do NOT add, remove, or modify any words. Do NOT expand or summarize. Render the text exactly as given.${languagePrompt}`;
+    ? `\n\n[Content Enhancement Strategy]\nIf user provided content is detailed, use it directly. If content is simple/sparse, use your professional knowledge to expand on the subject to create a rich, complete slide, BUT you must STRICTLY preserve any specific data, numbers, and professional terms provided. Do NOT invent false data. For sparse content, use advanced layout techniques (grid, whitespace, font size) to fill the space professionally without forced filling.`
+    : `\n\n[Strict Mode]\nSTRICTLY follow the provided text for Title and Content. Do NOT add, remove, or modify any words. Do NOT expand or summarize. Render the text exactly as given.`;
 
   // Combine prompts
-  let finalPrompt = params.prompt + ' ' + styleSuffix + contentStrategy;
+  // 🎯 语言约束放在最后，确保 AI 优先遵守语言要求
+  let finalPrompt = params.prompt + ' ' + styleSuffix + contentStrategy + languagePrompt;
+
+  // 🎯 编辑模式：添加特殊编辑指令
+  if (isEditMode && params.markedImage) {
+    finalPrompt += `\n\n[重要编辑指令]\n图片中的红色框标记了需要修改的区域。请仅修改红框内的内容，保持红框外的所有元素不变。修改完成后，请移除所有红色标记框。`;
+    console.log('[KIE] 🎨 已添加编辑模式指令');
+  }
 
   // Log reference images info
   if (referenceImages.length > 0) {
     const limitedImages = referenceImages.slice(0, 8);
     console.log(
       `[KIE] Reference images (${limitedImages.length} URLs):`,
-      limitedImages
+      limitedImages.map(url => url.substring(0, 80) + '...')
     );
-    // Add strong natural language instruction to use reference image style
-    finalPrompt +=
-      '（视觉风格参考：请严格遵循所提供参考图的设计风格、配色方案和构图布局）';
+    // 非编辑模式下添加风格参考指令
+    if (!isEditMode) {
+      finalPrompt +=
+        '（视觉风格参考：请严格遵循所提供参考图的设计风格、配色方案和构图布局）';
+    }
 
     referenceImages = limitedImages;
   }
@@ -915,10 +1028,15 @@ export async function createKieTaskWithFallbackAction(params: {
   // 2. 整体编辑：有原图（editImageUrl）
   // 3. 容错处理：如果 customImages 中只有一张图且没有 styleId，通常也是编辑行为
   const isEditMode = !!(editImageUrl || markedImage || (taskParams.customImages && taskParams.customImages.length === 1 && !params.styleId));
-  
+
+  // 🎯 2026-02-10 更新：KIE 的 nano-banana-pro 也支持编辑功能（通过 image_input 参数）
+  // 因此编辑模式不再强制使用 FAL，而是按照环境变量配置的优先级顺序尝试
+  // 只有 Replicate 不支持编辑模式，需要从链中移除
   if (isEditMode) {
-    providerChain = ['FAL']; // 编辑模式必须使用支持 edit 模型的 FAL
-    console.log(`\n🎨 编辑模式确认：仅使用 FAL (${markedImage ? '局部标记编辑' : '整体效果编辑'})`);
+    // 编辑模式下移除 Replicate（不支持编辑）
+    providerChain = providerChain.filter(p => p !== 'Replicate');
+    console.log(`\n🎨 编辑模式确认：${markedImage ? '局部标记编辑' : '整体效果编辑'}`);
+    console.log(`📋 编辑模式可用提供商: ${providerChain.join(' -> ')}`);
   } else if (preferredProvider && providerChain.includes(preferredProvider)) {
     // 将首选 provider 移到第一位
     providerChain = [
@@ -928,6 +1046,9 @@ export async function createKieTaskWithFallbackAction(params: {
   }
 
   console.log(`\n🎯 生成任务 - 优先级顺序: ${providerChain.join(' -> ')}`);
+
+  // 🎯 记录主力提供商（优先级链的第一个）
+  const primaryProvider = providerChain[0];
 
   let lastError: any = null;
 
@@ -939,13 +1060,13 @@ export async function createKieTaskWithFallbackAction(params: {
           continue;
         }
         console.log(
-          `🔄 [${provider === preferredProvider ? '主力' : '托底'}] 使用 FAL (nano-banana-pro)...`
+          `🔄 [${provider === primaryProvider ? '主力' : '托底'}] 使用 FAL (nano-banana-pro)...`
         );
         const result = await createFalTaskAction(processedParams);
         console.log('✅ FAL 任务成功');
         return {
           ...result,
-          fallbackUsed: provider !== preferredProvider,
+          fallbackUsed: provider !== primaryProvider,
         };
       } else if (provider === 'KIE') {
         if (!KIE_API_KEY) {
@@ -953,7 +1074,7 @@ export async function createKieTaskWithFallbackAction(params: {
           continue;
         }
         console.log(
-          `🔄 [${provider === preferredProvider ? '主力' : '托底'}] 使用 KIE (nano-banana-pro)...`
+          `🔄 [${provider === primaryProvider ? '主力' : '托底'}] 使用 KIE (nano-banana-pro)...`
         );
         const result = await createKieTaskAction(processedParams);
         console.log('✅ KIE 任务创建成功:', result.task_id);
@@ -961,7 +1082,7 @@ export async function createKieTaskWithFallbackAction(params: {
           success: true,
           task_id: result.task_id,
           provider: 'KIE',
-          fallbackUsed: provider !== preferredProvider,
+          fallbackUsed: provider !== primaryProvider,
         };
       } else if (provider === 'Replicate') {
         if (!REPLICATE_API_TOKEN) {
@@ -969,26 +1090,22 @@ export async function createKieTaskWithFallbackAction(params: {
           continue;
         }
         console.log(
-          `🔄 [${provider === preferredProvider ? '主力' : '托底'}] 使用 Replicate (nano-banana-pro)...`
+          `🔄 [${provider === primaryProvider ? '主力' : '托底'}] 使用 Replicate (nano-banana-pro)...`
         );
         const result = await createReplicateTaskAction(processedParams);
         console.log('✅ Replicate 任务成功');
         return {
           ...result,
-          fallbackUsed: provider !== preferredProvider,
+          fallbackUsed: provider !== primaryProvider,
         };
       }
     } catch (error: any) {
       console.warn(`⚠️ ${provider} 失败:`, error.message);
       lastError = error;
 
-      // 🎯 编辑模式下，如果 FAL 失败，提供更详细的错误信息
-      if (isEditMode && provider === 'FAL') {
-        console.error('❌ 编辑模式失败：FAL API 错误');
-        console.error('错误详情:', error);
-        throw new Error(
-          `局部编辑失败：${error.message || '未知错误'}。提示：编辑模式需要 FAL API 支持。`
-        );
+      // 🎯 编辑模式下记录详细错误，但继续尝试下一个提供商
+      if (isEditMode) {
+        console.error(`❌ 编辑模式 ${provider} 失败:`, error.message);
       }
       // 继续下一个 loop
     }
@@ -1083,30 +1200,25 @@ export async function createFalTaskAction(params: {
         : null
     );
 
-    // Language Strategy Prompt
-    let languagePrompt = '';
-    if (params.outputLanguage === 'zh') {
-      languagePrompt = `\n\n[Language Requirement]\nIMPORTANT: The output text in the image MUST be in Simplified Chinese (简体中文). Translate any English system instructions to Chinese if they appear in the final output.`;
-    } else if (params.outputLanguage === 'en') {
-      languagePrompt = `\n\n[Language Requirement]\nIMPORTANT: The output text in the image MUST be in English.`;
-    } else {
-      // Auto
-      languagePrompt = `\n\n[Language Requirement]\nIMPORTANT: Strictly maintain the language of the user's input content. If the user input is Chinese, the output text MUST be in Chinese. If the user input is English, the output text MUST be in English.`;
-    }
+    // 🎯 2026-02-10 更新：使用统一的语言检测和提示词生成函数
+    // 这样可以确保 auto 模式下准确检测用户输入的语言，避免语言混乱
+    const languagePrompt = generateLanguagePrompt(params.outputLanguage, params.prompt);
 
     // Content Strategy Prompt
     const contentStrategy = params.isEnhancedMode
-      ? `\n\n[Content Enhancement Strategy]\nIf user provided content is detailed, use it directly. If content is simple/sparse, use your professional knowledge to expand on the subject to create a rich, complete slide, BUT you must STRICTLY preserve any specific data, numbers, and professional terms provided. Do NOT invent false data. For sparse content, use advanced layout techniques (grid, whitespace, font size) to fill the space professionally without forced filling.${languagePrompt}`
-      : `\n\n[Strict Mode]\nSTRICTLY follow the provided text for Title and Content. Do NOT add, remove, or modify any words. Do NOT expand or summarize. Render the text exactly as given.${languagePrompt}`;
+      ? `\n\n[Content Enhancement Strategy]\nIf user provided content is detailed, use it directly. If content is simple/sparse, use your professional knowledge to expand on the subject to create a rich, complete slide, BUT you must STRICTLY preserve any specific data, numbers, and professional terms provided. Do NOT invent false data. For sparse content, use advanced layout techniques (grid, whitespace, font size) to fill the space professionally without forced filling.`
+      : `\n\n[Strict Mode]\nSTRICTLY follow the provided text for Title and Content. Do NOT add, remove, or modify any words. Do NOT expand or summarize. Render the text exactly as given.`;
 
-    // 🎯 构建最终提示词：内容 + 风格 + 视觉规范 + 锚定 + 策略
+    // 🎯 构建最终提示词：内容 + 风格 + 视觉规范 + 锚定 + 策略 + 语言约束
+    // 语言约束放在最后，确保 AI 优先遵守语言要求
     let finalPrompt =
       params.prompt +
       ' ' +
       styleSuffix +
       visualSpecPrompt +
       anchorPrompt +
-      contentStrategy;
+      contentStrategy +
+      languagePrompt;
 
     // 🎯 判断是否为编辑模式（有原图和mask）
     const isEditMode = !!(params.editImageUrl && params.maskImage);
@@ -1345,30 +1457,25 @@ export async function createReplicateTaskAction(params: {
         : null
     );
 
-    // Language Strategy Prompt
-    let languagePrompt = '';
-    if (params.outputLanguage === 'zh') {
-      languagePrompt = `\n\n[Language Requirement]\nIMPORTANT: The output text in the image MUST be in Simplified Chinese (简体中文). Translate any English system instructions to Chinese if they appear in the final output.`;
-    } else if (params.outputLanguage === 'en') {
-      languagePrompt = `\n\n[Language Requirement]\nIMPORTANT: The output text in the image MUST be in English.`;
-    } else {
-      // Auto
-      languagePrompt = `\n\n[Language Requirement]\nIMPORTANT: Strictly maintain the language of the user's input content. If the user input is Chinese, the output text MUST be in Chinese. If the user input is English, the output text MUST be in English.`;
-    }
+    // 🎯 2026-02-10 更新：使用统一的语言检测和提示词生成函数
+    // 这样可以确保 auto 模式下准确检测用户输入的语言，避免语言混乱
+    const languagePrompt = generateLanguagePrompt(params.outputLanguage, params.prompt);
 
     // Content Strategy Prompt
     const contentStrategy = params.isEnhancedMode
-      ? `\n\n[Content Enhancement Strategy]\nIf user provided content is detailed, use it directly. If content is simple/sparse, use your professional knowledge to expand on the subject to create a rich, complete slide, BUT you must STRICTLY preserve any specific data, numbers, and professional terms provided. Do NOT invent false data. For sparse content, use advanced layout techniques (grid, whitespace, font size) to fill the space professionally without forced filling.${languagePrompt}`
-      : `\n\n[Strict Mode]\nSTRICTLY follow the provided text for Title and Content. Do NOT add, remove, or modify any words. Do NOT expand or summarize. Render the text exactly as given.${languagePrompt}`;
+      ? `\n\n[Content Enhancement Strategy]\nIf user provided content is detailed, use it directly. If content is simple/sparse, use your professional knowledge to expand on the subject to create a rich, complete slide, BUT you must STRICTLY preserve any specific data, numbers, and professional terms provided. Do NOT invent false data. For sparse content, use advanced layout techniques (grid, whitespace, font size) to fill the space professionally without forced filling.`
+      : `\n\n[Strict Mode]\nSTRICTLY follow the provided text for Title and Content. Do NOT add, remove, or modify any words. Do NOT expand or summarize. Render the text exactly as given.`;
 
-    // 🎯 构建最终提示词：内容 + 风格 + 视觉规范 + 锚定 + 策略
+    // 🎯 构建最终提示词：内容 + 风格 + 视觉规范 + 锚定 + 策略 + 语言约束
+    // 语言约束放在最后，确保 AI 优先遵守语言要求
     let finalPrompt =
       params.prompt +
       ' ' +
       styleSuffix +
       visualSpecPrompt +
       anchorPrompt +
-      contentStrategy;
+      contentStrategy +
+      languagePrompt;
 
     // 处理参考图片
     let referenceImages = (params.customImages || []).map(resolveImageUrl);

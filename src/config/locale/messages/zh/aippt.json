@@ -228,6 +228,10 @@
     "edit_mode_active_hint": "编辑模式已激活 - 点击历史版本切换图片，完成后点击「保存更改」",
     "unsaved": "未保存",
     "regional_edit": "局部编辑",
+    "global_edit_title": "整体修改",
+    "global_edit_badge": "全局",
+    "global_edit_placeholder": "描述针对整个画面的修改需求，如：把整体色调改为暖色系、增加科技感氛围...",
+    "global_edit_hint": "无需框选区域，直接输入修改描述即可对整张图进行调整",
     "watermark_global_hint": "水印设置对所有幻灯片生效",
     "edit_cancelled": "已取消编辑",
     "pptx_export": {
