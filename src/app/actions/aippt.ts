@@ -27,6 +27,41 @@ const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 // 使用 OpenRouter API Key（用于视觉 OCR）
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
+/**
+ * 图片生成服务优先级配置（从环境变量读取）
+ * 
+ * 非程序员解释：
+ * - 通过修改 .env.local 文件中的 IMAGE_PROVIDER_PRIORITY 就能快速切换主力/托底顺序
+ * - 格式：用逗号分隔的提供商名称，从左到右依次尝试
+ * - 示例：KIE,FAL,Replicate 表示 KIE主力，FAL托底，Replicate最终托底
+ * - 如果环境变量未设置或格式错误，默认使用 FAL,KIE,Replicate
+ */
+function getProviderPriority(): Array<'FAL' | 'KIE' | 'Replicate'> {
+  const priorityStr = process.env.IMAGE_PROVIDER_PRIORITY || 'FAL,KIE,Replicate';
+  
+  // 解析逗号分隔的字符串，去除空格
+  const providers = priorityStr
+    .split(',')
+    .map(p => p.trim())
+    .filter(p => ['FAL', 'KIE', 'Replicate'].includes(p)) as Array<'FAL' | 'KIE' | 'Replicate'>;
+  
+  // 如果解析后为空或少于1个提供商，使用默认配置
+  if (providers.length === 0) {
+    console.warn('⚠️ IMAGE_PROVIDER_PRIORITY 配置无效，使用默认顺序: FAL,KIE,Replicate');
+    return ['FAL', 'KIE', 'Replicate'];
+  }
+  
+  // 确保所有三个提供商都存在（防止配置遗漏）
+  const allProviders: Array<'FAL' | 'KIE' | 'Replicate'> = ['FAL', 'KIE', 'Replicate'];
+  const missingProviders = allProviders.filter(p => !providers.includes(p));
+  
+  // 将遗漏的提供商追加到末尾
+  const finalProviders = [...providers, ...missingProviders];
+  
+  console.log(`📋 图片生成优先级（环境变量配置）: ${finalProviders.join(' -> ')}`);
+  return finalProviders;
+}
+
 // 资源的基础 URL
 // 优先使用 R2 域名，其次是 App URL，最后是生产环境域名
 // 注意：AI 服务无法访问 localhost，必须使用公网 URL
@@ -787,13 +822,16 @@ export async function queryKieTaskAction(taskId: string) {
 }
 
 /**
- * Create Image Generation Task with Load Balancing (三级机制)
+ * Create Image Generation Task with Load Balancing (三级机制 - 支持环境变量配置)
  *
  * 非程序员解释：
- * - 实现了 FAL -> KIE -> Replicate 的三级降级策略
- * - 1. 主力: FAL (nano-banana-pro)
- * - 2. 托底: KIE
- * - 3. 最终托底: Replicate
+ * - 实现了三级降级策略，主力/托底顺序可通过环境变量快速切换
+ * - 配置方式：在 .env.local 文件中修改 IMAGE_PROVIDER_PRIORITY
+ * - 默认顺序：FAL -> KIE -> Replicate
+ * - 切换示例：
+ *   - 想让 KIE 做主力：IMAGE_PROVIDER_PRIORITY=KIE,FAL,Replicate
+ *   - 想让 FAL 做主力：IMAGE_PROVIDER_PRIORITY=FAL,KIE,Replicate
+ * - 优势：不需要改代码，重启服务后立即生效
  */
 /**
  * Deck上下文信息 - 用于多页PPT生成时保持一致性
@@ -868,9 +906,9 @@ export async function createKieTaskWithFallbackAction(params: {
     markedImage, // 🎯 传递带标记的图片
   };
 
-  // 定义优先级顺序
-  // 如果指定了 provider，则它排第一，其他的按默认顺序排
-  let providerChain = ['KIE', 'FAL', 'Replicate'];
+  // 定义优先级顺序（从环境变量读取，可在 .env.local 中修改 IMAGE_PROVIDER_PRIORITY）
+  // 非程序员解释：现在不需要改代码，只需要修改 .env.local 文件就能切换主力/托底顺序
+  let providerChain = getProviderPriority();
 
   // 🎯 编辑模式判断逻辑优化
   // 1. 局部编辑：有原图 + 标记图
