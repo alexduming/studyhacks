@@ -42,6 +42,15 @@
     "generate": "Generate infographic",
     "generating": "AI is creating the infographic task..."
   },
+  "edit": {
+    "title": "Edit Infographic",
+    "subtitle": "Modify the prompt and regenerate your infographic.",
+    "back_to_library": "Back to Library",
+    "loading": "Loading original infographic...",
+    "loaded": "Original infographic loaded for editing",
+    "cancel": "Cancel",
+    "regenerate": "Regenerate"
+  },
   "result": {
     "title": "Generation result",
     "empty_title": "No result yet",
@@ -67,6 +76,8 @@
     "timeout": "Infographic generation timeout. Please try again later.",
     "generation_failed": "Infographic generation failed. Please try again later.",
     "image_load_failed": "Failed to load image",
-    "reference_image_too_large": "Reference image is too large, please select an image smaller than 10MB"
+    "reference_image_too_large": "Reference image is too large, please select an image smaller than 10MB",
+    "task_not_found": "Task not found or access denied",
+    "load_failed": "Failed to load task"
   }
 }

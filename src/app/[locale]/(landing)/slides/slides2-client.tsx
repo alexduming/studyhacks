@@ -996,15 +996,18 @@ export default function Slides2Client({
       isGlobalEdit?: boolean;
     }
   ) => {
+    // 🎯 修复：无论是否选择了预设风格，只要用户上传了自定义参考图就应该上传并传递给后端
+    // 原逻辑错误地在选择风格时忽略了用户上传的参考图
+    // 后端会自动将风格库参考图和用户自定义图合并使用
     const styleImages =
       options?.cachedStyleImages ??
-      (selectedStyleId
-        ? []
-        : await Promise.all(
+      (customImageFiles.length > 0
+        ? await Promise.all(
             customImageFiles.map((file) =>
               uploadImageToStorage(file, file.name)
             )
-          ).catch(() => []));
+          ).catch(() => [])
+        : []);
 
     let regionPayload = options?.regions;
     if (regionPayload?.length) {
@@ -1075,12 +1078,39 @@ export default function Slides2Client({
 
         const { editImageRegionAction } = await import('@/app/actions/aippt');
 
-        // 获取原图尺寸
-        const imageWidth = resolution === '4K' ? 3840 : 1920;
-        const imageHeight = resolution === '4K' ? 2160 : 1080;
+        // 🎯 关键修复：根据实际的 aspectRatio 计算正确的宽高
+        // 原来硬编码为 16:9 (3840x2160 或 1920x1080)，导致 9:16 等比例的图片编辑后变形
+        const getImageDimensions = (ratio: string, res: string) => {
+          // 基础分辨率：2K=1920, 4K=3840
+          const baseWidth = res === '4K' ? 3840 : 1920;
+
+          // 解析比例字符串，如 "16:9" -> [16, 9]
+          const [w, h] = ratio.split(':').map(Number);
+          if (!w || !h) {
+            // 默认 16:9
+            return { width: baseWidth, height: res === '4K' ? 2160 : 1080 };
+          }
+
+          // 根据比例计算高度
+          // 如果是横向比例（w > h），以宽度为基准
+          // 如果是纵向比例（w < h），以高度为基准，确保图片不会太大
+          if (w >= h) {
+            // 横向或正方形：以宽度为基准
+            const height = Math.round(baseWidth * h / w);
+            return { width: baseWidth, height };
+          } else {
+            // 纵向：以高度为基准（使用 baseWidth 作为高度）
+            const height = baseWidth;
+            const width = Math.round(height * w / h);
+            return { width, height };
+          }
+        };
+
+        const { width: imageWidth, height: imageHeight } = getImageDimensions(aspectRatio, resolution);
+        console.log(`[Edit Mode] 使用比例 ${aspectRatio}，计算尺寸: ${imageWidth}x${imageHeight}`);
 
         // 🎯 调用精简版编辑 API
-        // 只传递：原图 + 选区坐标和描述 + 分辨率
+        // 只传递：原图 + 选区坐标和描述 + 分辨率 + 宽高比
         const editResult = await editImageRegionAction({
           imageUrl: slide.imageUrl,
           regions: regionPayload.map((region) => ({
@@ -1094,6 +1124,7 @@ export default function Slides2Client({
           imageWidth,
           imageHeight,
           resolution,
+          aspectRatio, // 🎯 传递宽高比，确保编辑后保持原比例
         });
 
         console.log('[Edit Mode] ✅ 编辑完成');
@@ -2996,6 +3027,14 @@ export default function Slides2Client({
     // 🎯 使用 slide 内置的 history（持久化），同时兼容旧的 slideHistories
     const histories = slide.history || slideHistories[slide.id] || [];
 
+    // 🎯 根据 aspectRatio 计算 CSS aspect-ratio 值
+    // 将 "16:9" 转换为 "16/9" 格式
+    const getAspectRatioStyle = () => {
+      const [w, h] = aspectRatio.split(':').map(Number);
+      if (!w || !h) return '16/9'; // 默认 16:9
+      return `${w}/${h}`;
+    };
+
     return (
       <Card
         key={slide.id}
@@ -3026,14 +3065,18 @@ export default function Slides2Client({
             }
           </Badge>
         </div>
-        <div className="border-border bg-muted/50 relative aspect-[16/9] overflow-hidden rounded-2xl border dark:bg-black/20">
+        {/* 🎯 关键修复：使用动态 aspect-ratio 而非硬编码的 16/9 */}
+        <div
+          className="border-border bg-muted/50 relative overflow-hidden rounded-2xl border dark:bg-black/20"
+          style={{ aspectRatio: getAspectRatioStyle() }}
+        >
           {slide.status === 'completed' && slide.imageUrl ? (
             <div className="relative h-full w-full">
               <Image
                 src={slide.imageUrl}
                 alt={slide.title}
                 fill
-                className="cursor-zoom-in object-cover transition-transform hover:scale-[1.02]"
+                className="cursor-zoom-in object-contain transition-transform hover:scale-[1.02]"
                 unoptimized
                 onClick={() => setLightboxUrl(slide.imageUrl!)}
               />

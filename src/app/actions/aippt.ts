@@ -22,6 +22,7 @@ import { getSignUser } from '@/shared/models/user';
 const KIE_API_KEY = process.env.KIE_NANO_BANANA_PRO_KEY || '';
 const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN || '';
 const FAL_KEY = process.env.FAL_KEY || '';
+const APIYI_API_KEY = process.env.APIYI_API_KEY || ''; // APIYI (Gemini 3 Pro Image)
 // 使用 DeepSeek 官方 Key（从环境变量读取，避免明文暴露）
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 // 使用 OpenRouter API Key（用于视觉 OCR）
@@ -122,31 +123,32 @@ Do NOT mix languages. Do NOT use Chinese for any visible text. Keep the entire s
  * 非程序员解释：
  * - 通过修改 .env.local 文件中的 IMAGE_PROVIDER_PRIORITY 就能快速切换主力/托底顺序
  * - 格式：用逗号分隔的提供商名称，从左到右依次尝试
- * - 示例：KIE,FAL,Replicate 表示 KIE主力，FAL托底，Replicate最终托底
- * - 如果环境变量未设置或格式错误，默认使用 FAL,KIE,Replicate
+ * - 支持的提供商：FAL、KIE、Replicate、APIYI
+ * - 示例：APIYI,FAL,KIE,Replicate 表示 APIYI主力，FAL托底，KIE再托底，Replicate最终托底
+ * - 如果环境变量未设置或格式错误，默认使用 FAL,KIE,Replicate,APIYI
  */
-function getProviderPriority(): Array<'FAL' | 'KIE' | 'Replicate'> {
-  const priorityStr = process.env.IMAGE_PROVIDER_PRIORITY || 'FAL,KIE,Replicate';
-  
+function getProviderPriority(): Array<'FAL' | 'KIE' | 'Replicate' | 'APIYI'> {
+  const priorityStr = process.env.IMAGE_PROVIDER_PRIORITY || 'FAL,KIE,Replicate,APIYI';
+
   // 解析逗号分隔的字符串，去除空格
   const providers = priorityStr
     .split(',')
     .map(p => p.trim())
-    .filter(p => ['FAL', 'KIE', 'Replicate'].includes(p)) as Array<'FAL' | 'KIE' | 'Replicate'>;
-  
+    .filter(p => ['FAL', 'KIE', 'Replicate', 'APIYI'].includes(p)) as Array<'FAL' | 'KIE' | 'Replicate' | 'APIYI'>;
+
   // 如果解析后为空或少于1个提供商，使用默认配置
   if (providers.length === 0) {
-    console.warn('⚠️ IMAGE_PROVIDER_PRIORITY 配置无效，使用默认顺序: FAL,KIE,Replicate');
-    return ['FAL', 'KIE', 'Replicate'];
+    console.warn('⚠️ IMAGE_PROVIDER_PRIORITY 配置无效，使用默认顺序: FAL,KIE,Replicate,APIYI');
+    return ['FAL', 'KIE', 'Replicate', 'APIYI'];
   }
-  
-  // 确保所有三个提供商都存在（防止配置遗漏）
-  const allProviders: Array<'FAL' | 'KIE' | 'Replicate'> = ['FAL', 'KIE', 'Replicate'];
+
+  // 确保所有四个提供商都存在（防止配置遗漏）
+  const allProviders: Array<'FAL' | 'KIE' | 'Replicate' | 'APIYI'> = ['FAL', 'KIE', 'Replicate', 'APIYI'];
   const missingProviders = allProviders.filter(p => !providers.includes(p));
-  
+
   // 将遗漏的提供商追加到末尾
   const finalProviders = [...providers, ...missingProviders];
-  
+
   console.log(`📋 图片生成优先级（环境变量配置）: ${finalProviders.join(' -> ')}`);
   return finalProviders;
 }
@@ -935,6 +937,384 @@ export async function queryKieTaskAction(taskId: string) {
 }
 
 /**
+ * APIYI API 端点
+ * - 统一使用 Gemini 原生格式（支持文生图和图生图，且支持分辨率参数）
+ */
+const APIYI_TEXT2IMG_URL = 'https://api.apiyi.com/v1beta/models/gemini-3-pro-image-preview:generateContent';
+
+/**
+ * 下载图片并转换为 base64
+ *
+ * 非程序员解释：
+ * - 从 URL 下载图片文件
+ * - 将图片数据转换为 base64 编码字符串
+ * - 用于 APIYI 图生图模式（Gemini 原生格式需要 base64 图片）
+ */
+async function downloadImageAsBase64ForApiyi(imageUrl: string): Promise<{ base64: string; mimeType: string } | null> {
+  try {
+    console.log('[APIYI] 📥 下载参考图:', imageUrl.substring(0, 80) + '...');
+
+    const response = await fetch(imageUrl, {
+      signal: AbortSignal.timeout(30000), // 30秒超时
+    });
+
+    if (!response.ok) {
+      console.warn('[APIYI] 下载参考图失败:', response.status);
+      return null;
+    }
+
+    // 获取 MIME 类型
+    const contentType = response.headers.get('content-type') || 'image/png';
+    const mimeType = contentType.split(';')[0].trim();
+
+    // 转换为 base64
+    const arrayBuffer = await response.arrayBuffer();
+    const base64 = Buffer.from(arrayBuffer).toString('base64');
+
+    console.log(`[APIYI] ✅ 参考图下载成功，大小: ${(base64.length / 1024).toFixed(1)} KB, 类型: ${mimeType}`);
+
+    return { base64, mimeType };
+  } catch (error: any) {
+    console.warn('[APIYI] 下载参考图异常:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Create Image Generation Task via APIYI API (同步模式)
+ *
+ * 非程序员解释：
+ * - APIYI 统一使用 Google Gemini 原生格式，支持 aspectRatio 和 imageSize
+ * - 文生图：直接传递文本 prompt
+ * - 图生图：将参考图转为 base64，通过 inline_data 传递
+ * - 同步接口：直接等待生成完成，返回 base64 图片数据
+ * - 速度快（约 8-22 秒），价格便宜（$0.05/张）
+ *
+ * 🎯 注意：APIYI 是同步 API，会直接返回图片数据
+ * 为了与其他异步提供商保持一致的接口，这里返回一个特殊的 task_id
+ * 前端轮询时会立即返回已完成状态和图片 URL
+ *
+ * 重要修复（2026-02-12）：
+ * - 之前图生图使用 OpenAI 兼容格式，不支持分辨率参数
+ * - 现在统一使用 Gemini 原生格式 + base64 图片，支持完整的分辨率控制
+ */
+export async function createApiyiTaskAction(params: {
+  prompt: string;
+  styleId?: string;
+  aspectRatio?: string;
+  imageSize?: string;
+  customImages?: string[];
+  isEnhancedMode?: boolean;
+  isPromptEnhancedMode?: boolean;
+  outputLanguage?: 'auto' | 'zh' | 'en';
+  editImageUrl?: string;
+  maskImage?: string;
+  markedImage?: string;
+  deckContext?: DeckContext;
+}) {
+  // 🎯 判断是否为编辑模式
+  const isEditMode = !!(params.editImageUrl || params.markedImage);
+
+  // Styles
+  let styleSuffix = '';
+  let referenceImages: string[] = [];
+
+  // 🎯 编辑模式下，使用带标记的图片作为参考
+  if (isEditMode && params.markedImage) {
+    referenceImages = [params.markedImage];
+    console.log('[APIYI] 🎨 编辑模式：使用带标记的图片');
+  } else {
+    referenceImages = (params.customImages || []).map(resolveImageUrl);
+
+    if (params.styleId) {
+      const style = PPT_STYLES.find((s) => s.id === params.styleId);
+      if (style && params.isPromptEnhancedMode !== false) {
+        styleSuffix = style.prompt;
+
+        let styleRefs: string[] = [];
+        if (style.preview) {
+          styleRefs.push(resolveImageUrl(style.preview));
+        }
+        if (style.refs && style.refs.length > 0) {
+          styleRefs = [...styleRefs, ...style.refs.map(resolveImageUrl)];
+        }
+
+        if (styleRefs.length > 0) {
+          const uniqueStyleRefs = Array.from(new Set(styleRefs));
+          referenceImages = [...uniqueStyleRefs, ...referenceImages];
+        }
+      }
+    }
+  }
+
+  // 使用统一的语言检测和提示词生成函数
+  const languagePrompt = generateLanguagePrompt(params.outputLanguage, params.prompt);
+
+  // Content Strategy Prompt
+  const contentStrategy = params.isEnhancedMode
+    ? `\n\n[Content Enhancement Strategy]\nIf user provided content is detailed, use it directly. If content is simple/sparse, use your professional knowledge to expand on the subject to create a rich, complete slide, BUT you must STRICTLY preserve any specific data, numbers, and professional terms provided. Do NOT invent false data. For sparse content, use advanced layout techniques (grid, whitespace, font size) to fill the space professionally without forced filling.`
+    : `\n\n[Strict Mode]\nSTRICTLY follow the provided text for Title and Content. Do NOT add, remove, or modify any words. Do NOT expand or summarize. Render the text exactly as given.`;
+
+  // Combine prompts
+  let finalPrompt = params.prompt + ' ' + styleSuffix + contentStrategy + languagePrompt;
+
+  // 🎯 编辑模式：添加特殊编辑指令
+  if (isEditMode && params.markedImage) {
+    finalPrompt += `\n\n[重要编辑指令]\n图片中的红色框标记了需要修改的区域。请仅修改红框内的内容，保持红框外的所有元素不变。修改完成后，请移除所有红色标记框。`;
+    console.log('[APIYI] 🎨 已添加编辑模式指令');
+  }
+
+  // Log reference images info
+  if (referenceImages.length > 0) {
+    const limitedImages = referenceImages.slice(0, 8);
+    console.log(
+      `[APIYI] Reference images (${limitedImages.length} URLs):`,
+      limitedImages.map((url) => url.substring(0, 80) + '...')
+    );
+  }
+
+  // 映射宽高比和分辨率
+  const aspectRatio = params.aspectRatio || '16:9';
+  const imageSize = params.imageSize || '2K';
+
+  // 根据分辨率设置超时时间
+  const timeoutMap: Record<string, number> = { '1K': 180000, '2K': 300000, '4K': 360000 };
+  const timeout = timeoutMap[imageSize] || 300000;
+
+  // 🎯 统一使用 Gemini 原生格式端点（支持分辨率参数）
+  const hasReferenceImages = referenceImages.length > 0;
+  const apiUrl = APIYI_TEXT2IMG_URL;
+
+  // 构建请求体（Gemini 原生格式）
+  let parts: any[] = [{ text: finalPrompt }];
+
+  // 如果有参考图，下载并转为 base64，添加到 parts 中
+  if (hasReferenceImages) {
+    const limitedImages = referenceImages.slice(0, 8); // 最多 8 张参考图
+    console.log('[APIYI] 🎨 开始下载参考图，数量:', limitedImages.length);
+
+    // 并行下载所有参考图
+    const downloadPromises = limitedImages.map(url => downloadImageAsBase64ForApiyi(url));
+    const downloadResults = await Promise.all(downloadPromises);
+
+    // 将成功下载的图片添加到 parts 数组
+    let successCount = 0;
+    for (const imageData of downloadResults) {
+      if (imageData) {
+        parts.push({
+          inline_data: {
+            mime_type: imageData.mimeType,
+            data: imageData.base64,
+          },
+        });
+        successCount++;
+      }
+    }
+
+    if (successCount > 0) {
+      console.log(`[APIYI] 🎨 使用图生图模式（Gemini 原生格式 + base64 图片），成功加载 ${successCount}/${limitedImages.length} 张参考图`);
+    } else {
+      console.warn('[APIYI] ⚠️ 所有参考图下载失败，降级为纯文生图模式');
+    }
+  }
+
+  const payload = {
+    contents: [{ parts }],
+    generationConfig: {
+      responseModalities: ['IMAGE'],
+      imageConfig: {
+        aspectRatio: aspectRatio,
+        imageSize: imageSize,
+      },
+    },
+  };
+
+  console.log('[APIYI] 请求参数:', {
+    apiUrl: 'Gemini 原生格式',
+    aspectRatio,
+    imageSize,
+    promptLength: finalPrompt.length,
+    isEditMode,
+    hasReferenceImages,
+    partsCount: parts.length,
+  });
+
+  try {
+    // 发送请求（同步等待）
+    const startTime = Date.now();
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${APIYI_API_KEY}`,
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(timeout),
+    });
+
+    const elapsed = (Date.now() - startTime) / 1000;
+    console.log(`[APIYI] 请求耗时: ${elapsed.toFixed(1)} 秒`);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[APIYI] 请求失败:', response.status, errorText);
+      throw new Error(`APIYI API error: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+
+    // 解析 Gemini 原生格式的响应
+    if (!data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data) {
+      const finishReason = data.candidates?.[0]?.finishReason;
+      if (finishReason && finishReason !== 'STOP') {
+        console.error('[APIYI] 内容被拒绝:', finishReason);
+        throw new Error(`Content rejected: ${finishReason}`);
+      }
+      console.error('[APIYI] 响应格式异常:', JSON.stringify(data).substring(0, 500));
+      throw new Error('Invalid response format from APIYI');
+    }
+
+    const base64Data = data.candidates[0].content.parts[0].inlineData.data;
+    const mimeType = data.candidates[0].content.parts[0].inlineData.mimeType || 'image/png';
+
+    console.log(`✅ [APIYI] 生成成功！图片大小: ${(base64Data.length / 1024).toFixed(1)} KB`);
+
+    // 🎯 关键修复：将 base64 图片上传到 R2，避免大数据通过 Server Action 传输
+    // 原因：base64 数据约 4-6MB，通过 Server Action 返回会超过 Next.js middleware 的 10MB 限制
+    // 解决：先上传到 R2 CDN，然后只缓存 CDN URL
+    let finalImageUrl: string;
+
+    try {
+      const { getStorageServiceWithConfigs } = await import('@/shared/services/storage');
+      const { getAllConfigs } = await import('@/shared/models/config');
+      const { getUserInfo } = await import('@/shared/models/user');
+      const { nanoid } = await import('nanoid');
+
+      const user = await getUserInfo();
+      const configs = await getAllConfigs();
+
+      if (user && configs.r2_bucket_name && configs.r2_access_key) {
+        console.log('[APIYI] 开始上传图片到 R2...');
+        const storageService = getStorageServiceWithConfigs(configs);
+        const timestamp = Date.now();
+        const randomId = nanoid(8);
+        const fileExtension = mimeType.includes('jpeg') || mimeType.includes('jpg') ? 'jpg' : 'png';
+        const fileName = `${timestamp}_${randomId}.${fileExtension}`;
+        const storageKey = `slides/${user.id}/${fileName}`;
+
+        // 将 base64 转换为 Buffer 并上传
+        const buffer = Buffer.from(base64Data, 'base64');
+        const uploadResult = await storageService.uploadFile({
+          body: buffer,
+          key: storageKey,
+          contentType: mimeType,
+          disposition: 'inline',
+        });
+
+        if (uploadResult.success && uploadResult.url) {
+          finalImageUrl = uploadResult.url;
+          console.log(`[APIYI] ✅ 图片上传成功: ${finalImageUrl.substring(0, 60)}...`);
+        } else {
+          // 上传失败，降级使用 data URL（可能会导致大数据问题，但至少不会完全失败）
+          console.warn('[APIYI] ⚠️ R2 上传失败，降级使用 data URL');
+          finalImageUrl = `data:${mimeType};base64,${base64Data}`;
+        }
+      } else {
+        // 未配置 R2，使用 data URL
+        console.warn('[APIYI] ⚠️ R2 未配置，使用 data URL（可能导致大图片传输问题）');
+        finalImageUrl = `data:${mimeType};base64,${base64Data}`;
+      }
+    } catch (uploadError: any) {
+      // 上传异常，降级使用 data URL
+      console.error('[APIYI] ⚠️ R2 上传异常:', uploadError.message);
+      finalImageUrl = `data:${mimeType};base64,${base64Data}`;
+    }
+
+    // 返回特殊格式的 task_id
+    const taskId = `apiyi-sync-${Date.now()}`;
+
+    // 将结果存储到全局缓存中（现在存储的是 CDN URL 而非 data URL）
+    apiyiResultCache.set(taskId, {
+      status: 'SUCCESS',
+      imageUrl: finalImageUrl,
+      createdAt: Date.now(),
+    });
+
+    return { task_id: taskId };
+  } catch (e: any) {
+    if (e.name === 'TimeoutError' || e.name === 'AbortError') {
+      console.error('[APIYI] 请求超时');
+      throw new Error('APIYI request timeout');
+    }
+    console.error('[APIYI] Create Error:', e);
+    throw e;
+  }
+}
+
+/**
+ * APIYI 结果缓存
+ * 由于 APIYI 是同步 API，生成完成后直接返回结果
+ * 这里用缓存存储结果，供 queryApiyiTaskAction 查询
+ */
+const apiyiResultCache = new Map<string, {
+  status: 'SUCCESS' | 'FAILED';
+  imageUrl?: string;
+  error?: string;
+  createdAt: number;
+}>();
+
+// 定期清理过期缓存（超过 10 分钟的缓存）
+setInterval(() => {
+  const now = Date.now();
+  const expireTime = 10 * 60 * 1000; // 10 分钟
+  for (const [key, value] of apiyiResultCache.entries()) {
+    if (now - value.createdAt > expireTime) {
+      apiyiResultCache.delete(key);
+    }
+  }
+}, 60 * 1000); // 每分钟检查一次
+
+/**
+ * Query Task Status via APIYI (从缓存读取)
+ *
+ * 非程序员解释：
+ * - APIYI 是同步 API，createApiyiTaskAction 已经完成了生成
+ * - 这个函数只是从缓存中读取结果，立即返回
+ */
+export async function queryApiyiTaskAction(taskId: string) {
+  // 从缓存中获取结果
+  const cached = apiyiResultCache.get(taskId);
+
+  if (!cached) {
+    // 缓存不存在，可能已过期或 taskId 无效
+    return {
+      data: {
+        status: 'FAILED',
+        results: [],
+        error: 'Task not found or expired',
+      },
+    };
+  }
+
+  if (cached.status === 'SUCCESS' && cached.imageUrl) {
+    return {
+      data: {
+        status: 'SUCCESS',
+        results: [cached.imageUrl],
+      },
+    };
+  }
+
+  return {
+    data: {
+      status: 'FAILED',
+      results: [],
+      error: cached.error || 'Unknown error',
+    },
+  };
+}
+
+/**
  * Create Image Generation Task with Load Balancing (三级机制 - 支持环境变量配置)
  *
  * 非程序员解释：
@@ -1096,6 +1476,22 @@ export async function createKieTaskWithFallbackAction(params: {
         console.log('✅ Replicate 任务成功');
         return {
           ...result,
+          fallbackUsed: provider !== primaryProvider,
+        };
+      } else if (provider === 'APIYI') {
+        if (!APIYI_API_KEY) {
+          console.warn('⚠️ APIYI Key 未配置，跳过');
+          continue;
+        }
+        console.log(
+          `🔄 [${provider === primaryProvider ? '主力' : '托底'}] 使用 APIYI (gemini-3-pro-image)...`
+        );
+        const result = await createApiyiTaskAction(processedParams);
+        console.log('✅ APIYI 任务成功:', result.task_id);
+        return {
+          success: true,
+          task_id: result.task_id,
+          provider: 'APIYI',
           fallbackUsed: provider !== primaryProvider,
         };
       }
@@ -1754,8 +2150,9 @@ export async function createReplicateTaskAction(params: {
  * Query Task Status with Fallback Support
  *
  * 非程序员解释：
- * - 这个函数查询任务状态，支持KIE和Replicate和FAL
+ * - 这个函数查询任务状态，支持KIE、Replicate、FAL和APIYI
  * - 对于Replicate和FAL的同步结果，直接返回成功状态
+ * - 对于APIYI的同步结果，从缓存中读取图片数据
  * - ✅ 新增：任务成功后自动保存图片到 R2
  */
 export async function queryKieTaskWithFallbackAction(
@@ -1780,6 +2177,11 @@ export async function queryKieTaskWithFallbackAction(
         results: [], // 图片URL已在创建时返回
       },
     };
+  }
+
+  // 如果是APIYI的任务（同步API），从缓存中读取结果
+  if (provider === 'APIYI' || taskId.startsWith('apiyi-sync-')) {
+    return await queryApiyiTaskAction(taskId);
   }
 
   // 否则使用原来的KIE查询逻辑
@@ -1883,6 +2285,8 @@ export async function editImageRegionAction(params: {
   imageHeight: number;
   /** 分辨率 */
   resolution?: string;
+  /** 🎯 宽高比（必须传递，确保编辑后保持原比例） */
+  aspectRatio: string;
 }) {
   'use server';
 
@@ -1894,6 +2298,7 @@ export async function editImageRegionAction(params: {
   console.log('[Edit] 原图:', params.imageUrl);
   console.log('[Edit] 选区数量:', params.regions.length);
   console.log('[Edit] 图片尺寸:', params.imageWidth, 'x', params.imageHeight);
+  console.log('[Edit] 宽高比:', params.aspectRatio);
 
   try {
     // 配置 FAL Client
@@ -1949,10 +2354,11 @@ ${regionPrompts}
     console.log('[Edit] 处理后的图片 URL:', imageUrl);
 
     // 调用 FAL nano-banana-pro/edit
+    // 🎯 关键修复：使用传入的 aspectRatio 而非硬编码的 16:9
     const input: any = {
       prompt: finalPrompt,
       num_images: 1,
-      aspect_ratio: '16:9',
+      aspect_ratio: params.aspectRatio || '16:9',
       output_format: 'png',
       resolution: params.resolution || '2K',
       // 🎯 关键：只上传当前图片作为唯一参考

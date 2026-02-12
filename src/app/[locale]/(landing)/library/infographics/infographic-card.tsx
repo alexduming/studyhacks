@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { Clock, Download, Image as ImageIcon, ZoomIn } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useLocale } from 'next-intl';
+import { Clock, Download, Image as ImageIcon, Pencil, ZoomIn } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { Button } from '@/shared/components/ui/button';
@@ -32,8 +34,17 @@ export function InfographicCard({
   formattedDate,
 }: InfographicCardProps) {
   const t = useTranslations('library.infographics');
+  const router = useRouter();
+  const locale = useLocale();
   const [isOpen, setIsOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+
+  // 跳转到编辑页面
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation(); // 阻止打开预览对话框
+    e.preventDefault();
+    router.push(`/${locale}/infographic?edit=${id}`);
+  };
 
   const handleDownload = async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent opening the dialog
@@ -46,7 +57,7 @@ export function InfographicCard({
       // Use proxy to avoid CORS issues
       const response = await fetch(`/api/storage/proxy-image?url=${encodeURIComponent(imageUrl)}`);
       if (!response.ok) throw new Error('Download failed');
-      
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -87,7 +98,7 @@ export function InfographicCard({
                 <ImageIcon className="text-muted-foreground/50 h-12 w-12" />
               </div>
             )}
-            
+
             {/* Hover Overlay */}
             <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 transition-opacity group-hover:opacity-100">
                <ZoomIn className="text-white h-8 w-8 drop-shadow-md" />
@@ -108,17 +119,31 @@ export function InfographicCard({
               <span>{formattedDate}</span>
             </div>
 
-             {/* 3. Download Button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 hover:text-foreground z-10"
-              onClick={handleDownload}
-              disabled={!imageUrl || isDownloading}
-              title={t('card.download')}
-            >
-              <Download className="h-4 w-4" />
-            </Button>
+            {/* Action Buttons */}
+            <div className="flex items-center gap-1">
+              {/* Edit Button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 hover:text-foreground z-10"
+                onClick={handleEdit}
+                title={t('card.edit')}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+
+              {/* Download Button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 hover:text-foreground z-10"
+                onClick={handleDownload}
+                disabled={!imageUrl || isDownloading}
+                title={t('card.download')}
+              >
+                <Download className="h-4 w-4" />
+              </Button>
+            </div>
           </CardFooter>
         </Card>
       </DialogTrigger>
@@ -129,23 +154,34 @@ export function InfographicCard({
            {imageUrl && (
              <div className="relative bg-background/95 backdrop-blur rounded-lg shadow-2xl overflow-hidden border">
                 <div className="relative w-auto h-auto max-h-[85vh] overflow-auto">
-                    {/* Render standard img tag for full size to allow natural aspect ratio within constraints, 
-                        or use Next Image with object-contain. 
-                        For infographics which can be long, scrolling might be better. 
-                        But 'preview' suggests fitting on screen. 
+                    {/* Render standard img tag for full size to allow natural aspect ratio within constraints,
+                        or use Next Image with object-contain.
+                        For infographics which can be long, scrolling might be better.
+                        But 'preview' suggests fitting on screen.
                         Let's use a wrapper that fits in 85vh and an image that fits inside it.
                     */}
-                   <img 
-                      src={imageUrl} 
-                      alt={t('card.dialogAlt')} 
+                   <img
+                      src={imageUrl}
+                      alt={t('card.dialogAlt')}
                       className="max-h-[80vh] w-auto max-w-[90vw] object-contain block"
                    />
                 </div>
-                
-                {/* Download button in enlarged view */}
+
+                {/* Action buttons in enlarged view */}
                 <div className="absolute bottom-4 right-4 flex gap-2">
-                   <Button 
-                      onClick={handleDownload} 
+                   {/* Edit button in enlarged view */}
+                   <Button
+                      onClick={handleEdit}
+                      className="shadow-lg"
+                      variant="secondary"
+                   >
+                     <Pencil className="mr-2 h-4 w-4" />
+                     {t('card.edit')}
+                   </Button>
+
+                   {/* Download button in enlarged view */}
+                   <Button
+                      onClick={handleDownload}
                       disabled={isDownloading}
                       className="shadow-lg"
                       variant="default"

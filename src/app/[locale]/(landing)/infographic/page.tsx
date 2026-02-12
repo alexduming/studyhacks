@@ -1,13 +1,16 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   parseFileAction,
   parseMultipleImagesAction,
   refundCreditsAction,
 } from '@/app/actions/aippt';
+import { getInfographicTaskByIdAction } from '@/app/actions/ai_task';
 import { motion } from 'framer-motion';
 import {
+  ArrowLeft,
   Download,
   FileImage,
   FileText,
@@ -54,6 +57,15 @@ const ASPECT_RATIO_OPTIONS: AspectRatioOption[] = [
 
 const InfographicPage = () => {
   const t = useTranslations('infographic');
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // 编辑模式相关状态
+  const editTaskId = searchParams.get('edit');
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [isLoadingTask, setIsLoadingTask] = useState(false);
+  const [originalTaskId, setOriginalTaskId] = useState<string | null>(null);
+
   const [sourceContent, setSourceContent] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState('');
@@ -132,6 +144,90 @@ const InfographicPage = () => {
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const referenceInputRef = useRef<HTMLInputElement | null>(null);
+
+  /**
+   * 加载编辑任务数据
+   *
+   * 非程序员解释：
+   * - 当用户从 Library 点击"编辑"按钮时，URL 会带上 ?edit=<taskId>
+   * - 这个 useEffect 会检测到这个参数，然后加载原任务的数据
+   * - 加载完成后，会预填充表单（提示词、参数、参考图）
+   */
+  useEffect(() => {
+    if (editTaskId) {
+      loadEditTask(editTaskId);
+    }
+  }, [editTaskId]);
+
+  const loadEditTask = async (taskId: string) => {
+    setIsLoadingTask(true);
+    setError('');
+
+    try {
+      const task = await getInfographicTaskByIdAction(taskId);
+
+      if (!task) {
+        toast.error(t('errors.task_not_found', { defaultMessage: 'Task not found or access denied' }));
+        router.push('/library/infographics');
+        return;
+      }
+
+      // 进入编辑模式
+      setIsEditMode(true);
+      setOriginalTaskId(taskId);
+
+      // 预填充提示词
+      if (task.prompt) {
+        setSourceContent(task.prompt);
+      }
+
+      // 预填充参数
+      if (task.options) {
+        try {
+          const options = JSON.parse(task.options);
+          if (options.aspectRatio) {
+            setAspectRatio(options.aspectRatio as AspectRatioOption);
+          }
+          if (options.resolution) {
+            setResolution(options.resolution as '1K' | '2K' | '4K');
+          }
+          if (options.outputFormat) {
+            setOutputFormat(options.outputFormat as 'png' | 'jpg');
+          }
+        } catch (e) {
+          console.warn('Failed to parse task options:', e);
+        }
+      }
+
+      // 设置原图为参考图（用于图生图编辑）
+      if (task.taskResult) {
+        try {
+          const result = JSON.parse(task.taskResult);
+          if (result.imageUrls?.[0]) {
+            setReferenceImageUrl(result.imageUrls[0]);
+            // 创建一个虚拟的 File 对象用于显示（实际上传时使用 URL）
+            setReferenceImage(new File([], 'original-image.png', { type: 'image/png' }));
+          }
+        } catch (e) {
+          console.warn('Failed to parse task result:', e);
+        }
+      }
+
+      toast.success(t('edit.loaded', { defaultMessage: 'Original infographic loaded for editing' }));
+    } catch (error: any) {
+      console.error('Failed to load edit task:', error);
+      toast.error(t('errors.load_failed', { defaultMessage: 'Failed to load task' }));
+    } finally {
+      setIsLoadingTask(false);
+    }
+  };
+
+  /**
+   * 退出编辑模式，返回 Library
+   */
+  const handleCancelEdit = () => {
+    router.push('/library/infographics');
+  };
 
   // 新的文件上传处理逻辑：支持批量上传任意类型的文件（参考 /slides 页面）
   /**
@@ -625,6 +721,24 @@ const InfographicPage = () => {
       <div className="relative z-10 container mx-auto px-4 py-24">
         <ScrollAnimation>
           <div className="mb-12 text-center">
+            {/* 编辑模式：显示返回按钮 */}
+            {isEditMode && (
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="mb-4 flex justify-center"
+              >
+                <Button
+                  variant="ghost"
+                  onClick={handleCancelEdit}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  {t('edit.back_to_library', { defaultMessage: 'Back to Library' })}
+                </Button>
+              </motion.div>
+            )}
+
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
@@ -632,18 +746,33 @@ const InfographicPage = () => {
             >
               {/* 标题渐变：白色 → primary，而不是白色 → 蓝色 */}
               <h1 className="via-primary/80 to-primary/60 mb-6 bg-gradient-to-r from-white bg-clip-text text-4xl font-bold text-transparent md:text-5xl">
-                {t('title', { defaultMessage: 'AI 学习信息图生成器' })}
+                {isEditMode
+                  ? t('edit.title', { defaultMessage: 'Edit Infographic' })
+                  : t('title', { defaultMessage: 'AI 学习信息图生成器' })}
               </h1>
               <p className="mx-auto max-w-3xl text-lg text-muted-foreground dark:text-gray-300 md:text-xl">
-                {t('subtitle', {
-                  defaultMessage:
-                    '上传课件 / 笔记 / 文本，让 AI 自动为你生成扁平风格的学习信息图。',
-                })}
+                {isEditMode
+                  ? t('edit.subtitle', { defaultMessage: 'Modify the prompt and regenerate your infographic.' })
+                  : t('subtitle', {
+                      defaultMessage:
+                        '上传课件 / 笔记 / 文本，让 AI 自动为你生成扁平风格的学习信息图。',
+                    })}
               </p>
             </motion.div>
           </div>
         </ScrollAnimation>
 
+        {/* 加载中状态 */}
+        {isLoadingTask && (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <span className="ml-3 text-muted-foreground">
+              {t('edit.loading', { defaultMessage: 'Loading original infographic...' })}
+            </span>
+          </div>
+        )}
+
+        {!isLoadingTask && (
         <ScrollAnimation delay={0.2}>
           <div className="mx-auto grid max-w-5xl gap-8 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
             {/* 左侧：输入区域 */}
@@ -933,23 +1062,34 @@ const InfographicPage = () => {
               )}
 
               <div className="flex flex-wrap justify-end gap-3">
-                <Button
-                  onClick={() => {
-                    setSourceContent('');
-                    setFileInfo('');
-                    setError('');
-                    setTaskId(null);
-                    setImageUrls([]);
-                    setUploadedFile(null);
-                    setUploadedFiles([]);
-                    setReferenceImage(null);
-                    setReferenceImageUrl('');
-                  }}
-                  variant="outline"
-                  className="border-border dark:border-gray-600 text-foreground/70 dark:text-gray-300 hover:border-foreground/50 dark:hover:border-gray-500"
-                >
-                  {t('actions.clear')}
-                </Button>
+                {/* 编辑模式下显示取消按钮 */}
+                {isEditMode ? (
+                  <Button
+                    onClick={handleCancelEdit}
+                    variant="outline"
+                    className="border-border dark:border-gray-600 text-foreground/70 dark:text-gray-300 hover:border-foreground/50 dark:hover:border-gray-500"
+                  >
+                    {t('edit.cancel', { defaultMessage: 'Cancel' })}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => {
+                      setSourceContent('');
+                      setFileInfo('');
+                      setError('');
+                      setTaskId(null);
+                      setImageUrls([]);
+                      setUploadedFile(null);
+                      setUploadedFiles([]);
+                      setReferenceImage(null);
+                      setReferenceImageUrl('');
+                    }}
+                    variant="outline"
+                    className="border-border dark:border-gray-600 text-foreground/70 dark:text-gray-300 hover:border-foreground/50 dark:hover:border-gray-500"
+                  >
+                    {t('actions.clear')}
+                  </Button>
+                )}
                 <Button
                   onClick={handleGenerate}
                   disabled={isGenerating}
@@ -962,8 +1102,11 @@ const InfographicPage = () => {
                     </>
                   ) : (
                     <>
-                      <CreditsCost credits={resolution === '4K' ? 12 : 6} />
-                      {t('actions.generate')}
+                      {/* 编辑模式固定6积分，普通模式根据分辨率计算 */}
+                      <CreditsCost credits={isEditMode ? 6 : (resolution === '4K' ? 12 : 6)} />
+                      {isEditMode
+                        ? t('edit.regenerate', { defaultMessage: 'Regenerate' })
+                        : t('actions.generate')}
                     </>
                   )}
                 </Button>
@@ -1065,6 +1208,7 @@ const InfographicPage = () => {
             </motion.div>
           </div>
         </ScrollAnimation>
+        )}
       </div>
 
       {/* 图片放大查看模态框 */}

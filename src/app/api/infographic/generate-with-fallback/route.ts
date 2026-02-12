@@ -17,17 +17,23 @@ export const runtime = 'nodejs';
  * 非程序员解释：
  * - 这个接口实现了"托底服务"功能
  * - 提供商优先级通过环境变量 IMAGE_PROVIDER_PRIORITY 配置
- * - 默认顺序：FAL（主力）→ KIE（托底）→ Replicate（最终托底）
+ * - 支持的提供商：FAL、KIE、Replicate、APIYI
+ * - 默认顺序：FAL（主力）→ KIE → Replicate → APIYI（最终托底）
  * - 如果主力服务失败，自动切换到下一个提供商
  * - 这样可以大大提高生成成功率
  *
  * 配置方式：
  * - 在 .env.local 文件中修改 IMAGE_PROVIDER_PRIORITY
  * - 格式：用逗号分隔的提供商名称，从左到右依次尝试
- * - 示例：IMAGE_PROVIDER_PRIORITY=FAL,KIE,Replicate
+ * - 示例：IMAGE_PROVIDER_PRIORITY=APIYI,FAL,KIE,Replicate
  */
 
 const KIE_BASE_URL = 'https://api.kie.ai/api/v1';
+// APIYI 使用 Gemini 原生格式端点（统一支持文生图和图生图，且支持分辨率参数）
+const APIYI_TEXT2IMG_URL = 'https://api.apiyi.com/v1beta/models/gemini-3-pro-image-preview:generateContent';
+
+// 支持的提供商类型
+type ProviderName = 'FAL' | 'KIE' | 'Replicate' | 'APIYI';
 
 /**
  * 图片生成服务优先级配置（从环境变量读取）
@@ -35,27 +41,27 @@ const KIE_BASE_URL = 'https://api.kie.ai/api/v1';
  * 非程序员解释：
  * - 通过修改 .env.local 文件中的 IMAGE_PROVIDER_PRIORITY 就能快速切换主力/托底顺序
  * - 格式：用逗号分隔的提供商名称，从左到右依次尝试
- * - 示例：KIE,FAL,Replicate 表示 KIE主力，FAL托底，Replicate最终托底
- * - 如果环境变量未设置或格式错误，默认使用 FAL,KIE,Replicate
+ * - 示例：APIYI,FAL,KIE,Replicate 表示 APIYI主力，FAL托底，KIE再托底，Replicate最终托底
+ * - 如果环境变量未设置或格式错误，默认使用 FAL,KIE,Replicate,APIYI
  * - 与 PPT 生成共用同一个环境变量，统一管理
  */
-function getProviderPriority(): Array<'FAL' | 'KIE' | 'Replicate'> {
-  const priorityStr = process.env.IMAGE_PROVIDER_PRIORITY || 'FAL,KIE,Replicate';
+function getProviderPriority(): Array<ProviderName> {
+  const priorityStr = process.env.IMAGE_PROVIDER_PRIORITY || 'FAL,KIE,Replicate,APIYI';
 
   // 解析逗号分隔的字符串，去除空格
   const providers = priorityStr
     .split(',')
     .map(p => p.trim())
-    .filter(p => ['FAL', 'KIE', 'Replicate'].includes(p)) as Array<'FAL' | 'KIE' | 'Replicate'>;
+    .filter(p => ['FAL', 'KIE', 'Replicate', 'APIYI'].includes(p)) as Array<ProviderName>;
 
   // 如果解析后为空或少于1个提供商，使用默认配置
   if (providers.length === 0) {
-    console.warn('[Infographic] ⚠️ IMAGE_PROVIDER_PRIORITY 配置无效，使用默认顺序: FAL,KIE,Replicate');
-    return ['FAL', 'KIE', 'Replicate'];
+    console.warn('[Infographic] ⚠️ IMAGE_PROVIDER_PRIORITY 配置无效，使用默认顺序: FAL,KIE,Replicate,APIYI');
+    return ['FAL', 'KIE', 'Replicate', 'APIYI'];
   }
 
-  // 确保所有三个提供商都存在（防止配置遗漏）
-  const allProviders: Array<'FAL' | 'KIE' | 'Replicate'> = ['FAL', 'KIE', 'Replicate'];
+  // 确保所有四个提供商都存在（防止配置遗漏）
+  const allProviders: Array<ProviderName> = ['FAL', 'KIE', 'Replicate', 'APIYI'];
   const missingProviders = allProviders.filter(p => !providers.includes(p));
 
   // 将遗漏的提供商追加到末尾
@@ -452,6 +458,216 @@ ${params.content}`;
 }
 
 /**
+ * 下载图片并转换为 base64
+ *
+ * 非程序员解释：
+ * - 从 URL 下载图片文件
+ * - 将图片数据转换为 base64 编码字符串
+ * - 用于 APIYI 图生图模式（Gemini 原生格式需要 base64 图片）
+ */
+async function downloadImageAsBase64(imageUrl: string): Promise<{ base64: string; mimeType: string } | null> {
+  try {
+    console.log('[APIYI] 📥 下载参考图:', imageUrl.substring(0, 80) + '...');
+
+    const response = await fetch(imageUrl, {
+      signal: AbortSignal.timeout(30000), // 30秒超时
+    });
+
+    if (!response.ok) {
+      console.warn('[APIYI] 下载参考图失败:', response.status);
+      return null;
+    }
+
+    // 获取 MIME 类型
+    const contentType = response.headers.get('content-type') || 'image/png';
+    const mimeType = contentType.split(';')[0].trim();
+
+    // 转换为 base64
+    const arrayBuffer = await response.arrayBuffer();
+    const base64 = Buffer.from(arrayBuffer).toString('base64');
+
+    console.log(`[APIYI] ✅ 参考图下载成功，大小: ${(base64.length / 1024).toFixed(1)} KB, 类型: ${mimeType}`);
+
+    return { base64, mimeType };
+  } catch (error: any) {
+    console.warn('[APIYI] 下载参考图异常:', error.message);
+    return null;
+  }
+}
+
+/**
+ * 尝试使用APIYI生成（Gemini 3 Pro Image）- 同步模式
+ *
+ * 非程序员解释：
+ * - APIYI 统一使用 Google Gemini 原生格式，支持 aspectRatio 和 imageSize
+ * - 文生图：直接传递文本 prompt
+ * - 图生图：将参考图转为 base64，通过 inline_data 传递
+ * - 同步接口：直接等待生成完成，返回 base64 图片数据
+ * - 速度快（约 8-22 秒），价格便宜（$0.05/张）
+ *
+ * 重要修复（2026-02-12）：
+ * - 之前图生图使用 OpenAI 兼容格式，不支持分辨率参数
+ * - 现在统一使用 Gemini 原生格式 + base64 图片，支持完整的分辨率控制
+ */
+async function tryGenerateWithApiyi(
+  params: GenerateParams,
+  apiKey: string
+): Promise<{
+  success: boolean;
+  taskId?: string;
+  imageUrls?: string[];
+  error?: string;
+}> {
+  try {
+    const hasReferenceImage = !!params.referenceImageUrl;
+    console.log(`🔄 尝试使用 APIYI (gemini-3-pro-image-preview) 生成...${hasReferenceImage ? ' [参考图模式]' : ''}`);
+
+    // 构建提示词（根据是否有参考图调整）
+    let prompt = '';
+
+    if (hasReferenceImage) {
+      // 有参考图：强调风格复制
+      prompt = `[CRITICAL STYLE REFERENCE] You MUST strictly follow the provided reference image's visual style. This is the HIGHEST priority.
+
+Style Requirements (MANDATORY):
+- **Color Palette**: Use EXACTLY the same colors as the reference image
+- **Design Style**: Match the graphic style and visual aesthetic
+- **Layout Structure**: Follow similar composition
+- **Typography**: Use similar font styles
+- **Visual Elements**: Use similar icons and shapes
+
+Create an educational infographic with the following content.
+IMPORTANT: Text labels MUST be in the SAME LANGUAGE as the content below.
+
+Content:
+${params.content}
+
+[REMINDER] Apply the reference image's visual style exactly.`;
+
+      console.log('[APIYI] 🎨 使用强化风格参考模式');
+    } else {
+      prompt = `Create an educational infographic explaining the provided file or text. You select some typical visual elements. Style: Flat vector.
+IMPORTANT: The text labels inside the infographic MUST be in the SAME LANGUAGE as the provided content.
+- If the content is in English, use English labels.
+- If the content is in Chinese, use Chinese labels.
+- If the content is in another language, use that language.
+Do NOT translate the content.
+
+Content:
+${params.content}`;
+    }
+
+    // 映射分辨率和宽高比
+    const imageSize = params.resolution || '2K';
+    const aspectRatio = params.aspectRatio || '1:1';
+
+    // 根据分辨率设置超时时间
+    const timeoutMap: Record<string, number> = { '1K': 180000, '2K': 300000, '4K': 360000 };
+    const timeout = timeoutMap[imageSize] || 300000;
+
+    // 🎯 统一使用 Gemini 原生格式端点（支持分辨率参数）
+    const apiUrl = APIYI_TEXT2IMG_URL;
+
+    // 构建请求体（Gemini 原生格式）
+    let parts: any[] = [{ text: prompt }];
+
+    // 如果有参考图，下载并转为 base64，添加到 parts 中
+    if (hasReferenceImage && params.referenceImageUrl) {
+      const imageData = await downloadImageAsBase64(params.referenceImageUrl);
+
+      if (!imageData) {
+        console.warn('[APIYI] ⚠️ 无法下载参考图，降级为纯文生图模式');
+      } else {
+        // 将 base64 图片添加到 parts 数组
+        parts.push({
+          inline_data: {
+            mime_type: imageData.mimeType,
+            data: imageData.base64,
+          },
+        });
+        console.log('[APIYI] 🎨 使用图生图模式（Gemini 原生格式 + base64 图片）');
+      }
+    }
+
+    const payload = {
+      contents: [{ parts }],
+      generationConfig: {
+        responseModalities: ['IMAGE'],
+        imageConfig: {
+          aspectRatio: aspectRatio,
+          imageSize: imageSize,
+        },
+      },
+    };
+
+    console.log('[APIYI] 请求参数:', {
+      apiUrl: 'Gemini 原生格式',
+      aspectRatio,
+      imageSize,
+      promptLength: prompt.length,
+      hasReferenceImage,
+      partsCount: parts.length,
+    });
+
+    // 发送请求（同步等待）
+    const startTime = Date.now();
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(timeout),
+    });
+
+    const elapsed = (Date.now() - startTime) / 1000;
+    console.log(`[APIYI] 请求耗时: ${elapsed.toFixed(1)} 秒`);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.warn('⚠️ APIYI 请求失败:', response.status, errorText);
+      return { success: false, error: `APIYI API error: ${response.status} - ${errorText}` };
+    }
+
+    const data = await response.json();
+
+    // 解析 Gemini 原生格式的响应
+    if (!data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data) {
+      const finishReason = data.candidates?.[0]?.finishReason;
+      if (finishReason && finishReason !== 'STOP') {
+        console.warn('[APIYI] 内容被拒绝:', finishReason);
+        return { success: false, error: `Content rejected: ${finishReason}` };
+      }
+      console.warn('[APIYI] 响应格式异常:', JSON.stringify(data).substring(0, 500));
+      return { success: false, error: 'Invalid response format from APIYI' };
+    }
+
+    const base64Data = data.candidates[0].content.parts[0].inlineData.data;
+    const mimeType = data.candidates[0].content.parts[0].inlineData.mimeType || 'image/png';
+
+    // 构建 data URL
+    const dataUrl = `data:${mimeType};base64,${base64Data}`;
+
+    console.log(`✅ APIYI 生成成功！图片大小: ${(base64Data.length / 1024).toFixed(1)} KB`);
+
+    // 返回结果
+    return {
+      success: true,
+      taskId: `apiyi-${Date.now()}`,
+      imageUrls: [dataUrl],
+    };
+  } catch (error: any) {
+    if (error.name === 'TimeoutError' || error.name === 'AbortError') {
+      console.warn('⚠️ APIYI 请求超时');
+      return { success: false, error: 'APIYI request timeout' };
+    }
+    console.warn('⚠️ APIYI 异常:', error.message);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * 尝试使用Together AI生成（FLUX模型）
  */
 async function tryGenerateWithTogether(
@@ -702,7 +918,7 @@ export async function POST(request: NextRequest) {
 
     // 定义所有可用的提供商配置（静态映射）
     const providerConfigs: Record<
-      'FAL' | 'KIE' | 'Replicate',
+      ProviderName,
       {
         name: string;
         key: string | undefined;
@@ -727,6 +943,12 @@ export async function POST(request: NextRequest) {
         key: configs.replicate_api_token,
         envKey: process.env.REPLICATE_API_TOKEN,
         fn: tryGenerateWithReplicate,
+      },
+      APIYI: {
+        name: 'APIYI',
+        key: configs.apiyi_api_key, // 从数据库配置获取
+        envKey: process.env.APIYI_API_KEY, // 回退到环境变量
+        fn: tryGenerateWithApiyi,
       },
     };
 
