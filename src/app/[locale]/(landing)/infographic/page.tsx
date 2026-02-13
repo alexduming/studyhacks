@@ -16,6 +16,7 @@ import {
   FileText,
   Images,
   Loader2,
+  Pencil,
   Upload,
   X,
   Zap,
@@ -29,6 +30,8 @@ import { Dialog, DialogContent } from '@/shared/components/ui/dialog';
 import { Progress } from '@/shared/components/ui/progress';
 import { ScrollAnimation } from '@/shared/components/ui/scroll-animation';
 import { readLearningFileContent } from '@/shared/lib/file-reader';
+
+import { InfographicEditDialog } from './infographic-edit-dialog';
 
 type AspectRatioOption =
   | '1:1'
@@ -141,6 +144,10 @@ const InfographicPage = () => {
   const [referenceImage, setReferenceImage] = useState<File | null>(null);
   const [referenceImageUrl, setReferenceImageUrl] = useState<string>('');
   const [isUploadingReference, setIsUploadingReference] = useState(false);
+
+  // 🎯 编辑对话框状态
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingImageUrl, setEditingImageUrl] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const referenceInputRef = useRef<HTMLInputElement | null>(null);
@@ -1169,14 +1176,27 @@ const InfographicPage = () => {
                         <span className="text-primary/90 text-xs">
                           {t('result.image_title', { index: idx + 1 })}
                         </span>
-                        <a
-                          href={url}
-                          download={`infographic-${idx + 1}.png`}
-                          className="border-primary/40 text-primary/90 hover:border-primary/70 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px]"
-                        >
-                          <Download className="h-3 w-3" />
-                          {t('result.download')}
-                        </a>
+                        <div className="flex items-center gap-2">
+                          {/* 🎯 编辑按钮：点击后打开编辑对话框 */}
+                          <button
+                            onClick={() => {
+                              setEditingImageUrl(url);
+                              setEditDialogOpen(true);
+                            }}
+                            className="border-primary/40 text-primary/90 hover:border-primary/70 hover:bg-primary/10 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] transition-colors"
+                          >
+                            <Pencil className="h-3 w-3" />
+                            {t('edit.button', { defaultMessage: 'Edit' })}
+                          </button>
+                          <a
+                            href={url}
+                            download={`infographic-${idx + 1}.png`}
+                            className="border-primary/40 text-primary/90 hover:border-primary/70 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px]"
+                          >
+                            <Download className="h-3 w-3" />
+                            {t('result.download')}
+                          </a>
+                        </div>
                       </div>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
@@ -1211,8 +1231,36 @@ const InfographicPage = () => {
         )}
       </div>
 
+      {/* 🎯 信息图编辑对话框 */}
+      {/*
+        非程序员解释：
+        - 当用户点击编辑按钮时，editDialogOpen 会被设置为 true
+        - 这个对话框允许用户框选区域进行局部编辑，或整体重新生成
+        - 编辑完成后，新图片会替换原图片
+      */}
+      {editingImageUrl && (
+        <InfographicEditDialog
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          imageUrl={editingImageUrl}
+          aspectRatio={aspectRatio}
+          resolution={resolution}
+          onEditComplete={(newImageUrl) => {
+            // 编辑完成后，用新图片替换原图片
+            setImageUrls((prev) =>
+              prev.map((url) => (url === editingImageUrl ? newImageUrl : url))
+            );
+            setEditingImageUrl(null);
+            setEditDialogOpen(false);
+            toast.success(
+              t('edit.success', { defaultMessage: 'Infographic updated successfully!' })
+            );
+          }}
+        />
+      )}
+
       {/* 图片放大查看模态框 */}
-      {/* 
+      {/*
         非程序员解释：
         - 当用户点击图片时，enlargedImageUrl 会被设置，这个模态框就会显示
         - 模态框会显示一个放大的图片，方便用户查看细节

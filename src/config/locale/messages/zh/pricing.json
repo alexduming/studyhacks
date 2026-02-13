@@ -66,10 +66,10 @@
           "优先邮件支持"
         ],
         "interval": "month",
-        "amount": 999,
+        "amount": 1499,
         "currency": "USD",
-        "price": "¥69",
-        "original_price": "",
+        "price": "¥99",
+        "original_price": "¥169",
         "unit": "/ 月",
         "is_featured": true,
         "tip": "适合轻度AI使用者",
@@ -79,18 +79,18 @@
           "icon": "RiFlashlightFill"
         },
         "product_id": "plus-monthly",
-        "product_name": "StudyHacks 学生方案",
+        "product_name": "StudyHacks 入门方案",
         "credits": 600,
         "valid_days": 30,
         "group": "monthly",
         "plan_name": "入门版",
-        "cn_amount": 6900,
+        "cn_amount": 9900,
         "currencies": [
           {
             "currency": "CNY",
-            "amount": 6900,
-            "price": "¥69.00",
-            "original_price": ""
+            "amount": 9900,
+            "price": "¥99.00",
+            "original_price": "¥169.00"
           }
         ]
       },
@@ -105,10 +105,10 @@
           "24/7 优先支持"
         ],
         "interval": "month",
-        "amount": 1999,
+        "amount": 2999,
         "currency": "USD",
-        "price": "¥139",
-        "original_price": "",
+        "price": "¥199",
+        "original_price": "¥279",
         "unit": "/ 月",
         "is_featured": false,
         "tip": "适合高频率AI使用者",
@@ -123,13 +123,13 @@
         "valid_days": 30,
         "group": "monthly",
         "plan_name": "专业版",
-        "cn_amount": 13900,
+        "cn_amount": 19900,
         "currencies": [
           {
             "currency": "CNY",
-            "amount": 13900,
-            "price": "¥139.00",
-            "original_price": ""
+            "amount": 19900,
+            "price": "¥199.00",
+            "original_price": "¥279.00"
           }
         ]
       },

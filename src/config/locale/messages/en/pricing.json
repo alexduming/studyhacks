@@ -70,10 +70,10 @@
           "Priority email support"
         ],
         "interval": "month",
-        "amount": 999,
+        "amount": 1499,
         "currency": "USD",
-        "price": "$9.99",
-        "original_price": "",
+        "price": "$14.99",
+        "original_price": "$24.99",
         "unit": "/ month",
         "is_featured": true,
         "tip": "Unlimited AI tools, study smarter",
@@ -88,13 +88,13 @@
         "valid_days": 30,
         "group": "monthly",
         "plan_name": "Plus",
-        "cn_amount": 6900,
+        "cn_amount": 9900,
         "currencies": [
           {
             "currency": "CNY",
-            "amount": 6900,
-            "price": "¥69.00",
-            "original_price": ""
+            "amount": 9900,
+            "price": "¥99.00",
+            "original_price": "¥169.00"
           }
         ]
       },
@@ -112,10 +112,10 @@
           "Offline learning mode"
         ],
         "interval": "month",
-        "amount": 1999,
+        "amount": 2999,
         "currency": "USD",
-        "price": "$19.99",
-        "original_price": "",
+        "price": "$29.99",
+        "original_price": "$39.99",
         "unit": "/ month",
         "is_featured": false,
         "tip": "Ultimate learning experience, unlimited usage",
@@ -130,13 +130,13 @@
         "valid_days": 30,
         "group": "monthly",
         "plan_name": "Pro",
-        "cn_amount": 13900,
+        "cn_amount": 19900,
         "currencies": [
           {
             "currency": "CNY",
-            "amount": 13900,
-            "price": "¥139.00",
-            "original_price": ""
+            "amount": 19900,
+            "price": "¥199.00",
+            "original_price": "¥279.00"
           }
         ]
       },

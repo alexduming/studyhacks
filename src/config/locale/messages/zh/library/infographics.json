@@ -17,6 +17,12 @@
     "previewAlt": "信息图预览",
     "dialogTitle": "信息图全屏预览",
     "dialogAlt": "完整信息图预览图"
+  },
+  "history": {
+    "title": "历史版本",
+    "versions": "个版本",
+    "version": "版本",
+    "switch_failed": "切换版本失败"
   }
 }
 

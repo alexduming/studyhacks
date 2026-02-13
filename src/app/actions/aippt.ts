@@ -1736,50 +1736,53 @@ export async function createFalTaskAction(params: {
       throw new Error('FAL API 未返回有效的图片结果');
     }
 
-    const imageUrl = result.data.images[0].url;
-    console.log('[FAL] ✅ 生成成功:', imageUrl.substring(0, 60) + '...');
+    const tempImageUrl = result.data.images[0].url;
+    console.log('[FAL] ✅ 生成成功:', tempImageUrl.substring(0, 60) + '...');
 
-    // 🎯 优化：不再阻塞等待 R2 上传，直接返回原始 URL 以提高用户体感速度
-    // R2 持久化转为后台执行
-    const saveToR2Background = async () => {
-      try {
-        const { getStorageServiceWithConfigs } = await import(
-          '@/shared/services/storage'
-        );
-        const { getAllConfigs } = await import('@/shared/models/config');
-        const { getUserInfo } = await import('@/shared/models/user');
-        const { nanoid } = await import('nanoid');
+    // 🎯 2026-02-13 修复：同步等待 R2 上传完成，直接返回永久链接
+    // 原因：后台异步更新数据库的方案太复杂且容易出问题（React 状态更新异步、presentationId 可能为空等）
+    // 新方案：牺牲几秒等待时间，换取数据一致性和可靠性
+    let finalImageUrl = tempImageUrl;
+    try {
+      const { getStorageServiceWithConfigs } = await import(
+        '@/shared/services/storage'
+      );
+      const { getAllConfigs } = await import('@/shared/models/config');
+      const { getUserInfo } = await import('@/shared/models/user');
+      const { nanoid } = await import('nanoid');
 
-        const user = await getUserInfo();
-        const configs = await getAllConfigs();
+      const user = await getUserInfo();
+      const configs = await getAllConfigs();
 
-        if (user && configs.r2_bucket_name && configs.r2_access_key) {
-          console.log('[FAL] 后台开始保存图片到 R2...');
-          const storageService = getStorageServiceWithConfigs(configs);
-          const timestamp = Date.now();
-          const randomId = nanoid(8);
-          const fileExtension = imageUrl.includes('.jpg') ? 'jpg' : 'png';
-          const fileName = `${timestamp}_${randomId}.${fileExtension}`;
-          const storageKey = `slides/${user.id}/${fileName}`;
+      if (user && configs.r2_bucket_name && configs.r2_access_key) {
+        console.log('[FAL] 开始同步保存图片到 R2...');
+        const storageService = getStorageServiceWithConfigs(configs);
+        const timestamp = Date.now();
+        const randomId = nanoid(8);
+        const fileExtension = tempImageUrl.includes('.jpg') ? 'jpg' : 'png';
+        const fileName = `${timestamp}_${randomId}.${fileExtension}`;
+        const storageKey = `slides/${user.id}/${fileName}`;
 
-          await storageService.downloadAndUpload({
-            url: imageUrl,
-            key: storageKey,
-            contentType: `image/${fileExtension}`,
-            disposition: 'inline',
-          });
-          console.log(`[FAL] ✅ 图片后台保存成功`);
+        const uploadResult = await storageService.downloadAndUpload({
+          url: tempImageUrl,
+          key: storageKey,
+          contentType: `image/${fileExtension}`,
+          disposition: 'inline',
+        });
+
+        if (uploadResult.success && uploadResult.url) {
+          finalImageUrl = uploadResult.url;
+          console.log(`[FAL] ✅ 图片已保存到 R2: ${finalImageUrl.substring(0, 60)}...`);
+        } else {
+          console.warn('[FAL] ⚠️ R2 上传失败，使用临时链接:', uploadResult.error);
         }
-      } catch (saveError) {
-        console.error('[FAL] 后台保存图片异常:', saveError);
       }
-    };
-
-    // 触发后台执行，不 await
-    saveToR2Background();
+    } catch (saveError) {
+      console.error('[FAL] R2 保存异常，使用临时链接:', saveError);
+    }
 
     return {
-      imageUrl,
+      imageUrl: finalImageUrl,
       prompt: params.prompt,
     };
   } catch (error: any) {
@@ -2084,46 +2087,48 @@ export async function createReplicateTaskAction(params: {
 
     console.log('✅ Replicate 生成成功，URL:', imageUrl);
 
-    // 🎯 优化：不再阻塞等待 R2 上传，直接返回原始 URL 以提高用户体感速度
-    const saveToR2Background = async () => {
-      try {
-        const { getStorageServiceWithConfigs } = await import(
-          '@/shared/services/storage'
-        );
-        const { getAllConfigs } = await import('@/shared/models/config');
-        const { getUserInfo } = await import('@/shared/models/user');
-        const { nanoid } = await import('nanoid');
+    // 🎯 2026-02-13 修复：同步等待 R2 上传完成，直接返回永久链接
+    let finalImageUrl = imageUrl;
+    try {
+      const { getStorageServiceWithConfigs } = await import(
+        '@/shared/services/storage'
+      );
+      const { getAllConfigs } = await import('@/shared/models/config');
+      const { getUserInfo } = await import('@/shared/models/user');
+      const { nanoid } = await import('nanoid');
 
-        const user = await getUserInfo();
-        const configs = await getAllConfigs();
+      const user = await getUserInfo();
+      const configs = await getAllConfigs();
 
-        if (user && configs.r2_bucket_name && configs.r2_access_key) {
-          console.log('[Replicate] 后台开始保存图片到 R2...');
-          const storageService = getStorageServiceWithConfigs(configs);
-          const timestamp = Date.now();
-          const randomId = nanoid(8);
-          const fileExtension =
-            imageUrl.includes('.jpg') || imageUrl.includes('.jpeg')
-              ? 'jpg'
-              : 'png';
-          const fileName = `${timestamp}_${randomId}.${fileExtension}`;
-          const storageKey = `slides/${user.id}/${fileName}`;
+      if (user && configs.r2_bucket_name && configs.r2_access_key) {
+        console.log('[Replicate] 开始同步保存图片到 R2...');
+        const storageService = getStorageServiceWithConfigs(configs);
+        const timestamp = Date.now();
+        const randomId = nanoid(8);
+        const fileExtension =
+          imageUrl.includes('.jpg') || imageUrl.includes('.jpeg')
+            ? 'jpg'
+            : 'png';
+        const fileName = `${timestamp}_${randomId}.${fileExtension}`;
+        const storageKey = `slides/${user.id}/${fileName}`;
 
-          await storageService.downloadAndUpload({
-            url: imageUrl,
-            key: storageKey,
-            contentType: `image/${fileExtension}`,
-            disposition: 'inline',
-          });
-          console.log(`[Replicate] ✅ 图片后台保存成功`);
+        const uploadResult = await storageService.downloadAndUpload({
+          url: imageUrl,
+          key: storageKey,
+          contentType: `image/${fileExtension}`,
+          disposition: 'inline',
+        });
+
+        if (uploadResult.success && uploadResult.url) {
+          finalImageUrl = uploadResult.url;
+          console.log(`[Replicate] ✅ 图片已保存到 R2: ${finalImageUrl.substring(0, 60)}...`);
+        } else {
+          console.warn('[Replicate] ⚠️ R2 上传失败，使用临时链接:', uploadResult.error);
         }
-      } catch (saveError: any) {
-        console.error('[Replicate] 后台保存图片异常:', saveError);
       }
-    };
-
-    // 触发后台执行，不 await
-    saveToR2Background();
+    } catch (saveError: any) {
+      console.error('[Replicate] R2 保存异常，使用临时链接:', saveError);
+    }
 
     // 返回类似KIE的格式，但标记为同步结果
     const result = {
@@ -2131,7 +2136,7 @@ export async function createReplicateTaskAction(params: {
       task_id: `replicate-${Date.now()}`,
       provider: 'Replicate',
       fallbackUsed: false,
-      imageUrl: imageUrl, // 返回原始 Replicate URL
+      imageUrl: finalImageUrl, // 返回 R2 永久链接
     };
 
     console.log('[Replicate] 返回值:', {
@@ -2153,16 +2158,11 @@ export async function createReplicateTaskAction(params: {
  * - 这个函数查询任务状态，支持KIE、Replicate、FAL和APIYI
  * - 对于Replicate和FAL的同步结果，直接返回成功状态
  * - 对于APIYI的同步结果，从缓存中读取图片数据
- * - ✅ 新增：任务成功后自动保存图片到 R2
+ * - ✅ 2026-02-13 修复：KIE 任务成功后同步上传到 R2，返回永久链接
  */
 export async function queryKieTaskWithFallbackAction(
   taskId: string,
-  provider?: string,
-  options?: {
-    userId?: string;
-    slideIndex?: number;
-    presentationId?: string;
-  }
+  provider?: string
 ) {
   // 如果是Replicate或FAL的任务（同步API），直接返回成功
   if (
@@ -2187,73 +2187,239 @@ export async function queryKieTaskWithFallbackAction(
   // 否则使用原来的KIE查询逻辑
   const result = await queryKieTaskAction(taskId);
 
-  // ✅ 优化：如果任务成功且有结果，后台执行 R2 保存，不阻塞当前查询请求
+  // 🎯 2026-02-13 修复：如果任务成功且有结果，同步上传到 R2 并返回永久链接
   if (
     result?.data?.status === 'SUCCESS' &&
     result.data.results &&
     result.data.results.length > 0
   ) {
     const originalResults = [...result.data.results];
+    const r2Results: string[] = [];
 
-    // 后台保存逻辑
-    const saveToR2Background = async () => {
-      try {
-        const { getStorageServiceWithConfigs } = await import(
-          '@/shared/services/storage'
+    try {
+      const { getStorageServiceWithConfigs } = await import(
+        '@/shared/services/storage'
+      );
+      const { getAllConfigs } = await import('@/shared/models/config');
+      const { getUserInfo } = await import('@/shared/models/user');
+      const { nanoid } = await import('nanoid');
+
+      const user = await getUserInfo();
+      const configs = await getAllConfigs();
+
+      if (user && configs.r2_bucket_name && configs.r2_access_key) {
+        console.log(
+          `[KIE] 开始同步保存 ${originalResults.length} 张图片到 R2`
         );
-        const { getAllConfigs } = await import('@/shared/models/config');
-        const { getUserInfo } = await import('@/shared/models/user');
-        const { nanoid } = await import('nanoid');
+        const storageService = getStorageServiceWithConfigs(configs);
 
-        const user = await getUserInfo();
-        const configs = await getAllConfigs();
+        for (let index = 0; index < originalResults.length; index++) {
+          const imageUrl = originalResults[index];
+          try {
+            const timestamp = Date.now();
+            const randomId = nanoid(8);
+            const fileExtension =
+              imageUrl.includes('.jpg') || imageUrl.includes('.jpeg')
+                ? 'jpg'
+                : 'png';
+            const fileName = `${timestamp}_${randomId}_${index}.${fileExtension}`;
+            const storageKey = `slides/${user.id}/${fileName}`;
 
-        if (user && configs.r2_bucket_name && configs.r2_access_key) {
-          console.log(
-            `[Slides] 后台开始保存 ${originalResults.length} 张图片到 R2`
-          );
-          const storageService = getStorageServiceWithConfigs(configs);
+            const uploadResult = await storageService.downloadAndUpload({
+              url: imageUrl,
+              key: storageKey,
+              contentType: `image/${fileExtension}`,
+              disposition: 'inline',
+            });
 
-          await Promise.all(
-            originalResults.map(async (imageUrl: string, index: number) => {
-              try {
-                const timestamp = Date.now();
-                const randomId = nanoid(8);
-                const fileExtension =
-                  imageUrl.includes('.jpg') || imageUrl.includes('.jpeg')
-                    ? 'jpg'
-                    : 'png';
-                const fileName = `${timestamp}_${randomId}_${index}.${fileExtension}`;
-                const storageKey = `slides/${user.id}/${fileName}`;
-                await storageService.downloadAndUpload({
-                  url: imageUrl,
-                  key: storageKey,
-                  contentType: `image/${fileExtension}`,
-                  disposition: 'inline',
-                });
-              } catch (e) {
-                console.error(`[Slides] 后台保存第 ${index} 张失败`, e);
-              }
-            })
-          );
-          console.log(`[Slides] ✅ 图片后台保存完成`);
+            if (uploadResult.success && uploadResult.url) {
+              r2Results.push(uploadResult.url);
+              console.log(`[KIE] ✅ 图片 ${index + 1} 已保存到 R2`);
+            } else {
+              r2Results.push(imageUrl); // 失败时使用原始链接
+              console.warn(`[KIE] ⚠️ 图片 ${index + 1} R2 上传失败，使用临时链接`);
+            }
+          } catch (e) {
+            r2Results.push(imageUrl); // 异常时使用原始链接
+            console.error(`[KIE] 保存第 ${index + 1} 张失败`, e);
+          }
         }
-      } catch (error) {
-        console.error('[Slides] 后台保存异常', error);
+        console.log(`[KIE] ✅ 图片保存完成`);
+      } else {
+        // 没有 R2 配置，使用原始链接
+        r2Results.push(...originalResults);
       }
+    } catch (error) {
+      console.error('[KIE] R2 保存异常，使用临时链接', error);
+      r2Results.push(...originalResults);
+    }
+
+    // 返回 R2 永久链接
+    return {
+      data: {
+        status: 'SUCCESS',
+        results: r2Results,
+      },
     };
-
-    saveToR2Background();
-
-    // 直接返回原始结果，不等待保存完成
-    return result;
   }
 
   return result;
 }
 
 /**
- * 精简版局部编辑 - 新方案
+ * 真正的 Inpainting 局部编辑 - 使用 mask 精确控制编辑区域
+ *
+ * 核心优势：
+ * - 使用 FAL 的 flux-pro/v1/fill inpainting API
+ * - 通过 mask 图片精确指定需要修改的区域（白色=修改，黑色=保持）
+ * - 非编辑区域像素级保持不变，不会出现模糊或变形
+ *
+ * 工作流程：
+ * 1. 前端根据用户框选区域生成 mask 图片（白色矩形=选中区域）
+ * 2. 前端将 mask 上传到 R2 获取 URL
+ * 3. 调用此函数，传入原图 URL + mask URL + 修改描述
+ * 4. FAL inpainting API 只重新生成 mask 白色区域，其他区域完全保持原样
+ *
+ * @param params 编辑参数
+ * @returns 编辑后的图片 URL
+ */
+export async function editImageWithInpaintingAction(params: {
+  /** 待编辑的原图 URL */
+  imageUrl: string;
+  /** mask 图片 URL（白色=需要修改的区域，黑色=保持不变） */
+  maskUrl: string;
+  /** 修改描述（描述要在选中区域生成什么内容） */
+  prompt: string;
+  /** 分辨率 */
+  resolution?: string;
+  /** 宽高比 */
+  aspectRatio?: string;
+}) {
+  'use server';
+
+  if (!FAL_KEY) {
+    throw new Error('FAL API Key 未配置');
+  }
+
+  console.log('\n========== Inpainting 局部编辑 ==========');
+  console.log('[Inpaint] 原图:', params.imageUrl);
+  console.log('[Inpaint] Mask:', params.maskUrl);
+  console.log('[Inpaint] 提示词:', params.prompt);
+
+  try {
+    // 配置 FAL Client
+    fal.config({
+      credentials: FAL_KEY,
+    });
+
+    // 处理图片 URL，确保公网可访问
+    const imageUrl = resolveImageUrl(params.imageUrl);
+    const maskUrl = resolveImageUrl(params.maskUrl);
+
+    console.log('[Inpaint] 处理后的原图 URL:', imageUrl);
+    console.log('[Inpaint] 处理后的 Mask URL:', maskUrl);
+
+    // 构建 inpainting 请求参数
+    // 使用 fal-ai/flux-pro/v1/fill 模型进行真正的 inpainting
+    const input: any = {
+      prompt: params.prompt,
+      image_url: imageUrl,
+      mask_url: maskUrl,
+      num_images: 1,
+      output_format: 'png',
+      // enhance_prompt: true, // 可选：增强提示词
+    };
+
+    console.log('[Inpaint] FAL 请求参数:', {
+      model: 'fal-ai/flux-pro/v1/fill',
+      prompt: params.prompt.substring(0, 100) + '...',
+      image_url: imageUrl.substring(0, 60) + '...',
+      mask_url: maskUrl.substring(0, 60) + '...',
+    });
+
+    const startTime = Date.now();
+    const maxRetries = 2;
+    let attempt = 0;
+    let result: any;
+
+    while (attempt <= maxRetries) {
+      try {
+        // 使用 flux-pro/v1/fill 进行 inpainting
+        console.log('[Inpaint] 开始调用 FAL API...');
+        result = await fal.subscribe('fal-ai/flux-pro/v1/fill', {
+          input,
+          logs: true,
+          onQueueUpdate: (update: any) => {
+            console.log('[Inpaint] 队列状态:', update.status);
+            if (update.logs) {
+              update.logs.forEach((log: any) => console.log('[Inpaint] Log:', log.message));
+            }
+          },
+        });
+        console.log('[Inpaint] FAL API 返回原始结果:', JSON.stringify(result).substring(0, 500));
+        break;
+      } catch (error: any) {
+        attempt++;
+        console.error('[Inpaint] 调用失败:', error);
+        console.error('[Inpaint] 错误类型:', error.constructor?.name);
+        console.error('[Inpaint] 错误消息:', error.message);
+        console.error('[Inpaint] 错误状态:', error.status);
+
+        const isNetworkError =
+          error.message?.includes('fetch failed') ||
+          error.status >= 500 ||
+          error.status === 429;
+
+        if (attempt <= maxRetries && isNetworkError) {
+          console.warn(
+            `⚠️ [Inpaint] 第 ${attempt} 次尝试失败 (${error.message})，正在进行第 ${
+              attempt + 1
+            } 次重试...`
+          );
+          await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+          continue;
+        }
+
+        console.error('[Inpaint] ❌ 编辑失败:', error.message);
+        if (error.body) {
+          console.error('[Inpaint] 错误详情:', JSON.stringify(error.body, null, 2));
+        }
+        throw error;
+      }
+    }
+
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.log(
+      `[Inpaint] FAL 调用完成，总耗时: ${elapsed}s (尝试次数: ${attempt + 1})`
+    );
+
+    // 🎯 修复：FAL SDK 返回格式可能是 { data: { images } } 或直接 { images }
+    let images = result?.data?.images || result?.images;
+
+    if (!images || images.length === 0) {
+      console.error('[Inpaint] 无效的返回结果:', JSON.stringify(result).substring(0, 500));
+      throw new Error('FAL Inpainting API 未返回有效的编辑结果');
+    }
+
+    const editedImageUrl = images[0].url;
+    console.log('[Inpaint] ✅ 编辑成功:', editedImageUrl.substring(0, 60) + '...');
+
+    return {
+      imageUrl: editedImageUrl,
+      success: true,
+      provider: 'FAL-Inpainting' as const,
+    };
+  } catch (error: any) {
+    console.error('[Inpaint] ❌ editImageWithInpaintingAction 错误:', error.message);
+    throw error;
+  }
+}
+
+/**
+ * 精简版局部编辑 - 旧方案（保留作为降级方案）
+ *
+ * 注意：此方案会重新生成整张图片，可能导致非编辑区域质量下降
+ * 推荐使用 editImageWithInpaintingAction 进行真正的局部编辑
  *
  * 核心思路：
  * 1. 只上传当前图片作为唯一参考

@@ -119,8 +119,21 @@ export async function updateSlideImageAction(
       if (!record || !record.content) return { success: false, error: 'Not found' };
 
       // 2. 解析并更新内容
-      const slides = JSON.parse(record.content);
-      if (!Array.isArray(slides)) return { success: false, error: 'Invalid content' };
+      // 🎯 支持新格式（包含 _meta）和旧格式（直接是数组）
+      const parsed = JSON.parse(record.content);
+      let slides: any[];
+      let hasMeta = false;
+      let metaData: any = null;
+
+      if (Array.isArray(parsed)) {
+        slides = parsed;
+      } else if (parsed?.slides && Array.isArray(parsed.slides)) {
+        slides = parsed.slides;
+        hasMeta = true;
+        metaData = parsed._meta || {};
+      } else {
+        return { success: false, error: 'Invalid content' };
+      }
 
       let changed = false;
       const nextSlides = slides.map((s: any) => {
@@ -134,8 +147,13 @@ export async function updateSlideImageAction(
       if (!changed) return { success: false, error: 'Slide not found' };
 
       // 3. 更新数据库
+      // 🎯 保持原有格式输出
+      const nextContent = hasMeta
+        ? JSON.stringify({ slides: nextSlides, _meta: metaData })
+        : JSON.stringify(nextSlides);
+
       const updateData: any = {
-        content: JSON.stringify(nextSlides),
+        content: nextContent,
         updatedAt: new Date(),
       };
 

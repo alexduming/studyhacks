@@ -17,6 +17,12 @@
     "previewAlt": "Infographic preview",
     "dialogTitle": "Infographic full view",
     "dialogAlt": "Full infographic preview"
+  },
+  "history": {
+    "title": "History",
+    "versions": "versions",
+    "version": "Version",
+    "switch_failed": "Failed to switch version"
   }
 }
 
