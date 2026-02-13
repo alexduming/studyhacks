@@ -6,10 +6,11 @@ import NextTopLoader from 'nextjs-toploader';
 
 import { envConfigs } from '@/config';
 import { locales } from '@/config/locale';
-import { getAdsService } from '@/shared/services/ads';
-import { getAffiliateService } from '@/shared/services/affiliate';
-import { getAnalyticsService } from '@/shared/services/analytics';
-import { getCustomerService } from '@/shared/services/customer_service';
+import { getAllConfigs } from '@/shared/models/config';
+import { getAdsManagerWithConfigs } from '@/shared/services/ads';
+import { getAffiliateManagerWithConfigs } from '@/shared/services/affiliate';
+import { getAnalyticsManagerWithConfigs } from '@/shared/services/analytics';
+import { getCustomerServiceWithConfigs } from '@/shared/services/customer_service';
 
 // Outfit 字体 - 统一主题字体
 // 暂时禁用 Google Fonts 以解决中国地区构建和访问问题。
@@ -83,29 +84,41 @@ export default async function RootLayout({
   let customerServiceBodyScripts = null;
 
   if (isProduction || isDebug) {
-    // get ads components
-    const adsService = await getAdsService();
-    adsMetaTags = adsService.getMetaTags();
-    adsHeadScripts = adsService.getHeadScripts();
-    adsBodyScripts = adsService.getBodyScripts();
+    // 🔧 优化：将原来的 4 次数据库查询合并为 1 次
+    // 原因：每个 getXxxService() 都会调用 getAllConfigs()，冷启动时会触发 4 次 DB 查询
+    // 现在：只查询 1 次，然后用 WithConfigs 版本的函数创建各个服务实例
+    // 效果：减少 75% 的数据库查询，大幅降低冷启动超时概率
+    try {
+      const configs = await getAllConfigs();
 
-    // get analytics components
-    const analyticsService = await getAnalyticsService();
-    analyticsMetaTags = analyticsService.getMetaTags();
-    analyticsHeadScripts = analyticsService.getHeadScripts();
-    analyticsBodyScripts = analyticsService.getBodyScripts();
+      // get ads components
+      const adsService = getAdsManagerWithConfigs(configs);
+      adsMetaTags = adsService.getMetaTags();
+      adsHeadScripts = adsService.getHeadScripts();
+      adsBodyScripts = adsService.getBodyScripts();
 
-    // get affiliate components
-    const affiliateService = await getAffiliateService();
-    affiliateMetaTags = affiliateService.getMetaTags();
-    affiliateHeadScripts = affiliateService.getHeadScripts();
-    affiliateBodyScripts = affiliateService.getBodyScripts();
+      // get analytics components
+      const analyticsService = getAnalyticsManagerWithConfigs(configs);
+      analyticsMetaTags = analyticsService.getMetaTags();
+      analyticsHeadScripts = analyticsService.getHeadScripts();
+      analyticsBodyScripts = analyticsService.getBodyScripts();
 
-    // get customer service components
-    const customerService = await getCustomerService();
-    customerServiceMetaTags = customerService.getMetaTags();
-    customerServiceHeadScripts = customerService.getHeadScripts();
-    customerServiceBodyScripts = customerService.getBodyScripts();
+      // get affiliate components
+      const affiliateService = getAffiliateManagerWithConfigs(configs);
+      affiliateMetaTags = affiliateService.getMetaTags();
+      affiliateHeadScripts = affiliateService.getHeadScripts();
+      affiliateBodyScripts = affiliateService.getBodyScripts();
+
+      // get customer service components
+      const customerService = getCustomerServiceWithConfigs(configs);
+      customerServiceMetaTags = customerService.getMetaTags();
+      customerServiceHeadScripts = customerService.getHeadScripts();
+      customerServiceBodyScripts = customerService.getBodyScripts();
+    } catch (error) {
+      // 配置获取失败时，静默处理，页面仍可正常渲染（只是没有第三方服务脚本）
+      // 这样即使数据库连接超时，用户也能看到页面内容，而不是 500 错误
+      console.warn('[Layout] 配置获取失败，跳过第三方服务注入:', error);
+    }
   }
 
   return (
