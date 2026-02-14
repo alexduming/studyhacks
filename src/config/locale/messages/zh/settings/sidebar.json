@@ -28,9 +28,9 @@
         "icon": "Users"
       },
       {
-        "title": "API 密钥",
-        "url": "/settings/apikeys",
-        "icon": "RiKeyLine"
+        "title": "教练计划",
+        "url": "/settings/affiliates",
+        "icon": "Award"
       }
     ]
   },

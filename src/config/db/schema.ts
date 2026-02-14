@@ -320,6 +320,8 @@ export const order = pgTable(
     creditsAmount: integer('credits_amount'), // credits amount (granted)
     creditsValidDays: integer('credits_valid_days'), // Added
     description: text('description'), // order description
+    // 分销系统：记录推荐人ID，用于计算佣金
+    referrerId: text('referrer_id').references(() => user.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at')
       .$onUpdate(() => /* @__PURE__ */ new Date())
@@ -331,6 +333,7 @@ export const order = pgTable(
     index('idx_order_status').on(table.status),
     index('idx_order_no').on(table.orderNo),
     index('idx_order_created_at').on(table.createdAt),
+    index('idx_order_referrer').on(table.referrerId), // 分销系统：推荐人索引
   ]
 );
 
@@ -784,5 +787,30 @@ export const withdrawal = pgTable(
     index('idx_withdrawal_user').on(table.userId),
     index('idx_withdrawal_status').on(table.status),
     index('idx_withdrawal_created_at').on(table.createdAt),
+  ]
+);
+
+// 分销员申请表 - 用户申请成为分销员需要审批
+export const affiliateApplication = pgTable(
+  'affiliate_application',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    status: text('status').notNull().default('pending'), // pending, approved, rejected
+    reason: text('reason'), // 申请理由
+    socialMedia: text('social_media'), // 社交媒体账号
+    adminNote: text('admin_note'), // 管理员备注
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+    processedAt: timestamp('processed_at'), // 审批时间
+  },
+  (table) => [
+    index('idx_affiliate_app_user').on(table.userId),
+    index('idx_affiliate_app_status').on(table.status),
   ]
 );

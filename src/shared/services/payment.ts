@@ -32,9 +32,8 @@ import {
   Subscription,
   SubscriptionStatus,
 } from '@/shared/models/subscription';
-// 联盟功能暂时禁用 - 需要时取消注释
-// import { getInvitationByInviteeId } from '@/shared/models/invitation';
-// import { createCommission, CommissionStatus } from '@/shared/models/commission';
+// 分销系统：佣金相关导入
+import { createCommission, CommissionStatus } from '@/shared/models/commission';
 
 /**
  * payment manager
@@ -278,40 +277,36 @@ export async function handleCheckoutSuccess({
     }
 
     // --- Affiliate Commission Logic Start ---
-    // 联盟功能暂时禁用 - 需要时取消注释
-    /*
+    // 分销系统：支付成功后，给推荐人发放佣金
+    // 使用订单中记录的 referrerId，而不是再次查询 invitation 表
     try {
-      // 1. Check if user was invited
-      const invitation = await getInvitationByInviteeId(order.userId);
-      
-      if (invitation && invitation.inviterId) {
-        // 2. Calculate commission (e.g. 20%)
-        // TODO: Get rate from config
-        const commissionRate = 0.20; 
+      // 检查订单是否有推荐人
+      if (order.referrerId) {
+        // 计算佣金（20%订单金额）
+        const commissionRate = 0.20;
         const commissionAmount = Math.floor(order.amount * commissionRate);
 
         if (commissionAmount > 0) {
-          // 3. Create commission record
+          // 创建佣金记录
           await createCommission({
             id: getUuid(),
-            userId: invitation.inviterId,
+            userId: order.referrerId,
             orderId: order.id,
             amount: commissionAmount,
             currency: order.currency,
-            status: CommissionStatus.PAID, // Auto-approve for now, or use PENDING if manual approval needed
+            status: CommissionStatus.PAID, // 自动确认，可提现
             type: 'one_time',
             rate: '20%',
             description: `Commission for order ${order.orderNo}`,
           });
 
-          console.log(`✅ Commission created for inviter ${invitation.inviterId}: ${commissionAmount} ${order.currency}`);
+          console.log(`✅ Commission created for referrer ${order.referrerId}: ${commissionAmount} ${order.currency}`);
         }
       }
     } catch (error) {
       console.error('❌ Failed to process affiliate commission:', error);
-      // Don't fail the payment flow if commission fails
+      // 佣金处理失败不影响支付流程
     }
-    */
     // --- Affiliate Commission Logic End ---
 
     await updateOrderInTransaction({
@@ -500,36 +495,30 @@ export async function handlePaymentSuccess({
     }
 
     // --- Affiliate Commission Logic Start ---
-    // 联盟功能暂时禁用 - 需要时取消注释
-    /*
-    // Handle recurring payment commission if needed
+    // 分销系统：续费订单也给推荐人发放佣金
     try {
-        const invitation = await getInvitationByInviteeId(order.userId);
-        
-        if (invitation && invitation.inviterId) {
-          // Recurring commission logic (optional, keeping it consistent with initial payment for now)
-          const commissionRate = 0.20; 
-          const commissionAmount = Math.floor(order.amount * commissionRate);
-  
-          if (commissionAmount > 0) {
-            await createCommission({
-              id: getUuid(),
-              userId: invitation.inviterId,
-              orderId: order.id,
-              amount: commissionAmount,
-              currency: order.currency,
-              status: CommissionStatus.PAID,
-              type: 'recurring',
-              rate: '20%',
-              description: `Recurring commission for order ${order.orderNo}`,
-            });
-            console.log(`✅ Recurring commission created for inviter ${invitation.inviterId}`);
-          }
+      if (order.referrerId) {
+        const commissionRate = 0.20;
+        const commissionAmount = Math.floor(order.amount * commissionRate);
+
+        if (commissionAmount > 0) {
+          await createCommission({
+            id: getUuid(),
+            userId: order.referrerId,
+            orderId: order.id,
+            amount: commissionAmount,
+            currency: order.currency,
+            status: CommissionStatus.PAID,
+            type: 'recurring',
+            rate: '20%',
+            description: `Recurring commission for order ${order.orderNo}`,
+          });
+          console.log(`✅ Recurring commission created for referrer ${order.referrerId}: ${commissionAmount} ${order.currency}`);
         }
-      } catch (error) {
-        console.error('❌ Failed to process recurring affiliate commission:', error);
       }
-    */
+    } catch (error) {
+      console.error('❌ Failed to process recurring affiliate commission:', error);
+    }
     // --- Affiliate Commission Logic End ---
 
     await updateOrderInTransaction({
@@ -633,20 +622,16 @@ export async function handleSubscriptionRenewal({
   };
 
   // --- Affiliate Commission Logic Start ---
-  // 联盟功能暂时禁用 - 需要时取消注释
-  /*
-  // Handle renewal commission
+  // 分销系统：订阅续费也给推荐人发放佣金
   try {
-    const invitation = await getInvitationByInviteeId(order.userId);
-    
-    if (invitation && invitation.inviterId) {
-      const commissionRate = 0.20; 
+    if (order.referrerId) {
+      const commissionRate = 0.20;
       const commissionAmount = Math.floor(order.amount * commissionRate);
 
       if (commissionAmount > 0) {
         await createCommission({
           id: getUuid(),
-          userId: invitation.inviterId,
+          userId: order.referrerId,
           orderId: order.id,
           amount: commissionAmount,
           currency: order.currency,
@@ -655,13 +640,12 @@ export async function handleSubscriptionRenewal({
           rate: '20%',
           description: `Renewal commission for subscription ${subscription.subscriptionNo}`,
         });
-        console.log(`✅ Renewal commission created for inviter ${invitation.inviterId}`);
+        console.log(`✅ Renewal commission created for referrer ${order.referrerId}: ${commissionAmount} ${order.currency}`);
       }
     }
   } catch (error) {
     console.error('❌ Failed to process renewal affiliate commission:', error);
   }
-  */
   // --- Affiliate Commission Logic End ---
 
   // update in transaction

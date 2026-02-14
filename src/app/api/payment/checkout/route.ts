@@ -20,6 +20,7 @@ import {
   updateOrderByOrderNo,
 } from '@/shared/models/order';
 import { getUserInfo } from '@/shared/models/user';
+import { getInvitationByInviteeId } from '@/shared/models/invitation';
 import { getPaymentService } from '@/shared/services/payment';
 import { PricingCurrency } from '@/shared/types/blocks/pricing';
 
@@ -252,6 +253,18 @@ export async function POST(req: Request) {
       console.warn(diffWarn);
     }
 
+    // 分销系统：查询用户的推荐人
+    // 如果用户是通过邀请码注册的，记录推荐人ID到订单中
+    let referrerId: string | null = null;
+    try {
+      const invitation = await getInvitationByInviteeId(user.id);
+      if (invitation && invitation.inviterId) {
+        referrerId = invitation.inviterId;
+      }
+    } catch (e) {
+      console.error('Failed to get referrer:', e);
+    }
+
     const order: NewOrder = {
       id: getUuid(),
       orderNo: orderNo,
@@ -273,6 +286,7 @@ export async function POST(req: Request) {
       creditsValidDays: canonicalPlan.valid_days,
       planName: pricingItem.plan_name || '',
       paymentProductId: paymentProductId,
+      referrerId: referrerId, // 分销系统：记录推荐人ID
     };
 
     // create order

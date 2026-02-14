@@ -28,9 +28,9 @@
         "icon": "Users"
       },
       {
-        "title": "API Keys",
-        "url": "/settings/apikeys",
-        "icon": "RiKeyLine"
+        "title": "Coach Program",
+        "url": "/settings/affiliates",
+        "icon": "Award"
       }
     ]
   },
