@@ -17,6 +17,7 @@ export enum AuditActionType {
   CREDIT_DELETE = 'credit_delete', // 删除积分记录
   USER_CREATE = 'user_create', // 创建用户
   USER_UPDATE = 'user_update', // 更新用户
+  USER_DELETE = 'user_delete', // 删除用户
   ADMIN_ACTION = 'admin_action', // 管理员操作
 }
 

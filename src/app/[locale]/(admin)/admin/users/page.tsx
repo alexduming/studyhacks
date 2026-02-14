@@ -22,6 +22,7 @@ import { type Table } from '@/shared/types/blocks/table';
 
 import { ManageCreditsDialog } from './manage-credits-dialog';
 import { ManageMembershipDialog } from './manage-membership-dialog';
+import { DeleteUserDialog } from './delete-user-dialog';
 
 export default async function AdminUsersPage({
   params,
@@ -178,6 +179,17 @@ export default async function AdminUsersPage({
             url: `/admin/users/${item.id}/edit-roles`,
           },
         ],
+      },
+      {
+        name: 'delete',
+        title: t('fields.delete'),
+        callback: (item: User) => (
+          <DeleteUserDialog
+            userId={item.id}
+            userName={item.name}
+            userEmail={item.email}
+          />
+        ),
       },
     ],
     data: users,

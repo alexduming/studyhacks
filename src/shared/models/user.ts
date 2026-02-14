@@ -1,5 +1,5 @@
 import { headers } from 'next/headers';
-import { count, desc, eq, inArray } from 'drizzle-orm';
+import { count, desc, eq, inArray, and, ne } from 'drizzle-orm';
 
 import { getAuth } from '@/core/auth';
 import { db } from '@/core/db';
@@ -35,6 +35,22 @@ export async function updateUser(userId: string, updatedUser: UpdateUser) {
   const [result] = await db()
     .update(user)
     .set(updatedUser)
+    .where(eq(user.id, userId))
+    .returning();
+
+  return result;
+}
+
+/**
+ * 删除用户
+ * 非程序员解释：
+ * - 从数据库中永久删除指定用户
+ * - 由于数据库设置了级联删除，关联数据（角色、积分、订阅等）会自动清理
+ * - 返回被删除的用户信息，如果用户不存在则返回 undefined
+ */
+export async function deleteUser(userId: string) {
+  const [result] = await db()
+    .delete(user)
     .where(eq(user.id, userId))
     .returning();
 
