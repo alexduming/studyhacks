@@ -95,8 +95,15 @@ export default function AffiliatesPage() {
   const [withdrawDialogOpen, setWithdrawDialogOpen] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawMethod, setWithdrawMethod] = useState('paypal');
-  const [withdrawAccount, setWithdrawAccount] = useState('');
   const [withdrawing, setWithdrawing] = useState(false);
+  // 不同提现方式的账户信息
+  const [paypalEmail, setPaypalEmail] = useState('');
+  const [alipayAccount, setAlipayAccount] = useState('');
+  const [alipayName, setAlipayName] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [bankBranch, setBankBranch] = useState('');
+  const [bankAccountName, setBankAccountName] = useState('');
+  const [bankAccountNumber, setBankAccountNumber] = useState('');
 
   // 加载数据
   useEffect(() => {
@@ -115,7 +122,7 @@ export default function AffiliatesPage() {
         loadWithdrawals(),
       ]);
     } catch (error) {
-      console.error('加载数据失败:', error);
+      console.error('Load data failed:', error);
     } finally {
       setLoading(false);
     }
@@ -193,19 +200,40 @@ export default function AffiliatesPage() {
 
   // 提交提现申请
   const handleWithdraw = async () => {
-    if (!withdrawAmount || !withdrawAccount) {
-      toast.error('请填写完整信息');
+    // 根据提现方式验证必填字段
+    let accountData: Record<string, string> = {};
+    let isValid = true;
+
+    if (withdrawMethod === 'paypal') {
+      if (!paypalEmail) isValid = false;
+      accountData = { email: paypalEmail };
+    } else if (withdrawMethod === 'alipay') {
+      if (!alipayName || !alipayAccount) isValid = false;
+      accountData = { name: alipayName, account: alipayAccount };
+    } else if (withdrawMethod === 'bank_transfer') {
+      if (!bankAccountName || !bankAccountNumber || !bankName || !bankBranch)
+        isValid = false;
+      accountData = {
+        name: bankAccountName,
+        accountNumber: bankAccountNumber,
+        bankName: bankName,
+        branch: bankBranch,
+      };
+    }
+
+    if (!withdrawAmount || !isValid) {
+      toast.error(t('messages.fill_complete'));
       return;
     }
 
     const amount = parseFloat(withdrawAmount);
     if (isNaN(amount) || amount <= 0) {
-      toast.error('请输入有效金额');
+      toast.error(t('messages.invalid_amount'));
       return;
     }
 
     if (amount > stats.availableBalance / 100) {
-      toast.error('提现金额超过可用余额');
+      toast.error(t('messages.exceed_balance'));
       return;
     }
 
@@ -218,23 +246,30 @@ export default function AffiliatesPage() {
           amount: Math.floor(amount * 100), // 转换为分
           currency: 'usd',
           method: withdrawMethod,
-          account: withdrawAccount,
+          account: JSON.stringify(accountData), // 结构化账户信息
         }),
       });
 
       const data = await response.json();
       if (data.success) {
-        toast.success('提现申请已提交');
+        toast.success(t('messages.withdraw_success'));
         setWithdrawDialogOpen(false);
+        // 重置所有表单字段
         setWithdrawAmount('');
-        setWithdrawAccount('');
+        setPaypalEmail('');
+        setAlipayName('');
+        setAlipayAccount('');
+        setBankAccountName('');
+        setBankAccountNumber('');
+        setBankName('');
+        setBankBranch('');
         loadStats();
         loadWithdrawals();
       } else {
-        toast.error(data.error || '提现失败');
+        toast.error(data.error || t('messages.withdraw_error'));
       }
     } catch (error) {
-      toast.error('提现失败');
+      toast.error(t('messages.withdraw_error'));
     } finally {
       setWithdrawing(false);
     }
@@ -271,7 +306,7 @@ export default function AffiliatesPage() {
           <p className="text-muted-foreground mt-2">{t('description')}</p>
         </div>
         <div className="py-12 text-center">
-          <p className="text-muted-foreground">加载中...</p>
+          <p className="text-muted-foreground">{t('loading')}</p>
         </div>
       </div>
     );
@@ -290,19 +325,25 @@ export default function AffiliatesPage() {
         {/* 邀请人数 */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">邀请人数</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              {t('stats.invitations.title')}
+            </CardTitle>
             <Users className="text-muted-foreground h-4 w-4" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalInvitations}</div>
-            <p className="text-muted-foreground text-xs">已注册用户</p>
+            <p className="text-muted-foreground text-xs">
+              {t('stats.invitations.subtitle')}
+            </p>
           </CardContent>
         </Card>
 
         {/* 付费用户 */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">付费用户</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              {t('stats.paid_users.title')}
+            </CardTitle>
             <TrendingUp className="text-muted-foreground h-4 w-4" />
           </CardHeader>
           <CardContent>
@@ -310,7 +351,9 @@ export default function AffiliatesPage() {
               {referralStats.uniquePaidUsers}
             </div>
             <p className="text-muted-foreground text-xs">
-              共 {referralStats.totalOrders} 笔订单
+              {t('stats.paid_users.subtitle', {
+                count: referralStats.totalOrders,
+              })}
             </p>
           </CardContent>
         </Card>
@@ -318,7 +361,9 @@ export default function AffiliatesPage() {
         {/* 总佣金 */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">总佣金</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              {t('stats.total_commission.title')}
+            </CardTitle>
             <DollarSign className="text-muted-foreground h-4 w-4" />
           </CardHeader>
           <CardContent>
@@ -326,7 +371,9 @@ export default function AffiliatesPage() {
               {formatAmount(stats.totalCommissions, 'usd')}
             </div>
             <p className="text-muted-foreground text-xs">
-              已提现: {formatAmount(stats.totalWithdrawn, 'usd')}
+              {t('stats.total_commission.withdrawn', {
+                amount: formatAmount(stats.totalWithdrawn, 'usd'),
+              })}
             </p>
           </CardContent>
         </Card>
@@ -334,7 +381,9 @@ export default function AffiliatesPage() {
         {/* 可提现余额 */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">可提现</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              {t('stats.available.title')}
+            </CardTitle>
             <Wallet className="text-muted-foreground h-4 w-4" />
           </CardHeader>
           <CardContent>
@@ -375,7 +424,9 @@ export default function AffiliatesPage() {
                       onChange={(e) => setWithdrawAmount(e.target.value)}
                     />
                     <p className="text-muted-foreground text-xs">
-                      可用余额: {formatAmount(stats.availableBalance, 'usd')}
+                      {t('reward_card.available_balance', {
+                        amount: formatAmount(stats.availableBalance, 'usd'),
+                      })}
                     </p>
                   </div>
                   <div className="space-y-2">
@@ -390,30 +441,124 @@ export default function AffiliatesPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="paypal">PayPal</SelectItem>
-                        <SelectItem value="bank_transfer">银行转账</SelectItem>
+                        <SelectItem value="paypal">
+                          {t('reward_card.withdraw_methods.paypal')}
+                        </SelectItem>
+                        <SelectItem value="alipay">
+                          {t('reward_card.withdraw_methods.alipay')}
+                        </SelectItem>
+                        <SelectItem value="bank_transfer">
+                          {t('reward_card.withdraw_methods.bank_transfer')}
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label>
-                      {t('reward_card.withdraw_dialog.account_label')}
-                    </Label>
-                    <Input
-                      placeholder={
-                        withdrawMethod === 'paypal'
-                          ? 'PayPal 邮箱'
-                          : '银行账户信息'
-                      }
-                      value={withdrawAccount}
-                      onChange={(e) => setWithdrawAccount(e.target.value)}
-                    />
-                  </div>
+
+                  {/* PayPal 表单字段 */}
+                  {withdrawMethod === 'paypal' && (
+                    <div className="space-y-2">
+                      <Label>
+                        {t('reward_card.withdraw_dialog.paypal_email_label')}
+                      </Label>
+                      <Input
+                        type="email"
+                        placeholder={t(
+                          'reward_card.withdraw_dialog.paypal_placeholder'
+                        )}
+                        value={paypalEmail}
+                        onChange={(e) => setPaypalEmail(e.target.value)}
+                      />
+                    </div>
+                  )}
+
+                  {/* 支付宝表单字段 */}
+                  {withdrawMethod === 'alipay' && (
+                    <>
+                      <div className="space-y-2">
+                        <Label>
+                          {t('reward_card.withdraw_dialog.real_name_label')}
+                        </Label>
+                        <Input
+                          placeholder={t(
+                            'reward_card.withdraw_dialog.real_name_placeholder'
+                          )}
+                          value={alipayName}
+                          onChange={(e) => setAlipayName(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>
+                          {t('reward_card.withdraw_dialog.alipay_account_label')}
+                        </Label>
+                        <Input
+                          placeholder={t(
+                            'reward_card.withdraw_dialog.alipay_placeholder'
+                          )}
+                          value={alipayAccount}
+                          onChange={(e) => setAlipayAccount(e.target.value)}
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {/* 银行转账表单字段 */}
+                  {withdrawMethod === 'bank_transfer' && (
+                    <>
+                      <div className="space-y-2">
+                        <Label>
+                          {t('reward_card.withdraw_dialog.real_name_label')}
+                        </Label>
+                        <Input
+                          placeholder={t(
+                            'reward_card.withdraw_dialog.real_name_placeholder'
+                          )}
+                          value={bankAccountName}
+                          onChange={(e) => setBankAccountName(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>
+                          {t('reward_card.withdraw_dialog.bank_account_label')}
+                        </Label>
+                        <Input
+                          placeholder={t(
+                            'reward_card.withdraw_dialog.bank_account_placeholder'
+                          )}
+                          value={bankAccountNumber}
+                          onChange={(e) => setBankAccountNumber(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>
+                          {t('reward_card.withdraw_dialog.bank_name_label')}
+                        </Label>
+                        <Input
+                          placeholder={t(
+                            'reward_card.withdraw_dialog.bank_name_placeholder'
+                          )}
+                          value={bankName}
+                          onChange={(e) => setBankName(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>
+                          {t('reward_card.withdraw_dialog.bank_branch_label')}
+                        </Label>
+                        <Input
+                          placeholder={t(
+                            'reward_card.withdraw_dialog.bank_branch_placeholder'
+                          )}
+                          value={bankBranch}
+                          onChange={(e) => setBankBranch(e.target.value)}
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
                 <DialogFooter>
                   <Button onClick={handleWithdraw} disabled={withdrawing}>
                     {withdrawing
-                      ? '提交中...'
+                      ? t('reward_card.withdraw_dialog.submitting')
                       : t('reward_card.withdraw_dialog.submit_button')}
                   </Button>
                 </DialogFooter>
@@ -442,7 +587,8 @@ export default function AffiliatesPage() {
             </Button>
           </div>
           <p className="text-muted-foreground mt-2 text-sm">
-            邀请码: <span className="font-mono font-bold">{inviteCode}</span>
+            {t('invite_card.invite_code')}:{' '}
+            <span className="font-mono font-bold">{inviteCode}</span>
           </p>
         </CardContent>
       </Card>
@@ -450,7 +596,9 @@ export default function AffiliatesPage() {
       {/* 数据面板 */}
       <Tabs defaultValue="referrals" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="referrals">付费用户</TabsTrigger>
+          <TabsTrigger value="referrals">
+            {t('panel.tabs.referrals')}
+          </TabsTrigger>
           <TabsTrigger value="invitations">
             {t('panel.tabs.invitation')}
           </TabsTrigger>
@@ -466,15 +614,15 @@ export default function AffiliatesPage() {
         <TabsContent value="referrals">
           <Card>
             <CardHeader>
-              <CardTitle>付费用户订单</CardTitle>
+              <CardTitle>{t('panel.referrals.title')}</CardTitle>
               <CardDescription>
-                通过您的邀请码注册并付费的用户订单
+                {t('panel.referrals.description')}
               </CardDescription>
             </CardHeader>
             <CardContent>
               {paidOrders.length === 0 ? (
                 <div className="text-muted-foreground py-8 text-center">
-                  暂无付费用户
+                  {t('panel.referrals.no_data')}
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -494,7 +642,7 @@ export default function AffiliatesPage() {
                           {formatAmount(order.amount, order.currency)}
                         </p>
                         <p className="text-muted-foreground text-xs">
-                          佣金:{' '}
+                          {t('panel.referrals.commission')}:{' '}
                           {formatAmount(
                             Math.floor(order.amount * 0.2),
                             order.currency
@@ -513,8 +661,10 @@ export default function AffiliatesPage() {
         <TabsContent value="invitations">
           <Card>
             <CardHeader>
-              <CardTitle>邀请记录</CardTitle>
-              <CardDescription>您邀请注册的用户列表</CardDescription>
+              <CardTitle>{t('panel.invitation_table.title')}</CardTitle>
+              <CardDescription>
+                {t('panel.invitation_table.description')}
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {invitations.length === 0 ? (
@@ -530,7 +680,8 @@ export default function AffiliatesPage() {
                     >
                       <div>
                         <p className="font-medium">
-                          {inv.inviteeEmail || '等待注册'}
+                          {inv.inviteeEmail ||
+                            t('panel.invitation_table.waiting')}
                         </p>
                         <p className="text-muted-foreground text-sm">
                           {formatDate(inv.createdAt)}
@@ -541,7 +692,9 @@ export default function AffiliatesPage() {
                           inv.status === 'accepted' ? 'default' : 'secondary'
                         }
                       >
-                        {inv.status === 'accepted' ? '已注册' : '待注册'}
+                        {inv.status === 'accepted'
+                          ? t('panel.invitation_table.registered')
+                          : t('panel.invitation_table.pending')}
                       </Badge>
                     </div>
                   ))}
@@ -555,8 +708,10 @@ export default function AffiliatesPage() {
         <TabsContent value="commissions">
           <Card>
             <CardHeader>
-              <CardTitle>佣金记录</CardTitle>
-              <CardDescription>您获得的佣金明细</CardDescription>
+              <CardTitle>{t('panel.reward_table.title')}</CardTitle>
+              <CardDescription>
+                {t('panel.reward_table.description')}
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {commissions.length === 0 ? (
@@ -585,7 +740,9 @@ export default function AffiliatesPage() {
                             comm.status === 'paid' ? 'default' : 'secondary'
                           }
                         >
-                          {comm.status === 'paid' ? '可提现' : '待确认'}
+                          {comm.status === 'paid'
+                            ? t('panel.reward_table.status_paid')
+                            : t('panel.reward_table.status_pending')}
                         </Badge>
                       </div>
                     </div>
@@ -600,8 +757,10 @@ export default function AffiliatesPage() {
         <TabsContent value="withdrawals">
           <Card>
             <CardHeader>
-              <CardTitle>提现记录</CardTitle>
-              <CardDescription>您的提现申请记录</CardDescription>
+              <CardTitle>{t('panel.withdraw_table.title')}</CardTitle>
+              <CardDescription>
+                {t('panel.withdraw_table.description')}
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {withdrawals.length === 0 ? (
@@ -617,7 +776,9 @@ export default function AffiliatesPage() {
                     >
                       <div>
                         <p className="font-medium">
-                          {wd.method === 'paypal' ? 'PayPal' : '银行转账'}
+                          {wd.method === 'paypal'
+                            ? t('reward_card.withdraw_methods.paypal')
+                            : t('reward_card.withdraw_methods.bank_transfer')}
                         </p>
                         <p className="text-muted-foreground text-sm">
                           {formatDate(wd.createdAt)}
@@ -639,12 +800,12 @@ export default function AffiliatesPage() {
                           }
                         >
                           {wd.status === 'paid'
-                            ? '已打款'
+                            ? t('panel.withdraw_table.status_paid')
                             : wd.status === 'approved'
-                              ? '已批准'
+                              ? t('panel.withdraw_table.status_approved')
                               : wd.status === 'rejected'
-                                ? '已拒绝'
-                                : '待审核'}
+                                ? t('panel.withdraw_table.status_rejected')
+                                : t('panel.withdraw_table.status_pending')}
                         </Badge>
                       </div>
                     </div>
@@ -658,3 +819,4 @@ export default function AffiliatesPage() {
     </div>
   );
 }
+

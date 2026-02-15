@@ -36,7 +36,11 @@
     "created_time": "Created",
     "status_accepted": "Accepted",
     "status_pending": "Pending",
-    "status_expired": "Expired"
+    "status_expired": "Expired",
+    "reward_earned": "Earned",
+    "reward_given": "Given",
+    "no_reward": "No reward",
+    "reward_limit_reached": "Monthly limit reached"
   },
   "loading": "Loading...",
   "load_error": "Failed to load invitation data"

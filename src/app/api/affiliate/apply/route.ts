@@ -56,8 +56,10 @@ export async function POST(request: Request) {
     });
   } catch (error: any) {
     console.error('Failed to create application:', error);
+    // 返回更详细的错误信息
+    const errorMessage = error?.message || error?.toString() || '申请提交失败，请稍后重试';
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: errorMessage },
       { status: 500 }
     );
   }

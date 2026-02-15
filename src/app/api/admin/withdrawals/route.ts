@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
         note: withdrawal.note,
         createdAt: withdrawal.createdAt,
         processedAt: withdrawal.processedAt,
+        paidAt: withdrawal.processedAt, // 打款时间（复用 processedAt）
         userEmail: user.email,
         userName: user.name,
       })
@@ -100,7 +101,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 验证 action
-    if (!['approve', 'reject', 'pay'].includes(action)) {
+    if (!['reject', 'pay'].includes(action)) {
       return NextResponse.json(
         { success: false, error: 'Invalid action' },
         { status: 400 }
@@ -120,11 +121,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 根据 action 更新状态
+    // 根据 action 更新状态（简化流程：直接从 pending 到 paid 或 rejected）
     let newStatus = wd.status;
-    if (action === 'approve') {
-      newStatus = 'approved';
-    } else if (action === 'reject') {
+    if (action === 'reject') {
       newStatus = 'rejected';
     } else if (action === 'pay') {
       newStatus = 'paid';

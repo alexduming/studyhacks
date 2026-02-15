@@ -111,8 +111,15 @@ export default function AffiliatesPage() {
   const [withdrawDialogOpen, setWithdrawDialogOpen] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawMethod, setWithdrawMethod] = useState('paypal');
-  const [withdrawAccount, setWithdrawAccount] = useState('');
   const [withdrawing, setWithdrawing] = useState(false);
+  // 不同提现方式的账户信息
+  const [paypalEmail, setPaypalEmail] = useState('');
+  const [alipayAccount, setAlipayAccount] = useState('');
+  const [alipayName, setAlipayName] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [bankBranch, setBankBranch] = useState('');
+  const [bankAccountName, setBankAccountName] = useState('');
+  const [bankAccountNumber, setBankAccountNumber] = useState('');
 
   // 首次加载检查申请状态
   useEffect(() => {
@@ -247,6 +254,32 @@ export default function AffiliatesPage() {
     const data = await response.json();
     if (data.success) {
       setWithdrawals(data.data.records || []);
+      // 自动填充上次的提现信息
+      const records = data.data.records || [];
+      if (records.length > 0) {
+        const lastWithdrawal = records[0]; // 最近一次提现
+        setWithdrawMethod(lastWithdrawal.method || 'paypal');
+        // 解析账户信息
+        try {
+          const accountInfo = JSON.parse(lastWithdrawal.account);
+          if (lastWithdrawal.method === 'paypal') {
+            setPaypalEmail(accountInfo.email || '');
+          } else if (lastWithdrawal.method === 'alipay') {
+            setAlipayName(accountInfo.name || '');
+            setAlipayAccount(accountInfo.account || '');
+          } else if (lastWithdrawal.method === 'bank_transfer') {
+            setBankAccountName(accountInfo.name || '');
+            setBankAccountNumber(accountInfo.accountNumber || '');
+            setBankName(accountInfo.bankName || '');
+            setBankBranch(accountInfo.branch || '');
+          }
+        } catch {
+          // 旧格式的账户信息，直接作为字符串处理
+          if (lastWithdrawal.method === 'paypal') {
+            setPaypalEmail(lastWithdrawal.account || '');
+          }
+        }
+      }
     }
   };
 
@@ -260,7 +293,28 @@ export default function AffiliatesPage() {
 
   // 提交提现申请
   const handleWithdraw = async () => {
-    if (!withdrawAmount || !withdrawAccount) {
+    // 根据提现方式验证必填字段
+    let accountData: Record<string, string> = {};
+    let isValid = true;
+
+    if (withdrawMethod === 'paypal') {
+      if (!paypalEmail) isValid = false;
+      accountData = { email: paypalEmail };
+    } else if (withdrawMethod === 'alipay') {
+      if (!alipayName || !alipayAccount) isValid = false;
+      accountData = { name: alipayName, account: alipayAccount };
+    } else if (withdrawMethod === 'bank_transfer') {
+      if (!bankAccountName || !bankAccountNumber || !bankName || !bankBranch)
+        isValid = false;
+      accountData = {
+        name: bankAccountName,
+        accountNumber: bankAccountNumber,
+        bankName: bankName,
+        branch: bankBranch,
+      };
+    }
+
+    if (!withdrawAmount || !isValid) {
       toast.error('请填写完整信息');
       return;
     }
@@ -285,7 +339,7 @@ export default function AffiliatesPage() {
           amount: Math.floor(amount * 100),
           currency: 'usd',
           method: withdrawMethod,
-          account: withdrawAccount,
+          account: JSON.stringify(accountData),
         }),
       });
 
@@ -293,8 +347,15 @@ export default function AffiliatesPage() {
       if (data.success) {
         toast.success('提现申请已提交');
         setWithdrawDialogOpen(false);
+        // 重置所有表单字段
         setWithdrawAmount('');
-        setWithdrawAccount('');
+        setPaypalEmail('');
+        setAlipayName('');
+        setAlipayAccount('');
+        setBankAccountName('');
+        setBankAccountNumber('');
+        setBankName('');
+        setBankBranch('');
         loadStats();
         loadWithdrawals();
       } else {
@@ -305,6 +366,23 @@ export default function AffiliatesPage() {
     } finally {
       setWithdrawing(false);
     }
+  };
+
+  // 处理提现金额变化，限制不超过可用余额
+  const handleWithdrawAmountChange = (value: string) => {
+    const maxAmount = stats.availableBalance / 100;
+    const numValue = parseFloat(value);
+    if (!isNaN(numValue) && numValue > maxAmount) {
+      setWithdrawAmount(maxAmount.toFixed(2));
+    } else {
+      setWithdrawAmount(value);
+    }
+  };
+
+  // 全部提现
+  const handleWithdrawAll = () => {
+    const maxAmount = stats.availableBalance / 100;
+    setWithdrawAmount(maxAmount.toFixed(2));
   };
 
   // 格式化金额
@@ -582,12 +660,25 @@ export default function AffiliatesPage() {
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
                     <Label>{t('reward_card.withdraw_dialog.amount_label')}</Label>
-                    <Input
-                      type="number"
-                      placeholder="0.00"
-                      value={withdrawAmount}
-                      onChange={(e) => setWithdrawAmount(e.target.value)}
-                    />
+                    <div className="flex gap-2">
+                      <Input
+                        type="number"
+                        placeholder="0.00"
+                        value={withdrawAmount}
+                        onChange={(e) => handleWithdrawAmountChange(e.target.value)}
+                        max={stats.availableBalance / 100}
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleWithdrawAll}
+                        className="whitespace-nowrap"
+                      >
+                        全部提现
+                      </Button>
+                    </div>
                     <p className="text-muted-foreground text-xs">
                       可用余额: {formatAmount(stats.availableBalance, 'usd')}
                     </p>
@@ -600,20 +691,84 @@ export default function AffiliatesPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="paypal">PayPal</SelectItem>
+                        <SelectItem value="alipay">支付宝</SelectItem>
                         <SelectItem value="bank_transfer">银行转账</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label>{t('reward_card.withdraw_dialog.account_label')}</Label>
-                    <Input
-                      placeholder={
-                        withdrawMethod === 'paypal' ? 'PayPal 邮箱' : '银行账户信息'
-                      }
-                      value={withdrawAccount}
-                      onChange={(e) => setWithdrawAccount(e.target.value)}
-                    />
-                  </div>
+
+                  {/* PayPal 表单字段 */}
+                  {withdrawMethod === 'paypal' && (
+                    <div className="space-y-2">
+                      <Label>PayPal 邮箱</Label>
+                      <Input
+                        type="email"
+                        placeholder="your@email.com"
+                        value={paypalEmail}
+                        onChange={(e) => setPaypalEmail(e.target.value)}
+                      />
+                    </div>
+                  )}
+
+                  {/* 支付宝表单字段 */}
+                  {withdrawMethod === 'alipay' && (
+                    <>
+                      <div className="space-y-2">
+                        <Label>真实姓名</Label>
+                        <Input
+                          placeholder="请输入收款人真实姓名"
+                          value={alipayName}
+                          onChange={(e) => setAlipayName(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>支付宝账号</Label>
+                        <Input
+                          placeholder="手机号或邮箱"
+                          value={alipayAccount}
+                          onChange={(e) => setAlipayAccount(e.target.value)}
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {/* 银行转账表单字段 */}
+                  {withdrawMethod === 'bank_transfer' && (
+                    <>
+                      <div className="space-y-2">
+                        <Label>真实姓名</Label>
+                        <Input
+                          placeholder="请输入收款人真实姓名"
+                          value={bankAccountName}
+                          onChange={(e) => setBankAccountName(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>银行卡号</Label>
+                        <Input
+                          placeholder="请输入银行卡号"
+                          value={bankAccountNumber}
+                          onChange={(e) => setBankAccountNumber(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>银行名称</Label>
+                        <Input
+                          placeholder="如：中国工商银行"
+                          value={bankName}
+                          onChange={(e) => setBankName(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>开户行</Label>
+                        <Input
+                          placeholder="如：北京市朝阳区支行"
+                          value={bankBranch}
+                          onChange={(e) => setBankBranch(e.target.value)}
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
                 <DialogFooter>
                   <Button onClick={handleWithdraw} disabled={withdrawing}>
@@ -800,7 +955,11 @@ export default function AffiliatesPage() {
                     >
                       <div>
                         <p className="font-medium">
-                          {wd.method === 'paypal' ? 'PayPal' : '银行转账'}
+                          {wd.method === 'paypal'
+                            ? 'PayPal'
+                            : wd.method === 'alipay'
+                              ? '支付宝'
+                              : '银行转账'}
                         </p>
                         <p className="text-muted-foreground text-sm">
                           {formatDate(wd.createdAt)}

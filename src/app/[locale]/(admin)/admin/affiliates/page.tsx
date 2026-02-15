@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Check, DollarSign, TrendingUp, Users, Wallet, X } from 'lucide-react';
+import { Check, DollarSign, TrendingUp, Users, Wallet, X, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Badge } from '@/shared/components/ui/badge';
@@ -34,6 +34,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/shared/components/ui/dialog';
 import { Input } from '@/shared/components/ui/input';
 
 /**
@@ -48,6 +56,10 @@ export default function AdminAffiliatesPage() {
 
   // 申请相关状态
   const [applications, setApplications] = useState<any[]>([]);
+
+  // 提现详情对话框
+  const [selectedWithdrawal, setSelectedWithdrawal] = useState<any>(null);
+  const [withdrawalDetailOpen, setWithdrawalDetailOpen] = useState(false);
   const [applicationStatus, setApplicationStatus] = useState('pending');
   const [adminNotes, setAdminNotes] = useState<Record<string, string>>({});
 
@@ -202,6 +214,49 @@ export default function AdminAffiliatesPage() {
   const pendingApplicationsCount = applications.filter(
     (app) => app.status === 'pending'
   ).length;
+
+  // 格式化提现方式名称
+  const formatMethodName = (method: string) => {
+    switch (method) {
+      case 'paypal':
+        return 'PayPal';
+      case 'alipay':
+        return '支付宝';
+      case 'bank_transfer':
+        return '银行转账';
+      default:
+        return method;
+    }
+  };
+
+  // 解析并格式化账户信息
+  const parseAccountInfo = (account: string, method: string) => {
+    try {
+      const info = JSON.parse(account);
+      if (method === 'paypal') {
+        return { 邮箱: info.email };
+      } else if (method === 'alipay') {
+        return { 姓名: info.name, 账号: info.account };
+      } else if (method === 'bank_transfer') {
+        return {
+          姓名: info.name,
+          卡号: info.accountNumber,
+          银行: info.bankName,
+          开户行: info.branch,
+        };
+      }
+      return info;
+    } catch {
+      // 旧格式，直接返回字符串
+      return { 账户: account };
+    }
+  };
+
+  // 打开提现详情对话框
+  const openWithdrawalDetail = (wd: any) => {
+    setSelectedWithdrawal(wd);
+    setWithdrawalDetailOpen(true);
+  };
 
   return (
     <div className="space-y-6 p-6">
@@ -451,7 +506,7 @@ export default function AdminAffiliatesPage() {
                         </TableCell>
                         <TableCell className="text-right font-bold text-green-600">
                           {formatAmount(
-                            aff.paidCommission - aff.totalWithdrawn - aff.pendingWithdrawal
+                            aff.paidCommission - aff.totalWithdrawn
                           )}
                         </TableCell>
                       </TableRow>
@@ -479,7 +534,6 @@ export default function AdminAffiliatesPage() {
                   <SelectContent>
                     <SelectItem value="all">全部</SelectItem>
                     <SelectItem value="pending">待审核</SelectItem>
-                    <SelectItem value="approved">已批准</SelectItem>
                     <SelectItem value="rejected">已拒绝</SelectItem>
                     <SelectItem value="paid">已打款</SelectItem>
                   </SelectContent>
@@ -498,7 +552,6 @@ export default function AdminAffiliatesPage() {
                       <TableHead>申请人</TableHead>
                       <TableHead>金额</TableHead>
                       <TableHead>方式</TableHead>
-                      <TableHead>账户</TableHead>
                       <TableHead>申请时间</TableHead>
                       <TableHead>状态</TableHead>
                       <TableHead className="text-right">操作</TableHead>
@@ -518,43 +571,41 @@ export default function AdminAffiliatesPage() {
                         <TableCell className="font-bold">
                           {formatAmount(wd.amount, wd.currency)}
                         </TableCell>
-                        <TableCell>
-                          {wd.method === 'paypal' ? 'PayPal' : '银行转账'}
-                        </TableCell>
-                        <TableCell className="max-w-32 truncate">{wd.account}</TableCell>
+                        <TableCell>{formatMethodName(wd.method)}</TableCell>
                         <TableCell>{formatDate(wd.createdAt)}</TableCell>
                         <TableCell>
                           <Badge
                             variant={
                               wd.status === 'paid'
                                 ? 'default'
-                                : wd.status === 'approved'
-                                  ? 'outline'
-                                  : wd.status === 'rejected'
-                                    ? 'destructive'
-                                    : 'secondary'
+                                : wd.status === 'rejected'
+                                  ? 'destructive'
+                                  : 'secondary'
                             }
                           >
                             {wd.status === 'paid'
                               ? '已打款'
-                              : wd.status === 'approved'
-                                ? '已批准'
-                                : wd.status === 'rejected'
-                                  ? '已拒绝'
-                                  : '待审核'}
+                              : wd.status === 'rejected'
+                                ? '已拒绝'
+                                : '待审核'}
                           </Badge>
+                          {wd.status === 'paid' && wd.paidAt && (
+                            <p className="text-muted-foreground mt-1 text-xs">
+                              {formatDate(wd.paidAt)}
+                            </p>
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
-                          {wd.status === 'pending' && (
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleWithdrawalAction(wd.id, 'approve')}
-                                disabled={processing === wd.id}
-                              >
-                                批准
-                              </Button>
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openWithdrawalDetail(wd)}
+                            >
+                              <Eye className="mr-1 h-4 w-4" />
+                              查看
+                            </Button>
+                            {wd.status === 'pending' && (
                               <Button
                                 size="sm"
                                 variant="destructive"
@@ -563,17 +614,8 @@ export default function AdminAffiliatesPage() {
                               >
                                 拒绝
                               </Button>
-                            </div>
-                          )}
-                          {wd.status === 'approved' && (
-                            <Button
-                              size="sm"
-                              onClick={() => handleWithdrawalAction(wd.id, 'pay')}
-                              disabled={processing === wd.id}
-                            >
-                              确认打款
-                            </Button>
-                          )}
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -584,6 +626,121 @@ export default function AdminAffiliatesPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* 提现详情对话框 */}
+      <Dialog open={withdrawalDetailOpen} onOpenChange={setWithdrawalDetailOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>提现详情</DialogTitle>
+            <DialogDescription>
+              查看提现申请的详细信息
+            </DialogDescription>
+          </DialogHeader>
+          {selectedWithdrawal && (
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-muted-foreground text-sm">申请人</p>
+                  <p className="font-medium">{selectedWithdrawal.userName || '-'}</p>
+                  <p className="text-muted-foreground text-sm">{selectedWithdrawal.userEmail}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-sm">提现金额</p>
+                  <p className="text-xl font-bold text-green-600">
+                    {formatAmount(selectedWithdrawal.amount, selectedWithdrawal.currency)}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-muted-foreground mb-2 text-sm">提现方式</p>
+                <Badge variant="outline" className="text-base">
+                  {formatMethodName(selectedWithdrawal.method)}
+                </Badge>
+              </div>
+
+              <div className="bg-muted rounded-lg p-4">
+                <p className="text-muted-foreground mb-2 text-sm font-medium">收款账户信息</p>
+                <div className="space-y-2">
+                  {Object.entries(parseAccountInfo(selectedWithdrawal.account, selectedWithdrawal.method)).map(
+                    ([key, value]) => (
+                      <div key={key} className="flex justify-between">
+                        <span className="text-muted-foreground">{key}:</span>
+                        <span className="font-medium">{value as string}</span>
+                      </div>
+                    )
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">申请时间</p>
+                  <p>{formatDate(selectedWithdrawal.createdAt)}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">状态</p>
+                  <Badge
+                    variant={
+                      selectedWithdrawal.status === 'paid'
+                        ? 'default'
+                        : selectedWithdrawal.status === 'rejected'
+                          ? 'destructive'
+                          : 'secondary'
+                    }
+                  >
+                    {selectedWithdrawal.status === 'paid'
+                      ? '已打款'
+                      : selectedWithdrawal.status === 'rejected'
+                        ? '已拒绝'
+                        : '待审核'}
+                  </Badge>
+                </div>
+              </div>
+
+              {selectedWithdrawal.status === 'paid' && selectedWithdrawal.paidAt && (
+                <div className="text-sm">
+                  <p className="text-muted-foreground">打款时间</p>
+                  <p>{formatDate(selectedWithdrawal.paidAt)}</p>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            {selectedWithdrawal?.status === 'pending' && (
+              <div className="flex w-full gap-2">
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    handleWithdrawalAction(selectedWithdrawal.id, 'reject');
+                    setWithdrawalDetailOpen(false);
+                  }}
+                  disabled={processing === selectedWithdrawal?.id}
+                  className="flex-1"
+                >
+                  拒绝
+                </Button>
+                <Button
+                  onClick={() => {
+                    handleWithdrawalAction(selectedWithdrawal.id, 'pay');
+                    setWithdrawalDetailOpen(false);
+                  }}
+                  disabled={processing === selectedWithdrawal?.id}
+                  className="flex-1"
+                >
+                  <Check className="mr-1 h-4 w-4" />
+                  确认打款
+                </Button>
+              </div>
+            )}
+            {selectedWithdrawal?.status !== 'pending' && (
+              <Button variant="outline" onClick={() => setWithdrawalDetailOpen(false)}>
+                关闭
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

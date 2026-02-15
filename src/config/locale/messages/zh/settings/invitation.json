@@ -36,7 +36,11 @@
     "created_time": "创建时间",
     "status_accepted": "已接受",
     "status_pending": "待接受",
-    "status_expired": "已过期"
+    "status_expired": "已过期",
+    "reward_earned": "获得积分",
+    "reward_given": "赠送积分",
+    "no_reward": "未获得奖励",
+    "reward_limit_reached": "当月已达上限"
   },
   "loading": "加载中...",
   "load_error": "加载邀请数据失败"

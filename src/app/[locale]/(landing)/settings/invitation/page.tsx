@@ -292,6 +292,18 @@ export default function InvitationPage() {
                             ? t('invitation_records.status_pending')
                             : t('invitation_records.status_expired')}
                       </Badge>
+                      {/* 显示获得的积分奖励 */}
+                      {invitation.status === 'accepted' && (
+                        <Badge
+                          variant={invitation.rewardAmount > 0 ? 'default' : 'outline'}
+                          className={invitation.rewardAmount > 0 ? 'bg-green-500 hover:bg-green-600' : ''}
+                        >
+                          <Gift className="mr-1 h-3 w-3" />
+                          {invitation.rewardAmount > 0
+                            ? `+${invitation.rewardAmount}`
+                            : t('invitation_records.reward_limit_reached')}
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-muted-foreground mt-1 text-sm">
                       {t('invitation_records.created_time')}:{' '}
