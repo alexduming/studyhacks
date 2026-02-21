@@ -68,7 +68,7 @@ export function db() {
       connection: {
         application_name: 'study-app',
         // 🔧 增加语句超时时间，处理大字段更新（如包含历史记录的 taskResult）
-        statement_timeout: '300000', // 5分钟
+        statement_timeout: 300000, // 5分钟（毫秒）
       },
       // 启用连接池健康检查
       onnotice: () => {}, // 静默处理通知
