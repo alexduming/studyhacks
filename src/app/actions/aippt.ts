@@ -2404,8 +2404,45 @@ export async function editImageWithInpaintingAction(params: {
     const editedImageUrl = images[0].url;
     console.log('[Inpaint] ✅ 编辑成功:', editedImageUrl.substring(0, 60) + '...');
 
+    // 🎯 将编辑后的图片上传到 R2，返回永久链接
+    let finalImageUrl = editedImageUrl;
+    try {
+      const { getStorageServiceWithConfigs } = await import('@/shared/services/storage');
+      const { getAllConfigs } = await import('@/shared/models/config');
+      const { getUserInfo } = await import('@/shared/models/user');
+      const { nanoid } = await import('nanoid');
+
+      const user = await getUserInfo();
+      const configs = await getAllConfigs();
+
+      if (user && configs.r2_bucket_name && configs.r2_access_key) {
+        console.log('[Inpaint] 开始同步保存图片到 R2...');
+        const storageService = getStorageServiceWithConfigs(configs);
+        const timestamp = Date.now();
+        const randomId = nanoid(8);
+        const fileName = `${timestamp}_${randomId}.png`;
+        const storageKey = `infographic-edits/${user.id}/${fileName}`;
+
+        const uploadResult = await storageService.downloadAndUpload({
+          url: editedImageUrl,
+          key: storageKey,
+          contentType: 'image/png',
+          disposition: 'inline',
+        });
+
+        if (uploadResult.success && uploadResult.url) {
+          finalImageUrl = uploadResult.url;
+          console.log(`[Inpaint] ✅ 图片已保存到 R2: ${finalImageUrl.substring(0, 60)}...`);
+        } else {
+          console.warn('[Inpaint] ⚠️ R2 上传失败，使用临时链接:', uploadResult.error);
+        }
+      }
+    } catch (saveError) {
+      console.error('[Inpaint] R2 保存异常，使用临时链接:', saveError);
+    }
+
     return {
-      imageUrl: editedImageUrl,
+      imageUrl: finalImageUrl,
       success: true,
       provider: 'FAL-Inpainting' as const,
     };
@@ -2596,8 +2633,45 @@ ${regionPrompts}
     const editedImageUrl = result.data.images[0].url;
     console.log('[Edit] ✅ 编辑成功:', editedImageUrl.substring(0, 60) + '...');
 
+    // 🎯 将编辑后的图片上传到 R2，返回永久链接
+    let finalImageUrl = editedImageUrl;
+    try {
+      const { getStorageServiceWithConfigs } = await import('@/shared/services/storage');
+      const { getAllConfigs } = await import('@/shared/models/config');
+      const { getUserInfo } = await import('@/shared/models/user');
+      const { nanoid } = await import('nanoid');
+
+      const user = await getUserInfo();
+      const configs = await getAllConfigs();
+
+      if (user && configs.r2_bucket_name && configs.r2_access_key) {
+        console.log('[Edit] 开始同步保存图片到 R2...');
+        const storageService = getStorageServiceWithConfigs(configs);
+        const timestamp = Date.now();
+        const randomId = nanoid(8);
+        const fileName = `${timestamp}_${randomId}.png`;
+        const storageKey = `infographic-edits/${user.id}/${fileName}`;
+
+        const uploadResult = await storageService.downloadAndUpload({
+          url: editedImageUrl,
+          key: storageKey,
+          contentType: 'image/png',
+          disposition: 'inline',
+        });
+
+        if (uploadResult.success && uploadResult.url) {
+          finalImageUrl = uploadResult.url;
+          console.log(`[Edit] ✅ 图片已保存到 R2: ${finalImageUrl.substring(0, 60)}...`);
+        } else {
+          console.warn('[Edit] ⚠️ R2 上传失败，使用临时链接:', uploadResult.error);
+        }
+      }
+    } catch (saveError) {
+      console.error('[Edit] R2 保存异常，使用临时链接:', saveError);
+    }
+
     return {
-      imageUrl: editedImageUrl,
+      imageUrl: finalImageUrl,
       success: true,
       provider: 'FAL' as const,
     };

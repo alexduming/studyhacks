@@ -52,8 +52,8 @@ interface InfographicEditDialogProps {
   onEditComplete: (newImageUrl: string, editPrompt?: string) => void;
   /** 历史记录列表（可选） */
   history?: InfographicHistoryEntry[];
-  /** 切换历史版本的回调（可选） */
-  onSwitchVersion?: (entry: InfographicHistoryEntry) => void;
+  /** 切换历史版本的回调（可选），返回 Promise 以便等待完成 */
+  onSwitchVersion?: (entry: InfographicHistoryEntry) => Promise<void>;
 }
 
 /**
@@ -86,6 +86,9 @@ export function InfographicEditDialog({
 
   // 🎯 当前编辑的图片 URL（可通过历史版本切换）
   const [currentEditImageUrl, setCurrentEditImageUrl] = useState(imageUrl);
+
+  // 🎯 新增：追踪是否切换了历史版本（用于"应用修改"确认）
+  const [pendingVersionSwitch, setPendingVersionSwitch] = useState<InfographicHistoryEntry | null>(null);
 
   // 拖拽状态
   const editCanvasRef = useRef<HTMLDivElement>(null);
@@ -718,6 +721,7 @@ export function InfographicEditDialog({
       setActiveRegionId(null);
       setEditingPrompt('');
       setCurrentEditImageUrl(imageUrl);
+      setPendingVersionSwitch(null); // 🎯 重置待确认的版本切换
     }
     onOpenChange(newOpen);
   };
@@ -727,15 +731,37 @@ export function InfographicEditDialog({
     setCurrentEditImageUrl(imageUrl);
   }, [imageUrl]);
 
-  // 🎯 切换历史版本
+  // 🎯 切换历史版本（仅预览，不立即保存）
   const handleSwitchToVersion = (entry: InfographicHistoryEntry) => {
     setCurrentEditImageUrl(entry.imageUrl);
     // 清空当前的编辑区域，因为切换了图片
     setEditRegions([]);
     setDraftRegion(null);
     setActiveRegionId(null);
-    // 通知父组件
-    onSwitchVersion?.(entry);
+    // 🎯 记录待确认的版本切换（不立即通知父组件）
+    // 只有当切换到的版本不是当前显示的版本时才标记为待确认
+    if (entry.imageUrl !== imageUrl) {
+      setPendingVersionSwitch(entry);
+    } else {
+      setPendingVersionSwitch(null);
+    }
+  };
+
+  // 🎯 新增：应用历史版本切换
+  const handleApplyVersionSwitch = async () => {
+    if (!pendingVersionSwitch) return;
+
+    try {
+      // 🎯 通知父组件保存版本切换（父组件会立即更新本地状态，后台保存数据库）
+      await onSwitchVersion?.(pendingVersionSwitch);
+      setPendingVersionSwitch(null);
+      toast.success(t('edit.version_applied'));
+      // 关闭对话框
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Failed to apply version switch:', error);
+      toast.error(t('edit.version_apply_failed'));
+    }
   };
 
   return (
@@ -901,30 +927,48 @@ export function InfographicEditDialog({
 
               {/* 底部按钮区域 */}
               <div className="border-border bg-muted/30 flex-none border-t px-4 py-3 dark:bg-[#080A12]">
-                <Button
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground h-11 w-full rounded-xl text-sm font-semibold transition-all active:scale-[0.98]"
-                  disabled={isSubmitting || (editRegions.length === 0 && !editingPrompt.trim())}
-                  onClick={handleSubmit}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {t('edit.processing')}
-                    </>
-                  ) : (
-                    <>
-                      <CreditsCost credits={6} />
+                {/* 🎯 如果有待确认的版本切换，显示"应用修改"按钮 */}
+                {pendingVersionSwitch ? (
+                  <>
+                    <Button
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground h-11 w-full rounded-xl text-sm font-semibold transition-all active:scale-[0.98]"
+                      onClick={handleApplyVersionSwitch}
+                    >
+                      <Check className="mr-2 h-4 w-4" />
+                      {t('edit.apply_version')}
+                    </Button>
+                    <p className="text-muted-foreground mt-2 text-center text-[10px]">
+                      {t('edit.version_switch_hint')}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground h-11 w-full rounded-xl text-sm font-semibold transition-all active:scale-[0.98]"
+                      disabled={isSubmitting || (editRegions.length === 0 && !editingPrompt.trim())}
+                      onClick={handleSubmit}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          {t('edit.processing')}
+                        </>
+                      ) : (
+                        <>
+                          <CreditsCost credits={6} />
+                          {editRegions.length > 0
+                            ? t('edit.apply_regional')
+                            : t('edit.apply_global')}
+                        </>
+                      )}
+                    </Button>
+                    <p className="text-muted-foreground mt-2 text-center text-[10px]">
                       {editRegions.length > 0
-                        ? t('edit.apply_regional')
-                        : t('edit.apply_global')}
-                    </>
-                  )}
-                </Button>
-                <p className="text-muted-foreground mt-2 text-center text-[10px]">
-                  {editRegions.length > 0
-                    ? t('edit.regional_hint')
-                    : t('edit.global_hint')}
-                </p>
+                        ? t('edit.regional_hint')
+                        : t('edit.global_hint')}
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           </div>

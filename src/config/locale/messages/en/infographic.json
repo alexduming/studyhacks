@@ -71,7 +71,11 @@
     "failed": "Edit failed, please try again",
     "history_title": "History",
     "history_count": "versions",
-    "history_version": "Version"
+    "history_version": "Version",
+    "version_applied": "Version applied successfully",
+    "version_apply_failed": "Failed to apply version",
+    "apply_version": "Apply This Version",
+    "version_switch_hint": "Click to apply this history version, or continue editing"
   },
   "result": {
     "title": "Generation result",

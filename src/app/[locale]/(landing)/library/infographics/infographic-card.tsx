@@ -96,16 +96,22 @@ export function InfographicCard({
     );
   };
 
-  // 🎯 在编辑对话框中切换历史版本
+  // 🎯 在编辑对话框中应用历史版本
+  // 优化：只在用户确认"应用此版本"时才保存到数据库，立即更新本地状态
   const handleSwitchVersionInDialog = async (entry: InfographicHistoryEntry) => {
     try {
-      await switchInfographicVersionAction({
+      // 🎯 先立即更新本地状态（用户立刻看到变化）
+      setCurrentImageUrl(entry.imageUrl);
+      // 🎯 后台保存到数据库（不阻塞 UI）
+      switchInfographicVersionAction({
         taskId: id,
         imageUrl: entry.imageUrl,
+      }).catch((error) => {
+        console.error('Failed to save version switch:', error);
       });
-      setCurrentImageUrl(entry.imageUrl);
     } catch (error) {
       console.error('Failed to switch version:', error);
+      throw error; // 重新抛出以便调用方处理
     }
   };
 
