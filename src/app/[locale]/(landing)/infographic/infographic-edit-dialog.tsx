@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
-import { editImageRegionAction, editImageWithInpaintingAction } from '@/app/actions/aippt';
+import { editImageRegionAction } from '@/app/actions/aippt';
 import { InfographicHistoryEntry } from '@/app/actions/ai_task';
 import {
   Check,
@@ -388,19 +388,28 @@ export function InfographicEditDialog({
 
   /**
    * 🎯 获取图片的实际尺寸
-   * FAL inpainting API 要求 mask 和原图尺寸完全一致
    *
    * @param imageUrl 图片 URL
    * @returns 图片的实际宽高
    */
   const getActualImageDimensions = (imageUrl: string): Promise<{ width: number; height: number }> => {
     return new Promise((resolve, reject) => {
+      // 添加 10 秒超时
+      const timeout = setTimeout(() => {
+        console.error('[Edit] 获取图片尺寸超时');
+        reject(new Error('获取图片尺寸超时'));
+      }, 10000);
+
       const img = new window.Image();
-      img.crossOrigin = 'anonymous';
+      // 🎯 不设置 crossOrigin，避免 CORS 问题（我们只需要获取尺寸，不需要读取像素）
       img.onload = () => {
+        clearTimeout(timeout);
+        console.log('[Edit] 图片加载成功:', img.naturalWidth, 'x', img.naturalHeight);
         resolve({ width: img.naturalWidth, height: img.naturalHeight });
       };
-      img.onerror = () => {
+      img.onerror = (e) => {
+        clearTimeout(timeout);
+        console.error('[Edit] 图片加载失败:', e);
         reject(new Error('无法加载图片获取尺寸'));
       };
       img.src = imageUrl;
@@ -408,93 +417,21 @@ export function InfographicEditDialog({
   };
 
   /**
-   * 🎯 生成 mask 图片（用于 inpainting）
-   * 白色区域 = 需要修改的区域
-   * 黑色区域 = 保持不变的区域
-   *
-   * @param regions 选区列表
-   * @param width 图片宽度
-   * @param height 图片高度
-   * @returns mask 图片的 Blob
+   * 🎯 根据宽高比估算图片尺寸（备用方案）
    */
-  const generateMaskImage = async (
-    regions: RegionDefinition[],
-    width: number,
-    height: number
-  ): Promise<Blob> => {
-    // 创建 canvas
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-
-    if (!ctx) {
-      throw new Error('无法创建 canvas context');
+  const estimateDimensionsFromAspectRatio = (ratio: string, baseSize: number = 1920): { width: number; height: number } => {
+    const [w, h] = ratio.split(':').map(Number);
+    if (!w || !h) return { width: baseSize, height: baseSize };
+    if (w >= h) {
+      return { width: baseSize, height: Math.round(baseSize * h / w) };
+    } else {
+      return { width: Math.round(baseSize * w / h), height: baseSize };
     }
-
-    // 填充黑色背景（保持不变的区域）
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, width, height);
-
-    // 绘制白色矩形（需要修改的区域）
-    ctx.fillStyle = '#FFFFFF';
-    for (const region of regions) {
-      const x = Math.round(region.x * width);
-      const y = Math.round(region.y * height);
-      const w = Math.round(region.width * width);
-      const h = Math.round(region.height * height);
-      ctx.fillRect(x, y, w, h);
-    }
-
-    // 转换为 Blob
-    return new Promise((resolve, reject) => {
-      canvas.toBlob(
-        (blob) => {
-          if (blob) {
-            resolve(blob);
-          } else {
-            reject(new Error('无法生成 mask 图片'));
-          }
-        },
-        'image/png',
-        1.0
-      );
-    });
-  };
-
-  /**
-   * 🎯 上传 mask 图片到 R2
-   *
-   * @param maskBlob mask 图片的 Blob
-   * @returns 上传后的 URL
-   */
-  const uploadMaskImage = async (maskBlob: Blob): Promise<string> => {
-    const formData = new FormData();
-    const fileName = `mask-${Date.now()}.png`;
-    const file = new File([maskBlob], fileName, { type: 'image/png' });
-    formData.append('files', file);
-    formData.append('path', 'infographic-masks');
-
-    const response = await fetch('/api/storage/upload-image', {
-      method: 'POST',
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error('上传 mask 图片失败');
-    }
-
-    const data = await response.json();
-    if (!data.data?.urls?.[0]) {
-      throw new Error('上传 mask 图片返回格式错误');
-    }
-
-    return data.data.urls[0];
   };
 
   /**
    * 提交编辑
-   * 🎯 优化：使用真正的 inpainting API，确保非编辑区域像素级保持不变
+   * 🎯 使用坐标定位模式，通过提示词描述要修改的区域
    */
   const handleSubmit = async () => {
     if (isSubmitting) return;
@@ -509,46 +446,66 @@ export function InfographicEditDialog({
     toast.loading(t('edit.processing'), { id: 'edit' });
 
     try {
-      // 🎯 关键修复：获取原图的实际尺寸，而不是理论计算的尺寸
-      // FAL inpainting API 要求 mask 和原图尺寸完全一致
-      console.log('[Edit] 获取原图实际尺寸...');
-      const { width: imageWidth, height: imageHeight } = await getActualImageDimensions(currentEditImageUrl);
-      console.log('[Edit] 原图实际尺寸:', imageWidth, 'x', imageHeight);
+      // 🎯 获取原图的实际尺寸
+      console.log('[Edit] 获取原图实际尺寸...', currentEditImageUrl);
+      let imageWidth: number;
+      let imageHeight: number;
+
+      try {
+        const dimensions = await getActualImageDimensions(currentEditImageUrl);
+        imageWidth = dimensions.width;
+        imageHeight = dimensions.height;
+        console.log('[Edit] 原图实际尺寸:', imageWidth, 'x', imageHeight);
+      } catch (dimError: any) {
+        console.warn('[Edit] 获取尺寸失败，使用备用方案:', dimError.message);
+        // 🎯 备用方案：根据 aspectRatio 估算尺寸
+        const estimated = estimateDimensionsFromAspectRatio(aspectRatio);
+        imageWidth = estimated.width;
+        imageHeight = estimated.height;
+        console.log('[Edit] 使用估算尺寸:', imageWidth, 'x', imageHeight);
+      }
 
       if (editRegions.length > 0) {
-        // 🎯 局部编辑模式 - 使用真正的 inpainting API
-        // 步骤 1: 生成 mask 图片
-        console.log('[Edit] 生成 mask 图片...');
-        const maskBlob = await generateMaskImage(editRegions, imageWidth, imageHeight);
-        console.log('[Edit] Mask 大小:', (maskBlob.size / 1024).toFixed(1), 'KB');
-
-        // 步骤 2: 上传 mask 到 R2
-        console.log('[Edit] 上传 mask 图片...');
-        const maskUrl = await uploadMaskImage(maskBlob);
-        console.log('[Edit] Mask URL:', maskUrl);
-
-        // 步骤 3: 构建编辑提示词
-        // 合并所有选区的修改说明
+        // 🎯 局部编辑模式 - 使用坐标定位（不需要 mask）
+        // 构建编辑提示词，合并所有选区的修改说明
         const editDescription = editRegions
           .map((r) => r.note || editingPrompt)
           .filter(Boolean)
           .join('; ') || editingPrompt || '根据选区进行局部修改';
 
-        // 步骤 4: 调用 inpainting API
-        console.log('[Edit] 调用 inpainting API...');
-        const result = await editImageWithInpaintingAction({
-          imageUrl: currentEditImageUrl,
-          maskUrl: maskUrl,
-          prompt: editDescription,
+        console.log('[Edit] 调用局部编辑 API（坐标定位模式）...');
+        console.log('[Edit] 参数:', {
+          imageUrl: currentEditImageUrl.substring(0, 50) + '...',
+          regionsCount: editRegions.length,
+          imageWidth,
+          imageHeight,
           resolution,
           aspectRatio,
         });
 
+        const result = await editImageRegionAction({
+          imageUrl: currentEditImageUrl,
+          regions: editRegions.map((r) => ({
+            label: r.label,
+            x: r.x,
+            y: r.y,
+            width: r.width,
+            height: r.height,
+            note: r.note || editingPrompt || '',
+          })),
+          imageWidth,
+          imageHeight,
+          resolution,
+          aspectRatio,
+        });
+
+        console.log('[Edit] API 返回结果:', result);
         toast.success(t('edit.success'), { id: 'edit' });
         onEditComplete(result.imageUrl, editDescription);
         onOpenChange(false);
       } else {
         // 整体编辑模式 - 使用原来的方案（重新生成整张图片）
+        console.log('[Edit] 调用整体编辑 API...');
         const result = await editImageRegionAction({
           imageUrl: currentEditImageUrl,
           regions: [{
@@ -565,6 +522,7 @@ export function InfographicEditDialog({
           aspectRatio,
         });
 
+        console.log('[Edit] API 返回结果:', result);
         toast.success(t('edit.success'), { id: 'edit' });
         onEditComplete(result.imageUrl, editingPrompt || '整体编辑');
         onOpenChange(false);
@@ -573,6 +531,7 @@ export function InfographicEditDialog({
       console.error('[Edit] ❌ 编辑失败:', error);
       console.error('[Edit] 错误消息:', error.message);
       console.error('[Edit] 错误堆栈:', error.stack);
+      console.error('[Edit] 完整错误对象:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
       toast.error(t('edit.failed'), { id: 'edit' });
     } finally {
       setIsSubmitting(false);

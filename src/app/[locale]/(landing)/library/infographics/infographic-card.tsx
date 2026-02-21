@@ -97,22 +97,22 @@ export function InfographicCard({
   };
 
   // 🎯 在编辑对话框中应用历史版本
-  // 优化：只在用户确认"应用此版本"时才保存到数据库，立即更新本地状态
+  // 优化：立即更新本地状态，后台异步保存数据库（完全不阻塞）
   const handleSwitchVersionInDialog = async (entry: InfographicHistoryEntry) => {
-    try {
-      // 🎯 先立即更新本地状态（用户立刻看到变化）
-      setCurrentImageUrl(entry.imageUrl);
-      // 🎯 后台保存到数据库（不阻塞 UI）
+    // 🎯 立即更新本地状态（用户立刻看到变化）
+    setCurrentImageUrl(entry.imageUrl);
+
+    // 🎯 后台异步保存到数据库，使用 setTimeout 确保完全不阻塞
+    // 即使数据库超时也不影响用户体验
+    setTimeout(() => {
       switchInfographicVersionAction({
         taskId: id,
         imageUrl: entry.imageUrl,
       }).catch((error) => {
-        console.error('Failed to save version switch:', error);
+        console.error('Failed to save version switch (background):', error);
+        // 静默失败，不影响用户体验
       });
-    } catch (error) {
-      console.error('Failed to switch version:', error);
-      throw error; // 重新抛出以便调用方处理
-    }
+    }, 0);
   };
 
   const handleDownload = async (e: React.MouseEvent) => {

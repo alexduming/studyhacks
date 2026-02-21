@@ -2267,18 +2267,18 @@ export async function queryKieTaskWithFallbackAction(
 }
 
 /**
- * 真正的 Inpainting 局部编辑 - 使用 mask 精确控制编辑区域
+ * 真正的 Inpainting 局部编辑 - 使用 APIYI (Gemini 3 Pro Image)
  *
  * 核心优势：
- * - 使用 FAL 的 flux-pro/v1/fill inpainting API
- * - 通过 mask 图片精确指定需要修改的区域（白色=修改，黑色=保持）
+ * - 使用 APIYI 的 gemini-3-pro-image-preview 模型
+ * - 通过原图 + mask 图片精确指定需要修改的区域（白色=修改，黑色=保持）
  * - 非编辑区域像素级保持不变，不会出现模糊或变形
  *
  * 工作流程：
  * 1. 前端根据用户框选区域生成 mask 图片（白色矩形=选中区域）
  * 2. 前端将 mask 上传到 R2 获取 URL
  * 3. 调用此函数，传入原图 URL + mask URL + 修改描述
- * 4. FAL inpainting API 只重新生成 mask 白色区域，其他区域完全保持原样
+ * 4. Gemini 模型根据 mask 只重新生成白色区域，其他区域完全保持原样
  *
  * @param params 编辑参数
  * @returns 编辑后的图片 URL
@@ -2297,21 +2297,16 @@ export async function editImageWithInpaintingAction(params: {
 }) {
   'use server';
 
-  if (!FAL_KEY) {
-    throw new Error('FAL API Key 未配置');
+  if (!APIYI_API_KEY) {
+    throw new Error('APIYI API Key 未配置');
   }
 
-  console.log('\n========== Inpainting 局部编辑 ==========');
+  console.log('\n========== Inpainting 局部编辑 (APIYI Gemini) ==========');
   console.log('[Inpaint] 原图:', params.imageUrl);
   console.log('[Inpaint] Mask:', params.maskUrl);
   console.log('[Inpaint] 提示词:', params.prompt);
 
   try {
-    // 配置 FAL Client
-    fal.config({
-      credentials: FAL_KEY,
-    });
-
     // 处理图片 URL，确保公网可访问
     const imageUrl = resolveImageUrl(params.imageUrl);
     const maskUrl = resolveImageUrl(params.maskUrl);
@@ -2319,93 +2314,126 @@ export async function editImageWithInpaintingAction(params: {
     console.log('[Inpaint] 处理后的原图 URL:', imageUrl);
     console.log('[Inpaint] 处理后的 Mask URL:', maskUrl);
 
-    // 构建 inpainting 请求参数
-    // 使用 fal-ai/flux-pro/v1/fill 模型进行真正的 inpainting
-    const input: any = {
-      prompt: params.prompt,
-      image_url: imageUrl,
-      mask_url: maskUrl,
-      num_images: 1,
-      output_format: 'png',
-      // enhance_prompt: true, // 可选：增强提示词
+    // 🎯 下载原图和 mask 图片转为 base64（Gemini 原生格式需要）
+    console.log('[Inpaint] 开始下载原图和 mask...');
+    const [originalImageData, maskImageData] = await Promise.all([
+      downloadImageAsBase64ForApiyi(imageUrl),
+      downloadImageAsBase64ForApiyi(maskUrl),
+    ]);
+
+    if (!originalImageData) {
+      throw new Error('无法下载原图');
+    }
+    if (!maskImageData) {
+      throw new Error('无法下载 mask 图片');
+    }
+
+    console.log(`[Inpaint] 原图大小: ${(originalImageData.base64.length / 1024).toFixed(1)} KB`);
+    console.log(`[Inpaint] Mask大小: ${(maskImageData.base64.length / 1024).toFixed(1)} KB`);
+
+    // 🎯 构建 Gemini 原生格式的 inpainting 请求
+    // 提示词需要明确说明这是局部编辑任务
+    const inpaintPrompt = `【图片局部编辑任务】
+
+你需要对这张图片进行精确的局部修改。
+
+【重要规则】
+1. 我提供了两张图片：第一张是原图，第二张是 mask（遮罩）
+2. mask 中白色区域是需要修改的部分，黑色区域必须保持完全不变
+3. 只修改白色区域的内容，其他所有区域必须像素级保持原样
+4. 修改后的内容要与周围环境自然融合
+
+【修改要求】
+${params.prompt}
+
+【执行要求】
+- 严格按照 mask 白色区域修改，不要超出范围
+- 黑色区域的任何元素（文字、图形、背景）都不能改变
+- 输出完整的修改后图片`;
+
+    // 构建请求体（Gemini 原生格式）
+    const parts: any[] = [
+      { text: inpaintPrompt },
+      // 原图
+      {
+        inline_data: {
+          mime_type: originalImageData.mimeType,
+          data: originalImageData.base64,
+        },
+      },
+      // Mask 图片
+      {
+        inline_data: {
+          mime_type: maskImageData.mimeType,
+          data: maskImageData.base64,
+        },
+      },
+    ];
+
+    const payload = {
+      contents: [{ parts }],
+      generationConfig: {
+        responseModalities: ['IMAGE'],
+        imageConfig: {
+          aspectRatio: params.aspectRatio || '16:9',
+          imageSize: params.resolution || '2K',
+        },
+      },
     };
 
-    console.log('[Inpaint] FAL 请求参数:', {
-      model: 'fal-ai/flux-pro/v1/fill',
-      prompt: params.prompt.substring(0, 100) + '...',
-      image_url: imageUrl.substring(0, 60) + '...',
-      mask_url: maskUrl.substring(0, 60) + '...',
+    console.log('[Inpaint] APIYI 请求参数:', {
+      model: 'gemini-3-pro-image-preview',
+      promptLength: inpaintPrompt.length,
+      aspectRatio: params.aspectRatio,
+      resolution: params.resolution,
+      partsCount: parts.length,
     });
 
+    // 发送请求
     const startTime = Date.now();
-    const maxRetries = 2;
-    let attempt = 0;
-    let result: any;
+    const timeout = 300000; // 5 分钟超时
 
-    while (attempt <= maxRetries) {
-      try {
-        // 使用 flux-pro/v1/fill 进行 inpainting
-        console.log('[Inpaint] 开始调用 FAL API...');
-        result = await fal.subscribe('fal-ai/flux-pro/v1/fill', {
-          input,
-          logs: true,
-          onQueueUpdate: (update: any) => {
-            console.log('[Inpaint] 队列状态:', update.status);
-            if (update.logs) {
-              update.logs.forEach((log: any) => console.log('[Inpaint] Log:', log.message));
-            }
-          },
-        });
-        console.log('[Inpaint] FAL API 返回原始结果:', JSON.stringify(result).substring(0, 500));
-        break;
-      } catch (error: any) {
-        attempt++;
-        console.error('[Inpaint] 调用失败:', error);
-        console.error('[Inpaint] 错误类型:', error.constructor?.name);
-        console.error('[Inpaint] 错误消息:', error.message);
-        console.error('[Inpaint] 错误状态:', error.status);
+    console.log('[Inpaint] 开始调用 APIYI API...');
+    const response = await fetch(APIYI_TEXT2IMG_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${APIYI_API_KEY}`,
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(timeout),
+    });
 
-        const isNetworkError =
-          error.message?.includes('fetch failed') ||
-          error.status >= 500 ||
-          error.status === 429;
+    const elapsed = (Date.now() - startTime) / 1000;
+    console.log(`[Inpaint] APIYI 请求耗时: ${elapsed.toFixed(1)} 秒`);
 
-        if (attempt <= maxRetries && isNetworkError) {
-          console.warn(
-            `⚠️ [Inpaint] 第 ${attempt} 次尝试失败 (${error.message})，正在进行第 ${
-              attempt + 1
-            } 次重试...`
-          );
-          await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
-          continue;
-        }
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[Inpaint] APIYI 请求失败:', response.status, errorText);
+      throw new Error(`APIYI API error: ${response.status} - ${errorText}`);
+    }
 
-        console.error('[Inpaint] ❌ 编辑失败:', error.message);
-        if (error.body) {
-          console.error('[Inpaint] 错误详情:', JSON.stringify(error.body, null, 2));
-        }
-        throw error;
+    const data = await response.json();
+
+    // 解析 Gemini 原生格式的响应
+    if (!data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data) {
+      const finishReason = data.candidates?.[0]?.finishReason;
+      if (finishReason && finishReason !== 'STOP') {
+        console.error('[Inpaint] 内容被拒绝:', finishReason);
+        throw new Error(`Content rejected: ${finishReason}`);
       }
+      console.error('[Inpaint] 响应格式异常:', JSON.stringify(data).substring(0, 500));
+      throw new Error('Invalid response format from APIYI');
     }
 
-    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(
-      `[Inpaint] FAL 调用完成，总耗时: ${elapsed}s (尝试次数: ${attempt + 1})`
-    );
+    const base64Data = data.candidates[0].content.parts[0].inlineData.data;
+    const mimeType = data.candidates[0].content.parts[0].inlineData.mimeType || 'image/png';
 
-    // 🎯 修复：FAL SDK 返回格式可能是 { data: { images } } 或直接 { images }
-    let images = result?.data?.images || result?.images;
-
-    if (!images || images.length === 0) {
-      console.error('[Inpaint] 无效的返回结果:', JSON.stringify(result).substring(0, 500));
-      throw new Error('FAL Inpainting API 未返回有效的编辑结果');
-    }
-
-    const editedImageUrl = images[0].url;
-    console.log('[Inpaint] ✅ 编辑成功:', editedImageUrl.substring(0, 60) + '...');
+    console.log(`[Inpaint] ✅ APIYI 生成成功！图片大小: ${(base64Data.length / 1024).toFixed(1)} KB`);
 
     // 🎯 将编辑后的图片上传到 R2，返回永久链接
-    let finalImageUrl = editedImageUrl;
+    let finalImageUrl: string;
+
     try {
       const { getStorageServiceWithConfigs } = await import('@/shared/services/storage');
       const { getAllConfigs } = await import('@/shared/models/config');
@@ -2416,17 +2444,20 @@ export async function editImageWithInpaintingAction(params: {
       const configs = await getAllConfigs();
 
       if (user && configs.r2_bucket_name && configs.r2_access_key) {
-        console.log('[Inpaint] 开始同步保存图片到 R2...');
+        console.log('[Inpaint] 开始上传图片到 R2...');
         const storageService = getStorageServiceWithConfigs(configs);
         const timestamp = Date.now();
         const randomId = nanoid(8);
-        const fileName = `${timestamp}_${randomId}.png`;
+        const fileExtension = mimeType.includes('jpeg') || mimeType.includes('jpg') ? 'jpg' : 'png';
+        const fileName = `${timestamp}_${randomId}.${fileExtension}`;
         const storageKey = `infographic-edits/${user.id}/${fileName}`;
 
-        const uploadResult = await storageService.downloadAndUpload({
-          url: editedImageUrl,
+        // 将 base64 转换为 Buffer 并上传
+        const buffer = Buffer.from(base64Data, 'base64');
+        const uploadResult = await storageService.uploadFile({
+          body: buffer,
           key: storageKey,
-          contentType: 'image/png',
+          contentType: mimeType,
           disposition: 'inline',
         });
 
@@ -2434,35 +2465,42 @@ export async function editImageWithInpaintingAction(params: {
           finalImageUrl = uploadResult.url;
           console.log(`[Inpaint] ✅ 图片已保存到 R2: ${finalImageUrl.substring(0, 60)}...`);
         } else {
-          console.warn('[Inpaint] ⚠️ R2 上传失败，使用临时链接:', uploadResult.error);
+          console.warn('[Inpaint] ⚠️ R2 上传失败，使用 data URL');
+          finalImageUrl = `data:${mimeType};base64,${base64Data}`;
         }
+      } else {
+        console.warn('[Inpaint] ⚠️ R2 未配置，使用 data URL');
+        finalImageUrl = `data:${mimeType};base64,${base64Data}`;
       }
-    } catch (saveError) {
-      console.error('[Inpaint] R2 保存异常，使用临时链接:', saveError);
+    } catch (uploadError: any) {
+      console.error('[Inpaint] ⚠️ R2 上传异常:', uploadError.message);
+      finalImageUrl = `data:${mimeType};base64,${base64Data}`;
     }
 
     return {
       imageUrl: finalImageUrl,
       success: true,
-      provider: 'FAL-Inpainting' as const,
+      provider: 'APIYI-Gemini' as const,
     };
   } catch (error: any) {
+    if (error.name === 'TimeoutError' || error.name === 'AbortError') {
+      console.error('[Inpaint] ❌ APIYI 请求超时');
+      throw new Error('APIYI request timeout');
+    }
     console.error('[Inpaint] ❌ editImageWithInpaintingAction 错误:', error.message);
     throw error;
   }
 }
 
 /**
- * 精简版局部编辑 - 旧方案（保留作为降级方案）
+ * 局部编辑 - 整图重生成方案
  *
- * 注意：此方案会重新生成整张图片，可能导致非编辑区域质量下降
- * 推荐使用 editImageWithInpaintingAction 进行真正的局部编辑
+ * 工作流程：
+ * 1. 将原图和坐标信息一起发给 AI
+ * 2. AI 根据坐标提示词修改指定区域
+ * 3. 返回完整的修改后图片
  *
- * 核心思路：
- * 1. 只上传当前图片作为唯一参考
- * 2. 将框选坐标转换为提示词
- * 3. 结合用户的修改描述
- * 4. 支持多选框
+ * 注意：此方案可能导致非编辑区域有细微变化，但不会有拼接感
  *
  * @param params 编辑参数
  * @returns 编辑后的图片 URL
@@ -2493,24 +2531,18 @@ export async function editImageRegionAction(params: {
 }) {
   'use server';
 
-  if (!FAL_KEY) {
-    throw new Error('FAL API Key 未配置');
+  if (!APIYI_API_KEY) {
+    throw new Error('APIYI API Key 未配置');
   }
 
-  console.log('\n========== 精简版局部编辑 ==========');
+  console.log('\n========== 局部编辑 (APIYI Gemini) ==========');
   console.log('[Edit] 原图:', params.imageUrl);
   console.log('[Edit] 选区数量:', params.regions.length);
   console.log('[Edit] 图片尺寸:', params.imageWidth, 'x', params.imageHeight);
   console.log('[Edit] 宽高比:', params.aspectRatio);
 
   try {
-    // 配置 FAL Client
-    fal.config({
-      credentials: FAL_KEY,
-    });
-
     // 🎯 构建坐标信息提示词
-    // 将归一化坐标(0-1)转换为像素坐标，并生成描述
     const regionPrompts = params.regions.map((region) => {
       const pixelX = Math.round(region.x * params.imageWidth);
       const pixelY = Math.round(region.y * params.imageHeight);
@@ -2519,7 +2551,6 @@ export async function editImageRegionAction(params: {
       const pixelX2 = pixelX + pixelWidth;
       const pixelY2 = pixelY + pixelHeight;
 
-      // 同时提供百分比和像素坐标，增强 AI 理解
       const percentX = Math.round(region.x * 100);
       const percentY = Math.round(region.y * 100);
       const percentWidth = Math.round(region.width * 100);
@@ -2532,7 +2563,6 @@ export async function editImageRegionAction(params: {
 修改要求：${region.note || '保持不变'}`;
     }).join('\n\n');
 
-    // 🎯 构建最终提示词 - 简洁明确
     const finalPrompt = `【图片局部编辑任务】
 
 你需要对这张图片进行精确的局部修改。
@@ -2552,89 +2582,89 @@ ${regionPrompts}
 
     console.log('[Edit] 最终提示词:\n', finalPrompt);
 
-    // 🎯 处理图片 URL
+    // 🎯 处理图片 URL 并下载为 base64
     const imageUrl = resolveImageUrl(params.imageUrl);
     console.log('[Edit] 处理后的图片 URL:', imageUrl);
 
-    // 调用 FAL nano-banana-pro/edit
-    // 🎯 关键修复：使用传入的 aspectRatio 而非硬编码的 16:9
-    const input: any = {
-      prompt: finalPrompt,
-      num_images: 1,
-      aspect_ratio: params.aspectRatio || '16:9',
-      output_format: 'png',
-      resolution: params.resolution || '2K',
-      // 🎯 关键：只上传当前图片作为唯一参考
-      image_urls: [imageUrl],
+    console.log('[Edit] 开始下载原图...');
+    const imageData = await downloadImageAsBase64ForApiyi(imageUrl);
+    if (!imageData) {
+      throw new Error('无法下载原图');
+    }
+    console.log(`[Edit] 原图大小: ${(imageData.base64.length / 1024).toFixed(1)} KB`);
+
+    // 🎯 构建 Gemini 原生格式请求
+    const parts: any[] = [
+      { text: finalPrompt },
+      {
+        inline_data: {
+          mime_type: imageData.mimeType,
+          data: imageData.base64,
+        },
+      },
+    ];
+
+    const payload = {
+      contents: [{ parts }],
+      generationConfig: {
+        responseModalities: ['IMAGE'],
+        imageConfig: {
+          aspectRatio: params.aspectRatio || '16:9',
+          imageSize: params.resolution || '2K',
+        },
+      },
     };
 
-    console.log('[Edit] FAL 请求参数:', {
-      model: 'fal-ai/nano-banana-pro/edit',
-      prompt: finalPrompt.substring(0, 100) + '...',
-      image_urls: input.image_urls,
+    console.log('[Edit] APIYI 请求参数:', {
+      model: 'gemini-3-pro-image-preview',
+      promptLength: finalPrompt.length,
+      aspectRatio: params.aspectRatio,
+      resolution: params.resolution,
     });
 
     const startTime = Date.now();
-    const maxRetries = 2; // 最大重试次数
-    let attempt = 0;
-    let result: any;
+    const timeout = 300000;
 
-    while (attempt <= maxRetries) {
-      try {
-        result = await fal.subscribe('fal-ai/nano-banana-pro/edit', {
-          input,
-          logs: true,
-          onQueueUpdate: (update: any) => {
-            if (update.status === 'IN_PROGRESS') {
-              console.log('[Edit] 生成中...');
-            }
-          },
-        });
-        // 成功则跳出重试循环
-        break;
-      } catch (error: any) {
-        attempt++;
-        // 只有在网络错误（fetch failed）或服务器 5xx 错误时才重试
-        const isNetworkError =
-          error.message?.includes('fetch failed') ||
-          error.status >= 500 ||
-          error.status === 429;
+    console.log('[Edit] 开始调用 APIYI API...');
+    const response = await fetch(APIYI_TEXT2IMG_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${APIYI_API_KEY}`,
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(timeout),
+    });
 
-        if (attempt <= maxRetries && isNetworkError) {
-          console.warn(
-            `⚠️ [Edit] 第 ${attempt} 次尝试失败 (${error.message})，正在进行第 ${
-              attempt + 1
-            } 次重试...`
-          );
-          // 指数退避：第一次重试等 1s，第二次重试等 2s
-          await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
-          continue;
-        }
+    const elapsed = (Date.now() - startTime) / 1000;
+    console.log(`[Edit] APIYI 请求耗时: ${elapsed.toFixed(1)} 秒`);
 
-        // 记录最终失败日志并抛出错误
-        console.error('[Edit] ❌ 编辑失败:', error.message);
-        if (error.body) {
-          console.error('[Edit] 错误详情:', JSON.stringify(error.body, null, 2));
-        }
-        throw error;
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[Edit] APIYI 请求失败:', response.status, errorText);
+      throw new Error(`APIYI API error: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data) {
+      const finishReason = data.candidates?.[0]?.finishReason;
+      if (finishReason && finishReason !== 'STOP') {
+        console.error('[Edit] 内容被拒绝:', finishReason);
+        throw new Error(`Content rejected: ${finishReason}`);
       }
+      console.error('[Edit] 响应格式异常:', JSON.stringify(data).substring(0, 500));
+      throw new Error('Invalid response format from APIYI');
     }
 
-    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(
-      `[Edit] FAL 调用完成，总耗时: ${elapsed}s (尝试次数: ${attempt + 1})`
-    );
+    const base64Data = data.candidates[0].content.parts[0].inlineData.data;
+    const mimeType = data.candidates[0].content.parts[0].inlineData.mimeType || 'image/png';
 
-    // 返回编辑结果
-    if (!result || !result.data || !result.data.images || result.data.images.length === 0) {
-      throw new Error('FAL API 未返回有效的编辑结果');
-    }
+    console.log(`[Edit] ✅ APIYI 生成成功！图片大小: ${(base64Data.length / 1024).toFixed(1)} KB`);
 
-    const editedImageUrl = result.data.images[0].url;
-    console.log('[Edit] ✅ 编辑成功:', editedImageUrl.substring(0, 60) + '...');
+    // 🎯 将编辑后的图片上传到 R2
+    let finalImageUrl: string;
 
-    // 🎯 将编辑后的图片上传到 R2，返回永久链接
-    let finalImageUrl = editedImageUrl;
     try {
       const { getStorageServiceWithConfigs } = await import('@/shared/services/storage');
       const { getAllConfigs } = await import('@/shared/models/config');
@@ -2645,17 +2675,19 @@ ${regionPrompts}
       const configs = await getAllConfigs();
 
       if (user && configs.r2_bucket_name && configs.r2_access_key) {
-        console.log('[Edit] 开始同步保存图片到 R2...');
+        console.log('[Edit] 开始上传图片到 R2...');
         const storageService = getStorageServiceWithConfigs(configs);
         const timestamp = Date.now();
         const randomId = nanoid(8);
-        const fileName = `${timestamp}_${randomId}.png`;
+        const fileExtension = mimeType.includes('jpeg') || mimeType.includes('jpg') ? 'jpg' : 'png';
+        const fileName = `${timestamp}_${randomId}.${fileExtension}`;
         const storageKey = `infographic-edits/${user.id}/${fileName}`;
 
-        const uploadResult = await storageService.downloadAndUpload({
-          url: editedImageUrl,
+        const buffer = Buffer.from(base64Data, 'base64');
+        const uploadResult = await storageService.uploadFile({
+          body: buffer,
           key: storageKey,
-          contentType: 'image/png',
+          contentType: mimeType,
           disposition: 'inline',
         });
 
@@ -2663,19 +2695,28 @@ ${regionPrompts}
           finalImageUrl = uploadResult.url;
           console.log(`[Edit] ✅ 图片已保存到 R2: ${finalImageUrl.substring(0, 60)}...`);
         } else {
-          console.warn('[Edit] ⚠️ R2 上传失败，使用临时链接:', uploadResult.error);
+          console.warn('[Edit] ⚠️ R2 上传失败，使用 data URL');
+          finalImageUrl = `data:${mimeType};base64,${base64Data}`;
         }
+      } else {
+        console.warn('[Edit] ⚠️ R2 未配置，使用 data URL');
+        finalImageUrl = `data:${mimeType};base64,${base64Data}`;
       }
-    } catch (saveError) {
-      console.error('[Edit] R2 保存异常，使用临时链接:', saveError);
+    } catch (uploadError: any) {
+      console.error('[Edit] ⚠️ R2 上传异常:', uploadError.message);
+      finalImageUrl = `data:${mimeType};base64,${base64Data}`;
     }
 
     return {
       imageUrl: finalImageUrl,
       success: true,
-      provider: 'FAL' as const,
+      provider: 'APIYI-Gemini' as const,
     };
   } catch (error: any) {
+    if (error.name === 'TimeoutError' || error.name === 'AbortError') {
+      console.error('[Edit] ❌ APIYI 请求超时');
+      throw new Error('APIYI request timeout');
+    }
     console.error('[Edit] ❌ editImageRegionAction 错误:', error.message);
     throw error;
   }
