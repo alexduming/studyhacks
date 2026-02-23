@@ -107,11 +107,15 @@ export async function POST(request: NextRequest) {
 
     // 默认提示词，按照你的要求拼接用户的内容
     const prompt = `Create an educational infographic explaining the provided file or text. You select some typical visual elements. Style: Flat vector.
-IMPORTANT: The text labels inside the infographic MUST be in the SAME LANGUAGE as the provided content.
-- If the content is in English, use English labels.
-- If the content is in Chinese, use Chinese labels.
-- If the content is in another language, use that language.
-Do NOT translate the content.
+
+⚠️ CRITICAL LANGUAGE RULE - ABSOLUTELY NON-NEGOTIABLE ⚠️
+ALL text in the infographic MUST be in the EXACT SAME LANGUAGE as the input content below.
+- Chinese input (中文) → Chinese output (中文标签、中文标题、中文说明)
+- English input → English output
+- Other languages → Same language output
+🚫 NEVER translate to English or any other language. This is STRICTLY FORBIDDEN.
+🚫 DO NOT use English labels for Chinese content.
+The language of the output MUST match the language of the input EXACTLY.
 
 Content:
 ${content}`;

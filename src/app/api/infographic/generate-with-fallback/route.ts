@@ -134,26 +134,33 @@ Style Requirements (MANDATORY):
 Content Task:
 Create an educational infographic explaining the provided content. Select typical visual elements.
 
-IMPORTANT: The text labels inside the infographic MUST be in the SAME LANGUAGE as the provided content.
-- If the content is in English, use English labels.
-- If the content is in Chinese, use Chinese labels.
-- If the content is in another language, use that language.
-Do NOT translate the content.
+⚠️ CRITICAL LANGUAGE RULE - ABSOLUTELY NON-NEGOTIABLE ⚠️
+ALL text in the infographic MUST be in the EXACT SAME LANGUAGE as the input content below.
+- Chinese input (中文) → Chinese output (中文标签、中文标题、中文说明)
+- English input → English output
+- Other languages → Same language output
+🚫 NEVER translate to English or any other language. This is STRICTLY FORBIDDEN.
+🚫 DO NOT use English labels for Chinese content.
+The language of the output MUST match the language of the input EXACTLY.
 
 Content:
 ${params.content}
 
-[REMINDER] Apply the reference image's visual style to this content. Match the colors, style, and design approach exactly.`;
+[REMINDER] Apply the reference image's visual style to this content. Match the colors, style, and design approach exactly. Keep ALL text in the SAME language as the content above.`;
       
       console.log('[FAL] 🎨 使用强化风格参考模式:', params.referenceImageUrl);
     } else {
       // 无参考图：使用默认提示词
       prompt = `Create an educational infographic explaining the provided file or text. You select some typical visual elements. Style: Flat vector.
-IMPORTANT: The text labels inside the infographic MUST be in the SAME LANGUAGE as the provided content.
-- If the content is in English, use English labels.
-- If the content is in Chinese, use Chinese labels.
-- If the content is in another language, use that language.
-Do NOT translate the content.
+
+⚠️ CRITICAL LANGUAGE RULE - ABSOLUTELY NON-NEGOTIABLE ⚠️
+ALL text in the infographic MUST be in the EXACT SAME LANGUAGE as the input content below.
+- Chinese input (中文) → Chinese output (中文标签、中文标题、中文说明)
+- English input → English output
+- Other languages → Same language output
+🚫 NEVER translate to English or any other language. This is STRICTLY FORBIDDEN.
+🚫 DO NOT use English labels for Chinese content.
+The language of the output MUST match the language of the input EXACTLY.
 
 Content:
 ${params.content}`;
@@ -272,7 +279,7 @@ async function tryGenerateWithKie(
 
     // 构建提示词（根据是否有参考图调整）
     let prompt = '';
-    
+
     if (hasReferenceImage) {
       // 有参考图：强调风格复制
       prompt = `[CRITICAL STYLE REFERENCE] You MUST strictly follow the provided reference image's visual style. This is the HIGHEST priority.
@@ -288,24 +295,26 @@ Style Requirements (MANDATORY):
 Content Task:
 Create an educational infographic explaining the provided content.
 
-IMPORTANT: The text labels MUST be in the SAME LANGUAGE as the content.
-- If in English, use English labels.
-- If in Chinese, use Chinese labels.
-Do NOT translate.
+⚠️ CRITICAL LANGUAGE RULE - ABSOLUTELY NON-NEGOTIABLE ⚠️
+ALL text in the infographic MUST be in the EXACT SAME LANGUAGE as the input content below.
+- Chinese input (中文) → Chinese output (中文标签、中文标题、中文说明)
+- English input → English output
+🚫 NEVER translate to English or any other language. This is STRICTLY FORBIDDEN.
 
 Content:
 ${params.content}
 
-[REMINDER] Apply the reference image's visual style exactly.`;
-      
+[REMINDER] Apply the reference image's visual style exactly. Keep ALL text in the SAME language as the content above.`;
+
       console.log('[KIE] 🎨 使用强化风格参考模式');
     } else {
       prompt = `Create an educational infographic explaining the provided file or text. You select some typical visual elements. Style: Flat vector.
-IMPORTANT: The text labels inside the infographic MUST be in the SAME LANGUAGE as the provided content.
-- If the content is in English, use English labels.
-- If the content is in Chinese, use Chinese labels.
-- If the content is in another language, use that language.
-Do NOT translate the content.
+
+⚠️ CRITICAL LANGUAGE RULE - ABSOLUTELY NON-NEGOTIABLE ⚠️
+ALL text in the infographic MUST be in the EXACT SAME LANGUAGE as the input content below.
+- Chinese input (中文) → Chinese output (中文标签、中文标题、中文说明)
+- English input → English output
+🚫 NEVER translate to English or any other language. This is STRICTLY FORBIDDEN.
 
 Content:
 ${params.content}`;
@@ -374,7 +383,7 @@ async function tryGenerateWithReplicate(
 
     // 构建提示词（根据是否有参考图调整）
     let prompt = '';
-    
+
     if (hasReferenceImage) {
       // 有参考图：强调风格复制
       prompt = `[CRITICAL STYLE REFERENCE] You MUST strictly follow the provided reference image's visual style. This is the HIGHEST priority.
@@ -387,21 +396,27 @@ Style Requirements (MANDATORY):
 - **Visual Elements**: Use similar icons and shapes
 
 Create an educational infographic with the following content.
-IMPORTANT: Text labels MUST be in the SAME LANGUAGE as the content below.
+
+⚠️ CRITICAL LANGUAGE RULE - ABSOLUTELY NON-NEGOTIABLE ⚠️
+ALL text in the infographic MUST be in the EXACT SAME LANGUAGE as the input content below.
+- Chinese input (中文) → Chinese output (中文标签、中文标题、中文说明)
+- English input → English output
+🚫 NEVER translate to English or any other language. This is STRICTLY FORBIDDEN.
 
 Content:
 ${params.content}
 
-[REMINDER] Apply the reference image's visual style exactly.`;
-      
+[REMINDER] Apply the reference image's visual style exactly. Keep ALL text in the SAME language as the content above.`;
+
       console.log('[Replicate] 🎨 使用强化风格参考模式');
     } else {
       prompt = `Create an educational infographic explaining the provided file or text. You select some typical visual elements. Style: Flat vector.
-IMPORTANT: The text labels inside the infographic MUST be in the SAME LANGUAGE as the provided content.
-- If the content is in English, use English labels.
-- If the content is in Chinese, use Chinese labels.
-- If the content is in another language, use that language.
-Do NOT translate the content.
+
+⚠️ CRITICAL LANGUAGE RULE - ABSOLUTELY NON-NEGOTIABLE ⚠️
+ALL text in the infographic MUST be in the EXACT SAME LANGUAGE as the input content below.
+- Chinese input (中文) → Chinese output (中文标签、中文标题、中文说明)
+- English input → English output
+🚫 NEVER translate to English or any other language. This is STRICTLY FORBIDDEN.
 
 Content:
 ${params.content}`;
@@ -537,21 +552,27 @@ Style Requirements (MANDATORY):
 - **Visual Elements**: Use similar icons and shapes
 
 Create an educational infographic with the following content.
-IMPORTANT: Text labels MUST be in the SAME LANGUAGE as the content below.
+
+⚠️ CRITICAL LANGUAGE RULE - ABSOLUTELY NON-NEGOTIABLE ⚠️
+ALL text in the infographic MUST be in the EXACT SAME LANGUAGE as the input content below.
+- Chinese input (中文) → Chinese output (中文标签、中文标题、中文说明)
+- English input → English output
+🚫 NEVER translate to English or any other language. This is STRICTLY FORBIDDEN.
 
 Content:
 ${params.content}
 
-[REMINDER] Apply the reference image's visual style exactly.`;
+[REMINDER] Apply the reference image's visual style exactly. Keep ALL text in the SAME language as the content above.`;
 
       console.log('[APIYI] 🎨 使用强化风格参考模式');
     } else {
       prompt = `Create an educational infographic explaining the provided file or text. You select some typical visual elements. Style: Flat vector.
-IMPORTANT: The text labels inside the infographic MUST be in the SAME LANGUAGE as the provided content.
-- If the content is in English, use English labels.
-- If the content is in Chinese, use Chinese labels.
-- If the content is in another language, use that language.
-Do NOT translate the content.
+
+⚠️ CRITICAL LANGUAGE RULE - ABSOLUTELY NON-NEGOTIABLE ⚠️
+ALL text in the infographic MUST be in the EXACT SAME LANGUAGE as the input content below.
+- Chinese input (中文) → Chinese output (中文标签、中文标题、中文说明)
+- English input → English output
+🚫 NEVER translate to English or any other language. This is STRICTLY FORBIDDEN.
 
 Content:
 ${params.content}`;
