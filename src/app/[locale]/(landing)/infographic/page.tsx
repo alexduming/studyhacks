@@ -7,7 +7,11 @@ import {
   parseMultipleImagesAction,
   refundCreditsAction,
 } from '@/app/actions/aippt';
-import { getInfographicTaskByIdAction } from '@/app/actions/ai_task';
+import {
+  getInfographicTaskByIdAction,
+  updateInfographicHistoryAction,
+  InfographicHistoryEntry,
+} from '@/app/actions/ai_task';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft,
@@ -148,6 +152,11 @@ const InfographicPage = () => {
   // 🎯 编辑对话框状态
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingImageUrl, setEditingImageUrl] = useState<string | null>(null);
+
+  // 🎯 数据库记录 ID（用于编辑后保存历史）
+  const [dbTaskId, setDbTaskId] = useState<string | null>(null);
+  // 🎯 历史记录状态
+  const [history, setHistory] = useState<InfographicHistoryEntry[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const referenceInputRef = useRef<HTMLInputElement | null>(null);
@@ -566,6 +575,8 @@ const InfographicPage = () => {
       setTaskId(data.taskId);
       setProvider(data.provider || null);
       setFallbackUsed(data.fallbackUsed || false);
+      // 🎯 保存数据库记录 ID，用于编辑后保存历史
+      setDbTaskId(data.dbTaskId || null);
 
       // 如果返回了imageUrls（同步API如Replicate/Together AI），直接显示
       if (data.imageUrls && data.imageUrls.length > 0) {
@@ -639,6 +650,10 @@ const InfographicPage = () => {
           // 成功！冲刺到 100%
           setProgress(100);
           setImageUrls(urls);
+          // 🎯 保存数据库记录 ID，用于编辑后保存历史
+          if (data.dbTaskId) {
+            setDbTaskId(data.dbTaskId);
+          }
           return;
         }
 
@@ -1090,6 +1105,9 @@ const InfographicPage = () => {
                       setUploadedFiles([]);
                       setReferenceImage(null);
                       setReferenceImageUrl('');
+                      // 🎯 清除数据库记录 ID 和历史记录
+                      setDbTaskId(null);
+                      setHistory([]);
                     }}
                     variant="outline"
                     className="border-border dark:border-gray-600 text-foreground/70 dark:text-gray-300 hover:border-foreground/50 dark:hover:border-gray-500"
@@ -1236,7 +1254,7 @@ const InfographicPage = () => {
         非程序员解释：
         - 当用户点击编辑按钮时，editDialogOpen 会被设置为 true
         - 这个对话框允许用户框选区域进行局部编辑，或整体重新生成
-        - 编辑完成后，新图片会替换原图片
+        - 编辑完成后，新图片会替换原图片，并保存到数据库历史记录
       */}
       {editingImageUrl && (
         <InfographicEditDialog
@@ -1245,16 +1263,41 @@ const InfographicPage = () => {
           imageUrl={editingImageUrl}
           aspectRatio={aspectRatio}
           resolution={resolution}
-          onEditComplete={(newImageUrl) => {
+          history={history}
+          onEditComplete={async (newImageUrl, editPrompt) => {
             // 编辑完成后，用新图片替换原图片
             setImageUrls((prev) =>
               prev.map((url) => (url === editingImageUrl ? newImageUrl : url))
             );
             setEditingImageUrl(null);
             setEditDialogOpen(false);
+
+            // 🎯 保存编辑结果到数据库历史记录
+            if (dbTaskId) {
+              try {
+                const result = await updateInfographicHistoryAction({
+                  taskId: dbTaskId,
+                  newImageUrl,
+                  editPrompt: editPrompt || '编辑版本',
+                });
+                if (result.success && result.history) {
+                  setHistory(result.history);
+                }
+                console.log('[Infographic] 编辑历史已保存到数据库');
+              } catch (error) {
+                console.error('[Infographic] 保存编辑历史失败:', error);
+                // 即使保存失败也不影响用户体验，图片已经更新
+              }
+            }
+
             toast.success(
               t('edit.success', { defaultMessage: 'Infographic updated successfully!' })
             );
+          }}
+          onSwitchVersion={async (entry) => {
+            // 🎯 切换历史版本
+            setImageUrls([entry.imageUrl]);
+            setEditingImageUrl(entry.imageUrl);
           }}
         />
       )}

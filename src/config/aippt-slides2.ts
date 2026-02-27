@@ -237,8 +237,14 @@ export const PPT_STYLES: PPTStyle[] = [
     "title": "Work Report",
     "tagline": "商务红蓝、结构化汇报",
     "i18n": {
-      "title": { "zh": "工作汇报", "en": "Work Report" },
-      "tagline": { "zh": "商务红蓝、结构化汇报", "en": "Business Red-Blue, Structured Reporting" }
+      "title": {
+        "zh": "工作汇报",
+        "en": "Work Report"
+      },
+      "tagline": {
+        "zh": "商务红蓝、结构化汇报",
+        "en": "Business Red-Blue, Structured Reporting"
+      }
     },
     "prompt": "你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调成果量化、商务红蓝配色和多样化的高阶图表形式。",
     "preview": "https://cdn.studyhacks.ai/styles/work_result/preview.png",
@@ -259,8 +265,14 @@ export const PPT_STYLES: PPTStyle[] = [
     "title": "Red Tech",
     "tagline": "深红科技、高冲击力",
     "i18n": {
-      "title": { "zh": "红色科技", "en": "Red Tech" },
-      "tagline": { "zh": "深红科技、高冲击力", "en": "Deep Red Tech, High Impact" }
+      "title": {
+        "zh": "红色科技",
+        "en": "Red Tech"
+      },
+      "tagline": {
+        "zh": "深红科技、高冲击力",
+        "en": "Deep Red Tech, High Impact"
+      }
     },
     "prompt": "你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调极高信息密度、强视觉冲击力和严谨的商务结构。",
     "preview": "https://cdn.studyhacks.ai/styles/red_tech/preview.png",
@@ -279,8 +291,14 @@ export const PPT_STYLES: PPTStyle[] = [
     "title": "Scholar",
     "tagline": "深红褐、学术严谨",
     "i18n": {
-      "title": { "zh": "学术风", "en": "Scholar" },
-      "tagline": { "zh": "深红褐、学术严谨", "en": "Deep Burgundy, Academic Rigor" }
+      "title": {
+        "zh": "学术风",
+        "en": "Scholar"
+      },
+      "tagline": {
+        "zh": "深红褐、学术严谨",
+        "en": "Deep Burgundy, Academic Rigor"
+      }
     },
     "prompt": "你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调学术严谨性、深红配色和结构化呈现。",
     "preview": "https://cdn.studyhacks.ai/styles/scholar/preview.png",
@@ -299,8 +317,14 @@ export const PPT_STYLES: PPTStyle[] = [
     "title": "Eco Scholar",
     "tagline": "墨绿自然、生态研究",
     "i18n": {
-      "title": { "zh": "生态学术", "en": "Eco Scholar" },
-      "tagline": { "zh": "墨绿自然、生态研究", "en": "Forest Green, Ecological Research" }
+      "title": {
+        "zh": "生态学术",
+        "en": "Eco Scholar"
+      },
+      "tagline": {
+        "zh": "墨绿自然、生态研究",
+        "en": "Forest Green, Ecological Research"
+      }
     },
     "prompt": "你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调逻辑严密、多模块对比和学术美感。",
     "preview": "https://cdn.studyhacks.ai/styles/scholar_green/preview.png",
@@ -313,8 +337,14 @@ export const PPT_STYLES: PPTStyle[] = [
     "title": "Claymation",
     "tagline": "治愈黏土、3D 质感",
     "i18n": {
-      "title": { "zh": "黏土动画", "en": "Claymation" },
-      "tagline": { "zh": "治愈黏土、3D 质感", "en": "Healing Clay, 3D Texture" }
+      "title": {
+        "zh": "黏土动画",
+        "en": "Claymation"
+      },
+      "tagline": {
+        "zh": "治愈黏土、3D 质感",
+        "en": "Healing Clay, 3D Texture"
+      }
     },
     "prompt": "你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调 3D 材质感、治愈色系和圆润的手工痕迹。",
     "preview": "https://cdn.studyhacks.ai/styles/claymation/preview.png",
@@ -361,8 +391,14 @@ export const PPT_STYLES: PPTStyle[] = [
     "title": "Dieter Rams",
     "tagline": "少即是多、绝对秩序",
     "i18n": {
-      "title": { "zh": "迪特·拉姆斯", "en": "Dieter Rams" },
-      "tagline": { "zh": "少即是多、绝对秩序", "en": "Less is More, Absolute Order" }
+      "title": {
+        "zh": "迪特·拉姆斯",
+        "en": "Dieter Rams"
+      },
+      "tagline": {
+        "zh": "少即是多、绝对秩序",
+        "en": "Less is More, Absolute Order"
+      }
     },
     "prompt": "你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调极致克制、纯白背景、严谨网格和洋红色点缀。",
     "preview": "https://cdn.studyhacks.ai/styles/minimalism-magenta/preview.png",
@@ -376,8 +412,14 @@ export const PPT_STYLES: PPTStyle[] = [
     "title": "Illustration",
     "tagline": "现代插画、活力商务",
     "i18n": {
-      "title": { "zh": "现代插画", "en": "Illustration" },
-      "tagline": { "zh": "现代插画、活力商务", "en": "Modern Illustration, Vibrant Business" }
+      "title": {
+        "zh": "现代插画",
+        "en": "Illustration"
+      },
+      "tagline": {
+        "zh": "现代插画、活力商务",
+        "en": "Modern Illustration, Vibrant Business"
+      }
     },
     "prompt": "你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调扁平化人物、明快配色和模块化内容组合。",
     "preview": "https://cdn.studyhacks.ai/styles/modern_illustration/preview.png",
@@ -396,8 +438,14 @@ export const PPT_STYLES: PPTStyle[] = [
     "title": "Data Vision",
     "tagline": "数据仪表板、科技质感",
     "i18n": {
-      "title": { "zh": "数据可视化", "en": "Data Vision" },
-      "tagline": { "zh": "数据仪表板、科技质感", "en": "Data Dashboard, Tech Aesthetic" }
+      "title": {
+        "zh": "数据可视化",
+        "en": "Data Vision"
+      },
+      "tagline": {
+        "zh": "数据仪表板、科技质感",
+        "en": "Data Dashboard, Tech Aesthetic"
+      }
     },
     "prompt": "你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调网格化布局、专业图表和高密度数据展示。",
     "preview": "https://cdn.studyhacks.ai/styles/data_vision/preview.png",
@@ -417,8 +465,14 @@ export const PPT_STYLES: PPTStyle[] = [
     "title": "复古简约",
     "tagline": "温暖学术、人文主义",
     "i18n": {
-      "title": { "zh": "复古简约", "en": "Vintage Minimalism" },
-      "tagline": { "zh": "温暖学术、人文主义", "en": "Warm Academic, Humanistic" }
+      "title": {
+        "zh": "复古简约",
+        "en": "Vintage Minimalism"
+      },
+      "tagline": {
+        "zh": "温暖学术、人文主义",
+        "en": "Warm Academic, Humanistic"
+      }
     },
     "prompt": "你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调纸张质感、赤陶红配色和优雅的衬线体。",
     "preview": "https://cdn.studyhacks.ai/styles/vintage-minimalism/preview.png",
@@ -431,8 +485,14 @@ export const PPT_STYLES: PPTStyle[] = [
     "title": "领导最爱",
     "tagline": "商务大气、科技蓝",
     "i18n": {
-      "title": { "zh": "领导最爱", "en": "Executive Favorite" },
-      "tagline": { "zh": "商务大气、科技蓝", "en": "Business Elegance, Tech Blue" }
+      "title": {
+        "zh": "领导最爱",
+        "en": "Executive Favorite"
+      },
+      "tagline": {
+        "zh": "商务大气、科技蓝",
+        "en": "Business Elegance, Tech Blue"
+      }
     },
     "prompt": "你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调商务大气、信息丰富和高可信度。",
     "preview": "https://cdn.studyhacks.ai/styles/leader_love/preview.png",
@@ -450,8 +510,14 @@ export const PPT_STYLES: PPTStyle[] = [
     "title": "简约商务",
     "tagline": "现代简约、蓝黑配色",
     "i18n": {
-      "title": { "zh": "简约商务", "en": "Simple Business" },
-      "tagline": { "zh": "现代简约、蓝黑配色", "en": "Modern Minimal, Blue-Black Palette" }
+      "title": {
+        "zh": "简约商务",
+        "en": "Simple Business"
+      },
+      "tagline": {
+        "zh": "现代简约、蓝黑配色",
+        "en": "Modern Minimal, Blue-Black Palette"
+      }
     },
     "prompt": "你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调呼吸感、L型边框装饰和标志性的蓝黑配色。",
     "preview": "https://cdn.studyhacks.ai/styles/simple_business/preview.png",
@@ -464,58 +530,12 @@ export const PPT_STYLES: PPTStyle[] = [
     ]
   },
   {
-    "id": "gold_black_3d_acrylic",
-    "title": "3D黑金透明亚克力",
-    "tagline": "3D透明元素华丽的黑金风格",
-    "i18n": {
-      "title": { "zh": "3D黑金亚克力", "en": "3D Black Gold Acrylic" },
-      "tagline": { "zh": "3D透明元素华丽的黑金风格", "en": "Luxurious Black-Gold with 3D Transparent Elements" }
-    },
-    "preview": "https://tempfile.aiquickdraw.com/images/1769154208510-knu8d1gl88.png",
-    "refs": [
-      "https://cdn.studyhacks.ai/studyhacks-ppt/styles/temp-1769153576738/1769153969108-59d2e118-23c3-4f9d-9d38-466eb0f32c98.jpg",
-      "https://cdn.studyhacks.ai/studyhacks-ppt/styles/temp-1769153576738/1769153970239-ab75d658-2c13-4b7b-8ddc-4e0f47a6416f.jpg",
-      "https://cdn.studyhacks.ai/studyhacks-ppt/styles/temp-1769153576738/1769153970718-c2722ed8-98d4-429d-a9d8-34de311aef98.jpg"
-    ],
-    "prompt": "你是一位专家级UI、UX演示设计师，请根据参考图风格生成一套幻灯片。强调深色背景（黑色），磨砂质感，以及3D透明亚克力容器风格。",
-    "visualSpec": {
-      "header": {
-        "position": "top-center" as const,
-        "fontSize": "42-48px",
-        "fontWeight": "bold" as const,
-        "color": "#FFD700",
-        "fontFamily": "sans-serif"
-      },
-      "background": {
-        "type": "solid" as const,
-        "value": "#121212",
-        "texture": "none"
-      },
-      "body": {
-        "fontSize": "16-18px",
-        "lineHeight": "1.5",
-        "color": "#FFFFFF",
-        "fontFamily": "sans-serif"
-      },
-      "accentColor": "#FFD700",
-      "secondaryColor": "#AAAAAA",
-      "container": {
-        "borderRadius": "12px",
-        "backgroundColor": "rgba(255,255,255,0.05)",
-        "shadow": "0px 4px 12px rgba(0, 0, 0, 0.25)"
-      }
-    }
-  },
-  {
     "id": "Y2K",
     "title": "Y2K 数字复古",
     "tagline": "千禧复古",
-    "i18n": {
-      "title": { "zh": "Y2K 数字复古", "en": "Y2K Digital Retro" },
-      "tagline": { "zh": "千禧复古", "en": "Millennium Retro" }
-    },
-    "preview": "https://tempfile.aiquickdraw.com/workers/nano/image_1769751424269_fqtspl.png",
+    "preview": "https://cdn.studyhacks.ai/studyhacks-ppt/styles/admin-previews/e855d04977000db2cdbe1648dd496538.png",
     "refs": [
+      "https://cdn.studyhacks.ai/studyhacks-ppt/styles/admin-previews/e855d04977000db2cdbe1648dd496538.png",
       "https://cdn.studyhacks.ai/studyhacks-ppt/styles/temp-1769750745625/1769750891450-ffd524b6-2a74-4bb0-96f8-fd11ff98c120.png",
       "https://cdn.studyhacks.ai/studyhacks-ppt/styles/temp-1769750745625/1769750892555-c4a48f0b-83bc-48ea-af22-c02eb4d88cec.png",
       "https://cdn.studyhacks.ai/studyhacks-ppt/styles/temp-1769750745625/1769750892964-252064cb-a8b5-4499-ae1d-f51852469c54.png",
@@ -556,13 +576,9 @@ export const PPT_STYLES: PPTStyle[] = [
     "id": "elegant_frosted_gold",
     "title": "优雅磨砂金",
     "tagline": "高雅内敛，精致品质，适合高端品牌展示",
-    "i18n": {
-      "title": { "zh": "优雅磨砂金", "en": "Elegant Frosted Gold" },
-      "tagline": { "zh": "高雅内敛，精致品质，适合高端品牌展示", "en": "Elegant & Refined, Premium Quality for Luxury Brands" }
-    },
-    "preview": "https://tempfile.aiquickdraw.com/workers/nano/image_1769782186296_shaspp.png",
+    "preview": "https://cdn.studyhacks.ai/studyhacks-ppt/styles/admin-previews/3b413378e0bb242058d6df2d52d9273f.png",
     "refs": [
-      "https://tempfile.aiquickdraw.com/workers/nano/image_1769782186296_shaspp.png",
+      "https://cdn.studyhacks.ai/studyhacks-ppt/styles/admin-previews/3b413378e0bb242058d6df2d52d9273f.png",
       "https://cdn.studyhacks.ai/studyhacks-ppt/styles/temp-1769778467705/1769779330610-6ffc7e81-9f08-4e73-93a4-34092ac7adca.jpg"
     ],
     "prompt": "你是一位专家级UI、UX演示设计师，请根据参考图风格生成幻灯片。核心特征：深色背景，金色文字和图标，磨砂玻璃卡片效果，整体风格高雅、内敛、具有品质感。",

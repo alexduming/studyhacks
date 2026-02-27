@@ -551,6 +551,14 @@ export async function GET(request: NextRequest) {
                 .where(eq(aiTask.id, existingTask.id));
 
               console.log(`[Infographic] ✅ 已更新 ai_task 记录: ${existingTask.id}`);
+
+              // 🎯 返回数据库记录 ID，用于前端编辑后保存历史
+              return NextResponse.json({
+                success: true,
+                status: result.status,
+                results: savedUrls,
+                dbTaskId: existingTask.id,
+              });
             } else {
               console.log(`[Infographic] ⚠️ 未找到对应的 ai_task 记录: taskId=${taskId}`);
             }

@@ -19,6 +19,20 @@ const CONFIG_FILE_PATH = path.join(
 );
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 
+function detectLanguageFromTheme(text: string): 'zh' | 'en' {
+  if (!text) return 'en';
+  const chineseChars =
+    text.match(/[\u4e00-\u9fa5\u3000-\u303f\uff00-\uffef]/g) || [];
+  const totalChars = text.replace(/\s/g, '').length;
+  if (totalChars === 0) return 'en';
+  return chineseChars.length / totalChars > 0.05 ? 'zh' : 'en';
+}
+
+function isTemporaryImageUrl(url: string): boolean {
+  const tempDomains = ['kie.ai', 'tempfile.aiquickdraw.com', 'fal.media'];
+  return tempDomains.some((domain) => url.includes(domain));
+}
+
 /**
  * 辅助函数：将远程图片下载并上传到我们的存储
  */
@@ -268,6 +282,11 @@ export async function generateAdminStylePreviewAction(params: {
   // 使用自定义主题或默认主题
   const theme =
     params.previewTheme || 'Studyhacks: Learn Anything Faster than Ever';
+  const outputLanguage = detectLanguageFromTheme(theme);
+  const languageInstruction =
+    outputLanguage === 'zh'
+      ? '- ALL TEXT IN THE IMAGE MUST BE IN SIMPLIFIED CHINESE ONLY'
+      : '- ALL TEXT IN THE IMAGE MUST BE IN ENGLISH ONLY';
 
   // 🎯 全英文提示词 - 确保生成的预览图中只包含英文文字
   const contentPrompt = `[CORE TASK] Generate a brand new PPT cover image for "${theme}".
@@ -287,7 +306,7 @@ export async function generateAdminStylePreviewAction(params: {
 [GENERATION PRINCIPLES]
 - Maintain visual style consistency with reference images (colors, fonts, textures)
 - But content, layout, and elements must be newly created around the "${theme}" theme
-- ALL TEXT IN THE IMAGE MUST BE IN ENGLISH ONLY`;
+${languageInstruction}`;
 
   // 将视觉规范 JSON 转换为提示词
   const visualSpecPrompt = params.visualSpec
@@ -302,6 +321,7 @@ export async function generateAdminStylePreviewAction(params: {
     customImages: params.imageUrls,
     aspectRatio: '16:9',
     imageSize: '2K',
+    outputLanguage,
   });
 }
 
@@ -318,6 +338,12 @@ export async function queryKieTaskStatusAction(taskId: string) {
 
     // 适配 aippt.ts 中 queryKieTaskAction 的返回结构
     if (result.data) {
+      let imageUrl = result.data.results?.[0] || null;
+      if (result.data.status === 'SUCCESS' && imageUrl && isTemporaryImageUrl(imageUrl)) {
+        const ext = imageUrl.split('.').pop()?.split('?')[0] || 'png';
+        const targetKey = `studyhacks-ppt/styles/admin-previews/${taskId}.${ext}`;
+        imageUrl = await downloadAndUploadImage(imageUrl, targetKey);
+      }
       return {
         status:
           result.data.status === 'SUCCESS'
@@ -325,7 +351,7 @@ export async function queryKieTaskStatusAction(taskId: string) {
             : result.data.status === 'FAILED'
               ? 'failed'
               : 'processing',
-        imageUrl: result.data.results?.[0] || null,
+        imageUrl,
       };
     }
 

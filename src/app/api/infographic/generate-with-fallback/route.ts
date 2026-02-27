@@ -997,8 +997,10 @@ export async function POST(request: NextRequest) {
 
         // --- 记录到通用 AI 任务表（ai_task），方便在 /library/infographics 里统一展示 ---
         // 非程序员解释：
-        // - 这里不会再次扣积分（上面已经调用过 consumeCredits），只是在 ai_task 这张“任务流水表”里记一笔
+        // - 这里不会再次扣积分（上面已经调用过 consumeCredits），只是在 ai_task 这张"任务流水表"里记一笔
         // - 以后不管是 Infographic、PPT 还是别的图片任务，都可以用一套通用的历史列表组件来查看
+        // - 🎯 返回数据库记录 ID，用于前端编辑后保存历史记录
+        let dbTaskId: string | null = null;
         try {
           // 简单归一化一下"模型名称"，方便后续筛选/统计（只是记录用途，不影响实际调用）
           const modelName =
@@ -1018,7 +1020,8 @@ export async function POST(request: NextRequest) {
 
           console.log('[Infographic] 准备创建任务记录，creditId:', consumedCredit?.id);
 
-          await createAITaskRecordOnly({
+          // 🎯 保存返回值，获取数据库记录 ID
+          const dbTask = await createAITaskRecordOnly({
             // 必填字段：谁、什么类型、用哪个提供商
             userId: user.id,
             mediaType: AIMediaType.IMAGE,
@@ -1050,7 +1053,8 @@ export async function POST(request: NextRequest) {
                 : null,
           });
 
-          console.log('[Infographic] ✅ 任务记录创建成功，creditId 已保存');
+          dbTaskId = dbTask?.id || null;
+          console.log('[Infographic] ✅ 任务记录创建成功，dbTaskId:', dbTaskId);
         } catch (logError) {
           // 记录历史失败不影响用户正常使用，只打印日志方便排查
           console.error(
@@ -1062,6 +1066,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           success: true,
           taskId: result.taskId,
+          dbTaskId, // 🎯 返回数据库记录 ID，用于编辑后保存历史
           imageUrls: result.imageUrls, // 如果是同步API，直接返回图片URL
           provider: provider.name,
           fallbackUsed: provider.name !== 'KIE', // 是否使用了托底服务
