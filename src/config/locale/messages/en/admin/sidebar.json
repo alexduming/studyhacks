@@ -70,6 +70,11 @@
               "title": "Credits",
               "url": "/admin/credits",
               "icon": "Coins"
+            },
+            {
+              "title": "Credits Leaderboard",
+              "url": "/admin/credits/leaderboard",
+              "icon": "Trophy"
             }
           ]
         }
@@ -78,6 +83,11 @@
     {
       "title": "Business",
       "items": [
+        {
+          "title": "PPT Styles",
+          "url": "/admin/styles",
+          "icon": "Palette"
+        },
         {
           "title": "AI Tasks",
           "url": "/admin/ai-tasks",

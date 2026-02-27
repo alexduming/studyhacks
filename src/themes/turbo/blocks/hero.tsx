@@ -89,7 +89,10 @@ export function Hero({
       <section
         id={hero.id}
         className={cn(
-          'via-primary/10 relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-gray-950 to-gray-950',
+          // 背景：light 模式使用浅色渐变，dark 模式使用深色渐变
+          'via-primary/10 relative flex min-h-screen items-center justify-center overflow-hidden',
+          'bg-gradient-to-br from-background to-muted',
+          'dark:from-gray-950 dark:to-gray-950',
           hero.className,
           className
         )}
@@ -99,8 +102,8 @@ export function Hero({
           <Beams />
         </div>
 
-        {/* 渐变叠加 */}
-        <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-transparent to-gray-950/50" />
+        {/* 渐变叠加：light 模式使用浅色，dark 模式使用深色 */}
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-muted/50 dark:from-gray-950 dark:to-gray-950/50" />
 
         {/* 动画粒子背景 */}
         <div className="absolute inset-0">
@@ -149,10 +152,10 @@ export function Hero({
               </Link>
             </motion.div>
           )}
-          {/* 主标题 - 纯白色文字，highlight 为动态下划线 */}
+          {/* 主标题 - 文字颜色根据主题自动切换 */}
           <motion.div {...createFadeInVariant(0.4)} className="mt-8">
             {texts && texts.length > 0 ? (
-              <h1 className="text-5xl font-bold text-white sm:text-6xl md:text-7xl lg:text-8xl">
+              <h1 className="text-5xl font-bold text-foreground dark:text-white sm:text-6xl md:text-7xl lg:text-8xl">
                 {texts[0]}
                 <span className="relative inline-block">
                   {/* 弱化的晕染效果 */}
@@ -171,16 +174,16 @@ export function Hero({
                 {texts[1]}
               </h1>
             ) : (
-              <h1 className="text-5xl font-bold text-white sm:text-6xl md:text-7xl lg:text-8xl">
+              <h1 className="text-5xl font-bold text-foreground dark:text-white sm:text-6xl md:text-7xl lg:text-8xl">
                 {hero.title}
               </h1>
             )}
           </motion.div>
 
-          {/* 描述文本 */}
+          {/* 描述文本 - 文字颜色根据主题自动切换 */}
           <motion.p
             {...createFadeInVariant(0.6)}
-            className="mx-auto mt-8 max-w-2xl text-lg text-gray-300 sm:text-xl md:text-2xl"
+            className="mx-auto mt-8 max-w-2xl text-lg text-muted-foreground dark:text-gray-300 sm:text-xl md:text-2xl"
             dangerouslySetInnerHTML={{ __html: hero.description ?? '' }}
           />
 
@@ -215,18 +218,18 @@ export function Hero({
             </motion.div>
           )}
 
-          {/* 提示文本 */}
+          {/* 提示文本 - 文字颜色根据主题自动切换 */}
           {hero.tip && (
             <motion.p
               {...createFadeInVariant(1)}
-              className="mt-8 text-center text-sm text-gray-400"
+              className="mt-8 text-center text-sm text-muted-foreground dark:text-gray-400"
               dangerouslySetInnerHTML={{ __html: hero.tip ?? '' }}
             />
           )}
         </div>
 
-        {/* 底部渐变淡出效果 */}
-        <div className="absolute right-0 bottom-0 left-0 h-32 bg-gradient-to-t from-gray-950 to-transparent" />
+        {/* 底部渐变淡出效果 - 根据主题自动切换 */}
+        <div className="absolute right-0 bottom-0 left-0 h-32 bg-gradient-to-t from-background to-transparent dark:from-gray-950" />
       </section>
     </>
   );

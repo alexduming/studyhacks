@@ -1,0 +1,126 @@
+{
+  "title": "Affiliate Program",
+  "description": "Invite friends to use Studyhacks and earn credits & cash rewards.",
+  "loading": "Loading...",
+  "stats": {
+    "invitations": {
+      "title": "Invitations",
+      "subtitle": "Registered users"
+    },
+    "paid_users": {
+      "title": "Paid Users",
+      "subtitle": "{count} orders total"
+    },
+    "total_commission": {
+      "title": "Total Commission",
+      "withdrawn": "Withdrawn: {amount}"
+    },
+    "available": {
+      "title": "Available"
+    }
+  },
+  "invite_card": {
+    "title": "Invite Link",
+    "badge": "Starter",
+    "description": "Share your unique invite link to invite friends",
+    "copy_button": "Copy Link",
+    "invite_code": "Invite Code",
+    "edit_tooltip": "Edit Invite Code"
+  },
+  "reward_card": {
+    "title": "Reward",
+    "badge": "Balance",
+    "description": "Invited {total} users, {paid} paid; Total reward: {totalAmount}, Withdrawn: {withdrawn}, Available: {balance}",
+    "withdraw_button": "Withdraw",
+    "available_balance": "Available balance: {amount}",
+    "withdraw_dialog": {
+      "title": "Withdraw Request",
+      "description": "Enter the withdrawal amount and payment account details",
+      "amount_label": "Amount",
+      "method_label": "Method",
+      "account_label": "Account",
+      "paypal_email_label": "PayPal Email",
+      "paypal_placeholder": "your@email.com",
+      "real_name_label": "Real Name",
+      "real_name_placeholder": "Enter your real name",
+      "alipay_account_label": "Alipay Account",
+      "alipay_placeholder": "Phone number or email",
+      "bank_account_label": "Bank Account Number",
+      "bank_account_placeholder": "Enter your bank account number",
+      "bank_name_label": "Bank Name",
+      "bank_name_placeholder": "e.g., Bank of America",
+      "bank_branch_label": "Bank Branch",
+      "bank_branch_placeholder": "e.g., New York Main Branch",
+      "bank_placeholder": "Bank Account Details",
+      "submit_button": "Submit Request",
+      "submitting": "Submitting..."
+    },
+    "withdraw_methods": {
+      "paypal": "PayPal",
+      "alipay": "Alipay",
+      "bank_transfer": "Bank Transfer"
+    }
+  },
+  "panel": {
+    "title": "Affiliates",
+    "subtitle": "My affiliate management",
+    "tabs": {
+      "referrals": "Paid Users",
+      "invitation": "Invitations",
+      "reward": "Commissions",
+      "withdraw": "Withdrawals"
+    },
+    "referrals": {
+      "title": "Paid User Orders",
+      "description": "Orders from users who registered and paid through your invite code",
+      "no_data": "No paid users yet",
+      "commission": "Commission"
+    },
+    "invitation_table": {
+      "title": "Invitation Records",
+      "description": "List of users you invited to register",
+      "user": "User",
+      "code": "Code",
+      "time": "Time",
+      "status": "Status",
+      "amount": "Amount",
+      "no_data": "No invitation records",
+      "waiting": "Waiting to register",
+      "registered": "Registered",
+      "pending": "Pending"
+    },
+    "reward_table": {
+      "title": "Commission Records",
+      "description": "Details of your earned commissions",
+      "id": "ID",
+      "amount": "Amount",
+      "status": "Status",
+      "type": "Type",
+      "time": "Time",
+      "no_data": "No commission records",
+      "status_paid": "Available",
+      "status_pending": "Pending"
+    },
+    "withdraw_table": {
+      "title": "Withdrawal Records",
+      "description": "Your withdrawal request history",
+      "id": "ID",
+      "amount": "Amount",
+      "status": "Status",
+      "method": "Method",
+      "time": "Time",
+      "no_data": "No withdrawal records",
+      "status_paid": "Paid",
+      "status_approved": "Approved",
+      "status_rejected": "Rejected",
+      "status_pending": "Pending Review"
+    }
+  },
+  "messages": {
+    "withdraw_success": "Withdrawal request submitted",
+    "withdraw_error": "Withdrawal failed",
+    "fill_complete": "Please fill in all required fields",
+    "invalid_amount": "Please enter a valid amount",
+    "exceed_balance": "Amount exceeds available balance"
+  }
+}

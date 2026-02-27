@@ -54,6 +54,12 @@ export default async function AdminRolesPage({
             icon: 'RiEditLine',
             url: `/admin/roles/${item.id}/edit-permissions`,
           },
+          {
+            name: 'manage_users',
+            title: t('list.buttons.manage_users'),
+            icon: 'RiUserSettingsLine',
+            url: `/admin/roles/${item.id}/manage-users`,
+          },
         ],
       },
     ],

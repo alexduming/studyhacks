@@ -6,6 +6,10 @@ import {
   PaymentPrice,
   PaymentType,
 } from '@/extensions/payment';
+import {
+  diffPlanCredits,
+  getCanonicalPlanInfo,
+} from '@/shared/config/pricing-guard';
 import { getSnowId, getUuid } from '@/shared/lib/hash';
 import { respData, respErr } from '@/shared/lib/resp';
 import { getAllConfigs } from '@/shared/models/config';
@@ -16,6 +20,7 @@ import {
   updateOrderByOrderNo,
 } from '@/shared/models/order';
 import { getUserInfo } from '@/shared/models/user';
+import { getInvitationByInviteeId } from '@/shared/models/invitation';
 import { getPaymentService } from '@/shared/services/payment';
 import { PricingCurrency } from '@/shared/types/blocks/pricing';
 
@@ -130,8 +135,13 @@ export async function POST(req: Request) {
     }
 
     // get payment interval
-    const paymentInterval: PaymentInterval =
+    let paymentInterval: PaymentInterval =
       pricingItem.interval || PaymentInterval.ONE_TIME;
+
+    // Special handling for CNY payments (Alipay/WeChat): force one-time payment
+    if (checkoutCurrency.toLowerCase() === 'cny') {
+      paymentInterval = PaymentInterval.ONE_TIME;
+    }
 
     // get payment type
     const paymentType =
@@ -233,6 +243,28 @@ export async function POST(req: Request) {
     const currentTime = new Date();
 
     // build order info
+    const canonicalPlan = getCanonicalPlanInfo(pricingItem.product_id);
+    if (!canonicalPlan) {
+      return respErr('unsupported pricing product');
+    }
+
+    const diffWarn = diffPlanCredits(pricingItem);
+    if (diffWarn) {
+      console.warn(diffWarn);
+    }
+
+    // 分销系统：查询用户的推荐人
+    // 如果用户是通过邀请码注册的，记录推荐人ID到订单中
+    let referrerId: string | null = null;
+    try {
+      const invitation = await getInvitationByInviteeId(user.id);
+      if (invitation && invitation.inviterId) {
+        referrerId = invitation.inviterId;
+      }
+    } catch (e) {
+      console.error('Failed to get referrer:', e);
+    }
+
     const order: NewOrder = {
       id: getUuid(),
       orderNo: orderNo,
@@ -250,10 +282,11 @@ export async function POST(req: Request) {
       productName: pricingItem.product_name,
       description: pricingItem.description,
       callbackUrl: callbackUrl,
-      creditsAmount: pricingItem.credits,
-      creditsValidDays: pricingItem.valid_days,
+      creditsAmount: canonicalPlan.credits,
+      creditsValidDays: canonicalPlan.valid_days,
       planName: pricingItem.plan_name || '',
       paymentProductId: paymentProductId,
+      referrerId: referrerId, // 分销系统：记录推荐人ID
     };
 
     // create order

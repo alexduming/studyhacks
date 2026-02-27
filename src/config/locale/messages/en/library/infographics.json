@@ -1,0 +1,28 @@
+{
+  "title": "Infographics Library",
+  "subtitle": "Review and download every AI infographic you generated.",
+  "buttons": {
+    "new": "Generate infographic",
+    "empty": "Create infographic"
+  },
+  "empty": {
+    "title": "No infographics yet",
+    "description": "Your generated infographics will appear here. Click below to create your first design.",
+    "button": "Create infographic"
+  },
+  "card": {
+    "download": "Download",
+    "downloading": "Downloading...",
+    "edit": "Edit",
+    "previewAlt": "Infographic preview",
+    "dialogTitle": "Infographic full view",
+    "dialogAlt": "Full infographic preview"
+  },
+  "history": {
+    "title": "History",
+    "versions": "versions",
+    "version": "Version",
+    "switch_failed": "Failed to switch version"
+  }
+}
+

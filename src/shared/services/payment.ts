@@ -1,114 +1,109 @@
+import { eq } from 'drizzle-orm';
+import { db } from '@/core/db';
 import {
-  CreemProvider,
-  PaymentManager,
-  PaymentSession,
-  PaymentStatus,
-  PaymentType,
-  PayPalProvider,
-  StripeProvider,
-} from '@/extensions/payment';
-import { Configs, getAllConfigs } from '@/shared/models/config';
-
-import { getSnowId, getUuid } from '../lib/hash';
+  order as orderTable,
+  subscription as subscriptionTable,
+  credit as creditTable,
+  user as userTable,
+} from '@/config/db/schema';
+import { getSnowId, getUuid } from '@/shared/lib/hash';
 import {
-  calculateCreditExpirationTime,
   CreditStatus,
   CreditTransactionScene,
   CreditTransactionType,
   NewCredit,
-} from '../models/credit';
+  calculateCreditExpirationTime,
+} from '@/shared/models/credit';
 import {
-  findOrderByOrderNo,
   NewOrder,
   Order,
   OrderStatus,
   UpdateOrder,
   updateOrderByOrderNo,
   updateOrderInTransaction,
-  updateSubscriptionInTransaction,
-} from '../models/order';
+} from '@/shared/models/order';
+import {
+  PaymentSession,
+  PaymentStatus,
+  PaymentType,
+} from '@/extensions/payment';
 import {
   NewSubscription,
   Subscription,
   SubscriptionStatus,
-  UpdateSubscription,
-  updateSubscriptionBySubscriptionNo,
-} from '../models/subscription';
+} from '@/shared/models/subscription';
+// 分销系统：佣金相关导入
+import { createCommission, CommissionStatus } from '@/shared/models/commission';
 
 /**
- * get payment service with configs
+ * payment manager
  */
-export function getPaymentServiceWithConfigs(configs: Configs) {
-  const paymentManager = new PaymentManager();
+export class PaymentManager {
+  private providers: Map<string, any> = new Map();
 
-  const defaultProvider = configs.default_payment_provider;
+  constructor() {}
 
-  // add stripe provider
+  registerProvider(name: string, provider: any) {
+    this.providers.set(name, provider);
+  }
+
+  getProvider(name: string) {
+    return this.providers.get(name);
+  }
+}
+
+let paymentService: PaymentManager | null = null;
+
+export async function getPaymentService(): Promise<PaymentManager> {
+  if (paymentService) {
+    return paymentService;
+  }
+
+  paymentService = new PaymentManager();
+
+  // dynamic import to avoid circular dependency
+  const { StripeProvider } = await import('@/extensions/payment/stripe');
+  const { CreemProvider } = await import('@/extensions/payment/creem');
+  const { PayPalProvider } = await import('@/extensions/payment/paypal');
+  const { getAllConfigs } = await import('@/shared/models/config');
+
+  const configs = await getAllConfigs();
+
   if (configs.stripe_enabled === 'true') {
-    let allowedPaymentMethods = configs.stripe_payment_methods || [];
-    if (typeof allowedPaymentMethods === 'string') {
-      try {
-        allowedPaymentMethods = JSON.parse(allowedPaymentMethods);
-      } catch (e) {
-        console.error('parse stripe payment methods error', e);
-        allowedPaymentMethods = [];
-      }
-    }
-    paymentManager.addProvider(
+    paymentService.registerProvider(
+      'stripe',
       new StripeProvider({
         secretKey: configs.stripe_secret_key,
         publishableKey: configs.stripe_publishable_key,
-        signingSecret: configs.stripe_signing_secret,
-        allowedPaymentMethods: allowedPaymentMethods as string[],
-      }),
-      defaultProvider === 'stripe'
+        signingSecret: configs.stripe_signing_secret || configs.stripe_webhook_secret,
+        allowedPaymentMethods: configs.stripe_payment_methods ? JSON.parse(configs.stripe_payment_methods) : ['card'],
+      })
     );
   }
 
-  // add creem provider
   if (configs.creem_enabled === 'true') {
-    paymentManager.addProvider(
+    paymentService.registerProvider(
+      'creem',
       new CreemProvider({
         apiKey: configs.creem_api_key,
-        environment:
-          configs.creem_environment === 'production' ? 'production' : 'sandbox',
-        signingSecret: configs.creem_signing_secret,
-      }),
-      defaultProvider === 'creem'
+        signingSecret: configs.creem_signing_secret || configs.creem_webhook_secret,
+        environment: (configs.creem_environment as 'sandbox' | 'production') || 'sandbox',
+      })
     );
   }
 
-  // add paypal provider
   if (configs.paypal_enabled === 'true') {
-    paymentManager.addProvider(
+    paymentService.registerProvider(
+      'paypal',
       new PayPalProvider({
         clientId: configs.paypal_client_id,
         clientSecret: configs.paypal_client_secret,
-        environment:
-          configs.paypal_environment === 'production'
-            ? 'production'
-            : 'sandbox',
-      }),
-      defaultProvider === 'paypal'
+        webhookSecret: configs.paypal_webhook_id || configs.paypal_signing_secret,
+        environment: (configs.paypal_environment as 'sandbox' | 'production') || 'sandbox',
+      })
     );
   }
 
-  return paymentManager;
-}
-
-/**
- * global payment service
- */
-let paymentService: PaymentManager | null = null;
-
-/**
- * get payment service instance
- */
-export async function getPaymentService(): Promise<PaymentManager> {
-  if (true) {
-    const configs = await getAllConfigs();
-    paymentService = getPaymentServiceWithConfigs(configs);
-  }
   return paymentService;
 }
 
@@ -166,6 +161,8 @@ export async function handleCheckoutSuccess({
         subscriptionNo: getSnowId(),
         userId: order.userId,
         userEmail: order.paymentEmail || order.userEmail,
+        orderId: order.id,
+        planId: order.productId || '',
         status: subscriptionInfo.status || SubscriptionStatus.ACTIVE,
         paymentProvider: order.paymentProvider,
         subscriptionId: subscriptionInfo.subscriptionId,
@@ -193,6 +190,58 @@ export async function handleCheckoutSuccess({
       updateOrder.subscriptionResult = JSON.stringify(
         session.subscriptionResult
       );
+    } else if (
+      order.productId?.includes('plus') ||
+      order.productId?.includes('pro')
+    ) {
+      // 非程序员解释：
+      // - 这是一个重要的修正。
+      // - 以前：如果支付方式是"一次性付款"（比如微信/支付宝 CNY 支付），系统就不会创建订阅记录。
+      // - 结果：用户付了钱，但系统查不到有效的订阅，导致会员状态一直是 Free。
+      // - 现在：即使是一次性付款，只要购买的是会员产品，我们也会创建一个"模拟订阅"记录，让用户获得会员权益。
+      const now = new Date();
+      const currentPeriodStart = session.paymentInfo?.paidAt || now;
+      const currentPeriodEnd = new Date(currentPeriodStart);
+
+      // 计算有效期（默认 30 天，或者根据订单配置）
+      const days = order.creditsValidDays || 30;
+      currentPeriodEnd.setDate(currentPeriodEnd.getDate() + days);
+
+      const planName =
+        order.planName || (order.productId?.includes('pro') ? 'Pro' : 'Plus');
+      const subscriptionNo = getSnowId();
+
+      newSubscription = {
+        id: getUuid(),
+        subscriptionNo: subscriptionNo,
+        userId: order.userId,
+        userEmail: order.paymentEmail || order.userEmail,
+        orderId: order.id,
+        planId: order.productId || '',
+        status: SubscriptionStatus.ACTIVE,
+        paymentProvider: order.paymentProvider,
+        subscriptionId:
+          session.paymentInfo?.transactionId || `one_time_${subscriptionNo}`,
+        subscriptionResult: JSON.stringify(session.paymentResult),
+        productId: order.productId,
+        description: order.description || `One-time Membership: ${planName}`,
+        amount: order.amount,
+        currency: order.currency,
+        interval: order.paymentInterval || 'month',
+        intervalCount: 1,
+        currentPeriodStart,
+        currentPeriodEnd,
+        planName: planName,
+        productName: order.productName,
+        creditsAmount: order.creditsAmount,
+        creditsValidDays: order.creditsValidDays,
+        paymentProductId: order.paymentProductId,
+        paymentUserId: session.paymentInfo?.paymentUserId,
+      };
+
+      updateOrder.subscriptionNo = newSubscription.subscriptionNo;
+      updateOrder.subscriptionId = newSubscription.subscriptionId;
+      updateOrder.subscriptionResult = JSON.stringify(session.paymentResult);
     }
 
     // grant credit for order
@@ -226,6 +275,39 @@ export async function handleCheckoutSuccess({
         status: CreditStatus.ACTIVE,
       };
     }
+
+    // --- Affiliate Commission Logic Start ---
+    // 分销系统：支付成功后，给推荐人发放佣金
+    // 使用订单中记录的 referrerId，而不是再次查询 invitation 表
+    try {
+      // 检查订单是否有推荐人
+      if (order.referrerId) {
+        // 计算佣金（20%订单金额）
+        const commissionRate = 0.20;
+        const commissionAmount = Math.floor(order.amount * commissionRate);
+
+        if (commissionAmount > 0) {
+          // 创建佣金记录
+          await createCommission({
+            id: getUuid(),
+            userId: order.referrerId,
+            orderId: order.id,
+            amount: commissionAmount,
+            currency: order.currency,
+            status: CommissionStatus.PAID, // 自动确认，可提现
+            type: 'one_time',
+            rate: '20%',
+            description: `Commission for order ${order.orderNo}`,
+          });
+
+          console.log(`✅ Commission created for referrer ${order.referrerId}: ${commissionAmount} ${order.currency}`);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Failed to process affiliate commission:', error);
+      // 佣金处理失败不影响支付流程
+    }
+    // --- Affiliate Commission Logic End ---
 
     await updateOrderInTransaction({
       orderNo,
@@ -304,6 +386,8 @@ export async function handlePaymentSuccess({
         subscriptionNo: getSnowId(),
         userId: order.userId,
         userEmail: order.paymentEmail || order.userEmail,
+        orderId: order.id,
+        planId: order.productId || '',
         status: SubscriptionStatus.ACTIVE,
         paymentProvider: order.paymentProvider,
         subscriptionId: subscriptionInfo.subscriptionId,
@@ -330,6 +414,52 @@ export async function handlePaymentSuccess({
       updateOrder.subscriptionResult = JSON.stringify(
         session.subscriptionResult
       );
+    } else if (
+      order.productId?.includes('plus') ||
+      order.productId?.includes('pro')
+    ) {
+      // 非程序员解释：同样修复一次性支付无法激活会员的问题
+      const now = new Date();
+      const currentPeriodStart = session.paymentInfo?.paidAt || now;
+      const currentPeriodEnd = new Date(currentPeriodStart);
+
+      const days = order.creditsValidDays || 30;
+      currentPeriodEnd.setDate(currentPeriodEnd.getDate() + days);
+
+      const planName =
+        order.planName || (order.productId?.includes('pro') ? 'Pro' : 'Plus');
+      const subscriptionNo = getSnowId();
+
+      newSubscription = {
+        id: getUuid(),
+        subscriptionNo: subscriptionNo,
+        userId: order.userId,
+        userEmail: order.paymentEmail || order.userEmail,
+        orderId: order.id,
+        planId: order.productId || '',
+        status: SubscriptionStatus.ACTIVE,
+        paymentProvider: order.paymentProvider,
+        subscriptionId:
+          session.paymentInfo?.transactionId || `one_time_${subscriptionNo}`,
+        subscriptionResult: JSON.stringify(session.paymentResult),
+        productId: order.productId,
+        description: order.description || `One-time Membership: ${planName}`,
+        amount: order.amount,
+        currency: order.currency,
+        interval: order.paymentInterval || 'month',
+        intervalCount: 1,
+        currentPeriodStart,
+        currentPeriodEnd,
+        planName: planName,
+        productName: order.productName,
+        creditsAmount: order.creditsAmount,
+        creditsValidDays: order.creditsValidDays,
+        paymentProductId: order.paymentProductId,
+        paymentUserId: session.paymentInfo?.paymentUserId,
+      };
+
+      updateOrder.subscriptionId = newSubscription.subscriptionId;
+      updateOrder.subscriptionResult = JSON.stringify(session.paymentResult);
     }
 
     // grant credit for order
@@ -364,6 +494,33 @@ export async function handlePaymentSuccess({
       };
     }
 
+    // --- Affiliate Commission Logic Start ---
+    // 分销系统：续费订单也给推荐人发放佣金
+    try {
+      if (order.referrerId) {
+        const commissionRate = 0.20;
+        const commissionAmount = Math.floor(order.amount * commissionRate);
+
+        if (commissionAmount > 0) {
+          await createCommission({
+            id: getUuid(),
+            userId: order.referrerId,
+            orderId: order.id,
+            amount: commissionAmount,
+            currency: order.currency,
+            status: CommissionStatus.PAID,
+            type: 'recurring',
+            rate: '20%',
+            description: `Recurring commission for order ${order.orderNo}`,
+          });
+          console.log(`✅ Recurring commission created for referrer ${order.referrerId}: ${commissionAmount} ${order.currency}`);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Failed to process recurring affiliate commission:', error);
+    }
+    // --- Affiliate Commission Logic End ---
+
     await updateOrderInTransaction({
       orderNo,
       updateOrder,
@@ -382,181 +539,186 @@ export async function handleSubscriptionRenewal({
   subscription: Subscription; // subscription
   session: PaymentSession; // payment session
 }) {
-  const subscriptionNo = subscription.subscriptionNo;
-  if (!subscriptionNo || !subscription.amount || !subscription.currency) {
-    throw new Error('invalid subscription');
+  if (session.paymentStatus !== PaymentStatus.SUCCESS) {
+    throw new Error('payment not success');
   }
 
-  if (!session.subscriptionId || !session.subscriptionInfo) {
-    throw new Error('invalid payment session');
-  }
-  if (session.subscriptionId !== subscription.subscriptionId) {
-    throw new Error('subscription id mismatch');
-  }
-
+  const orderNo = getSnowId();
   const subscriptionInfo = session.subscriptionInfo;
-  if (
-    !subscriptionInfo ||
-    !subscriptionInfo.currentPeriodStart ||
-    !subscriptionInfo.currentPeriodEnd
-  ) {
-    throw new Error('invalid subscription info');
+
+  if (!subscriptionInfo) {
+    throw new Error('subscription info not found');
   }
 
-  // payment success
-  if (session.paymentStatus === PaymentStatus.SUCCESS) {
-    // update subscription period
-    const updateSubscription: UpdateSubscription = {
-      currentPeriodStart: subscriptionInfo.currentPeriodStart,
-      currentPeriodEnd: subscriptionInfo.currentPeriodEnd,
-    };
+  // create new order for renewal
+  const order: NewOrder = {
+    id: getUuid(),
+    orderNo: orderNo,
+    userId: subscription.userId,
+    userEmail: subscription.userEmail,
+    status: OrderStatus.PAID,
+    amount: subscriptionInfo.amount ?? 0,
+    currency: subscriptionInfo.currency ?? '',
+    productId: subscription.productId,
+    planName: subscription.planName,
+    productName: subscription.productName,
+    paymentType: PaymentType.SUBSCRIPTION,
+    paymentInterval: subscriptionInfo.interval,
+    paymentProvider: subscription.paymentProvider || '',
+    paymentProductId: subscription.paymentProductId,
+    paymentSessionId: session.metadata?.sessionId || '',
+    checkoutInfo: JSON.stringify(session.metadata?.checkoutInfo || {}),
+    paymentResult: JSON.stringify(session.paymentResult),
+    transactionId: session.paymentInfo?.transactionId,
+    subscriptionId: subscription.subscriptionId,
+    subscriptionNo: subscription.subscriptionNo,
+    subscriptionResult: JSON.stringify(session.subscriptionResult),
+    paymentEmail: session.paymentInfo?.paymentEmail,
+    paymentAmount: session.paymentInfo?.paymentAmount ?? 0,
+    paymentCurrency: session.paymentInfo?.paymentCurrency ?? '',
+    paidAt: session.paymentInfo?.paidAt,
+    invoiceId: session.paymentInfo?.invoiceId,
+    invoiceUrl: session.paymentInfo?.invoiceUrl,
+    description: `Subscription Renewal: ${subscription.productName}`,
+    creditsAmount: subscription.creditsAmount,
+    creditsValidDays: subscription.creditsValidDays,
+  };
 
-    const orderNo = getSnowId();
-    const currentTime = new Date();
+  // grant credit
+  let newCredit: NewCredit | undefined = undefined;
+  if (order.creditsAmount && order.creditsAmount > 0) {
+    const credits = order.creditsAmount;
+    const expiresAt =
+      credits > 0
+        ? calculateCreditExpirationTime({
+            creditsValidDays: order.creditsValidDays || 0,
+            currentPeriodEnd: subscriptionInfo.currentPeriodEnd,
+          })
+        : null;
 
-    // renewal order
-    const order: NewOrder = {
+    newCredit = {
       id: getUuid(),
-      orderNo: orderNo,
-      userId: subscription.userId,
-      userEmail: subscription.userEmail,
-      status: OrderStatus.PAID,
-      amount: subscription.amount,
-      currency: subscription.currency,
-      productId: subscription.productId,
-      paymentType: PaymentType.RENEW,
-      paymentInterval: subscription.interval,
-      paymentProvider: session.provider || subscription.paymentProvider,
-      checkoutInfo: '',
-      createdAt: currentTime,
-      productName: subscription.productName,
-      description: 'Subscription Renewal',
-      callbackUrl: '',
-      creditsAmount: subscription.creditsAmount,
-      creditsValidDays: subscription.creditsValidDays,
-      planName: subscription.planName || '',
-      paymentProductId: subscription.paymentProductId,
-      paymentResult: JSON.stringify(session.paymentResult),
-      paymentAmount: session.paymentInfo?.paymentAmount,
-      paymentCurrency: session.paymentInfo?.paymentCurrency,
-      discountAmount: session.paymentInfo?.discountAmount,
-      discountCurrency: session.paymentInfo?.discountCurrency,
-      discountCode: session.paymentInfo?.discountCode,
-      paymentEmail: session.paymentInfo?.paymentEmail,
-      paymentUserId: session.paymentInfo?.paymentUserId,
-      paidAt: session.paymentInfo?.paidAt,
-      invoiceId: session.paymentInfo?.invoiceId,
-      invoiceUrl: session.paymentInfo?.invoiceUrl,
+      userId: order.userId,
+      userEmail: order.userEmail,
+      orderNo: order.orderNo,
       subscriptionNo: subscription.subscriptionNo,
-      transactionId: session.paymentInfo?.transactionId,
-      paymentUserName: session.paymentInfo?.paymentUserName,
-      subscriptionId: session.subscriptionId,
-      subscriptionResult: JSON.stringify(session.subscriptionResult),
+      transactionNo: getSnowId(),
+      transactionType: CreditTransactionType.GRANT,
+      transactionScene: CreditTransactionScene.RENEWAL,
+      credits: credits,
+      remainingCredits: credits,
+      description: `Grant credit for renewal`,
+      expiresAt: expiresAt,
+      status: CreditStatus.ACTIVE,
     };
-
-    // grant credit for renewal order
-    let newCredit: NewCredit | undefined = undefined;
-    if (order.creditsAmount && order.creditsAmount > 0) {
-      const credits = order.creditsAmount;
-      const expiresAt =
-        credits > 0
-          ? calculateCreditExpirationTime({
-              creditsValidDays: order.creditsValidDays || 0,
-              currentPeriodEnd: subscriptionInfo?.currentPeriodEnd,
-            })
-          : null;
-
-      newCredit = {
-        id: getUuid(),
-        userId: order.userId,
-        userEmail: order.userEmail,
-        orderNo: order.orderNo,
-        subscriptionNo: subscription.subscriptionNo,
-        transactionNo: getSnowId(),
-        transactionType: CreditTransactionType.GRANT,
-        transactionScene:
-          order.paymentType === PaymentType.SUBSCRIPTION
-            ? CreditTransactionScene.SUBSCRIPTION
-            : CreditTransactionScene.PAYMENT,
-        credits: credits,
-        remainingCredits: credits,
-        description: `Grant credit`,
-        expiresAt: expiresAt,
-        status: CreditStatus.ACTIVE,
-      };
-    }
-
-    await updateSubscriptionInTransaction({
-      subscriptionNo,
-      updateSubscription,
-      newOrder: order,
-      newCredit,
-    });
-  } else {
-    throw new Error('unknown payment status');
-  }
-}
-
-export async function handleSubscriptionUpdated({
-  subscription,
-  session,
-}: {
-  subscription: Subscription; // subscription
-  session: PaymentSession; // payment session
-}) {
-  const subscriptionNo = subscription.subscriptionNo;
-  if (!subscriptionNo || !subscription.amount || !subscription.currency) {
-    throw new Error('invalid subscription');
   }
 
-  const subscriptionInfo = session.subscriptionInfo;
-  if (!subscriptionInfo || !subscriptionInfo.status) {
-    throw new Error('invalid subscription info');
-  }
-
-  let updateSubscriptionStatus: SubscriptionStatus = subscriptionInfo.status;
-
-  await updateSubscriptionBySubscriptionNo(subscriptionNo, {
-    status: updateSubscriptionStatus,
+  // update subscription
+  const updateSubscriptionData = {
     currentPeriodStart: subscriptionInfo.currentPeriodStart,
     currentPeriodEnd: subscriptionInfo.currentPeriodEnd,
-    canceledAt: subscriptionInfo.canceledAt || null,
-    canceledEndAt: subscriptionInfo.canceledEndAt || null,
-    canceledReason: subscriptionInfo.canceledReason || '',
-    canceledReasonType: subscriptionInfo.canceledReasonType || '',
+    status: subscriptionInfo.status || SubscriptionStatus.ACTIVE,
+    subscriptionResult: JSON.stringify(session.subscriptionResult),
+  };
+
+  // --- Affiliate Commission Logic Start ---
+  // 分销系统：订阅续费也给推荐人发放佣金
+  try {
+    if (order.referrerId) {
+      const commissionRate = 0.20;
+      const commissionAmount = Math.floor(order.amount * commissionRate);
+
+      if (commissionAmount > 0) {
+        await createCommission({
+          id: getUuid(),
+          userId: order.referrerId,
+          orderId: order.id,
+          amount: commissionAmount,
+          currency: order.currency,
+          status: CommissionStatus.PAID,
+          type: 'renewal',
+          rate: '20%',
+          description: `Renewal commission for subscription ${subscription.subscriptionNo}`,
+        });
+        console.log(`✅ Renewal commission created for referrer ${order.referrerId}: ${commissionAmount} ${order.currency}`);
+      }
+    }
+  } catch (error) {
+    console.error('❌ Failed to process renewal affiliate commission:', error);
+  }
+  // --- Affiliate Commission Logic End ---
+
+  // update in transaction
+  const result = await db().transaction(async (tx) => {
+    // create order
+    await tx.insert(orderTable).values(order);
+
+    // grant credit
+    if (newCredit) {
+      await tx.insert(creditTable).values(newCredit);
+    }
+
+    // update subscription
+    await tx
+      .update(subscriptionTable)
+      .set(updateSubscriptionData)
+      .where(eq(subscriptionTable.id, subscription.id));
   });
 
-  // console.log('handle subscription updated', subscriptionInfo);
+  return result;
 }
 
-export async function handleSubscriptionCanceled({
-  subscription,
+/**
+ * handle subscription updated
+ */
+export async function handleSubscriptionUpdated({
+  subscription: existingSubscription,
   session,
 }: {
-  subscription: Subscription; // subscription
-  session: PaymentSession; // payment session
+  subscription: Subscription;
+  session: PaymentSession;
 }) {
-  const subscriptionNo = subscription.subscriptionNo;
-  if (!subscriptionNo || !subscription.amount || !subscription.currency) {
-    throw new Error('invalid subscription');
-  }
-
   const subscriptionInfo = session.subscriptionInfo;
-  if (
-    !subscriptionInfo ||
-    !subscriptionInfo.status ||
-    !subscriptionInfo.canceledAt
-  ) {
-    throw new Error('invalid subscription info');
+  if (!subscriptionInfo) {
+    throw new Error('subscription info not found');
   }
 
-  await updateSubscriptionBySubscriptionNo(subscriptionNo, {
-    status: SubscriptionStatus.CANCELED,
-    canceledAt: subscriptionInfo.canceledAt,
-    canceledEndAt: subscriptionInfo.canceledEndAt,
-    canceledReason: subscriptionInfo.canceledReason,
-    canceledReasonType: subscriptionInfo.canceledReasonType,
-  });
+  const updateSubscriptionData = {
+    status: subscriptionInfo.status || SubscriptionStatus.ACTIVE,
+    currentPeriodStart: subscriptionInfo.currentPeriodStart,
+    currentPeriodEnd: subscriptionInfo.currentPeriodEnd,
+    subscriptionResult: JSON.stringify(session.subscriptionResult),
+    amount: subscriptionInfo.amount,
+    currency: subscriptionInfo.currency,
+    interval: subscriptionInfo.interval,
+    intervalCount: subscriptionInfo.intervalCount,
+  };
 
-  // console.log('handle subscription canceled', subscriptionInfo);
+  await db()
+    .update(subscriptionTable)
+    .set(updateSubscriptionData)
+    .where(eq(subscriptionTable.id, existingSubscription.id));
+}
+
+/**
+ * handle subscription canceled
+ */
+export async function handleSubscriptionCanceled({
+  subscription: existingSubscription,
+  session,
+}: {
+  subscription: Subscription;
+  session: PaymentSession;
+}) {
+  const subscriptionInfo = session.subscriptionInfo;
+
+  await db()
+    .update(subscriptionTable)
+    .set({
+      status: SubscriptionStatus.CANCELED,
+      subscriptionResult: JSON.stringify(session.subscriptionResult),
+      canceledAt: new Date(),
+      currentPeriodEnd: subscriptionInfo?.currentPeriodEnd,
+    })
+    .where(eq(subscriptionTable.id, existingSubscription.id));
 }

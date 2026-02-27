@@ -3,7 +3,7 @@ import { EmailVerificationService } from '@/shared/services/email-verification-s
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, type = 'registration' } = await request.json();
+    const { email, type = 'registration', inviteCode } = await request.json();
 
     if (!email || typeof email !== 'string') {
       return NextResponse.json(
@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await EmailVerificationService.sendVerificationLink(email, type);
+    const result = await EmailVerificationService.sendVerificationLink(email, type, inviteCode);
 
     if (result.success) {
       return NextResponse.json({

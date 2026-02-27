@@ -8,6 +8,7 @@ interface Props {
   searchParams: Promise<{
     token?: string;
     email?: string;
+    uemail?: string;
   }>;
 }
 
@@ -20,7 +21,10 @@ export async function generateMetadata() {
 }
 
 export default async function VerifyEmailPage({ searchParams }: Props) {
-  const { token, email } = await searchParams;
+  const params = await searchParams;
+  const token = params.token;
+  // 支持 uemail 参数（兼容某些邮箱客户端的重命名行为）
+  const email = params.email || params.uemail;
   const t = await getTranslations('common');
 
   // 如果没有token或email参数，显示错误页面

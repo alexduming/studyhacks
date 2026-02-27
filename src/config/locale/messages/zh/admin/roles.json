@@ -21,6 +21,7 @@
       "create": "创建角色",
       "edit": "编辑角色",
       "edit_permissions": "编辑权限",
+      "manage_users": "管理用户",
       "delete": "删除角色"
     }
   },
@@ -44,6 +45,49 @@
     },
     "buttons": {
       "submit": "更新"
+    }
+  },
+  "manage_users": {
+    "title": "管理用户 - {roleName}",
+    "crumbs": {
+      "admin": "管理后台",
+      "roles": "角色",
+      "manage_users": "管理用户"
+    },
+    "fields": {
+      "name": "姓名",
+      "email": "邮箱",
+      "avatar": "头像",
+      "all_roles": "所有角色",
+      "has_role": "是否拥有角色",
+      "actions": "操作"
+    },
+    "buttons": {
+      "add_to_role": "添加到角色",
+      "remove_from_role": "从角色移除",
+      "already_has_role": "已拥有角色"
+    },
+    "badges": {
+      "has_role": "已拥有",
+      "not_has_role": "未拥有"
+    },
+    "role_permissions": {
+      "title": "角色权限",
+      "no_permissions": "该角色暂无权限",
+      "edit_permissions": "编辑权限"
+    },
+    "role_users": {
+      "title": "该角色下的用户 ({count})",
+      "no_users": "该角色下暂无用户"
+    },
+    "all_users": {
+      "title": "所有用户（可添加到该角色）"
+    },
+    "search": {
+      "email": {
+        "title": "搜索邮箱",
+        "placeholder": "输入邮箱地址"
+      }
     }
   }
 }

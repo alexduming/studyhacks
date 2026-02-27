@@ -1,0 +1,51 @@
+{
+  "title": "My Library",
+  "nav": {
+    "items": [
+      {
+        "title": "Presentations",
+        "url": "/library/presentations",
+        "icon": "Presentation"
+      },
+      {
+        "title": "Notes",
+        "url": "/library/notes",
+        "icon": "FileText"
+      },
+      {
+        "title": "Flashcards",
+        "url": "/library/flashcards",
+        "icon": "BookOpen"
+      },
+      {
+        "title": "Quizzes",
+        "url": "/library/quizzes",
+        "icon": "Activity"
+      },
+      {
+        "title": "Infographics",
+        "url": "/library/infographics",
+        "icon": "Image"
+      },
+      {
+        "title": "Podcasts",
+        "url": "/library/podcasts",
+        "icon": "Music"
+      }
+    ]
+  },
+  "top_nav": {
+    "items": [
+      {
+        "title": "Library",
+        "url": "/library",
+        "icon": "Library"
+      },
+      {
+        "title": "Settings",
+        "url": "/settings",
+        "icon": "Settings"
+      }
+    ]
+  }
+}

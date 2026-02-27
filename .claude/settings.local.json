@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: FAL 改为异步模式，避免 Vercel 超时\n\n主要改动：\n- generate-with-fallback: 使用 fal.queue.submit\\(\\) 异步提交任务\n- query-with-fallback: 新增 queryFalTask 函数查询 FAL 任务状态\n- 前端通过轮询 query API 获取生成结果\n- 避免 Vercel 函数超时（30-60秒限制）\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: TypeScript 类型错误 - FAL status 检查\n\n使用类型断言避免 TypeScript 编译错误\nFAL SDK 的类型定义不完整，需要 as any 处理\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(npx drizzle-kit studio:*)",
+      "Bash(npx tsx:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: 添加 Infographic 异步失败自动退款功能\n\n主要改动：\n1. query-with-fallback: 添加异步任务失败时的自动退款逻辑\n2. 创建管理员 API 端点用于手动补偿积分\n3. 添加查询和补偿脚本\n\n修复问题：\n- 异步任务失败时不会自动退还积分\n- 用户积分被扣除但任务失败\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "WebFetch(domain:aippt.wps.cn)",
+      "Bash(wc:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: 添加调试日志以追踪 Infographic 交易编号问题\n\n问题：\n- admin/ai-tasks 页面不显示 Infographic 任务的交易编号\n- 数据库检查发现所有 Infographic 任务的 creditId 字段为空\n\n修复：\n- 添加调试日志追踪 consumeCredits 返回值\n- 确保 creditId 正确保存到 ai_task 表\n- 添加检查脚本用于诊断问题\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "WebSearch",
+      "Bash(dir:*)",
+      "WebFetch(domain:gitbrent.github.io)",
+      "Bash(npx tsc:*)",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "WebFetch(domain:fal.ai)",
+      "WebFetch(domain:replicate.com)",
+      "Bash(npm run dev)",
+      "Bash(netstat -ano)",
+      "Bash(findstr \"LISTENING\")",
+      "Bash(findstr \":300\")",
+      "Bash(npm run build)",
+      "Bash(npm install sharp)",
+      "Bash(pnpm next build:*)",
+      "Bash(curl:*)"
+    ]
+  }
+}

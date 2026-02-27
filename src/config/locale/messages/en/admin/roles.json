@@ -21,6 +21,7 @@
       "create": "Create Role",
       "edit": "Edit Role",
       "edit_permissions": "Edit Permissions",
+      "manage_users": "Manage Users",
       "delete": "Delete Role"
     }
   },
@@ -44,6 +45,49 @@
     },
     "buttons": {
       "submit": "Update"
+    }
+  },
+  "manage_users": {
+    "title": "Manage Users - {roleName}",
+    "crumbs": {
+      "admin": "Admin",
+      "roles": "Roles",
+      "manage_users": "Manage Users"
+    },
+    "fields": {
+      "name": "Name",
+      "email": "Email",
+      "avatar": "Avatar",
+      "all_roles": "All Roles",
+      "has_role": "Has Role",
+      "actions": "Actions"
+    },
+    "buttons": {
+      "add_to_role": "Add to Role",
+      "remove_from_role": "Remove from Role",
+      "already_has_role": "Already Has Role"
+    },
+    "badges": {
+      "has_role": "Yes",
+      "not_has_role": "No"
+    },
+    "role_permissions": {
+      "title": "Role Permissions",
+      "no_permissions": "This role has no permissions",
+      "edit_permissions": "Edit Permissions"
+    },
+    "role_users": {
+      "title": "Users with this Role ({count})",
+      "no_users": "No users have this role"
+    },
+    "all_users": {
+      "title": "All Users (can be added to this role)"
+    },
+    "search": {
+      "email": {
+        "title": "Search Email",
+        "placeholder": "Enter email address"
+      }
     }
   }
 }

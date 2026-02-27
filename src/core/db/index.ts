@@ -58,15 +58,17 @@ export function db() {
     client = postgres(databaseUrl, {
       prepare: false,
       max: 10, // Maximum connections in pool
-      idle_timeout: 30, // Idle connection timeout (seconds)
-      // 开发环境：5秒超时，快速失败（避免首页卡顿）
-      // 生产环境：10秒超时（给网络波动留出缓冲）
-      connect_timeout: isDevelopment ? 5 : 10,
-      // 添加连接重试配置
-      max_lifetime: 60 * 30, // 连接最大生命周期：30分钟
+      idle_timeout: 120, // 增加到 120秒，防止 AI 生成期间连接因空闲被断开
+      // 开发环境：10秒超时，快速失败（避免首页卡顿）
+      // 生产环境：20秒超时（给网络波动留出缓冲）
+      connect_timeout: isDevelopment ? 10 : 20,
+      // 🔧 移除 max_lifetime 参数（postgres.js 3.4.7 中存在 bug，会导致负数 timeout 警告）
+      // max_lifetime: 60 * 30, // ❌ 此参数在某些版本中会计算出负数，导致 TimeoutNegativeWarning
       // 针对 Supabase 连接池的优化
       connection: {
         application_name: 'study-app',
+        // 🔧 增加语句超时时间，处理大字段更新（如包含历史记录的 taskResult）
+        statement_timeout: 300000, // 5分钟（毫秒）
       },
       // 启用连接池健康检查
       onnotice: () => {}, // 静默处理通知
@@ -76,7 +78,7 @@ export function db() {
       },
     });
 
-    dbInstance = drizzle({ client });
+    dbInstance = drizzle(client);
     return dbInstance;
   }
 
@@ -87,11 +89,12 @@ export function db() {
   const serverlessClient = postgres(databaseUrl, {
     prepare: false,
     max: 1, // Use single connection in serverless
-    idle_timeout: 20,
-    // 开发环境：5秒超时，快速失败
-    // 生产环境：10秒超时
-    connect_timeout: isDevelopment ? 5 : 10,
-    max_lifetime: 60 * 10, // Serverless 模式：连接最大生命周期10分钟
+    idle_timeout: 60, // 增加到 60秒
+    // 开发环境：10秒超时，快速失败
+    // 生产环境：20秒超时
+    connect_timeout: isDevelopment ? 10 : 20,
+    // 🔧 移除 max_lifetime 参数（postgres.js 3.4.7 中存在 bug，会导致负数 timeout 警告）
+    // max_lifetime: 60 * 10, // ❌ 此参数在某些版本中会计算出负数，导致 TimeoutNegativeWarning
     connection: {
       application_name: 'study-app-serverless',
     },
@@ -100,7 +103,7 @@ export function db() {
     },
   });
 
-  return drizzle({ client: serverlessClient });
+  return drizzle(serverlessClient);
 }
 
 // Optional: Function to close database connection (useful for testing or graceful shutdown)

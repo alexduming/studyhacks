@@ -1,0 +1,24 @@
+{
+  "title": "Flashcards Library",
+  "subtitle": "Browse every AI-generated flashcard deck and revisit any study material in seconds.",
+  "buttons": {
+    "new": "create",
+    "empty": "Generate flashcards"
+  },
+  "empty": {
+    "title": "Flashcards Library",
+    "description": "No flashcard history yet. Upload a document and let AI craft your first deck.",
+    "button": "Create new deck"
+  },
+  "cards": {
+    "groupTitle": "Deck · {count} cards",
+    "questionLabel": "Q{index}",
+    "answerLabel": "A:",
+    "empty": "This record is empty. Head back to the generator and run it again.",
+    "remaining": "... {count} more cards available. Download the original JSON on the generator page.",
+    "actions": {
+      "resume": "Open deck in trainer",
+      "resumeHint": "Click to practice all {count} cards"
+    }
+  }
+}
