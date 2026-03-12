@@ -23,6 +23,7 @@ import { toast } from 'sonner';
 import { MiniPodcastPlayer } from '@/shared/components/podcast/mini-podcast-player';
 import { type PodcastDetailData } from '@/shared/components/podcast/podcast-detail-dialog';
 import { Button } from '@/shared/components/ui/button';
+import { buildPodcastDownloadUrl } from '@/shared/lib/podcast-download';
 
 interface Podcast extends PodcastDetailData {
   description: string;
@@ -202,7 +203,13 @@ export default function PodcastsPage() {
       return;
     }
     try {
-      const response = await fetch(podcast.audioUrl);
+      const response = await fetch(
+        buildPodcastDownloadUrl({
+          id: podcast.id,
+          audioUrl: podcast.audioUrl,
+          title: podcast.title,
+        })
+      );
       if (!response.ok) throw new Error('download failed');
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);

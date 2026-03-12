@@ -99,6 +99,49 @@
       "alt": "hero"
     }
   },
+  "tool_index": {
+    "id": "tool-index",
+    "title": "今天，你想做什么？",
+    "description": "一键开启今日学习与创作",
+    "items": [
+      {
+        "title": "生成AI笔记",
+        "description": "上传材料，自动提炼结构化重点",
+        "url": "/ai-note-taker",
+        "icon": "FileText"
+      },
+      {
+        "title": "生成闪卡",
+        "description": "把知识点变成可复习记忆卡片",
+        "url": "/flashcards",
+        "icon": "Brain"
+      },
+      {
+        "title": "生成测验",
+        "description": "即时出题，检查掌握程度",
+        "url": "/quiz",
+        "icon": "Target"
+      },
+      {
+        "title": "生成播客",
+        "description": "把内容转换成可听的学习音频",
+        "url": "/podcast",
+        "icon": "Headphones"
+      },
+      {
+        "title": "生成信息图",
+        "description": "一键生成高可读的视觉总结",
+        "url": "/infographic",
+        "icon": "BarChart3"
+      },
+      {
+        "title": "AI PPT（AI Slides）",
+        "description": "快速创建可演示的专业幻灯片",
+        "url": "/slides",
+        "icon": "Presentation"
+      }
+    ]
+  },
   "logos": {
     "title": "受到全球顶尖大学学生的信赖",
     "items": [

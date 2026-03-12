@@ -94,9 +94,9 @@
           "icon": "Brain"
         },
         {
-          "title": "AI 对话",
-          "url": "/admin/chats",
-          "icon": "MessageCircle"
+          "title": "分销管理",
+          "url": "/admin/affiliates",
+          "icon": "Users"
         }
       ]
     }

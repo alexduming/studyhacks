@@ -25,6 +25,7 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/shared/components/ui/tabs';
+import { buildPodcastDownloadUrl } from '@/shared/lib/podcast-download';
 
 export interface PodcastScript {
   speakerId?: string;
@@ -192,7 +193,13 @@ export function PodcastDetailDialog({
     }
 
     try {
-      const response = await fetch(podcast.audioUrl);
+      const response = await fetch(
+        buildPodcastDownloadUrl({
+          id: podcast.id,
+          audioUrl: podcast.audioUrl,
+          title: podcast.title,
+        })
+      );
       if (!response.ok) throw new Error('download failed');
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);

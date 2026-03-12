@@ -42,7 +42,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/components/ui/select';
+import { Input } from '@/shared/components/ui/input';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/shared/components/ui/tabs';
+import { Textarea } from '@/shared/components/ui/textarea';
 import { useAppContext } from '@/shared/contexts/app';
+import { parseLinkContentAction } from '@/app/actions/aippt';
 import {
   detectLearningFileType,
   readLearningFileContent,
@@ -83,6 +92,11 @@ const AINoteTaker = ({
 
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [materialInputMode, setMaterialInputMode] = useState<
+    'text' | 'upload' | 'link'
+  >('text');
+  const [pastedContent, setPastedContent] = useState('');
+  const [linkInput, setLinkInput] = useState('');
   const [generatedNotes, setGeneratedNotes] = useState('');
   const [activeTab, setActiveTab] = useState('upload');
   // 输出语言选择，默认为"自动"
@@ -136,6 +150,7 @@ const AINoteTaker = ({
     const file = event.target.files?.[0];
     if (file) {
       setUploadedFile(file);
+      setMaterialInputMode('upload');
       setIsProcessing(true);
       setError('');
       setSavedNoteId(null);
@@ -269,6 +284,129 @@ const AINoteTaker = ({
    * - 很多按钮都需要“已经生成的笔记”作为输入
    * - 这个小工具函数会提前帮你检查，避免白点按钮
    */
+  const handleGenerateFromText = async () => {
+    if (!pastedContent.trim()) {
+      toast.error(t('upload.text_empty'));
+      return;
+    }
+
+    setIsProcessing(true);
+    setError('');
+    setSavedNoteId(null);
+    setUploadedFile(null);
+
+    try {
+      const response = await fetch('/api/ai/notes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: pastedContent.trim(),
+          type: 'text',
+          fileName: 'pasted-content.txt',
+          outputLanguage,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setGeneratedNotes(result.notes);
+        setActiveTab('notes');
+        if (user) {
+          fetchUserCredits();
+        }
+        toast.success(t('notes.generation_success'));
+
+        if (result.note?.id) {
+          setSavedNoteId(result.note.id);
+        }
+      } else {
+        if (result.insufficientCredits) {
+          toast.error(
+            t('errors.insufficient_credits', {
+              required: result.requiredCredits,
+              remaining: result.remainingCredits,
+            })
+          );
+        } else {
+          toast.error(result.error || t('errors.generation_failed'));
+        }
+        setError(result.error || t('errors.generation_failed'));
+        setActiveTab('notes');
+      }
+    } catch (error) {
+      console.error('Error processing pasted content:', error);
+      setError(t('errors.processing_failed'));
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleGenerateFromLink = async () => {
+    if (!linkInput.trim()) {
+      toast.error(t('upload.link_empty'));
+      return;
+    }
+
+    setIsProcessing(true);
+    setError('');
+    setSavedNoteId(null);
+    setUploadedFile(null);
+
+    try {
+      const extractedContent = await parseLinkContentAction(linkInput.trim());
+
+      const response = await fetch('/api/ai/notes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: extractedContent,
+          type: 'link',
+          fileName: `web-link-${Date.now()}.txt`,
+          outputLanguage,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setGeneratedNotes(result.notes);
+        setActiveTab('notes');
+        if (user) {
+          fetchUserCredits();
+        }
+        toast.success(t('notes.generation_success'));
+
+        if (result.note?.id) {
+          setSavedNoteId(result.note.id);
+        }
+      } else {
+        if (result.insufficientCredits) {
+          toast.error(
+            t('errors.insufficient_credits', {
+              required: result.requiredCredits,
+              remaining: result.remainingCredits,
+            })
+          );
+        } else {
+          toast.error(result.error || t('errors.generation_failed'));
+        }
+        setError(result.error || t('errors.generation_failed'));
+        setActiveTab('notes');
+      }
+    } catch (error: any) {
+      console.error('Error processing link content:', error);
+      setError(error?.message || t('errors.processing_failed'));
+      toast.error(error?.message || t('errors.processing_failed'));
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const ensureNotesReady = () => {
     if (!generatedNotes) {
       toast.error(t('notes.toast_no_notes'));
@@ -580,122 +718,6 @@ const AINoteTaker = ({
                 className="border-primary/20 bg-muted/50 rounded-2xl border p-8 backdrop-blur-sm dark:bg-gray-900/50"
               >
                 <div className="text-center">
-                  {/* 主图标区域：改为 primary 单色渐变，贴合 turbo 主题主色 */}
-                  <div className="from-primary to-primary/70 mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-2xl bg-gradient-to-br">
-                    <Upload className="h-12 w-12 text-white" />
-                  </div>
-
-                  <h3 className="text-foreground mb-4 text-2xl font-bold dark:text-white">
-                    {t('upload.title')}
-                  </h3>
-                  <p className="text-muted-foreground mb-8 dark:text-gray-400">
-                    {t('upload.subtitle')}
-                  </p>
-
-                  {/* 语言选择器 */}
-                  <div className="mb-6 flex flex-col items-center justify-center gap-4">
-                    <div className="flex items-center gap-3">
-                      <label
-                        htmlFor="output-language-select"
-                        className="text-foreground/70 text-sm font-medium dark:text-gray-300"
-                      >
-                        {t('upload.output_language')}:
-                      </label>
-                      <Select
-                        value={outputLanguage}
-                        onValueChange={setOutputLanguage}
-                        disabled={isProcessing}
-                      >
-                        <SelectTrigger
-                          id="output-language-select"
-                          className="border-primary/30 hover:border-primary/50 bg-background/50 text-foreground w-[280px] dark:bg-gray-800/50 dark:text-white"
-                        >
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="border-primary/30 bg-background dark:bg-gray-900">
-                          <SelectItem value="auto">
-                            {t('languages.auto')}
-                          </SelectItem>
-                          <SelectItem value="zh">
-                            {t('languages.zh')}
-                          </SelectItem>
-                          <SelectItem value="en">
-                            {t('languages.en')}
-                          </SelectItem>
-                          <SelectItem value="es">
-                            {t('languages.es')}
-                          </SelectItem>
-                          <SelectItem value="fr">
-                            {t('languages.fr')}
-                          </SelectItem>
-                          <SelectItem value="de">
-                            {t('languages.de')}
-                          </SelectItem>
-                          <SelectItem value="ja">
-                            {t('languages.ja')}
-                          </SelectItem>
-                          <SelectItem value="ko">
-                            {t('languages.ko')}
-                          </SelectItem>
-                          <SelectItem value="pt">
-                            {t('languages.pt')}
-                          </SelectItem>
-                          <SelectItem value="ru">
-                            {t('languages.ru')}
-                          </SelectItem>
-                          <SelectItem value="ar">
-                            {t('languages.ar')}
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* 主题色选择器 */}
-                    <div className="flex items-center gap-3">
-                      <span className="text-foreground/70 text-sm font-medium dark:text-gray-300">
-                        {t('upload.theme_color')}:
-                      </span>
-                      <div className="flex gap-2">
-                        {presetColors.map((preset) => (
-                          <button
-                            key={preset.name}
-                            onClick={() => setCustomThemeColor(preset.value)}
-                            className={`h-6 w-6 rounded-full border-2 transition-all ${
-                              customThemeColor === preset.value
-                                ? 'scale-110 border-white ring-2 ring-white/50'
-                                : 'border-transparent hover:scale-110'
-                            }`}
-                            style={{ backgroundColor: preset.color }}
-                            title={preset.name}
-                            disabled={isProcessing}
-                          />
-                        ))}
-                        {/* 自定义颜色输入 */}
-                        <div className="border-border bg-muted relative flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border dark:border-gray-600 dark:bg-gray-800">
-                          <input
-                            type="color"
-                            value={customThemeColor || '#6535F6'}
-                            onChange={(e) =>
-                              setCustomThemeColor(e.target.value)
-                            }
-                            className="absolute inset-0 h-[150%] w-[150%] -translate-x-1/4 -translate-y-1/4 cursor-pointer opacity-0"
-                            disabled={isProcessing}
-                          />
-                          <div
-                            className="h-full w-full rounded-full"
-                            style={{
-                              backgroundColor:
-                                customThemeColor || 'transparent',
-                              backgroundImage: !customThemeColor
-                                ? 'linear-gradient(to bottom right, #f0f, #0ff)'
-                                : 'none',
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
                   {/* 
                     非程序员解释：
                     - 浏览器出于安全原因，有时不允许用 JS 直接"点"隐藏的 <input type="file">
@@ -707,35 +729,215 @@ const AINoteTaker = ({
                     ref={fileInputRef}
                     type="file"
                     // 暂时移除音视频支持：accept="audio/*,video/*,.pdf,.doc,.docx,.txt"
-                    accept=".pdf,.doc,.docx,.txt"
+                    accept=".pdf,.doc,.docx,.txt,.md"
                     onChange={handleFileUpload}
                     className="hidden"
                   />
 
                   {/* 使用 Button 作为外壳，把 label 当作子元素渲染（asChild） */}
-                  <Button
-                    asChild
-                    // 上传按钮：使用 primary 为主色的渐变，去掉额外的蓝色终点
-                    className="from-primary hover:from-primary/90 to-primary/70 hover:to-primary/80 bg-gradient-to-r px-8 py-4 text-lg text-white"
-                    disabled={isProcessing}
+                  <Tabs
+                    value={materialInputMode}
+                    onValueChange={(value) =>
+                      setMaterialInputMode(value as 'text' | 'upload' | 'link')
+                    }
+                    className="mx-auto w-full max-w-3xl"
                   >
-                    <label
-                      htmlFor="ai-note-file-input"
-                      className="flex cursor-pointer items-center"
-                    >
-                      {isProcessing ? (
-                        <>
-                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                          {t('upload.processing')}
-                        </>
-                      ) : (
-                        <>
-                          <CreditsCost credits={3} />
-                          {t('upload.upload_button')}
-                        </>
-                      )}
-                    </label>
-                  </Button>
+                    <TabsList className="bg-muted text-foreground mb-4 grid grid-cols-3 rounded-xl">
+                      <TabsTrigger className="h-9 text-xs" value="text">
+                        {t('upload.text_tab')}
+                      </TabsTrigger>
+                      <TabsTrigger className="h-9 text-xs" value="upload">
+                        {t('upload.upload_tab')}
+                      </TabsTrigger>
+                      <TabsTrigger className="h-9 text-xs" value="link">
+                        {t('upload.link_tab')}
+                      </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="text" className="space-y-3">
+                      <div className="border-primary/20 bg-background/50 rounded-2xl border p-4 text-left dark:bg-gray-950/40">
+                        <Textarea
+                          value={pastedContent}
+                          onChange={(e) => setPastedContent(e.target.value)}
+                          placeholder={t('upload.text_placeholder')}
+                          disabled={isProcessing}
+                          className="border-border bg-muted/40 text-foreground min-h-40 resize-y text-sm dark:bg-black/20"
+                        />
+                        <div className="mt-3 flex justify-center">
+                          <Button
+                            onClick={handleGenerateFromText}
+                            disabled={isProcessing || !pastedContent.trim()}
+                            className="from-primary hover:from-primary/90 to-primary/70 hover:to-primary/80 h-11 rounded-full bg-gradient-to-r px-7 text-white"
+                          >
+                            {isProcessing ? (
+                              <>
+                                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                {t('upload.processing')}
+                              </>
+                            ) : (
+                              <>
+                                <CreditsCost credits={3} />
+                                {t('upload.generate_from_text')}
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="upload" className="space-y-3">
+                      <div className="border-primary/20 bg-background/50 rounded-2xl border border-dashed px-5 py-8 text-center dark:bg-gray-950/40">
+                        <p className="text-muted-foreground mb-4 text-sm dark:text-gray-400">
+                          {t('upload.upload_hint')}
+                        </p>
+                        <Button
+                          asChild
+                          className="from-primary hover:from-primary/90 to-primary/70 hover:to-primary/80 h-11 rounded-full bg-gradient-to-r px-7 text-white"
+                          disabled={isProcessing}
+                        >
+                          <label
+                            htmlFor="ai-note-file-input"
+                            className="inline-flex cursor-pointer items-center justify-center"
+                          >
+                            {isProcessing ? (
+                              <>
+                                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                {t('upload.processing')}
+                              </>
+                            ) : (
+                              <>
+                                <CreditsCost credits={3} />
+                                {t('upload.upload_button')}
+                              </>
+                            )}
+                          </label>
+                        </Button>
+                        {uploadedFile && (
+                          <div className="border-primary/20 bg-muted/50 mt-4 rounded-xl border p-3 dark:bg-black/20">
+                            <p className="text-muted-foreground text-xs dark:text-gray-400">
+                              {t('upload.file_selected')}
+                            </p>
+                            <p className="text-foreground mt-1 truncate text-sm font-medium dark:text-white">
+                              {uploadedFile.name}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="link" className="space-y-3">
+                      <div className="border-primary/20 bg-background/50 mx-auto max-w-2xl space-y-4 rounded-2xl border p-5 text-center dark:bg-gray-950/40">
+                        <p className="text-muted-foreground text-sm dark:text-gray-400">
+                          {t('upload.link_hint')}
+                        </p>
+
+                        <Input
+                          value={linkInput}
+                          onChange={(e) => setLinkInput(e.target.value)}
+                          placeholder={t('upload.link_placeholder')}
+                          disabled={isProcessing}
+                          className="border-border bg-muted/40 text-foreground h-11 text-sm dark:bg-black/20"
+                        />
+
+                        <div className="flex justify-center">
+                          <Button
+                            type="button"
+                            onClick={handleGenerateFromLink}
+                            disabled={isProcessing || !linkInput.trim()}
+                            className="from-primary hover:from-primary/90 to-primary/70 hover:to-primary/80 h-11 rounded-full bg-gradient-to-r px-7 text-white"
+                          >
+                            {isProcessing ? (
+                              <>
+                                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                {t('upload.processing')}
+                              </>
+                            ) : (
+                              <>
+                                <CreditsCost credits={3} />
+                                {t('upload.generate_from_link')}
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+
+                  <div className="mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+                    <div className="flex items-center gap-2">
+                      <label
+                        htmlFor="output-language-select"
+                        className="text-foreground/70 text-xs font-medium dark:text-gray-300"
+                      >
+                        {t('upload.output_language')}
+                      </label>
+                      <Select
+                        value={outputLanguage}
+                        onValueChange={setOutputLanguage}
+                        disabled={isProcessing}
+                      >
+                        <SelectTrigger
+                          id="output-language-select"
+                          className="border-primary/30 hover:border-primary/50 bg-background/60 text-foreground h-9 w-[200px] text-xs dark:bg-gray-800/50 dark:text-white"
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="border-primary/30 bg-background dark:bg-gray-900">
+                          <SelectItem value="auto">{t('languages.auto')}</SelectItem>
+                          <SelectItem value="zh">{t('languages.zh')}</SelectItem>
+                          <SelectItem value="en">{t('languages.en')}</SelectItem>
+                          <SelectItem value="es">{t('languages.es')}</SelectItem>
+                          <SelectItem value="fr">{t('languages.fr')}</SelectItem>
+                          <SelectItem value="de">{t('languages.de')}</SelectItem>
+                          <SelectItem value="ja">{t('languages.ja')}</SelectItem>
+                          <SelectItem value="ko">{t('languages.ko')}</SelectItem>
+                          <SelectItem value="pt">{t('languages.pt')}</SelectItem>
+                          <SelectItem value="ru">{t('languages.ru')}</SelectItem>
+                          <SelectItem value="ar">{t('languages.ar')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-foreground/70 text-xs font-medium dark:text-gray-300">
+                        {t('upload.theme_color')}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {presetColors.map((preset) => (
+                          <button
+                            key={preset.name}
+                            onClick={() => setCustomThemeColor(preset.value)}
+                            className={`h-5 w-5 rounded-full border transition-all ${
+                              customThemeColor === preset.value
+                                ? 'border-white ring-2 ring-white/40'
+                                : 'border-transparent hover:scale-110'
+                            }`}
+                            style={{ backgroundColor: preset.color }}
+                            title={preset.name}
+                            disabled={isProcessing}
+                          />
+                        ))}
+                        <div className="border-border bg-muted relative flex h-5 w-5 items-center justify-center overflow-hidden rounded-full border dark:border-gray-600 dark:bg-gray-800">
+                          <input
+                            type="color"
+                            value={customThemeColor || '#6535F6'}
+                            onChange={(e) => setCustomThemeColor(e.target.value)}
+                            className="absolute inset-0 h-[150%] w-[150%] -translate-x-1/4 -translate-y-1/4 cursor-pointer opacity-0"
+                            disabled={isProcessing}
+                          />
+                          <div
+                            className="h-full w-full rounded-full"
+                            style={{
+                              backgroundColor: customThemeColor || 'transparent',
+                              backgroundImage: !customThemeColor
+                                ? 'linear-gradient(to bottom right, #f0f, #0ff)'
+                                : 'none',
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
                   {/* 支持的文件类型 */}
                   <div className="mx-auto mt-12 grid max-w-2xl grid-cols-2 gap-4 md:grid-cols-2">

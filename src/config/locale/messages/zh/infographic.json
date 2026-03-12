@@ -37,6 +37,53 @@
     "file_count": "{count} 个文件",
     "separator": "、"
   },
+  "style": {
+    "title": "风格设置",
+    "preset_label": "预设风格",
+    "adaptive_intensity_label": "艺术化强度（仅智能适配）",
+    "adaptive_intensity_hint": "请先选择“智能适配风格”以启用艺术化强度。",
+    "selected": "已选择",
+    "adaptive_intensity": {
+      "balanced": {
+        "name": "平衡模式",
+        "description": "优先清晰可读与信息表达稳定，风格化适中。"
+      },
+      "artistic": {
+        "name": "艺术增强",
+        "description": "提升艺术表现与视觉节奏，兼顾可读性与风格辨识度。"
+      },
+      "signature": {
+        "name": "脑洞大开",
+        "description": "追求更强视觉记忆点与艺术表达，构图与装饰更大胆。"
+      }
+    },
+    "presets": {
+      "adaptive_smart": {
+        "name": "智能适配风格",
+        "description": "根据内容主题、结构和语气自动匹配最合适的信息图视觉表达。"
+      },
+      "hand_drawn_infographic": {
+        "name": "手绘卡通风",
+        "description": "手绘卡通信息图，线条轻松生动，适合把抽象知识讲得更直观。"
+      },
+      "isometric_thick_line_macaron": {
+        "name": "等距粗线马卡龙",
+        "description": "2.5D 等距视角搭配粗黑描边和柔和马卡龙配色，模块感强、识别度高。"
+      },
+      "minimal_line_storytelling_compare": {
+        "name": "极简线条对比风",
+        "description": "黑白细线与少量强调色，适合做前后对比、错误与正确、步骤转变类内容。"
+      },
+      "flat_vector_education": {
+        "name": "教育扁平矢量风",
+        "description": "通用教育型 Flat Vector 信息图，AI 会自行选择典型教学视觉元素。"
+      },
+      "flat_design_modern": {
+        "name": "扁平插画设计",
+        "description": "专业现代的高审美 Flat Design 信息图，纯色块与简洁人物插画更强。"
+      }
+    }
+  },
   "actions": {
     "clear": "清空内容",
     "generate": "生成信息图",

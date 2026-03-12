@@ -5,7 +5,11 @@ import { fal } from '@fal-ai/client';
 import { AIMediaType, AITaskStatus } from '@/extensions/ai';
 import { createAITaskRecordOnly } from '@/shared/models/ai_task';
 import { getAllConfigs } from '@/shared/models/config';
-import { consumeCredits, getRemainingCredits, refundCredits } from '@/shared/models/credit';
+import {
+  consumeCredits,
+  getRemainingCredits,
+  refundCredits,
+} from '@/shared/models/credit';
 import { getUserInfo } from '@/shared/models/user';
 
 // 使用 Node.js 运行时，保证可以安全调用外部 API 并使用环境变量
@@ -30,10 +34,14 @@ export const runtime = 'nodejs';
 
 const KIE_BASE_URL = 'https://api.kie.ai/api/v1';
 // APIYI 使用 Gemini 原生格式端点（统一支持文生图和图生图，且支持分辨率参数）
-const APIYI_TEXT2IMG_URL = 'https://api.apiyi.com/v1beta/models/gemini-3-pro-image-preview:generateContent';
+const APIYI_TEXT2IMG_URL =
+  'https://api.apiyi.com/v1beta/models/gemini-3-pro-image-preview:generateContent';
 
 // 支持的提供商类型
 type ProviderName = 'FAL' | 'KIE' | 'Replicate' | 'APIYI';
+
+type InferredLanguage = 'zh' | 'en' | 'other';
+type AdaptiveStyleIntensity = 'balanced' | 'artistic' | 'signature';
 
 /**
  * 图片生成服务优先级配置（从环境变量读取）
@@ -46,28 +54,40 @@ type ProviderName = 'FAL' | 'KIE' | 'Replicate' | 'APIYI';
  * - 与 PPT 生成共用同一个环境变量，统一管理
  */
 function getProviderPriority(): Array<ProviderName> {
-  const priorityStr = process.env.IMAGE_PROVIDER_PRIORITY || 'FAL,KIE,Replicate,APIYI';
+  const priorityStr =
+    process.env.IMAGE_PROVIDER_PRIORITY || 'FAL,KIE,Replicate,APIYI';
 
   // 解析逗号分隔的字符串，去除空格
   const providers = priorityStr
     .split(',')
-    .map(p => p.trim())
-    .filter(p => ['FAL', 'KIE', 'Replicate', 'APIYI'].includes(p)) as Array<ProviderName>;
+    .map((p) => p.trim())
+    .filter((p) =>
+      ['FAL', 'KIE', 'Replicate', 'APIYI'].includes(p)
+    ) as Array<ProviderName>;
 
   // 如果解析后为空或少于1个提供商，使用默认配置
   if (providers.length === 0) {
-    console.warn('[Infographic] ⚠️ IMAGE_PROVIDER_PRIORITY 配置无效，使用默认顺序: FAL,KIE,Replicate,APIYI');
+    console.warn(
+      '[Infographic] ⚠️ IMAGE_PROVIDER_PRIORITY 配置无效，使用默认顺序: FAL,KIE,Replicate,APIYI'
+    );
     return ['FAL', 'KIE', 'Replicate', 'APIYI'];
   }
 
   // 确保所有四个提供商都存在（防止配置遗漏）
-  const allProviders: Array<ProviderName> = ['FAL', 'KIE', 'Replicate', 'APIYI'];
-  const missingProviders = allProviders.filter(p => !providers.includes(p));
+  const allProviders: Array<ProviderName> = [
+    'FAL',
+    'KIE',
+    'Replicate',
+    'APIYI',
+  ];
+  const missingProviders = allProviders.filter((p) => !providers.includes(p));
 
   // 将遗漏的提供商追加到末尾
   const finalProviders = [...providers, ...missingProviders];
 
-  console.log(`[Infographic] 📋 图片生成优先级: ${finalProviders.join(' -> ')}`);
+  console.log(
+    `[Infographic] 📋 图片生成优先级: ${finalProviders.join(' -> ')}`
+  );
   return finalProviders;
 }
 
@@ -76,7 +96,370 @@ interface GenerateParams {
   aspectRatio?: string;
   resolution?: string;
   outputFormat?: string;
+  stylePreset?: string;
+  styleIntensity?: AdaptiveStyleIntensity;
   referenceImageUrl?: string; // 新增：参考图URL（用于图生图模式）
+}
+
+const STYLE_PRESET_PROMPTS: Record<string, string> = {
+  adaptive_smart: `Style: Adaptive, content-native infographic.
+- Composition: Choose the best layout based on the content structure (comparison/process/framework/data story), with strong hierarchy and generous whitespace.
+- Visual Elements: Choose iconography, illustration density, and chart style according to topic tone and audience intent.
+- Art Rules: Maintain a coherent visual system (shape language, line style, spacing rhythm, and color logic); avoid random decoration.
+- Text: Keep labels concise and scannable. Prioritize key takeaways and decision-relevant points.
+- Goal: Produce the most fitting visual style for THIS specific content rather than forcing a fixed preset style.`,
+  hand_drawn_infographic: `Style: Universal hand-drawn cartoon infographic.
+- Composition: 3:4 vertical modular layout with information distributed in a top-to-bottom hierarchy and generous whitespace.
+- Visual Elements: Minimal yet lively hand-drawn icons, metaphorical cartoon characters, and relevant illustrative scenes that make abstract concepts intuitive.
+- Art Rules: Use only hand-drawn lines and tactile sketch textures. Absolutely no photorealism or photography. Keep the palette clean, soft, and friendly.
+- Text: Extract core keywords only, rendered in a clear handwritten-style typographic voice.
+- Goal: Turn educational content into a playful and highly readable hand-drawn infographic.`,
+  isometric_thick_line_macaron: `Style: Universal isometric 2.5D cartoon infographic.
+- Composition: 3:4 vertical layout, with content stacked from top to bottom like modular building blocks connected by platform-like sections.
+- Perspective: Use a consistent 30-degree isometric perspective with clear geometric depth.
+- Line Rules: Apply bold black outlines to all objects for a flat cartoon sticker-like look.
+- Color Rules: Use a soft low-saturation macaron palette, such as pastel blue, pink, green, purple, and yellow.
+- Lighting: Keep shadows extremely subtle, light gray, soft-edged, and low-opacity. Avoid heavy texture.
+- Background: Clean light gray or warm off-white background to keep focus on the subject.
+- Visual Elements: Use simple high-recognition 3D geometric icons. Place text inside rounded rectangular speech-bubble style containers.
+- Goal: Make complex ideas feel approachable through geometric depth and playful pastel structure.`,
+  minimal_line_storytelling_compare: `Style: Minimal line-based narrative comparison infographic.
+- Composition: 3:4 vertical dual-column comparison layout with a strong top headline and concise keyword blocks.
+- Visual Elements: Use simple stick figures and minimal line-based characters. Express emotion and change with exaggerated symbols such as messy scribbles, sighs, light bulbs, and check marks.
+- Art Rules: Pure white background, thin black hand-drawn lines, and only tiny amounts of vivid accent colors such as red for mistakes and green for success.
+- Text: Keep copy short, punchy, and comparison-oriented.
+- Goal: Communicate before-vs-after understanding through ultra-minimal visual storytelling.`,
+  flat_vector_education: `Create an educational infographic to explain the provided file or text content.
+- Style: Flat vector.
+- Composition: Choose the most suitable 3:4 vertical educational layout for the material.
+- Visual Elements: Select a few representative educational visual elements on your own to support comprehension.
+- Art Rules: Keep shapes flat, edges clean, hierarchy explicit, and the whole composition easy to scan.
+- Goal: Deliver an educational visual summary that feels clear, organized, and approachable.`,
+  flat_design_modern: `Style: Universal flat design infographic.
+- Composition: 3:4 vertical hierarchical layout with clearly divided information sections, abundant whitespace, and a strong visual center.
+- Visual Elements: Minimal 2D flat icons, illustrated characters, solid color shapes, and straight guiding lines.
+- Art Rules: No shadows, gradients, or depth effects. Use a modern, premium flat-illustration color system with strong overall art direction.
+- Text: Use a modern sans-serif typographic voice similar to Source Han Sans, emphasizing data and core phrases.
+- Goal: Present information in a professional, modern flat-illustration language with high aesthetic polish.`,
+};
+
+const LANGUAGE_RULE = `⚠️ CRITICAL LANGUAGE RULE - ABSOLUTELY NON-NEGOTIABLE ⚠️
+ALL text in the infographic MUST be in the EXACT SAME LANGUAGE as the input content below.
+- Chinese input (中文) → Chinese output (中文标签、中文标题、中文说明)
+- English input → English output
+- Other languages → Same language output
+🚫 NEVER translate to English or any other language. This is STRICTLY FORBIDDEN.
+🚫 DO NOT use English labels for Chinese content.
+The language of the output MUST match the language of the input EXACTLY.
+
+Language self-check before final output:
+- Verify every visible title, label, annotation, and caption follows the input language.
+- If input is Chinese, output must be 100% Chinese except brand names already present in source content.
+- If any English text appears for Chinese input, rewrite ALL text to Chinese before finalizing.`;
+
+function inferContentLanguage(content: string): InferredLanguage {
+  const cjkMatches = content.match(/[\u3400-\u9fff]/g) || [];
+  const latinMatches = content.match(/[A-Za-z]/g) || [];
+
+  if (cjkMatches.length >= 8 && cjkMatches.length >= latinMatches.length) {
+    return 'zh';
+  }
+
+  if (
+    latinMatches.length >= 8 &&
+    latinMatches.length > cjkMatches.length * 1.2
+  ) {
+    return 'en';
+  }
+
+  return 'other';
+}
+
+function buildLanguageGuard(content: string): string {
+  const lang = inferContentLanguage(content);
+
+  if (lang === 'zh') {
+    return `STRICT OVERRIDE FOR THIS TASK: Source language is Chinese.
+- All visible text MUST be Chinese.
+- Do not output English headings, labels, bullets, chart titles, or callouts.
+- Keep existing English acronyms only if they already appear in source content.`;
+  }
+
+  if (lang === 'en') {
+    return `STRICT OVERRIDE FOR THIS TASK: Source language is English.
+- All visible text MUST be English.
+- Do not translate to Chinese or mixed-language output unless source content is mixed.`;
+  }
+
+  return `STRICT OVERRIDE FOR THIS TASK: Keep output language identical to source language.`;
+}
+
+function buildAdaptiveStylePrompt(
+  content: string,
+  intensity: AdaptiveStyleIntensity = 'balanced'
+): string {
+  const text = content.toLowerCase();
+  const numberCount = (content.match(/\d+/g) || []).length;
+  const statCount = (
+    content.match(/%|％|¥|\$|亿|万|kpi|roi|增长|下降|同比|环比/g) || []
+  ).length;
+  const listSignalCount = (
+    content.match(/(^|\n)\s*[-*\d]+[.)、:：]?\s+/gm) || []
+  ).length;
+
+  const hasProcessSignals =
+    /步骤|流程|step|process|how to|方法|路径|roadmap|pipeline|phase/.test(text);
+  const hasComparisonSignals =
+    /对比|vs|比较|优劣|pros|cons|差异|A\/B|ab test|trade[- ]?off/.test(text);
+  const hasTrendSignals =
+    /趋势|预测|未来|opinion|观点|争议|hot|trend|forecast|signal/.test(text);
+  const hasEducationSignals =
+    /学习|教程|教学|入门|指南|教育|课程|training|lesson|framework/.test(text);
+  const hasTimelineSignals =
+    /timeline|里程碑|阶段|季度|q1|q2|q3|q4|今年|明年|roadmap|计划/.test(text);
+  const hasFrameworkSignals =
+    /框架|模型|principle|pillar|维度|taxonomy|matrix|map/.test(text);
+  const hasDecisionSignals =
+    /建议|选择|决策|recommend|decision|should|方案|策略/.test(text);
+  const hasActionSignals =
+    /清单|checklist|todo|执行|落地|action|next step|待办/.test(text);
+  const hasRiskSignals =
+    /风险|失败|错误|warning|caution|pitfall|avoid|problem/.test(text);
+  const hasTechSignals =
+    /ai|模型|agent|api|system|架构|代码|engineering|workflow/.test(text);
+  const hasBusinessSignals =
+    /市场|用户|增长|转化|商业|收入|产品|gmv|营销|运营/.test(text);
+
+  const dataDensity =
+    numberCount >= 10 || statCount >= 4
+      ? 'High-density quantitative content.'
+      : numberCount >= 4 || listSignalCount >= 4
+        ? 'Medium data density with mixed facts and guidance.'
+        : 'Low-density conceptual content.';
+
+  const compositionArchetype = hasComparisonSignals
+    ? 'Comparison matrix layout with mirrored columns and explicit deltas.'
+    : hasProcessSignals
+      ? 'Sequential flow layout with directional progression and milestone anchors.'
+      : hasTimelineSignals
+        ? 'Timeline roadmap layout with temporal lanes and phase separators.'
+        : hasFrameworkSignals
+          ? 'Framework grid layout with principle blocks and relationship connectors.'
+          : numberCount >= 6
+            ? 'Data-card dashboard layout with evidence-first reading order.'
+            : 'Editorial modular layout with balanced storytelling sections.';
+
+  const narrativeMode = hasDecisionSignals
+    ? 'Decision-support narrative (options, trade-offs, recommendations).'
+    : hasActionSignals
+      ? 'Playbook narrative (action steps and execution checklist).'
+      : hasProcessSignals
+        ? 'How-to narrative (clear progression from start to finish).'
+        : hasTrendSignals
+          ? 'Trend-analysis narrative (signals, implications, and outlook).'
+          : 'Explainer narrative (core concept to key takeaways).';
+
+  const audienceLevel = /入门|新手|beginner|101|基础/.test(text)
+    ? 'Beginner-friendly: higher clarity, simpler labels, less jargon.'
+    : /高级|进阶|专家|advanced|expert|benchmark|architecture/.test(text)
+      ? 'Expert-leaning: denser terminology, tighter modules, stronger information compression.'
+      : 'General professional audience: concise and practical language.';
+
+  const domainVisualLanguage = hasTechSignals
+    ? 'Tech-product visual language: system nodes, pipelines, and modular components.'
+    : hasBusinessSignals
+      ? 'Business-insight visual language: KPI cards, funnel cues, and strategic markers.'
+      : /医疗|health|科学|science|research/.test(text)
+        ? 'Evidence-centric visual language: precision diagrams and cautious emphasis.'
+        : 'Universal knowledge visual language: neutral symbols and broad accessibility.';
+
+  const emotionalIntensity = hasRiskSignals
+    ? 'High-alert tone with disciplined contrast and warning emphasis.'
+    : hasTrendSignals
+      ? 'Dynamic forward-looking tone with energetic focal points.'
+      : hasEducationSignals
+        ? 'Friendly, encouraging tone with approachable teaching cues.'
+        : 'Calm professional tone with confidence and restraint.';
+
+  const abstractionLevel = hasFrameworkSignals
+    ? 'Abstract-systemic representation with symbolic structures.'
+    : hasProcessSignals || hasActionSignals
+      ? 'Concrete-operational representation with explicit steps and outcomes.'
+      : 'Balanced abstraction using practical metaphors and concrete anchors.';
+
+  const iconIllustrationPolicy = hasTechSignals
+    ? 'Use precise line icons and modular technical motifs; avoid playful mascots.'
+    : hasEducationSignals
+      ? 'Use friendly metaphorical icons with simple explanatory mini-illustrations.'
+      : 'Use clean universal icons with consistent stroke/shape grammar.';
+
+  const chartGrammar =
+    numberCount >= 8 || statCount >= 3
+      ? 'Use mini bars, trend lines, and metric callouts; every chart must state the takeaway.'
+      : hasComparisonSignals
+        ? 'Use side-by-side comparison bars/tables with explicit labels and winner cues.'
+        : hasTimelineSignals
+          ? 'Use timeline rails, phase markers, and milestone chips over heavy charts.'
+          : 'Prefer icon + short-text modules over chart-heavy blocks.';
+
+  const spacingRhythm =
+    numberCount >= 10
+      ? 'Compact but breathable spacing with strict grouping boundaries.'
+      : 'Airy spacing with strong chunking for scan-first reading.';
+
+  const colorStrategy = hasRiskSignals
+    ? 'Use controlled high-contrast palette with warning accents reserved for risk points.'
+    : hasTrendSignals
+      ? 'Use vibrant accent-driven palette to emphasize momentum and signal hierarchy.'
+      : hasEducationSignals
+        ? 'Use soft, harmonious palette with warm/cool balance for readability.'
+        : 'Use neutral-professional palette with one clear accent color family.';
+
+  const typographyVoice = /政策|policy|research|报告|whitepaper/.test(text)
+    ? 'Editorial-professional typography with disciplined heading scale.'
+    : hasEducationSignals
+      ? 'Approachable educational typography with clear headline/subheadline separation.'
+      : 'Modern utilitarian typography optimized for fast scanning.';
+
+  const artisticDirection =
+    intensity === 'signature'
+      ? 'Use a highly distinctive art direction with cinematic framing, strong texture language, and iconic thematic motifs while preserving readability.'
+      : intensity === 'artistic'
+        ? 'Use elevated art direction with richer composition rhythm, stylized motif system, and tasteful texture accents.'
+        : 'Use practical art direction with restrained styling and readability-first execution.';
+
+  const renderComplexity =
+    intensity === 'signature'
+      ? 'High visual complexity with layered foreground/midground/background depth and deliberate focal lighting.'
+      : intensity === 'artistic'
+        ? 'Medium-high complexity with stylized depth, richer icon scenes, and stronger focal anchors.'
+        : 'Moderate complexity with simple modules and low-noise backgrounds.';
+
+  const ornamentalPolicy =
+    intensity === 'signature'
+      ? 'Allow themed decorative frames, glyphs, symbolic ornaments, and atmospheric gradients when they reinforce story coherence.'
+      : intensity === 'artistic'
+        ? 'Allow light decorative motifs and subtle surface textures in non-critical whitespace.'
+        : 'Keep decorations minimal and functional only.';
+
+  const blueprintPolicy =
+    intensity === 'signature'
+      ? 'Enforce one hero centerpiece plus supporting rails/cards and explicit start/end attention points.'
+      : intensity === 'artistic'
+        ? 'Enforce one dominant zone plus 2-3 secondary zones with directional visual guidance.'
+        : 'Use standard modular blueprint with straightforward sectioning.';
+
+  const failSafeRule =
+    intensity === 'signature'
+      ? 'If details become crowded, reduce ornament density before reducing text legibility.'
+      : 'If layout is crowded, simplify decorative elements and preserve clarity.';
+
+  return `Style: Adaptive style generated from content semantics and communication intent.
+- Dimension 1 / Composition Archetype: ${compositionArchetype}
+- Dimension 2 / Narrative Mode: ${narrativeMode}
+- Dimension 3 / Audience Calibration: ${audienceLevel}
+- Dimension 4 / Domain Visual Language: ${domainVisualLanguage}
+- Dimension 5 / Data Density: ${dataDensity}
+- Dimension 6 / Emotional Intensity: ${emotionalIntensity}
+- Dimension 7 / Abstraction Level: ${abstractionLevel}
+- Dimension 8 / Icon & Illustration Policy: ${iconIllustrationPolicy}
+- Dimension 9 / Chart Grammar: ${chartGrammar}
+- Dimension 10 / Spacing Rhythm: ${spacingRhythm}
+- Dimension 11 / Color Strategy: ${colorStrategy}
+- Dimension 12 / Typography Voice: ${typographyVoice}
+- Dimension 13 / Artistic Direction: ${artisticDirection}
+- Dimension 14 / Render Complexity: ${renderComplexity}
+- Dimension 15 / Ornament Policy: ${ornamentalPolicy}
+- Dimension 16 / Blueprint Policy: ${blueprintPolicy}
+- Output Intensity: ${intensity}
+- Art Rules: No photorealism, no random decorative clutter, keep hierarchy explicit and consistent.
+- Quality Rules: Keep text legible at a glance, avoid collisions, and align visual metaphors with content semantics.
+- Fail-safe Rule: ${failSafeRule}
+- Goal: Synthesize a best-fit style for this specific content, with visibly distinct outcomes across different content types.`;
+}
+
+function normalizeAdaptiveIntensity(value: unknown): AdaptiveStyleIntensity {
+  if (value === 'artistic' || value === 'signature' || value === 'balanced') {
+    return value;
+  }
+  return 'balanced';
+}
+
+function normalizeStylePreset(value: unknown): string {
+  if (
+    value === 'adaptive_smart' ||
+    value === 'hand_drawn_infographic' ||
+    value === 'isometric_thick_line_macaron' ||
+    value === 'minimal_line_storytelling_compare' ||
+    value === 'flat_vector_education' ||
+    value === 'flat_design_modern'
+  ) {
+    return value;
+  }
+  return 'adaptive_smart';
+}
+
+function getStylePrompt(stylePreset?: string): string {
+  if (stylePreset === 'adaptive_smart') {
+    return STYLE_PRESET_PROMPTS.adaptive_smart;
+  }
+  if (!stylePreset) {
+    return STYLE_PRESET_PROMPTS.hand_drawn_infographic;
+  }
+  return (
+    STYLE_PRESET_PROMPTS[stylePreset] ||
+    STYLE_PRESET_PROMPTS.hand_drawn_infographic
+  );
+}
+
+function buildInfographicPrompt(
+  params: GenerateParams,
+  hasReferenceImage: boolean
+): string {
+  const stylePrompt =
+    !params.stylePreset || params.stylePreset === 'adaptive_smart'
+      ? buildAdaptiveStylePrompt(params.content, params.styleIntensity)
+      : getStylePrompt(params.stylePreset);
+  const languageGuard = buildLanguageGuard(params.content);
+
+  if (hasReferenceImage) {
+    return `[关键风格参考] 你必须严格遵循提供的参考图片的视觉风格。这是当前任务中最高优先级的要求。
+
+风格要求（必须遵守）：
+- **配色方案**：使用与参考图片完全一致的颜色体系（背景色、强调色、文字颜色）
+- **设计风格**：匹配参考图的图形风格、插画技法和整体美术气质
+- **版式结构**：参考并对齐主要构图方式和元素排布逻辑
+- **文字风格**：使用与参考图相似的字体风格和层级关系
+- **视觉元素**：使用类似的图标、形状和装饰性元素
+- **整体氛围**：复刻参考图的气质、专业度和视觉调性
+
+预设风格偏好（在不与参考图冲突的前提下再应用）：
+${stylePrompt}
+
+内容任务说明：
+请基于下方内容创作一张教育型信息图，解释和梳理核心要点，自主选择典型的视觉元素进行呈现。
+
+${LANGUAGE_RULE}
+
+${languageGuard}
+
+Content:
+${params.content}
+
+[提醒] 首先保证与参考图片在风格上的高度一致，其次再表达预设风格偏好。务必保证信息图中所有文字与上方内容保持同一种语言。`;
+  }
+
+  return `创建一张教育型信息图，用来解释下方提供的文件或文本内容。你需要自行选择一些典型的视觉元素。
+
+Selected Style Instructions:
+${stylePrompt}
+
+${LANGUAGE_RULE}
+
+${languageGuard}
+
+Content:
+${params.content}`;
 }
 
 /**
@@ -103,7 +486,7 @@ async function tryGenerateWithFal(
     // ✅ 根据是否有参考图选择模型
     // - 有参考图：使用 edit 模型（图生图）
     // - 无参考图：使用普通模型（文生图）
-    const modelName = hasReferenceImage 
+    const modelName = hasReferenceImage
       ? 'fal-ai/nano-banana-pro/edit'
       : 'fal-ai/nano-banana-pro';
 
@@ -116,54 +499,9 @@ async function tryGenerateWithFal(
       credentials: apiKey,
     });
 
-    // 构建提示词（根据是否有参考图调整结构）
-    let prompt = '';
-    
+    const prompt = buildInfographicPrompt(params, hasReferenceImage);
     if (hasReferenceImage) {
-      // 有参考图：强调风格复制
-      prompt = `[CRITICAL STYLE REFERENCE] You MUST strictly follow the provided reference image's visual style. This is the HIGHEST priority.
-
-Style Requirements (MANDATORY):
-- **Color Palette**: Use EXACTLY the same colors as the reference image (background colors, accent colors, text colors)
-- **Design Style**: Match the graphic style, illustration technique, and visual aesthetic
-- **Layout Structure**: Follow similar composition and element arrangement
-- **Typography**: Use similar font styles and text hierarchy
-- **Visual Elements**: Use similar icons, shapes, and decorative elements
-- **Overall Feel**: Replicate the same mood, professionalism level, and visual tone
-
-Content Task:
-Create an educational infographic explaining the provided content. Select typical visual elements.
-
-⚠️ CRITICAL LANGUAGE RULE - ABSOLUTELY NON-NEGOTIABLE ⚠️
-ALL text in the infographic MUST be in the EXACT SAME LANGUAGE as the input content below.
-- Chinese input (中文) → Chinese output (中文标签、中文标题、中文说明)
-- English input → English output
-- Other languages → Same language output
-🚫 NEVER translate to English or any other language. This is STRICTLY FORBIDDEN.
-🚫 DO NOT use English labels for Chinese content.
-The language of the output MUST match the language of the input EXACTLY.
-
-Content:
-${params.content}
-
-[REMINDER] Apply the reference image's visual style to this content. Match the colors, style, and design approach exactly. Keep ALL text in the SAME language as the content above.`;
-      
       console.log('[FAL] 🎨 使用强化风格参考模式:', params.referenceImageUrl);
-    } else {
-      // 无参考图：使用默认提示词
-      prompt = `Create an educational infographic explaining the provided file or text. You select some typical visual elements. Style: Flat vector.
-
-⚠️ CRITICAL LANGUAGE RULE - ABSOLUTELY NON-NEGOTIABLE ⚠️
-ALL text in the infographic MUST be in the EXACT SAME LANGUAGE as the input content below.
-- Chinese input (中文) → Chinese output (中文标签、中文标题、中文说明)
-- English input → English output
-- Other languages → Same language output
-🚫 NEVER translate to English or any other language. This is STRICTLY FORBIDDEN.
-🚫 DO NOT use English labels for Chinese content.
-The language of the output MUST match the language of the input EXACTLY.
-
-Content:
-${params.content}`;
     }
 
     // 映射宽高比到 FAL (nano-banana-pro) 支持的值
@@ -275,49 +613,13 @@ async function tryGenerateWithKie(
 }> {
   try {
     const hasReferenceImage = !!params.referenceImageUrl;
-    console.log(`🔄 尝试使用 KIE (nano-banana-pro) 生成...${hasReferenceImage ? ' [参考图模式]' : ''}`);
+    console.log(
+      `🔄 尝试使用 KIE (nano-banana-pro) 生成...${hasReferenceImage ? ' [参考图模式]' : ''}`
+    );
 
-    // 构建提示词（根据是否有参考图调整）
-    let prompt = '';
-
+    const prompt = buildInfographicPrompt(params, hasReferenceImage);
     if (hasReferenceImage) {
-      // 有参考图：强调风格复制
-      prompt = `[CRITICAL STYLE REFERENCE] You MUST strictly follow the provided reference image's visual style. This is the HIGHEST priority.
-
-Style Requirements (MANDATORY):
-- **Color Palette**: Use EXACTLY the same colors as the reference image
-- **Design Style**: Match the graphic style and visual aesthetic
-- **Layout Structure**: Follow similar composition
-- **Typography**: Use similar font styles
-- **Visual Elements**: Use similar icons and shapes
-- **Overall Feel**: Replicate the same visual tone
-
-Content Task:
-Create an educational infographic explaining the provided content.
-
-⚠️ CRITICAL LANGUAGE RULE - ABSOLUTELY NON-NEGOTIABLE ⚠️
-ALL text in the infographic MUST be in the EXACT SAME LANGUAGE as the input content below.
-- Chinese input (中文) → Chinese output (中文标签、中文标题、中文说明)
-- English input → English output
-🚫 NEVER translate to English or any other language. This is STRICTLY FORBIDDEN.
-
-Content:
-${params.content}
-
-[REMINDER] Apply the reference image's visual style exactly. Keep ALL text in the SAME language as the content above.`;
-
       console.log('[KIE] 🎨 使用强化风格参考模式');
-    } else {
-      prompt = `Create an educational infographic explaining the provided file or text. You select some typical visual elements. Style: Flat vector.
-
-⚠️ CRITICAL LANGUAGE RULE - ABSOLUTELY NON-NEGOTIABLE ⚠️
-ALL text in the infographic MUST be in the EXACT SAME LANGUAGE as the input content below.
-- Chinese input (中文) → Chinese output (中文标签、中文标题、中文说明)
-- English input → English output
-🚫 NEVER translate to English or any other language. This is STRICTLY FORBIDDEN.
-
-Content:
-${params.content}`;
     }
 
     const payload = {
@@ -330,7 +632,7 @@ ${params.content}`;
         image_input: hasReferenceImage ? [params.referenceImageUrl] : undefined, // 添加参考图支持
       },
     };
-    
+
     if (hasReferenceImage) {
       console.log('[KIE] image_input:', payload.input.image_input);
     }
@@ -379,47 +681,13 @@ async function tryGenerateWithReplicate(
 }> {
   try {
     const hasReferenceImage = !!params.referenceImageUrl;
-    console.log(`🔄 尝试使用 Replicate (google/nano-banana-pro) 生成...${hasReferenceImage ? ' [参考图模式]' : ''}`);
+    console.log(
+      `🔄 尝试使用 Replicate (google/nano-banana-pro) 生成...${hasReferenceImage ? ' [参考图模式]' : ''}`
+    );
 
-    // 构建提示词（根据是否有参考图调整）
-    let prompt = '';
-
+    const prompt = buildInfographicPrompt(params, hasReferenceImage);
     if (hasReferenceImage) {
-      // 有参考图：强调风格复制
-      prompt = `[CRITICAL STYLE REFERENCE] You MUST strictly follow the provided reference image's visual style. This is the HIGHEST priority.
-
-Style Requirements (MANDATORY):
-- **Color Palette**: Use EXACTLY the same colors as the reference image
-- **Design Style**: Match the graphic style and visual aesthetic
-- **Layout Structure**: Follow similar composition
-- **Typography**: Use similar font styles
-- **Visual Elements**: Use similar icons and shapes
-
-Create an educational infographic with the following content.
-
-⚠️ CRITICAL LANGUAGE RULE - ABSOLUTELY NON-NEGOTIABLE ⚠️
-ALL text in the infographic MUST be in the EXACT SAME LANGUAGE as the input content below.
-- Chinese input (中文) → Chinese output (中文标签、中文标题、中文说明)
-- English input → English output
-🚫 NEVER translate to English or any other language. This is STRICTLY FORBIDDEN.
-
-Content:
-${params.content}
-
-[REMINDER] Apply the reference image's visual style exactly. Keep ALL text in the SAME language as the content above.`;
-
       console.log('[Replicate] 🎨 使用强化风格参考模式');
-    } else {
-      prompt = `Create an educational infographic explaining the provided file or text. You select some typical visual elements. Style: Flat vector.
-
-⚠️ CRITICAL LANGUAGE RULE - ABSOLUTELY NON-NEGOTIABLE ⚠️
-ALL text in the infographic MUST be in the EXACT SAME LANGUAGE as the input content below.
-- Chinese input (中文) → Chinese output (中文标签、中文标题、中文说明)
-- English input → English output
-🚫 NEVER translate to English or any other language. This is STRICTLY FORBIDDEN.
-
-Content:
-${params.content}`;
     }
 
     const Replicate = require('replicate');
@@ -433,7 +701,7 @@ ${params.content}`;
       output_format: params.outputFormat || 'png',
       image_input: hasReferenceImage ? [params.referenceImageUrl] : undefined, // 添加参考图支持
     };
-    
+
     if (hasReferenceImage) {
       console.log('[Replicate] image_input:', input.image_input);
     }
@@ -480,7 +748,9 @@ ${params.content}`;
  * - 将图片数据转换为 base64 编码字符串
  * - 用于 APIYI 图生图模式（Gemini 原生格式需要 base64 图片）
  */
-async function downloadImageAsBase64(imageUrl: string): Promise<{ base64: string; mimeType: string } | null> {
+async function downloadImageAsBase64(
+  imageUrl: string
+): Promise<{ base64: string; mimeType: string } | null> {
   try {
     console.log('[APIYI] 📥 下载参考图:', imageUrl.substring(0, 80) + '...');
 
@@ -501,7 +771,9 @@ async function downloadImageAsBase64(imageUrl: string): Promise<{ base64: string
     const arrayBuffer = await response.arrayBuffer();
     const base64 = Buffer.from(arrayBuffer).toString('base64');
 
-    console.log(`[APIYI] ✅ 参考图下载成功，大小: ${(base64.length / 1024).toFixed(1)} KB, 类型: ${mimeType}`);
+    console.log(
+      `[APIYI] ✅ 参考图下载成功，大小: ${(base64.length / 1024).toFixed(1)} KB, 类型: ${mimeType}`
+    );
 
     return { base64, mimeType };
   } catch (error: any) {
@@ -535,47 +807,13 @@ async function tryGenerateWithApiyi(
 }> {
   try {
     const hasReferenceImage = !!params.referenceImageUrl;
-    console.log(`🔄 尝试使用 APIYI (gemini-3-pro-image-preview) 生成...${hasReferenceImage ? ' [参考图模式]' : ''}`);
+    console.log(
+      `🔄 尝试使用 APIYI (gemini-3-pro-image-preview) 生成...${hasReferenceImage ? ' [参考图模式]' : ''}`
+    );
 
-    // 构建提示词（根据是否有参考图调整）
-    let prompt = '';
-
+    const prompt = buildInfographicPrompt(params, hasReferenceImage);
     if (hasReferenceImage) {
-      // 有参考图：强调风格复制
-      prompt = `[CRITICAL STYLE REFERENCE] You MUST strictly follow the provided reference image's visual style. This is the HIGHEST priority.
-
-Style Requirements (MANDATORY):
-- **Color Palette**: Use EXACTLY the same colors as the reference image
-- **Design Style**: Match the graphic style and visual aesthetic
-- **Layout Structure**: Follow similar composition
-- **Typography**: Use similar font styles
-- **Visual Elements**: Use similar icons and shapes
-
-Create an educational infographic with the following content.
-
-⚠️ CRITICAL LANGUAGE RULE - ABSOLUTELY NON-NEGOTIABLE ⚠️
-ALL text in the infographic MUST be in the EXACT SAME LANGUAGE as the input content below.
-- Chinese input (中文) → Chinese output (中文标签、中文标题、中文说明)
-- English input → English output
-🚫 NEVER translate to English or any other language. This is STRICTLY FORBIDDEN.
-
-Content:
-${params.content}
-
-[REMINDER] Apply the reference image's visual style exactly. Keep ALL text in the SAME language as the content above.`;
-
       console.log('[APIYI] 🎨 使用强化风格参考模式');
-    } else {
-      prompt = `Create an educational infographic explaining the provided file or text. You select some typical visual elements. Style: Flat vector.
-
-⚠️ CRITICAL LANGUAGE RULE - ABSOLUTELY NON-NEGOTIABLE ⚠️
-ALL text in the infographic MUST be in the EXACT SAME LANGUAGE as the input content below.
-- Chinese input (中文) → Chinese output (中文标签、中文标题、中文说明)
-- English input → English output
-🚫 NEVER translate to English or any other language. This is STRICTLY FORBIDDEN.
-
-Content:
-${params.content}`;
     }
 
     // 映射分辨率和宽高比
@@ -583,7 +821,11 @@ ${params.content}`;
     const aspectRatio = params.aspectRatio || '1:1';
 
     // 根据分辨率设置超时时间
-    const timeoutMap: Record<string, number> = { '1K': 180000, '2K': 300000, '4K': 360000 };
+    const timeoutMap: Record<string, number> = {
+      '1K': 180000,
+      '2K': 300000,
+      '4K': 360000,
+    };
     const timeout = timeoutMap[imageSize] || 300000;
 
     // 🎯 统一使用 Gemini 原生格式端点（支持分辨率参数）
@@ -606,7 +848,9 @@ ${params.content}`;
             data: imageData.base64,
           },
         });
-        console.log('[APIYI] 🎨 使用图生图模式（Gemini 原生格式 + base64 图片）');
+        console.log(
+          '[APIYI] 🎨 使用图生图模式（Gemini 原生格式 + base64 图片）'
+        );
       }
     }
 
@@ -648,7 +892,10 @@ ${params.content}`;
     if (!response.ok) {
       const errorText = await response.text();
       console.warn('⚠️ APIYI 请求失败:', response.status, errorText);
-      return { success: false, error: `APIYI API error: ${response.status} - ${errorText}` };
+      return {
+        success: false,
+        error: `APIYI API error: ${response.status} - ${errorText}`,
+      };
     }
 
     const data = await response.json();
@@ -660,17 +907,23 @@ ${params.content}`;
         console.warn('[APIYI] 内容被拒绝:', finishReason);
         return { success: false, error: `Content rejected: ${finishReason}` };
       }
-      console.warn('[APIYI] 响应格式异常:', JSON.stringify(data).substring(0, 500));
+      console.warn(
+        '[APIYI] 响应格式异常:',
+        JSON.stringify(data).substring(0, 500)
+      );
       return { success: false, error: 'Invalid response format from APIYI' };
     }
 
     const base64Data = data.candidates[0].content.parts[0].inlineData.data;
-    const mimeType = data.candidates[0].content.parts[0].inlineData.mimeType || 'image/png';
+    const mimeType =
+      data.candidates[0].content.parts[0].inlineData.mimeType || 'image/png';
 
     // 构建 data URL
     const dataUrl = `data:${mimeType};base64,${base64Data}`;
 
-    console.log(`✅ APIYI 生成成功！图片大小: ${(base64Data.length / 1024).toFixed(1)} KB`);
+    console.log(
+      `✅ APIYI 生成成功！图片大小: ${(base64Data.length / 1024).toFixed(1)} KB`
+    );
 
     // 返回结果
     return {
@@ -703,7 +956,7 @@ async function tryGenerateWithTogether(
   try {
     console.log('🔄 尝试使用 Together AI (FLUX) 生成...');
 
-    const prompt = `Educational infographic, flat vector style: ${params.content}`;
+    const prompt = buildInfographicPrompt(params, false);
 
     // 解析分辨率
     let width = 1024;
@@ -785,7 +1038,7 @@ async function tryGenerateWithNovita(
   try {
     console.log('🔄 尝试使用 Novita AI (FLUX) 生成...');
 
-    const prompt = `Educational infographic, flat vector style: ${params.content}`;
+    const prompt = buildInfographicPrompt(params, false);
 
     // 解析分辨率
     let width = 1024;
@@ -855,8 +1108,12 @@ export async function POST(request: NextRequest) {
       aspectRatio = '1:1',
       resolution = '1K',
       outputFormat = 'png',
+      stylePreset: stylePresetRaw = 'adaptive_smart',
+      styleIntensity: styleIntensityRaw = 'balanced',
       referenceImageUrl, // 新增：参考图URL（可选）
     } = body || {};
+    const stylePreset = normalizeStylePreset(stylePresetRaw);
+    const styleIntensity = normalizeAdaptiveIntensity(styleIntensityRaw);
 
     if (!content || typeof content !== 'string' || !content.trim()) {
       return NextResponse.json(
@@ -867,7 +1124,10 @@ export async function POST(request: NextRequest) {
 
     // 如果有参考图，记录日志
     if (referenceImageUrl) {
-      console.log('[Infographic] 使用参考图模式，参考图URL:', referenceImageUrl);
+      console.log(
+        '[Infographic] 使用参考图模式，参考图URL:',
+        referenceImageUrl
+      );
     }
 
     // 积分验证和消耗
@@ -907,7 +1167,13 @@ export async function POST(request: NextRequest) {
         credits: requiredCredits,
         scene: 'ai_infographic',
         description: `AI Infographic - Generate with fallback`,
-        metadata: JSON.stringify({ aspectRatio, resolution, outputFormat }),
+        metadata: JSON.stringify({
+          aspectRatio,
+          resolution,
+          outputFormat,
+          stylePreset,
+          styleIntensity,
+        }),
       });
 
       console.log('[Infographic] 积分消耗成功:', {
@@ -934,6 +1200,8 @@ export async function POST(request: NextRequest) {
       aspectRatio,
       resolution,
       outputFormat,
+      stylePreset,
+      styleIntensity,
       referenceImageUrl, // 传递参考图URL
     };
 
@@ -976,7 +1244,7 @@ export async function POST(request: NextRequest) {
     // 根据环境变量 IMAGE_PROVIDER_PRIORITY 获取优先级顺序
     // 非程序员解释：这里会读取环境变量，按配置的顺序排列提供商
     const priorityOrder = getProviderPriority();
-    const providers = priorityOrder.map(name => providerConfigs[name]);
+    const providers = priorityOrder.map((name) => providerConfigs[name]);
 
     const errors: string[] = [];
 
@@ -1018,7 +1286,10 @@ export async function POST(request: NextRequest) {
             ? AITaskStatus.SUCCESS
             : AITaskStatus.PENDING;
 
-          console.log('[Infographic] 准备创建任务记录，creditId:', consumedCredit?.id);
+          console.log(
+            '[Infographic] 准备创建任务记录，creditId:',
+            consumedCredit?.id
+          );
 
           // 🎯 保存返回值，获取数据库记录 ID
           const dbTask = await createAITaskRecordOnly({
@@ -1034,6 +1305,8 @@ export async function POST(request: NextRequest) {
               aspectRatio,
               resolution,
               outputFormat,
+              stylePreset,
+              styleIntensity,
             }),
             scene: 'ai_infographic',
             costCredits: requiredCredits,

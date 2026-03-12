@@ -106,16 +106,17 @@ export async function POST(request: NextRequest) {
     }
 
     // 默认提示词，按照你的要求拼接用户的内容
-    const prompt = `Create an educational infographic explaining the provided file or text. You select some typical visual elements. Style: Flat vector.
+    const prompt = `创建一张教育型信息图，用来解释下方提供的文件或文本内容。你需要自行选择一些典型的视觉元素。风格：扁平化矢量（Flat vector）。
 
-⚠️ CRITICAL LANGUAGE RULE - ABSOLUTELY NON-NEGOTIABLE ⚠️
-ALL text in the infographic MUST be in the EXACT SAME LANGUAGE as the input content below.
-- Chinese input (中文) → Chinese output (中文标签、中文标题、中文说明)
-- English input → English output
-- Other languages → Same language output
-🚫 NEVER translate to English or any other language. This is STRICTLY FORBIDDEN.
-🚫 DO NOT use English labels for Chinese content.
-The language of the output MUST match the language of the input EXACTLY.
+⚠️ 关键语言规则——绝对不可协商 ⚠️
+信息图中的所有文字必须与下方输入内容的语言完全一致。
+- 输入为中文（中文）→ 输出必须为中文（中文标签、中文标题、中文说明）
+- 输入为英文 → 输出必须为英文
+- 其他语言 → 输出必须为相同语言
+
+🚫 禁止翻译成英文或任何其他语言。严格禁止。
+🚫 针对中文内容，禁止使用英文标签。
+输出语言必须与输入语言完全一致（逐字意义上的一致）。
 
 Content:
 ${content}`;

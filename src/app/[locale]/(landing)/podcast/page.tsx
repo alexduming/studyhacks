@@ -33,6 +33,7 @@ import {
 } from '@/shared/components/podcast/podcast-detail-dialog';
 import { Button } from '@/shared/components/ui/button';
 import { ScrollAnimation } from '@/shared/components/ui/scroll-animation';
+import { buildPodcastDownloadUrl } from '@/shared/lib/podcast-download';
 
 // 播客模式类型
 type PodcastMode = 'quick' | 'deep' | 'debate';
@@ -380,7 +381,13 @@ const PodcastApp = () => {
 
     try {
       // 使用 fetch 获取音频文件 blob，避免直接跳转
-      const response = await fetch(podcast.audioUrl);
+      const response = await fetch(
+        buildPodcastDownloadUrl({
+          id: podcast.id,
+          audioUrl: podcast.audioUrl,
+          title: podcast.title,
+        })
+      );
       if (!response.ok) throw new Error('Download failed');
 
       const blob = await response.blob();

@@ -37,6 +37,53 @@
     "file_count": "{count} files",
     "separator": ", "
   },
+  "style": {
+    "title": "Style Settings",
+    "preset_label": "Preset Style",
+    "adaptive_intensity_label": "Art Direction Intensity (Adaptive Only)",
+    "adaptive_intensity_hint": "Select Adaptive Smart Style first to enable intensity control.",
+    "selected": "Selected",
+    "adaptive_intensity": {
+      "balanced": {
+        "name": "Balanced",
+        "description": "Prioritizes readability and stable information delivery with moderate styling."
+      },
+      "artistic": {
+        "name": "Artistic",
+        "description": "Stronger visual rhythm and richer aesthetics while preserving clarity."
+      },
+      "signature": {
+        "name": "Signature",
+        "description": "Bolder composition and decorative language for high memorability."
+      }
+    },
+    "presets": {
+      "adaptive_smart": {
+        "name": "Adaptive Smart Style",
+        "description": "Automatically matches the most suitable infographic direction based on content topic, structure, and tone."
+      },
+      "hand_drawn_infographic": {
+        "name": "Hand-drawn",
+        "description": "A 3:4 vertical hand-drawn cartoon infographic with playful lines and intuitive metaphor-based visuals."
+      },
+      "isometric_thick_line_macaron": {
+        "name": "Isometric Thick-line Macaron",
+        "description": "2.5D isometric infographic with bold outlines, pastel macaron colors, and strong modular depth."
+      },
+      "minimal_line_storytelling_compare": {
+        "name": "Minimal Line Compare",
+        "description": "Minimal black-line comparison storytelling with stick figures and tiny accent colors for contrast."
+      },
+      "flat_vector_education": {
+        "name": "Flat Vector Education",
+        "description": "A general educational flat-vector infographic that chooses fitting visual teaching elements automatically."
+      },
+      "flat_design_modern": {
+        "name": "Flat Design",
+        "description": "Professional modern flat illustration style with clean sections, strong hierarchy, and premium color direction."
+      }
+    }
+  },
   "actions": {
     "clear": "Clear content",
     "generate": "Generate infographic",

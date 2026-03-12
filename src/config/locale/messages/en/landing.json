@@ -99,6 +99,49 @@
       "alt": "hero"
     }
   },
+  "tool_index": {
+    "id": "tool-index",
+    "title": "What do you want to do today?",
+    "description": "Choose a study action and launch it in one click",
+    "items": [
+      {
+        "title": "Generate AI Notes",
+        "description": "Turn files and videos into structured key takeaways",
+        "url": "/ai-note-taker",
+        "icon": "FileText"
+      },
+      {
+        "title": "Generate Flashcards",
+        "description": "Convert concepts into memorization-ready cards",
+        "url": "/flashcards",
+        "icon": "Brain"
+      },
+      {
+        "title": "Generate Quiz",
+        "description": "Create instant tests to measure understanding",
+        "url": "/quiz",
+        "icon": "Target"
+      },
+      {
+        "title": "Generate Podcast",
+        "description": "Transform notes into audio you can learn from anywhere",
+        "url": "/podcast",
+        "icon": "Headphones"
+      },
+      {
+        "title": "Generate Infographic",
+        "description": "Produce visual summaries in a clean, shareable format",
+        "url": "/infographic",
+        "icon": "BarChart3"
+      },
+      {
+        "title": "AI PPT (AI Slides)",
+        "description": "Build presentation-ready decks in minutes",
+        "url": "/slides",
+        "icon": "Presentation"
+      }
+    ]
+  },
   "logos": {
     "title": "Trusted by students at leading universities worldwide",
     "items": [
