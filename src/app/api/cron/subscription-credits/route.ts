@@ -39,6 +39,24 @@ import { SubscriptionStatus } from '@/shared/models/subscription';
 export const runtime = 'nodejs';
 // 设置最大执行时间（处理大量订阅可能需要较长时间）
 export const maxDuration = 300; // 5 分钟
+function getGrantedMonthNumber(entry: {
+  metadata?: string | null;
+  description?: string | null;
+}) {
+  if (entry.metadata) {
+    try {
+      const parsed = JSON.parse(entry.metadata);
+      if (typeof parsed?.monthNumber === 'number') {
+        return parsed.monthNumber;
+      }
+    } catch {
+      // ignore malformed metadata and fall back to description parsing
+    }
+  }
+
+  const match = entry.description?.match(/month (\d+) of subscription/i);
+  return match ? parseInt(match[1], 10) : 0;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -127,36 +145,34 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // 3.2 检查该月的积分是否已发放
-        // 查询最近一次发放的积分记录
+        // 3.2 Check whether this cycle month has already been granted
+        // Only inspect grants created in the current yearly cycle.
         const latestCredits = await database
-          .select()
+          .select({
+            metadata: credit.metadata,
+            description: credit.description,
+          })
           .from(credit)
           .where(
             and(
               eq(credit.subscriptionNo, sub.subscriptionNo || ''),
               eq(credit.transactionType, CreditTransactionType.GRANT),
-              eq(credit.transactionScene, CreditTransactionScene.SUBSCRIPTION)
+              eq(credit.transactionScene, CreditTransactionScene.SUBSCRIPTION),
+              gte(credit.createdAt, subscriptionStart)
             )
           )
           .orderBy(desc(credit.createdAt))
           .limit(1);
 
-        // 从 description 中提取已发放的月数
-        let lastMonthNumber = 0; // 首月是0（购买时发放）
-        if (latestCredits.length > 0) {
-          const match = latestCredits[0].description?.match(
-            /month (\d+) of subscription/
-          );
-          if (match) {
-            lastMonthNumber = parseInt(match[1]);
-          }
-        }
+        const currentMonthNumber = monthsPassed + 1;
+        const lastMonthNumber = latestCredits[0]
+          ? getGrantedMonthNumber(latestCredits[0])
+          : 0;
 
-        // 如果已经发放到当前月份，跳过
-        if (lastMonthNumber >= monthsPassed) {
+        // Skip if the current cycle month has already been granted.
+        if (lastMonthNumber >= currentMonthNumber) {
           console.log(
-            `⏭️ 订阅 ${sub.subscriptionNo} 已发放到第 ${lastMonthNumber} 月，跳过`
+            `Skip subscription ${sub.subscriptionNo}: credits already granted through month ${lastMonthNumber}`
           );
           skippedCount++;
           continue;
@@ -186,8 +202,7 @@ export async function POST(request: NextRequest) {
         const finalExpiresAt =
           expiresAt > subscriptionEnd ? subscriptionEnd : expiresAt;
 
-        // 3.5 发放积分
-        const currentMonthNumber = monthsPassed;
+        // 3.5 Grant credits
         await createCredit({
           id: getUuid(),
           userId: sub.userId,
@@ -199,6 +214,10 @@ export async function POST(request: NextRequest) {
           credits: monthlyCredits,
           remainingCredits: monthlyCredits,
           description: `Subscription credits - month ${currentMonthNumber} of subscription (${sub.productName || sub.productId})`,
+          metadata: JSON.stringify({
+            monthNumber: currentMonthNumber,
+            cycleStart: subscriptionStart.toISOString(),
+          }),
           expiresAt: finalExpiresAt,
           status: CreditStatus.ACTIVE,
         });

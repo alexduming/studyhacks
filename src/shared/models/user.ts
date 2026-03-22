@@ -1,5 +1,5 @@
 import { headers } from 'next/headers';
-import { count, desc, eq, inArray, and, ne } from 'drizzle-orm';
+import { count, desc, eq, inArray, and, ne, gt } from 'drizzle-orm';
 
 import { getAuth } from '@/core/auth';
 import { db } from '@/core/db';
@@ -7,7 +7,10 @@ import { user, subscription } from '@/config/db/schema';
 
 import { Permission, Role } from '../services/rbac';
 import { getRemainingCredits } from './credit';
-import { SubscriptionStatus } from './subscription';
+import {
+  SubscriptionStatus,
+  syncExpiredSubscriptions,
+} from './subscription';
 
 export interface UserCredits {
   remainingCredits: number;
@@ -206,16 +209,27 @@ export async function getUserCredits(userId: string) {
  * Get user membership information
  */
 export async function getUserMembership(userId: string): Promise<UserMembership> {
+  await syncExpiredSubscriptions(userId);
+
+  const now = new Date();
   const [activeSub] = await db()
     .select()
     .from(subscription)
     .where(
-      eq(subscription.userId, userId)
+      and(
+        eq(subscription.userId, userId),
+        inArray(subscription.status, [
+          SubscriptionStatus.ACTIVE,
+          SubscriptionStatus.TRIALING,
+          SubscriptionStatus.PENDING_CANCEL,
+        ]),
+        gt(subscription.currentPeriodEnd, now)
+      )
     )
-    .orderBy(desc(subscription.createdAt))
+    .orderBy(desc(subscription.currentPeriodEnd), desc(subscription.createdAt))
     .limit(1);
 
-  if (!activeSub || ![SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING, SubscriptionStatus.PENDING_CANCEL].includes(activeSub.status as SubscriptionStatus)) {
+  if (!activeSub) {
     return { level: 'free' };
   }
 

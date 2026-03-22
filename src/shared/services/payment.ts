@@ -106,6 +106,87 @@ export async function getPaymentService(): Promise<PaymentManager> {
 
   return paymentService;
 }
+function isPaidMembershipProduct(productId?: string | null) {
+  return Boolean(
+    productId && (productId.includes('plus') || productId.includes('pro'))
+  );
+}
+
+function isYearlySubscriptionInterval(interval?: string | null) {
+  return interval === 'year';
+}
+
+function calculateRollingCreditExpiration({
+  startAt,
+  validDays,
+  currentPeriodEnd,
+}: {
+  startAt: Date;
+  validDays: number;
+  currentPeriodEnd?: Date;
+}) {
+  if (!validDays || validDays <= 0) {
+    return currentPeriodEnd || null;
+  }
+
+  const expiresAt = new Date(startAt);
+  expiresAt.setDate(expiresAt.getDate() + validDays);
+
+  if (currentPeriodEnd && expiresAt > currentPeriodEnd) {
+    return new Date(currentPeriodEnd);
+  }
+
+  return expiresAt;
+}
+
+function buildYearlySubscriptionCredit({
+  userId,
+  userEmail,
+  orderNo,
+  subscriptionNo,
+  credits,
+  validDays,
+  currentPeriodStart,
+  currentPeriodEnd,
+  productId,
+  productName,
+}: {
+  userId: string;
+  userEmail?: string | null;
+  orderNo: string;
+  subscriptionNo?: string | null;
+  credits: number;
+  validDays: number;
+  currentPeriodStart: Date;
+  currentPeriodEnd: Date;
+  productId?: string | null;
+  productName?: string | null;
+}): NewCredit {
+  return {
+    id: getUuid(),
+    userId,
+    userEmail: userEmail || '',
+    orderNo,
+    subscriptionNo: subscriptionNo || undefined,
+    transactionNo: getSnowId(),
+    transactionType: CreditTransactionType.GRANT,
+    transactionScene: CreditTransactionScene.SUBSCRIPTION,
+    credits,
+    remainingCredits: credits,
+    description: `Subscription credits - month 1 of subscription (${productName || productId || 'Membership'})`,
+    metadata: JSON.stringify({
+      monthNumber: 1,
+      cycleStart: currentPeriodStart.toISOString(),
+    }),
+    expiresAt: calculateRollingCreditExpiration({
+      startAt: currentPeriodStart,
+      validDays,
+      currentPeriodEnd,
+    }),
+    status: CreditStatus.ACTIVE,
+  };
+}
+
 
 /**
  * handle checkout success
@@ -120,6 +201,10 @@ export async function handleCheckoutSuccess({
   const orderNo = order.orderNo;
   if (!orderNo) {
     throw new Error('invalid order');
+  }
+
+  if (order.status === OrderStatus.PAID) {
+    return;
   }
 
   if (order.paymentType === PaymentType.SUBSCRIPTION) {
@@ -248,32 +333,54 @@ export async function handleCheckoutSuccess({
     let newCredit: NewCredit | undefined = undefined;
     if (order.creditsAmount && order.creditsAmount > 0) {
       const credits = order.creditsAmount;
-      const expiresAt =
-        credits > 0
-          ? calculateCreditExpirationTime({
-              creditsValidDays: order.creditsValidDays || 0,
-              currentPeriodEnd: subscriptionInfo?.currentPeriodEnd,
-            })
-          : null;
+      const yearlySubscriptionInfo =
+        subscriptionInfo && isYearlySubscriptionInterval(subscriptionInfo.interval)
+          ? subscriptionInfo
+          : undefined;
 
-      newCredit = {
-        id: getUuid(),
-        userId: order.userId,
-        userEmail: order.userEmail,
-        orderNo: order.orderNo,
-        subscriptionNo: newSubscription?.subscriptionNo,
-        transactionNo: getSnowId(),
-        transactionType: CreditTransactionType.GRANT,
-        transactionScene:
-          order.paymentType === PaymentType.SUBSCRIPTION
-            ? CreditTransactionScene.SUBSCRIPTION
-            : CreditTransactionScene.PAYMENT,
-        credits: credits,
-        remainingCredits: credits,
-        description: `Grant credit`,
-        expiresAt: expiresAt,
-        status: CreditStatus.ACTIVE,
-      };
+      if (yearlySubscriptionInfo && newSubscription) {
+        newCredit = buildYearlySubscriptionCredit({
+          userId: order.userId,
+          userEmail: order.userEmail,
+          orderNo: order.orderNo,
+          subscriptionNo: newSubscription.subscriptionNo,
+          credits,
+          validDays: order.creditsValidDays || 30,
+          currentPeriodStart: yearlySubscriptionInfo.currentPeriodStart,
+          currentPeriodEnd: yearlySubscriptionInfo.currentPeriodEnd,
+          productId: order.productId,
+          productName: order.productName,
+        });
+      } else {
+        const expiresAt =
+          credits > 0
+            ? calculateCreditExpirationTime({
+                creditsValidDays: order.creditsValidDays || 0,
+                currentPeriodEnd:
+                  subscriptionInfo?.currentPeriodEnd ||
+                  newSubscription?.currentPeriodEnd,
+              })
+            : null;
+
+        newCredit = {
+          id: getUuid(),
+          userId: order.userId,
+          userEmail: order.userEmail,
+          orderNo: order.orderNo,
+          subscriptionNo: newSubscription?.subscriptionNo,
+          transactionNo: getSnowId(),
+          transactionType: CreditTransactionType.GRANT,
+          transactionScene:
+            order.paymentType === PaymentType.SUBSCRIPTION
+              ? CreditTransactionScene.SUBSCRIPTION
+              : CreditTransactionScene.PAYMENT,
+          credits: credits,
+          remainingCredits: credits,
+          description: `Grant credit`,
+          expiresAt: expiresAt,
+          status: CreditStatus.ACTIVE,
+        };
+      }
     }
 
     // --- Affiliate Commission Logic Start ---
@@ -314,6 +421,15 @@ export async function handleCheckoutSuccess({
       updateOrder,
       newSubscription,
       newCredit,
+      expireActiveSubscriptionsForUserId:
+        newSubscription && isPaidMembershipProduct(order.productId)
+          ? order.userId
+          : undefined,
+      expireSubscriptionsAt:
+        session.paymentInfo?.paidAt ||
+        subscriptionInfo?.currentPeriodStart ||
+        newSubscription?.currentPeriodStart ||
+        new Date(),
     });
   } else if (
     session.paymentStatus === PaymentStatus.FAILED ||
@@ -347,6 +463,10 @@ export async function handlePaymentSuccess({
   const orderNo = order.orderNo;
   if (!orderNo) {
     throw new Error('invalid order');
+  }
+
+  if (order.status === OrderStatus.PAID) {
+    return;
   }
 
   if (order.paymentType === PaymentType.SUBSCRIPTION) {
@@ -466,32 +586,54 @@ export async function handlePaymentSuccess({
     let newCredit: NewCredit | undefined = undefined;
     if (order.creditsAmount && order.creditsAmount > 0) {
       const credits = order.creditsAmount;
-      const expiresAt =
-        credits > 0
-          ? calculateCreditExpirationTime({
-              creditsValidDays: order.creditsValidDays || 0,
-              currentPeriodEnd: subscriptionInfo?.currentPeriodEnd,
-            })
-          : null;
+      const yearlySubscriptionInfo =
+        subscriptionInfo && isYearlySubscriptionInterval(subscriptionInfo.interval)
+          ? subscriptionInfo
+          : undefined;
 
-      newCredit = {
-        id: getUuid(),
-        userId: order.userId,
-        userEmail: order.userEmail,
-        orderNo: order.orderNo,
-        subscriptionNo: newSubscription?.subscriptionNo,
-        transactionNo: getSnowId(),
-        transactionType: CreditTransactionType.GRANT,
-        transactionScene:
-          order.paymentType === PaymentType.SUBSCRIPTION
-            ? CreditTransactionScene.SUBSCRIPTION
-            : CreditTransactionScene.PAYMENT,
-        credits: credits,
-        remainingCredits: credits,
-        description: `Grant credit`,
-        expiresAt: expiresAt,
-        status: CreditStatus.ACTIVE,
-      };
+      if (yearlySubscriptionInfo && newSubscription) {
+        newCredit = buildYearlySubscriptionCredit({
+          userId: order.userId,
+          userEmail: order.userEmail,
+          orderNo: order.orderNo,
+          subscriptionNo: newSubscription.subscriptionNo,
+          credits,
+          validDays: order.creditsValidDays || 30,
+          currentPeriodStart: yearlySubscriptionInfo.currentPeriodStart,
+          currentPeriodEnd: yearlySubscriptionInfo.currentPeriodEnd,
+          productId: order.productId,
+          productName: order.productName,
+        });
+      } else {
+        const expiresAt =
+          credits > 0
+            ? calculateCreditExpirationTime({
+                creditsValidDays: order.creditsValidDays || 0,
+                currentPeriodEnd:
+                  subscriptionInfo?.currentPeriodEnd ||
+                  newSubscription?.currentPeriodEnd,
+              })
+            : null;
+
+        newCredit = {
+          id: getUuid(),
+          userId: order.userId,
+          userEmail: order.userEmail,
+          orderNo: order.orderNo,
+          subscriptionNo: newSubscription?.subscriptionNo,
+          transactionNo: getSnowId(),
+          transactionType: CreditTransactionType.GRANT,
+          transactionScene:
+            order.paymentType === PaymentType.SUBSCRIPTION
+              ? CreditTransactionScene.SUBSCRIPTION
+              : CreditTransactionScene.PAYMENT,
+          credits: credits,
+          remainingCredits: credits,
+          description: `Grant credit`,
+          expiresAt: expiresAt,
+          status: CreditStatus.ACTIVE,
+        };
+      }
     }
 
     // --- Affiliate Commission Logic Start ---
@@ -526,6 +668,15 @@ export async function handlePaymentSuccess({
       updateOrder,
       newSubscription,
       newCredit,
+      expireActiveSubscriptionsForUserId:
+        newSubscription && isPaidMembershipProduct(order.productId)
+          ? order.userId
+          : undefined,
+      expireSubscriptionsAt:
+        session.paymentInfo?.paidAt ||
+        subscriptionInfo?.currentPeriodStart ||
+        newSubscription?.currentPeriodStart ||
+        new Date(),
     });
   } else {
     throw new Error('unknown payment status');
@@ -588,29 +739,45 @@ export async function handleSubscriptionRenewal({
   let newCredit: NewCredit | undefined = undefined;
   if (order.creditsAmount && order.creditsAmount > 0) {
     const credits = order.creditsAmount;
-    const expiresAt =
-      credits > 0
-        ? calculateCreditExpirationTime({
-            creditsValidDays: order.creditsValidDays || 0,
-            currentPeriodEnd: subscriptionInfo.currentPeriodEnd,
-          })
-        : null;
 
-    newCredit = {
-      id: getUuid(),
-      userId: order.userId,
-      userEmail: order.userEmail,
-      orderNo: order.orderNo,
-      subscriptionNo: subscription.subscriptionNo,
-      transactionNo: getSnowId(),
-      transactionType: CreditTransactionType.GRANT,
-      transactionScene: CreditTransactionScene.RENEWAL,
-      credits: credits,
-      remainingCredits: credits,
-      description: `Grant credit for renewal`,
-      expiresAt: expiresAt,
-      status: CreditStatus.ACTIVE,
-    };
+    if (isYearlySubscriptionInterval(subscriptionInfo.interval)) {
+      newCredit = buildYearlySubscriptionCredit({
+        userId: order.userId,
+        userEmail: order.userEmail,
+        orderNo: order.orderNo,
+        subscriptionNo: subscription.subscriptionNo,
+        credits,
+        validDays: order.creditsValidDays || 30,
+        currentPeriodStart: subscriptionInfo.currentPeriodStart,
+        currentPeriodEnd: subscriptionInfo.currentPeriodEnd,
+        productId: order.productId,
+        productName: order.productName,
+      });
+    } else {
+      const expiresAt =
+        credits > 0
+          ? calculateCreditExpirationTime({
+              creditsValidDays: order.creditsValidDays || 0,
+              currentPeriodEnd: subscriptionInfo.currentPeriodEnd,
+            })
+          : null;
+
+      newCredit = {
+        id: getUuid(),
+        userId: order.userId,
+        userEmail: order.userEmail,
+        orderNo: order.orderNo,
+        subscriptionNo: subscription.subscriptionNo,
+        transactionNo: getSnowId(),
+        transactionType: CreditTransactionType.GRANT,
+        transactionScene: CreditTransactionScene.RENEWAL,
+        credits: credits,
+        remainingCredits: credits,
+        description: `Grant credit for renewal`,
+        expiresAt: expiresAt,
+        status: CreditStatus.ACTIVE,
+      };
+    }
   }
 
   // update subscription
