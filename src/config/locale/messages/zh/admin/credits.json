@@ -1,27 +1,44 @@
 {
   "fields": {
-    "transaction_no": "交易单号",
-    "user": "用户",
-    "amount": "金额",
-    "remaining": "剩余",
-    "type": "类型",
-    "scene": "场景",
-    "description": "描述",
-    "created_at": "创建时间",
-    "expires_at": "过期时间",
-    "metadata": "元数据",
-    "action": "操作"
+    "transaction_no": "\u4ea4\u6613\u5355\u53f7",
+    "user": "\u7528\u6237",
+    "amount": "\u91d1\u989d",
+    "remaining": "\u5269\u4f59",
+    "status": "\u72b6\u6001",
+    "type": "\u7c7b\u578b",
+    "scene": "\u573a\u666f",
+    "description": "\u63cf\u8ff0",
+    "created_at": "\u521b\u5efa\u65f6\u95f4",
+    "expires_at": "\u8fc7\u671f\u65f6\u95f4",
+    "metadata": "\u5143\u6570\u636e",
+    "action": "\u64cd\u4f5c",
+    "user_email": "\u7528\u6237\u90ae\u7bb1"
+  },
+  "create": {
+    "title": "\u53d1\u653e\u79ef\u5206",
+    "buttons": {
+      "submit": "\u63d0\u4ea4"
+    }
   },
   "list": {
-    "title": "积分",
+    "title": "\u79ef\u5206",
     "crumbs": {
-      "admin": "管理后台",
-      "credits": "积分"
+      "admin": "\u7ba1\u7406\u540e\u53f0",
+      "credits": "\u79ef\u5206"
+    },
+    "buttons": {
+      "create": "\u53d1\u653e\u79ef\u5206"
     },
     "tabs": {
-      "all": "全部",
-      "grant": "授予",
-      "consume": "消费"
+      "all": "\u5168\u90e8",
+      "grant": "\u6388\u4e88",
+      "consume": "\u6d88\u8d39"
     }
+  },
+  "status": {
+    "available": "\u53ef\u7528",
+    "used": "\u5df2\u7528\u5b8c",
+    "expired": "\u5df2\u8fc7\u671f",
+    "consumed": "\u6263\u51cf\u8bb0\u5f55"
   }
 }

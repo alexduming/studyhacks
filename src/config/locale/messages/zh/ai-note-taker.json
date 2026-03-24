@@ -1,5 +1,5 @@
 {
-  "title": "AI笔记助手 - 智能学习",
+  "title": "AI笔记助手",
   "subtitle": "将任何学习材料快速转换为智能笔记",
   "description": "上传讲座、视频、PDF或任何内容，让AI为您生成个性化的智能学习笔记",
   "upload": {
@@ -9,19 +9,40 @@
     "supported_formats": "支持所有格式：MP3, WAV, MP4, MOV, PDF, DOC, TXT, YouTube链接",
     "file_selected": "已选择：",
     "processing": "正在生成智能笔记...",
-    "upload_button": "选择学习文件",
+    "upload_button": "选择文件",
+    "text_tab": "粘贴文本",
+    "upload_tab": "上传文件",
+    "link_tab": "抓取链接",
+    "text_placeholder": "可直接粘贴大段文字、讲义、课程逐字稿或文章内容...",
+    "link_placeholder": "https://example.com/article",
+    "generate_from_text": "从文本生成笔记",
+    "generate_from_link": "从链接生成笔记",
+    "fetch_link": "抓取网页内容",
+    "fetching_link": "正在抓取...",
+    "link_fetch_success": "抓取成功",
+    "upload_hint": "支持 PDF、DOCX、TXT、MD",
+    "link_hint": "输入公开可访问的网址，先抓取正文再生成笔记。",
+    "text_empty": "请先粘贴要生成的文本",
+    "link_empty": "请先输入要抓取的链接",
     "audio_files": "讲座录音",
     "video_files": "视频讲座",
     "pdf_docs": "PDF资料",
     "pdf_desc": "教材、幻灯片、研究论文",
     "text_docs": "学习笔记",
     "output_language": "输出语言",
-    "output_language_desc": "选择AI生成笔记的语言"
+    "output_language_desc": "选择AI生成笔记的语言",
+    "theme_color": "主题色",
+    "audio_formats": "MP3, WAV, M4A",
+    "video_formats": "MP4, MOV, AVI",
+    "text_formats": "DOC, TXT, MD"
   },
   "record": {
     "title": "录制现场讲座",
     "subtitle": "AI实时捕获讲座内容并整理成结构化笔记",
-    "start_button": "开始录音"
+    "start_button": "开始录音",
+    "upgrading_message": "录音功能正在升级维护中，请稍后再试",
+    "max_duration": "支持最长60分钟的连续录音",
+    "features": "自动降噪和语音识别优化"
   },
   "notes": {
     "title": "您的AI学习笔记",
@@ -36,6 +57,10 @@
     "download_error": "图片导出失败，请稍后重试",
     "copy_success": "笔记内容已复制，直接粘贴即可分享。",
     "copy_error": "复制失败，请重试或手动选择文本。",
+    "generation_success": "笔记生成成功！",
+    "ocr_processing": "检测到扫描版 PDF，正在进行智能识别 (OCR)...",
+    "ocr_complete": "OCR 识别完成，正在生成笔记...",
+    "ocr_failed": "OCR 智能识别失败",
     "dialog": {
       "flashcards_title": "AI 生成的闪卡",
       "flashcards_desc": "根据当前笔记自动提炼问答卡片，适合复习背诵",
@@ -93,7 +118,12 @@
     "processing_failed": "文件处理失败，请重试",
     "file_too_large": "文件太大，请选择小于 100MB 的文件",
     "unsupported_format": "不支持的文件格式",
-    "generation_failed": "笔记生成失败，请重试"
+    "generation_failed": "笔记生成失败，请重试",
+    "insufficient_credits": "积分不足！需要 {required} 积分，当前仅有 {remaining} 积分",
+    "podcast_upgrading": "Podcast功能正在升级维护中，请稍后再试",
+    "ocr_conversion_failed": "PDF 转换图片失败",
+    "ocr_no_text": "OCR 未能识别出有效文字",
+    "unknown_error": "未知错误"
   },
   "status": {
     "uploading": "上传中...",

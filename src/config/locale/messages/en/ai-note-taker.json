@@ -1,5 +1,5 @@
 {
-  "title": "AI Note Taker - Study Smarter",
+  "title": "AI Note Taker",
   "subtitle": "Transform any study material into intelligent notes in seconds",
   "description": "Upload lectures, videos, PDFs or any content and let AI generate comprehensive study notes tailored to your learning style",
   "upload": {
@@ -9,19 +9,40 @@
     "supported_formats": "All formats supported: MP3, WAV, MP4, MOV, PDF, DOC, TXT, YouTube links",
     "file_selected": "Selected: ",
     "processing": "Creating Notes...",
-    "upload_button": "Choose Study Files",
+    "upload_button": "Choose File",
+    "text_tab": "Paste Text",
+    "upload_tab": "Upload File",
+    "link_tab": "Fetch Link",
+    "text_placeholder": "Paste long text, class notes, article content, or transcript here...",
+    "link_placeholder": "https://example.com/article",
+    "generate_from_text": "Generate from Text",
+    "generate_from_link": "Generate from Link",
+    "fetch_link": "Fetch Web Content",
+    "fetching_link": "Fetching...",
+    "link_fetch_success": "Fetched",
+    "upload_hint": "Supports PDF, DOCX, TXT, MD",
+    "link_hint": "Enter a publicly accessible URL, fetch readable content first, then generate notes.",
+    "text_empty": "Please paste some text first",
+    "link_empty": "Please enter a link first",
     "audio_files": "Lecture Recordings",
     "video_files": "Video Lectures",
     "pdf_docs": "PDF Materials",
     "pdf_desc": "Textbooks, slides, research papers",
     "text_docs": "Study Notes",
     "output_language": "Output Language",
-    "output_language_desc": "Select the language for AI-generated notes"
+    "output_language_desc": "Select the language for AI-generated notes",
+    "theme_color": "Theme Color",
+    "audio_formats": "MP3, WAV, M4A",
+    "video_formats": "MP4, MOV, AVI",
+    "text_formats": "DOC, TXT, MD"
   },
   "record": {
     "title": "Record Live Lectures",
     "subtitle": "AI captures and organizes lectures into structured notes in real-time",
-    "start_button": "Start Recording"
+    "start_button": "Start Recording",
+    "upgrading_message": "Recording feature is under maintenance, please try again later",
+    "max_duration": "Supports up to 60 minutes of continuous recording",
+    "features": "Automatic noise reduction and speech recognition optimization"
   },
   "notes": {
     "title": "Your AI Study Notes",
@@ -36,6 +57,10 @@
     "download_error": "Failed to export image. Please try again.",
     "copy_success": "Notes copied.",
     "copy_error": "Copy failed. Please try again.",
+    "generation_success": "Notes generated successfully!",
+    "ocr_processing": "Scanned PDF detected, performing OCR recognition...",
+    "ocr_complete": "OCR recognition completed, generating notes...",
+    "ocr_failed": "OCR recognition failed",
     "dialog": {
       "flashcards_title": "AI Flashcards",
       "flashcards_desc": "Question-answer cards distilled from your notes for quick review.",
@@ -93,7 +118,12 @@
     "processing_failed": "File processing failed, please try again",
     "file_too_large": "File too large, please select a file smaller than 100MB",
     "unsupported_format": "Unsupported file format",
-    "generation_failed": "Note generation failed, please try again"
+    "generation_failed": "Note generation failed, please try again",
+    "insufficient_credits": "Insufficient credits! Need {required} credits, but only {remaining} credits available",
+    "podcast_upgrading": "Podcast feature is under maintenance, please try again later",
+    "ocr_conversion_failed": "PDF conversion to images failed",
+    "ocr_no_text": "OCR failed to extract any text",
+    "unknown_error": "Unknown error"
   },
   "status": {
     "uploading": "Uploading...",

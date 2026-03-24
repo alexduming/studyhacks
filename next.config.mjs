@@ -23,10 +23,72 @@ const nextConfig = {
         protocol: 'https',
         hostname: '*',
       },
+      {
+        protocol: 'http',
+        hostname: '*',
+      },
     ],
   },
+  // 配置 CORS 头，告知浏览器只允许特定域名访问
+  async headers() {
+    return [
+      {
+        source: '/api/:path*',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Origin',
+            // 注意：标准的 Access-Control-Allow-Origin 只能是一个域名或 *。
+            // 如果你需要支持多个域名，通常需要使用 Middleware 动态设置。
+            // 这里我们为了简单兼容，如果未设置 ALLOWED_ORIGINS，默认允许所有（*），
+            // 但我们在 API 路由代码中已经做了 checkApiOrigin 的严格逻辑检查，所以这里宽容一点没关系。
+            // 建议：在 Vercel 环境变量中设置 ALLOWED_ORIGINS 为你的主域名。
+            value: process.env.ALLOWED_ORIGINS
+              ? process.env.ALLOWED_ORIGINS.split(',')[0]
+              : '*',
+          },
+          {
+            key: 'Access-Control-Allow-Methods',
+            value: 'GET, POST, PUT, DELETE, OPTIONS',
+          },
+          {
+            key: 'Access-Control-Allow-Headers',
+            value: 'Content-Type, Authorization',
+          },
+        ],
+      },
+    ];
+  },
   async redirects() {
-    return [];
+    // 说明（给非程序员看的注释）：
+    // - 这里配置的是"旧地址自动跳到新地址"的规则（301 重定向）
+    // - 现在把原来的 /aippt 自动跳转到新的 /slides，避免老用户的收藏链接失效
+    // - /slides2 也重定向到 /slides，因为我们已将 slides2 合并到 slides
+    return [
+      {
+        // 处理带语言前缀的路径，例如 /en/aippt 或 /zh/aippt
+        source: '/:locale/aippt',
+        destination: '/:locale/slides',
+        permanent: true,
+      },
+      {
+        // 兜底：如果没有语言前缀，访问 /aippt 也跳转到 /slides
+        source: '/aippt',
+        destination: '/slides',
+        permanent: true,
+      },
+      {
+        // slides2 迁移重定向：处理带语言前缀和查询参数的路径
+        source: '/:locale/slides2',
+        destination: '/:locale/slides',
+        permanent: true,
+      },
+      {
+        // slides2 迁移重定向：兜底无语言前缀的情况
+        source: '/slides2',
+        destination: '/slides',
+        permanent: true,
+      },
+    ];
   },
   turbopack: {
     resolveAlias: {
@@ -36,6 +98,9 @@ const nextConfig = {
     },
   },
   experimental: {
+    serverActions: {
+      bodySizeLimit: '50mb',
+    },
     // 禁用 Turbopack 文件系统缓存（解决 Windows 上的并发写入错误）
     // 这会导致首次编译稍慢，但可以避免 "Persisting failed" 错误
     // 如果不需要缓存，可以设置为 false；如果需要缓存但想减少错误，可以保持 true 但接受偶尔的错误

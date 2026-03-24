@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { toPng } from 'html-to-image';
@@ -14,10 +15,12 @@ import {
   FileVideo,
   Loader2,
   Mic,
+  PenSquare,
   Upload,
   Zap,
 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
+import { useTheme } from 'next-themes';
 import { toast } from 'sonner';
 
 import { CreditsCost } from '@/shared/components/ai-elements/credits-display';
@@ -39,7 +42,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/components/ui/select';
+import { Input } from '@/shared/components/ui/input';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/shared/components/ui/tabs';
+import { Textarea } from '@/shared/components/ui/textarea';
 import { useAppContext } from '@/shared/contexts/app';
+import { parseLinkContentAction } from '@/app/actions/aippt';
 import {
   detectLearningFileType,
   readLearningFileContent,
@@ -73,15 +85,26 @@ const AINoteTaker = ({
   const locale = useLocale();
   const router = useRouter();
   const { user, fetchUserCredits } = useAppContext();
+  const { theme, resolvedTheme } = useTheme();
+  const localePrefix = locale ? `/${locale}` : '';
+  const withLocale = (path: string) =>
+    localePrefix ? `${localePrefix}${path}` : path;
 
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [materialInputMode, setMaterialInputMode] = useState<
+    'text' | 'upload' | 'link'
+  >('text');
+  const [pastedContent, setPastedContent] = useState('');
+  const [linkInput, setLinkInput] = useState('');
   const [generatedNotes, setGeneratedNotes] = useState('');
   const [activeTab, setActiveTab] = useState('upload');
   // 输出语言选择，默认为"自动"
   const [outputLanguage, setOutputLanguage] = useState<string>('auto');
   // 自定义主题色，默认为空，表示使用系统默认的 purple
   const [customThemeColor, setCustomThemeColor] = useState<string>('');
+  // 保存生成的笔记 ID，用于显示跳转按钮
+  const [savedNoteId, setSavedNoteId] = useState<string | null>(null);
 
   // 预设主题色列表
   const presetColors = [
@@ -116,10 +139,10 @@ const AINoteTaker = ({
    * - 这样用户可以实时看到自己还剩多少积分
    */
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
       fetchUserCredits();
     }
-  }, [user]);
+  }, [user?.id]);
 
   const handleFileUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
@@ -127,24 +150,79 @@ const AINoteTaker = ({
     const file = event.target.files?.[0];
     if (file) {
       setUploadedFile(file);
+      setMaterialInputMode('upload');
       setIsProcessing(true);
       setError('');
+      setSavedNoteId(null);
 
       try {
         // 读取文件内容（支持 txt / pdf / docx 等）
-        const fileContent = await readLearningFileContent(file);
+        let fileContent = '';
 
-        /**
-         * 调用后端 API 生成笔记（替代在前端直接 new OpenRouterService）：
-         *
-         * 非程序员解释：
-         * - 之前的做法：浏览器里直接拿着 OpenRouter 的密钥去请求第三方 AI 服务，
-         *   这样虽然能用，但密钥很容易在浏览器开发者工具中被看到 → 不安全。
-         * - 现在的做法：浏览器只请求我们自己的网站接口 /api/ai/notes，
-         *   真正去请求 OpenRouter 的动作放在服务器里完成，密钥只保存在服务器环境变量中。
-         *
-         * 对你来说，使用方式几乎不变：只不过从「调本地 service」换成了「调后端接口」。
-         */
+        try {
+          fileContent = await readLearningFileContent(file);
+        } catch (readError: any) {
+          if (readError.code === 'NEEDS_OCR') {
+            // 触发 OCR 流程
+            toast.info(t('notes.ocr_processing'), {
+              duration: 5000,
+            });
+
+            try {
+              // 动态导入 PDF 转图库
+              const { convertPdfToImages } = await import(
+                '@/shared/lib/pdf-to-image'
+              );
+              // 限制前5页，防止超时
+              const images = await convertPdfToImages(file, 5);
+
+              if (images.length === 0) {
+                throw new Error(
+                  t('errors.ocr_conversion_failed') ||
+                    'PDF conversion to images failed'
+                );
+              }
+
+              let ocrText = '';
+              const total = images.length;
+
+              // 串行处理 OCR，避免并发过高
+              for (let i = 0; i < total; i++) {
+                // 这里可以加一个简单的进度提示，但 toast 更新比较麻烦，暂略
+                const res = await fetch('/api/ai/ocr', {
+                  method: 'POST',
+                  body: JSON.stringify({ image: images[i] }),
+                });
+
+                if (!res.ok) continue;
+
+                const data = await res.json();
+                if (data.success && data.text) {
+                  ocrText += `[Page ${i + 1}]\n${data.text}\n\n`;
+                }
+              }
+
+              if (!ocrText.trim()) {
+                throw new Error(
+                  t('errors.ocr_no_text') || 'OCR failed to extract any text'
+                );
+              }
+
+              fileContent = ocrText;
+              toast.success(t('notes.ocr_complete'));
+            } catch (ocrError: any) {
+              console.error('OCR Process failed:', ocrError);
+              const errorMessage =
+                ocrError.message ||
+                t('errors.unknown_error') ||
+                'Unknown error';
+              throw new Error(`${t('notes.ocr_failed')}: ${errorMessage}`);
+            }
+          } else {
+            throw readError;
+          }
+        }
+
         const response = await fetch('/api/ai/notes', {
           method: 'POST',
           headers: {
@@ -171,12 +249,20 @@ const AINoteTaker = ({
             fetchUserCredits();
           }
           toast.success(t('notes.generation_success'));
+
+          // 保存笔记 ID，但不自动跳转，允许用户先预览
+          if (result.note?.id) {
+            setSavedNoteId(result.note.id);
+          }
         } else {
           // 失败：保存错误信息，并同样切到"笔记"标签页，让用户能立刻看到错误原因
           // 积分不足的特殊处理
           if (result.insufficientCredits) {
             toast.error(
-              `积分不足！需要 ${result.requiredCredits} 积分，当前仅有 ${result.remainingCredits} 积分`
+              t('errors.insufficient_credits', {
+                required: result.requiredCredits,
+                remaining: result.remainingCredits,
+              })
             );
           } else {
             toast.error(result.error || t('errors.generation_failed'));
@@ -198,6 +284,129 @@ const AINoteTaker = ({
    * - 很多按钮都需要“已经生成的笔记”作为输入
    * - 这个小工具函数会提前帮你检查，避免白点按钮
    */
+  const handleGenerateFromText = async () => {
+    if (!pastedContent.trim()) {
+      toast.error(t('upload.text_empty'));
+      return;
+    }
+
+    setIsProcessing(true);
+    setError('');
+    setSavedNoteId(null);
+    setUploadedFile(null);
+
+    try {
+      const response = await fetch('/api/ai/notes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: pastedContent.trim(),
+          type: 'text',
+          fileName: 'pasted-content.txt',
+          outputLanguage,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setGeneratedNotes(result.notes);
+        setActiveTab('notes');
+        if (user) {
+          fetchUserCredits();
+        }
+        toast.success(t('notes.generation_success'));
+
+        if (result.note?.id) {
+          setSavedNoteId(result.note.id);
+        }
+      } else {
+        if (result.insufficientCredits) {
+          toast.error(
+            t('errors.insufficient_credits', {
+              required: result.requiredCredits,
+              remaining: result.remainingCredits,
+            })
+          );
+        } else {
+          toast.error(result.error || t('errors.generation_failed'));
+        }
+        setError(result.error || t('errors.generation_failed'));
+        setActiveTab('notes');
+      }
+    } catch (error) {
+      console.error('Error processing pasted content:', error);
+      setError(t('errors.processing_failed'));
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleGenerateFromLink = async () => {
+    if (!linkInput.trim()) {
+      toast.error(t('upload.link_empty'));
+      return;
+    }
+
+    setIsProcessing(true);
+    setError('');
+    setSavedNoteId(null);
+    setUploadedFile(null);
+
+    try {
+      const extractedContent = await parseLinkContentAction(linkInput.trim());
+
+      const response = await fetch('/api/ai/notes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: extractedContent,
+          type: 'link',
+          fileName: `web-link-${Date.now()}.txt`,
+          outputLanguage,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setGeneratedNotes(result.notes);
+        setActiveTab('notes');
+        if (user) {
+          fetchUserCredits();
+        }
+        toast.success(t('notes.generation_success'));
+
+        if (result.note?.id) {
+          setSavedNoteId(result.note.id);
+        }
+      } else {
+        if (result.insufficientCredits) {
+          toast.error(
+            t('errors.insufficient_credits', {
+              required: result.requiredCredits,
+              remaining: result.remainingCredits,
+            })
+          );
+        } else {
+          toast.error(result.error || t('errors.generation_failed'));
+        }
+        setError(result.error || t('errors.generation_failed'));
+        setActiveTab('notes');
+      }
+    } catch (error: any) {
+      console.error('Error processing link content:', error);
+      setError(error?.message || t('errors.processing_failed'));
+      toast.error(error?.message || t('errors.processing_failed'));
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const ensureNotesReady = () => {
     if (!generatedNotes) {
       toast.error(t('notes.toast_no_notes'));
@@ -248,9 +457,8 @@ const AINoteTaker = ({
       })
     );
 
-    const targetPath =
-      feature === 'flashcards' ? `/${locale}/flashcards` : `/${locale}/quiz`;
-    router.push(targetPath);
+    const targetPath = feature === 'flashcards' ? '/flashcards' : '/quiz';
+    router.push(withLocale(targetPath));
   };
 
   /**
@@ -281,11 +489,14 @@ const AINoteTaker = ({
 
       // 使用 html-to-image 将指定 DOM 转成 PNG
       // 说明：
-      // - backgroundColor：兜底背景色，避免透明背景在某些设备上看起来发灰
+      // - backgroundColor：根据当前主题动态设置背景色，light 模式使用白色，dark 模式使用深色
       // - pixelRatio：用屏幕像素比，导出更清晰的图片（长图依然能看清细节）
+      const isDark = resolvedTheme === 'dark' || theme === 'dark';
+      const backgroundColor = isDark ? '#020617' : '#ffffff'; // light 模式使用白色，dark 模式使用深色
+
       const dataUrl = await toPng(node, {
         cacheBust: true,
-        backgroundColor: '#020617', // 近似当前深色背景（Tailwind 的 bg-slate-950）
+        backgroundColor,
         pixelRatio:
           typeof window !== 'undefined' && window.devicePixelRatio
             ? window.devicePixelRatio
@@ -347,7 +558,7 @@ const AINoteTaker = ({
         // 检查是否是升级维护提示
         if (result.upgrading) {
           setDialogOpen(false);
-          toast.error('Podcast功能正在升级维护中，请稍后再试');
+          toast.error(t('errors.podcast_upgrading'));
         } else {
           setDialogError(result.error || t('notes.dialog.error'));
         }
@@ -375,7 +586,7 @@ const AINoteTaker = ({
   const renderDialogBody = () => {
     if (dialogLoading) {
       return (
-        <div className="flex flex-col items-center justify-center gap-3 py-10 text-center text-gray-300">
+        <div className="text-muted-foreground flex flex-col items-center justify-center gap-3 py-10 text-center dark:text-gray-300">
           <Loader2 className="text-primary h-6 w-6 animate-spin" />
           <p>{t('notes.dialog.loading')}</p>
         </div>
@@ -388,7 +599,7 @@ const AINoteTaker = ({
 
     if (dialogType === 'podcast') {
       return (
-        <ScrollArea className="border-primary/20 h-80 rounded border bg-gray-900/60 p-4">
+        <ScrollArea className="border-primary/20 bg-muted/60 h-80 rounded border p-4 dark:bg-gray-900/60">
           <StudyNotesViewer content={podcastResult} />
         </ScrollArea>
       );
@@ -403,7 +614,8 @@ const AINoteTaker = ({
 
   const tabs = [
     { id: 'upload', label: t('tabs.upload'), icon: Upload },
-    { id: 'record', label: t('tabs.record'), icon: Mic },
+    // 暂时移除录音功能，因为尚未实现 STT
+    // { id: 'record', label: t('tabs.record'), icon: Mic },
     { id: 'notes', label: t('tabs.notes'), icon: Brain },
   ];
 
@@ -421,10 +633,10 @@ const AINoteTaker = ({
     <section
       className={
         isEmbedded
-          ? // 嵌入首页：保持深色渐变，但不占满整屏，也不使用 fixed 背景
-            'relative bg-gradient-to-b from-gray-950/95 via-gray-950/90 to-gray-950/98 py-16'
-          : // 原有单页模式：整屏高度 + 顶到底渐变
-            'via-primary/5 min-h-screen bg-gradient-to-b from-gray-950 to-gray-950'
+          ? // 嵌入首页：背景根据主题自动切换，light 模式使用浅色，dark 模式使用深色
+            'from-background/95 via-muted/90 to-background/98 relative bg-gradient-to-b py-16 dark:from-gray-950/95 dark:via-gray-950/90 dark:to-gray-950/98'
+          : // 原有单页模式：背景根据主题自动切换，light 模式使用浅色，dark 模式使用深色
+            'via-primary/5 from-background to-muted min-h-screen bg-gradient-to-b dark:from-gray-950 dark:to-gray-950'
       }
     >
       {/* 背景装饰：full 模式用 fixed 光晕，embedded 模式用更轻量的绝对定位光晕，避免影响整页滚动 */}
@@ -464,7 +676,7 @@ const AINoteTaker = ({
               <h1 className="via-primary/80 to-primary/60 mb-6 bg-gradient-to-r from-white bg-clip-text text-4xl font-bold text-transparent md:text-5xl">
                 {t('title')}
               </h1>
-              <p className="mx-auto max-w-3xl text-lg text-gray-300 md:text-xl">
+              <p className="text-muted-foreground mx-auto max-w-3xl text-lg md:text-xl dark:text-gray-300">
                 {t('subtitle')}
               </p>
             </motion.div>
@@ -475,7 +687,7 @@ const AINoteTaker = ({
         <ScrollAnimation delay={0.2}>
           <div className="mx-auto max-w-4xl">
             <div className="mb-8 flex justify-center">
-              <div className="border-primary/20 inline-flex rounded-lg border bg-gray-900/50 p-1 backdrop-blur-sm">
+              <div className="border-primary/20 bg-muted/50 inline-flex rounded-lg border p-1 backdrop-blur-sm dark:bg-gray-900/50">
                 {tabs.map((tab) => {
                   const Icon = tab.icon;
                   return (
@@ -486,7 +698,7 @@ const AINoteTaker = ({
                         activeTab === tab.id
                           ? // 选中标签：统一使用 primary 渐变，而不是 primary + 纯蓝
                             'from-primary to-primary/70 bg-gradient-to-r text-white shadow-lg'
-                          : 'hover:bg-primary/10 text-gray-400 hover:text-white'
+                          : 'hover:bg-primary/10 text-muted-foreground hover:text-foreground dark:text-gray-400 dark:hover:text-white'
                       }`}
                     >
                       <Icon className="h-4 w-4" />
@@ -503,123 +715,9 @@ const AINoteTaker = ({
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="border-primary/20 rounded-2xl border bg-gray-900/50 p-8 backdrop-blur-sm"
+                className="border-primary/20 bg-muted/50 rounded-2xl border p-8 backdrop-blur-sm dark:bg-gray-900/50"
               >
                 <div className="text-center">
-                  {/* 主图标区域：改为 primary 单色渐变，贴合 turbo 主题主色 */}
-                  <div className="from-primary to-primary/70 mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-2xl bg-gradient-to-br">
-                    <Upload className="h-12 w-12 text-white" />
-                  </div>
-
-                  <h3 className="mb-4 text-2xl font-bold text-white">
-                    {t('upload.title')}
-                  </h3>
-                  <p className="mb-8 text-gray-400">{t('upload.subtitle')}</p>
-
-                  {/* 语言选择器 */}
-                  <div className="mb-6 flex flex-col items-center justify-center gap-4">
-                    <div className="flex items-center gap-3">
-                      <label
-                        htmlFor="output-language-select"
-                        className="text-sm font-medium text-gray-300"
-                      >
-                        {t('upload.output_language')}:
-                      </label>
-                      <Select
-                        value={outputLanguage}
-                        onValueChange={setOutputLanguage}
-                        disabled={isProcessing}
-                      >
-                        <SelectTrigger
-                          id="output-language-select"
-                          className="border-primary/30 hover:border-primary/50 w-[280px] bg-gray-800/50 text-white"
-                        >
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="border-primary/30 bg-gray-900">
-                          <SelectItem value="auto">
-                            {t('languages.auto')}
-                          </SelectItem>
-                          <SelectItem value="zh">
-                            {t('languages.zh')}
-                          </SelectItem>
-                          <SelectItem value="en">
-                            {t('languages.en')}
-                          </SelectItem>
-                          <SelectItem value="es">
-                            {t('languages.es')}
-                          </SelectItem>
-                          <SelectItem value="fr">
-                            {t('languages.fr')}
-                          </SelectItem>
-                          <SelectItem value="de">
-                            {t('languages.de')}
-                          </SelectItem>
-                          <SelectItem value="ja">
-                            {t('languages.ja')}
-                          </SelectItem>
-                          <SelectItem value="ko">
-                            {t('languages.ko')}
-                          </SelectItem>
-                          <SelectItem value="pt">
-                            {t('languages.pt')}
-                          </SelectItem>
-                          <SelectItem value="ru">
-                            {t('languages.ru')}
-                          </SelectItem>
-                          <SelectItem value="ar">
-                            {t('languages.ar')}
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* 主题色选择器 */}
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium text-gray-300">
-                        Theme Color:
-                      </span>
-                      <div className="flex gap-2">
-                        {presetColors.map((preset) => (
-                          <button
-                            key={preset.name}
-                            onClick={() => setCustomThemeColor(preset.value)}
-                            className={`h-6 w-6 rounded-full border-2 transition-all ${
-                              customThemeColor === preset.value
-                                ? 'scale-110 border-white ring-2 ring-white/50'
-                                : 'border-transparent hover:scale-110'
-                            }`}
-                            style={{ backgroundColor: preset.color }}
-                            title={preset.name}
-                            disabled={isProcessing}
-                          />
-                        ))}
-                        {/* 自定义颜色输入 */}
-                        <div className="relative flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border border-gray-600 bg-gray-800">
-                          <input
-                            type="color"
-                            value={customThemeColor || '#6535F6'}
-                            onChange={(e) =>
-                              setCustomThemeColor(e.target.value)
-                            }
-                            className="absolute inset-0 h-[150%] w-[150%] -translate-x-1/4 -translate-y-1/4 cursor-pointer opacity-0"
-                            disabled={isProcessing}
-                          />
-                          <div
-                            className="h-full w-full rounded-full"
-                            style={{
-                              backgroundColor:
-                                customThemeColor || 'transparent',
-                              backgroundImage: !customThemeColor
-                                ? 'linear-gradient(to bottom right, #f0f, #0ff)'
-                                : 'none',
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
                   {/* 
                     非程序员解释：
                     - 浏览器出于安全原因，有时不允许用 JS 直接"点"隐藏的 <input type="file">
@@ -630,50 +728,232 @@ const AINoteTaker = ({
                     id="ai-note-file-input"
                     ref={fileInputRef}
                     type="file"
-                    accept="audio/*,video/*,.pdf,.doc,.docx,.txt"
+                    // 暂时移除音视频支持：accept="audio/*,video/*,.pdf,.doc,.docx,.txt"
+                    accept=".pdf,.doc,.docx,.txt,.md"
                     onChange={handleFileUpload}
                     className="hidden"
                   />
 
                   {/* 使用 Button 作为外壳，把 label 当作子元素渲染（asChild） */}
-                  <Button
-                    asChild
-                    // 上传按钮：使用 primary 为主色的渐变，去掉额外的蓝色终点
-                    className="from-primary hover:from-primary/90 to-primary/70 hover:to-primary/80 bg-gradient-to-r px-8 py-4 text-lg text-white"
-                    disabled={isProcessing}
+                  <Tabs
+                    value={materialInputMode}
+                    onValueChange={(value) =>
+                      setMaterialInputMode(value as 'text' | 'upload' | 'link')
+                    }
+                    className="mx-auto w-full max-w-3xl"
                   >
-                    <label
-                      htmlFor="ai-note-file-input"
-                      className="flex cursor-pointer items-center"
-                    >
-                      {isProcessing ? (
-                        <>
-                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                          {t('upload.processing')}
-                        </>
-                      ) : (
-                        <>
-                          <CreditsCost credits={3} />
-                          <Upload className="mr-2 h-5 w-5" />
-                          {t('upload.upload_button')}
-                        </>
-                      )}
-                    </label>
-                  </Button>
+                    <TabsList className="bg-muted text-foreground mb-4 grid grid-cols-3 rounded-xl">
+                      <TabsTrigger className="h-9 text-xs" value="text">
+                        {t('upload.text_tab')}
+                      </TabsTrigger>
+                      <TabsTrigger className="h-9 text-xs" value="upload">
+                        {t('upload.upload_tab')}
+                      </TabsTrigger>
+                      <TabsTrigger className="h-9 text-xs" value="link">
+                        {t('upload.link_tab')}
+                      </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="text" className="space-y-3">
+                      <div className="border-primary/20 bg-background/50 rounded-2xl border p-4 text-left dark:bg-gray-950/40">
+                        <Textarea
+                          value={pastedContent}
+                          onChange={(e) => setPastedContent(e.target.value)}
+                          placeholder={t('upload.text_placeholder')}
+                          disabled={isProcessing}
+                          className="border-border bg-muted/40 text-foreground min-h-40 resize-y text-sm dark:bg-black/20"
+                        />
+                        <div className="mt-3 flex justify-center">
+                          <Button
+                            onClick={handleGenerateFromText}
+                            disabled={isProcessing || !pastedContent.trim()}
+                            className="from-primary hover:from-primary/90 to-primary/70 hover:to-primary/80 h-11 rounded-full bg-gradient-to-r px-7 text-white"
+                          >
+                            {isProcessing ? (
+                              <>
+                                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                {t('upload.processing')}
+                              </>
+                            ) : (
+                              <>
+                                <CreditsCost credits={3} />
+                                {t('upload.generate_from_text')}
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="upload" className="space-y-3">
+                      <div className="border-primary/20 bg-background/50 rounded-2xl border border-dashed px-5 py-8 text-center dark:bg-gray-950/40">
+                        <p className="text-muted-foreground mb-4 text-sm dark:text-gray-400">
+                          {t('upload.upload_hint')}
+                        </p>
+                        <Button
+                          asChild
+                          className="from-primary hover:from-primary/90 to-primary/70 hover:to-primary/80 h-11 rounded-full bg-gradient-to-r px-7 text-white"
+                          disabled={isProcessing}
+                        >
+                          <label
+                            htmlFor="ai-note-file-input"
+                            className="inline-flex cursor-pointer items-center justify-center"
+                          >
+                            {isProcessing ? (
+                              <>
+                                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                {t('upload.processing')}
+                              </>
+                            ) : (
+                              <>
+                                <CreditsCost credits={3} />
+                                {t('upload.upload_button')}
+                              </>
+                            )}
+                          </label>
+                        </Button>
+                        {uploadedFile && (
+                          <div className="border-primary/20 bg-muted/50 mt-4 rounded-xl border p-3 dark:bg-black/20">
+                            <p className="text-muted-foreground text-xs dark:text-gray-400">
+                              {t('upload.file_selected')}
+                            </p>
+                            <p className="text-foreground mt-1 truncate text-sm font-medium dark:text-white">
+                              {uploadedFile.name}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="link" className="space-y-3">
+                      <div className="border-primary/20 bg-background/50 mx-auto max-w-2xl space-y-4 rounded-2xl border p-5 text-center dark:bg-gray-950/40">
+                        <p className="text-muted-foreground text-sm dark:text-gray-400">
+                          {t('upload.link_hint')}
+                        </p>
+
+                        <Input
+                          value={linkInput}
+                          onChange={(e) => setLinkInput(e.target.value)}
+                          placeholder={t('upload.link_placeholder')}
+                          disabled={isProcessing}
+                          className="border-border bg-muted/40 text-foreground h-11 text-sm dark:bg-black/20"
+                        />
+
+                        <div className="flex justify-center">
+                          <Button
+                            type="button"
+                            onClick={handleGenerateFromLink}
+                            disabled={isProcessing || !linkInput.trim()}
+                            className="from-primary hover:from-primary/90 to-primary/70 hover:to-primary/80 h-11 rounded-full bg-gradient-to-r px-7 text-white"
+                          >
+                            {isProcessing ? (
+                              <>
+                                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                {t('upload.processing')}
+                              </>
+                            ) : (
+                              <>
+                                <CreditsCost credits={3} />
+                                {t('upload.generate_from_link')}
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+
+                  <div className="mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+                    <div className="flex items-center gap-2">
+                      <label
+                        htmlFor="output-language-select"
+                        className="text-foreground/70 text-xs font-medium dark:text-gray-300"
+                      >
+                        {t('upload.output_language')}
+                      </label>
+                      <Select
+                        value={outputLanguage}
+                        onValueChange={setOutputLanguage}
+                        disabled={isProcessing}
+                      >
+                        <SelectTrigger
+                          id="output-language-select"
+                          className="border-primary/30 hover:border-primary/50 bg-background/60 text-foreground h-9 w-[200px] text-xs dark:bg-gray-800/50 dark:text-white"
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="border-primary/30 bg-background dark:bg-gray-900">
+                          <SelectItem value="auto">{t('languages.auto')}</SelectItem>
+                          <SelectItem value="zh">{t('languages.zh')}</SelectItem>
+                          <SelectItem value="en">{t('languages.en')}</SelectItem>
+                          <SelectItem value="es">{t('languages.es')}</SelectItem>
+                          <SelectItem value="fr">{t('languages.fr')}</SelectItem>
+                          <SelectItem value="de">{t('languages.de')}</SelectItem>
+                          <SelectItem value="ja">{t('languages.ja')}</SelectItem>
+                          <SelectItem value="ko">{t('languages.ko')}</SelectItem>
+                          <SelectItem value="pt">{t('languages.pt')}</SelectItem>
+                          <SelectItem value="ru">{t('languages.ru')}</SelectItem>
+                          <SelectItem value="ar">{t('languages.ar')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-foreground/70 text-xs font-medium dark:text-gray-300">
+                        {t('upload.theme_color')}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {presetColors.map((preset) => (
+                          <button
+                            key={preset.name}
+                            onClick={() => setCustomThemeColor(preset.value)}
+                            className={`h-5 w-5 rounded-full border transition-all ${
+                              customThemeColor === preset.value
+                                ? 'border-white ring-2 ring-white/40'
+                                : 'border-transparent hover:scale-110'
+                            }`}
+                            style={{ backgroundColor: preset.color }}
+                            title={preset.name}
+                            disabled={isProcessing}
+                          />
+                        ))}
+                        <div className="border-border bg-muted relative flex h-5 w-5 items-center justify-center overflow-hidden rounded-full border dark:border-gray-600 dark:bg-gray-800">
+                          <input
+                            type="color"
+                            value={customThemeColor || '#6535F6'}
+                            onChange={(e) => setCustomThemeColor(e.target.value)}
+                            className="absolute inset-0 h-[150%] w-[150%] -translate-x-1/4 -translate-y-1/4 cursor-pointer opacity-0"
+                            disabled={isProcessing}
+                          />
+                          <div
+                            className="h-full w-full rounded-full"
+                            style={{
+                              backgroundColor: customThemeColor || 'transparent',
+                              backgroundImage: !customThemeColor
+                                ? 'linear-gradient(to bottom right, #f0f, #0ff)'
+                                : 'none',
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
                   {/* 支持的文件类型 */}
-                  <div className="mt-12 grid grid-cols-2 gap-4 md:grid-cols-4">
+                  <div className="mx-auto mt-12 grid max-w-2xl grid-cols-2 gap-4 md:grid-cols-2">
                     {[
+                      /* 暂时隐藏音视频支持
                       {
                         icon: FileAudio,
                         label: t('upload.audio_files'),
-                        desc: 'MP3, WAV, M4A',
+                        desc: t('upload.audio_formats'),
                       },
                       {
                         icon: FileVideo,
                         label: t('upload.video_files'),
-                        desc: 'MP4, MOV, AVI',
+                        desc: t('upload.video_formats'),
                       },
+                      */
                       {
                         icon: FileText,
                         label: t('upload.pdf_docs'),
@@ -682,7 +962,7 @@ const AINoteTaker = ({
                       {
                         icon: FileText,
                         label: t('upload.text_docs'),
-                        desc: 'DOC, TXT, MD',
+                        desc: t('upload.text_formats'),
                       },
                     ].map((type, idx) => {
                       const Icon = type.icon;
@@ -691,8 +971,12 @@ const AINoteTaker = ({
                           <div className="bg-primary/10 mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-lg">
                             <Icon className="text-primary h-6 w-6" />
                           </div>
-                          <p className="font-medium text-white">{type.label}</p>
-                          <p className="text-sm text-gray-500">{type.desc}</p>
+                          <p className="text-foreground font-medium dark:text-white">
+                            {type.label}
+                          </p>
+                          <p className="text-muted-foreground text-sm dark:text-gray-500">
+                            {type.desc}
+                          </p>
                         </div>
                       );
                     })}
@@ -707,22 +991,22 @@ const AINoteTaker = ({
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="border-primary/20 rounded-2xl border bg-gray-900/50 p-8 backdrop-blur-sm"
+                className="border-primary/20 bg-muted/50 rounded-2xl border p-8 backdrop-blur-sm dark:bg-gray-900/50"
               >
                 <div className="text-center">
                   <div className="from-primary to-primary/70 mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-2xl bg-gradient-to-br">
                     <Mic className="h-12 w-12 text-white" />
                   </div>
 
-                  <h3 className="mb-4 text-2xl font-bold text-white">
+                  <h3 className="text-foreground mb-4 text-2xl font-bold dark:text-white">
                     {t('record.title')}
                   </h3>
-                  <p className="mb-8 text-gray-400">{t('record.subtitle')}</p>
+                  <p className="text-muted-foreground mb-8 dark:text-gray-400">
+                    {t('record.subtitle')}
+                  </p>
 
                   <Button
-                    onClick={() =>
-                      toast.error('录音功能正在升级维护中，请稍后再试')
-                    }
+                    onClick={() => toast.error(t('record.upgrading_message'))}
                     className="from-primary hover:from-primary/90 to-primary/70 hover:to-primary/80 bg-gradient-to-r px-8 py-4 text-lg text-white"
                   >
                     <Mic className="mr-2 h-5 w-5" />
@@ -730,8 +1014,8 @@ const AINoteTaker = ({
                   </Button>
 
                   <div className="mt-8 text-sm text-gray-500">
-                    <p>支持最长60分钟的连续录音</p>
-                    <p>自动降噪和语音识别优化</p>
+                    <p>{t('record.max_duration')}</p>
+                    <p>{t('record.features')}</p>
                   </div>
                 </div>
               </motion.div>
@@ -743,10 +1027,10 @@ const AINoteTaker = ({
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="border-primary/20 rounded-2xl border bg-gray-900/50 p-8 backdrop-blur-sm"
+                className="border-primary/20 bg-muted/50 rounded-2xl border p-8 backdrop-blur-sm dark:bg-gray-900/50"
               >
                 <div className="mb-6 flex items-center justify-between">
-                  <h3 className="text-2xl font-bold text-white">
+                  <h3 className="text-foreground text-2xl font-bold dark:text-white">
                     {t('notes.title')}
                   </h3>
                   <div className="flex gap-3">
@@ -800,7 +1084,7 @@ const AINoteTaker = ({
                 ) : generatedNotes ? (
                   <div
                     ref={notesContainerRef}
-                    className="rounded-lg bg-gray-800/50 p-6 text-base leading-relaxed text-gray-200"
+                    className="bg-background text-foreground rounded-lg p-6 text-base leading-relaxed dark:bg-gray-800/50 dark:text-gray-200"
                   >
                     <StudyNotesViewer
                       content={generatedNotes}
@@ -809,9 +1093,30 @@ const AINoteTaker = ({
                   </div>
                 ) : (
                   <div className="py-12 text-center">
-                    <Brain className="mx-auto mb-4 h-16 w-16 text-gray-600" />
-                    <p className="text-gray-500">{t('notes.no_notes')}</p>
+                    <Brain className="text-muted-foreground mx-auto mb-4 h-16 w-16 dark:text-gray-600" />
+                    <p className="text-muted-foreground dark:text-gray-500">
+                      {t('notes.no_notes')}
+                    </p>
                   </div>
+                )}
+
+                {/* 如果有已保存的笔记 ID，显示编辑按钮 */}
+                {savedNoteId && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-6 flex justify-center"
+                  >
+                    <Link href={withLocale(`/library/notes/${savedNoteId}`)}>
+                      <Button
+                        size="lg"
+                        className="shadow-primary/20 bg-primary hover:bg-primary/90 h-12 rounded-full px-8 font-semibold text-white shadow-lg"
+                      >
+                        <PenSquare className="mr-2 h-5 w-5" />
+                        前往编辑器润色
+                      </Button>
+                    </Link>
+                  </motion.div>
                 )}
 
                 {/* AI工具栏 */}
@@ -864,7 +1169,7 @@ const AINoteTaker = ({
           }
         }}
       >
-        <DialogContent className="border-primary/30 bg-gray-950/95 text-white">
+        <DialogContent className="border-primary/30 bg-background text-foreground dark:bg-gray-950/95 dark:text-white">
           <DialogHeader>
             <DialogTitle>{getDialogTitles().title}</DialogTitle>
             <DialogDescription className="text-gray-400">

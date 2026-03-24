@@ -1,0 +1,21 @@
+{
+  "title": "AI Notes Library",
+  "subtitle": "Revisit every AI note you generated, keep refining the content, or reuse it across other study tools.",
+  "buttons": {
+    "new": "Create note",
+    "empty": "Generate new note"
+  },
+  "empty": {
+    "title": "Notes Library",
+    "description": "Your generated notes will appear here. Click the button below to create your first AI note.",
+    "button": "Generate note"
+  },
+  "list": {
+    "previewEmpty": "No preview available yet",
+    "wordCount": "{count} words"
+  },
+  "errors": {
+    "fetchFailed": "Failed to load notes"
+  }
+}
+

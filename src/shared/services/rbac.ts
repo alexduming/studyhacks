@@ -2,7 +2,13 @@ import { cache } from 'react';
 import { and, eq, gt, inArray, isNull } from 'drizzle-orm';
 
 import { db } from '@/core/db';
-import { permission, role, rolePermission, userRole } from '@/config/db/schema';
+import {
+  permission,
+  role,
+  rolePermission,
+  user,
+  userRole,
+} from '@/config/db/schema';
 import { getUuid } from '@/shared/lib/hash';
 
 // Types
@@ -160,7 +166,6 @@ export async function assignPermissionToRole(
   const [result] = await db()
     .insert(rolePermission)
     .values({
-      id: getUuid(),
       roleId,
       permissionId,
     })
@@ -201,7 +206,6 @@ export async function assignPermissionsToRole(
       .insert(rolePermission)
       .values(
         permissionIds.map((permissionId) => ({
-          id: getUuid(),
           roleId,
           permissionId,
         }))
@@ -418,4 +422,30 @@ export async function getUsersByRole(roleId: string): Promise<string[]> {
     .where(eq(userRole.roleId, roleId));
 
   return result.map((r) => r.userId);
+}
+
+/**
+ * Get users with full user info by role
+ * 获取拥有指定角色的完整用户信息
+ */
+export async function getUsersWithInfoByRole(roleId: string) {
+  const result = await db()
+    .select({
+      userId: userRole.userId,
+      roleId: userRole.roleId,
+      createdAt: userRole.createdAt,
+      expiresAt: userRole.expiresAt,
+      // User info
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      image: user.image,
+      emailVerified: user.emailVerified,
+      userCreatedAt: user.createdAt,
+    })
+    .from(userRole)
+    .innerJoin(user, eq(userRole.userId, user.id))
+    .where(eq(userRole.roleId, roleId));
+
+  return result;
 }

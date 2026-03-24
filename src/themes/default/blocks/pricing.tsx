@@ -211,12 +211,8 @@ export function Pricing({
     const displayedItem =
       itemCurrencies[item.product_id]?.displayedItem || item;
 
-    if (configs.select_payment_enabled === 'true') {
-      setPricingItem(displayedItem);
-      setIsShowPaymentModal(true);
-    } else {
-      handleCheckout(displayedItem, configs.default_payment_provider);
-    }
+    // Direct checkout instead of modal
+    handleCheckout(displayedItem, configs.default_payment_provider);
   };
 
   const getAffiliateMetadata = ({
@@ -252,7 +248,8 @@ export function Pricing({
 
   const handleCheckout = async (
     item: PricingItem,
-    paymentProvider?: string
+    paymentProvider?: string,
+    forceCny: boolean = false
   ) => {
     try {
       if (!user) {
@@ -266,7 +263,7 @@ export function Pricing({
 
       const params = {
         product_id: item.product_id,
-        currency: item.currency,
+        currency: forceCny ? 'CNY' : item.currency,
         locale: locale || 'en',
         payment_provider: paymentProvider || '',
         metadata: affiliateMetadata,
@@ -420,30 +417,32 @@ export function Pricing({
                     </div>
 
                     {currencies.length > 1 && (
-                      <Select
-                        value={selectedCurrency}
-                        onValueChange={(currency) =>
-                          handleCurrencyChange(item.product_id, currency)
-                        }
-                      >
-                        <SelectTrigger
-                          size="sm"
-                          className="border-muted-foreground/30 bg-background/50 h-6 min-w-[60px] px-2 text-xs"
+                      <div className="hidden">
+                        <Select
+                          value={selectedCurrency}
+                          onValueChange={(currency) =>
+                            handleCurrencyChange(item.product_id, currency)
+                          }
                         >
-                          <SelectValue placeholder="Currency" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {currencies.map((currency) => (
-                            <SelectItem
-                              key={currency.currency}
-                              value={currency.currency}
-                              className="text-xs"
-                            >
-                              {currency.currency.toUpperCase()}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                          <SelectTrigger
+                            size="sm"
+                            className="border-muted-foreground/30 bg-background/50 h-6 min-w-[60px] px-2 text-xs"
+                          >
+                            <SelectValue placeholder="Currency" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {currencies.map((currency) => (
+                              <SelectItem
+                                key={currency.currency}
+                                value={currency.currency}
+                                className="text-xs"
+                              >
+                                {currency.currency.toUpperCase()}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     )}
                   </div>
 
@@ -454,6 +453,29 @@ export function Pricing({
                     <span className="text-muted-foreground text-sm">
                       {item.tip}
                     </span>
+                  )}
+
+                  {item.cn_amount && item.cn_amount > 0 && (
+                    <div className="mt-4 flex items-center justify-start gap-2">
+                      <span className="text-muted-foreground text-xs">
+                        {t('or_pay_with') || 'Or pay with'}
+                      </span>
+                      <div
+                        className="border-input bg-background hover:bg-accent hover:text-accent-foreground inline-block rounded-md border px-2 py-1 transition-colors hover:cursor-pointer"
+                        onClick={() => handleCheckout(item, undefined, true)}
+                      >
+                        <div className="flex items-center gap-2">
+                          <SmartIcon
+                            name="RiWechatPayFill"
+                            className="size-5 text-[#09B83E]"
+                          />
+                          {/* <SmartIcon
+                            name="RiAlipayFill"
+                            className="size-5 text-[#1678FF]"
+                          /> */}
+                        </div>
+                      </div>
+                    </div>
                   )}
 
                   {isCurrentPlan ? (
