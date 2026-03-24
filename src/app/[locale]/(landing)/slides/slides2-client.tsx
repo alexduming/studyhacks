@@ -141,6 +141,18 @@ const REGION_COLORS = ['#01c6b2', '#ff5f5f', '#f6c945', '#8b6cff'];
 const AUTO_MODE_PREFIX =
   '你是一位高级视觉设计师，请根据下面文章内容制作一套PPT，你需要Step1：生成 PPT 大纲，将文章合理拆成多页内容（≤15页），【关键要求】：第一页必须是封面页，只包含大标题、副标题和必要的分享人/日期等元信息，设计需极简大气；后续页面每页包含：标题 + 简明要点，信息层级清晰，逻辑自然；Step2：将大纲拆分为独立页 Prompt，一页一张图，不可生成长图、每一页风格保持统一。';
 
+type ConsumeCreditsActionResult = Awaited<ReturnType<typeof consumeCreditsAction>>;
+type ConsumeCreditsActionFailure = Exclude<
+  ConsumeCreditsActionResult,
+  { success: true }
+>;
+type CreditActionError = Error & {
+  code?: ConsumeCreditsActionFailure['code'];
+  requiredCredits?: number;
+  remainingCredits?: number;
+  isCreditActionError?: true;
+};
+
 export default function Slides2Client({
   initialPresentation,
 }: Slides2ClientProps) {
@@ -449,22 +461,87 @@ export default function Slides2Client({
     }
   }, [slides.length]); // 只在 slides 数量变化时运行（避免频繁更新）
 
-  const handleApiError = (error: any) => {
-    const errorMsg = error?.message || '';
-    if (errorMsg.includes('Unauthorized') || errorMsg.includes('401')) {
+  const createCreditActionError = (
+    result: ConsumeCreditsActionFailure
+  ): CreditActionError => {
+    const error = new Error(result.message) as CreditActionError;
+    error.code = result.code;
+    error.isCreditActionError = true;
+
+    if (result.code === 'INSUFFICIENT_CREDITS') {
+      error.requiredCredits = result.requiredCredits;
+      error.remainingCredits = result.remainingCredits;
+    }
+
+    return error;
+  };
+
+  const isCreditActionError = (error: unknown): error is CreditActionError =>
+    error instanceof Error &&
+    (error as CreditActionError).isCreditActionError === true;
+
+  const isUnauthorizedError = (error: unknown) => {
+    if (isCreditActionError(error)) {
+      return error.code === 'UNAUTHORIZED';
+    }
+
+    const errorMsg = error instanceof Error ? error.message : String(error ?? '');
+    return errorMsg.includes('Unauthorized') || errorMsg.includes('401');
+  };
+
+  const isInsufficientCreditsError = (error: unknown) => {
+    if (isCreditActionError(error)) {
+      return error.code === 'INSUFFICIENT_CREDITS';
+    }
+
+    const errorMsg = error instanceof Error ? error.message : String(error ?? '');
+    return errorMsg.includes('Insufficient credits');
+  };
+
+  const getInsufficientCreditsMessage = (error?: CreditActionError) => {
+    if (
+      typeof error?.requiredCredits === 'number' &&
+      typeof error?.remainingCredits === 'number'
+    ) {
+      return t_aippt('errors.insufficient_credits', {
+        required: error.requiredCredits,
+        remaining: error.remainingCredits,
+      });
+    }
+
+    return t_aippt('v2.insufficient_credits');
+  };
+
+  const consumeCreditsOrThrow = async (params: {
+    credits: number;
+    description: string;
+    metadata?: any;
+  }) => {
+    const result = await consumeCreditsAction(params);
+    if (!result.success) {
+      throw createCreditActionError(result);
+    }
+
+    return result;
+  };
+
+  const handleApiError = (error: unknown) => {
+    if (isUnauthorizedError(error)) {
       toast.error(t_aippt('v2.login_required'));
       return;
     }
 
-    if (errorMsg.includes('Insufficient credits')) {
-      toast.error(t_aippt('v2.insufficient_credits'));
+    if (isInsufficientCreditsError(error)) {
+      toast.error(
+        getInsufficientCreditsMessage(
+          isCreditActionError(error) ? error : undefined
+        )
+      );
       return;
     }
 
     const message =
-      typeof error?.message === 'string'
-        ? error.message
-        : t_aippt('errors.general_failed');
+      error instanceof Error ? error.message : t_aippt('errors.general_failed');
     toast.error(message);
   };
 
@@ -1049,19 +1126,11 @@ export default function Slides2Client({
         // 🎯 2026-02-10 修复：编辑模式需要扣除积分
         // 每次编辑消耗 6 积分（4K 分辨率消耗 12 积分）
         const editCost = resolution === '4K' ? 12 : 6;
-        try {
-          await consumeCreditsAction({
-            credits: editCost,
-            description: `Regional Edit: ${slide.title || 'Slide'} (${regionPayload.length} regions)`,
-          });
-          console.log(`[Edit Mode] ✅ 已扣除 ${editCost} 积分`);
-        } catch (creditError: any) {
-          if (creditError.message.includes('Insufficient credits')) {
-            toast.error(t_aippt('v2.insufficient_credits'));
-            throw new Error('Insufficient credits for edit');
-          }
-          throw creditError;
-        }
+        await consumeCreditsOrThrow({
+          credits: editCost,
+          description: `Regional Edit: ${slide.title || 'Slide'} (${regionPayload.length} regions)`,
+        });
+        console.log(`[Edit Mode] deducted ${editCost} credits`);
 
         // 🎯 首次编辑前，先把原始图片存入历史记录
         const existingHistory = slide.history || [];
@@ -1156,7 +1225,7 @@ export default function Slides2Client({
         console.error('[Edit Mode] 局部编辑失败:', error);
 
         // 🎯 2026-02-10 修复：编辑失败时退还积分（除非是积分不足导致的失败）
-        if (!error.message?.includes('Insufficient credits')) {
+        if (!isInsufficientCreditsError(error)) {
           const editCost = resolution === '4K' ? 12 : 6;
           try {
             await refundCreditsAction({
@@ -1195,19 +1264,11 @@ export default function Slides2Client({
         // 🎯 2026-02-10 修复：整体修改模式需要扣除积分
         // 每次编辑消耗 6 积分（4K 分辨率消耗 12 积分）
         const editCost = resolution === '4K' ? 12 : 6;
-        try {
-          await consumeCreditsAction({
-            credits: editCost,
-            description: `Global Edit: ${slide.title || 'Slide'}`,
-          });
-          console.log(`[Global Edit Mode] ✅ 已扣除 ${editCost} 积分`);
-        } catch (creditError: any) {
-          if (creditError.message.includes('Insufficient credits')) {
-            toast.error(t_aippt('v2.insufficient_credits'));
-            throw new Error('Insufficient credits for edit');
-          }
-          throw creditError;
-        }
+        await consumeCreditsOrThrow({
+          credits: editCost,
+          description: `Global Edit: ${slide.title || 'Slide'}`,
+        });
+        console.log(`[Global Edit Mode] deducted ${editCost} credits`);
 
         // 🎯 首次编辑前，先把原始图片存入历史记录
         const existingHistory = slide.history || [];
@@ -1285,7 +1346,7 @@ export default function Slides2Client({
         console.error('[Global Edit Mode] 整体修改失败:', error);
 
         // 🎯 2026-02-10 修复：编辑失败时退还积分（除非是积分不足导致的失败）
-        if (!error.message?.includes('Insufficient credits')) {
+        if (!isInsufficientCreditsError(error)) {
           const editCost = resolution === '4K' ? 12 : 6;
           try {
             await refundCreditsAction({
@@ -1561,20 +1622,12 @@ export default function Slides2Client({
 
       // 1. 检查积分 & 扣除 (自动模式将在生成后扣除)
       const costPerSlide = resolution === '4K' ? 12 : 6;
-      let totalCost = slides.length * costPerSlide;
+      const totalCost = slides.length * costPerSlide;
 
-      try {
-        await consumeCreditsAction({
-          credits: totalCost,
-          description: t_aippt('style_step.generating'),
-        });
-      } catch (err: any) {
-        if (err.message.includes('Insufficient credits')) {
-          toast.error(t_aippt('v2.insufficient_credits'));
-          return;
-        }
-        throw err;
-      }
+      await consumeCreditsOrThrow({
+        credits: totalCost,
+        description: t_aippt('style_step.generating'),
+      });
 
       let workingSlides: SlideData[] = [...slides];
 
@@ -1811,10 +1864,18 @@ export default function Slides2Client({
       if (pageMode === 'auto' && successCount > 0) {
         const autoCost = successCount * costPerSlide;
         try {
-          await consumeCreditsAction({
+          const creditResult = await consumeCreditsAction({
             credits: autoCost,
             description: `Auto Generated ${successCount} slides`,
           });
+
+          if (!creditResult.success) {
+            console.error(
+              'Failed to consume credits for auto generation',
+              creditResult
+            );
+            handleApiError(createCreditActionError(creditResult));
+          }
         } catch (e) {
           console.error('Failed to consume credits for auto generation', e);
           toast.error(t_aippt('errors.general_failed'));

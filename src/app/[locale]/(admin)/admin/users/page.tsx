@@ -11,12 +11,13 @@ import {
 import { Badge } from '@/shared/components/ui/badge';
 import { getRemainingCredits } from '@/shared/models/credit';
 import {
+  getUserInfo,
   getUserMembership,
   getUsers,
   getUsersCount,
   User,
 } from '@/shared/models/user';
-import { getUserRoles } from '@/shared/services/rbac';
+import { getUserRoles, hasPermission } from '@/shared/services/rbac';
 import { Crumb, Search } from '@/shared/types/blocks/common';
 import { type Table } from '@/shared/types/blocks/table';
 
@@ -58,6 +59,10 @@ export default async function AdminUsersPage({
     page,
     limit,
   });
+  const currentUser = await getUserInfo();
+  const canReadCredits = currentUser
+    ? await hasPermission(currentUser.id, PERMISSIONS.CREDITS_READ)
+    : false;
 
   const crumbs: Crumb[] = [
     { title: t('list.crumbs.admin'), url: '/admin' },
@@ -165,20 +170,40 @@ export default async function AdminUsersPage({
         name: 'actions',
         title: t('fields.actions'),
         type: 'dropdown',
-        callback: (item: User) => [
-          {
-            name: 'edit',
-            title: t('list.buttons.edit'),
-            icon: 'RiEditLine',
-            url: `/admin/users/${item.id}/edit`,
-          },
-          {
-            name: 'edit-roles',
-            title: t('list.buttons.edit_roles'),
-            icon: 'Users',
-            url: `/admin/users/${item.id}/edit-roles`,
-          },
-        ],
+        callback: (item: User) => {
+          const actions: Array<{
+            name: string;
+            title: string;
+            icon: string;
+            url: string;
+          }> = [];
+
+          if (canReadCredits) {
+            actions.push({
+              name: 'credit-details',
+              title: t('list.buttons.credit_details'),
+              icon: 'Coins',
+              url: `/admin/users/${item.id}/credits`,
+            });
+          }
+
+          actions.push(
+            {
+              name: 'edit',
+              title: t('list.buttons.edit'),
+              icon: 'RiEditLine',
+              url: `/admin/users/${item.id}/edit`,
+            },
+            {
+              name: 'edit-roles',
+              title: t('list.buttons.edit_roles'),
+              icon: 'Users',
+              url: `/admin/users/${item.id}/edit-roles`,
+            }
+          );
+
+          return actions;
+        },
       },
       {
         name: 'delete',
@@ -210,3 +235,4 @@ export default async function AdminUsersPage({
     </>
   );
 }
+

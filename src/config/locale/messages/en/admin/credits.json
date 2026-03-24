@@ -4,6 +4,7 @@
     "user": "User",
     "amount": "Amount",
     "remaining": "Remaining",
+    "status": "Status",
     "type": "Type",
     "scene": "Scene",
     "description": "Description",
@@ -33,5 +34,11 @@
       "grant": "Grant",
       "consume": "Consume"
     }
+  },
+  "status": {
+    "available": "Available",
+    "used": "Used",
+    "expired": "Expired",
+    "consumed": "Consumed"
   }
 }

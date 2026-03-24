@@ -666,7 +666,7 @@ export async function consumeCreditsAction(params: {
     return {
       success: false as const,
       code: 'INSUFFICIENT_CREDITS' as const,
-      message: Insufficient credits. Required: , Available: ,
+      message: `Insufficient credits. Required: ${params.credits}, Available: ${remaining}`,
       requiredCredits: params.credits,
       remainingCredits: remaining,
     };
