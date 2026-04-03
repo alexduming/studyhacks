@@ -56,6 +56,7 @@ import {
   detectLearningFileType,
   readLearningFileContent,
 } from '@/shared/lib/file-reader';
+import { getUserFacingErrorMessage } from '@/shared/lib/user-facing-error';
 
 /**
  * 非程序员友好解释：
@@ -258,12 +259,7 @@ const AINoteTaker = ({
           // 失败：保存错误信息，并同样切到"笔记"标签页，让用户能立刻看到错误原因
           // 积分不足的特殊处理
           if (result.insufficientCredits) {
-            toast.error(
-              t('errors.insufficient_credits', {
-                required: result.requiredCredits,
-                remaining: result.remainingCredits,
-              })
-            );
+            toast.error(t('errors.insufficient_credits_short'));
           } else {
             toast.error(result.error || t('errors.generation_failed'));
           }
@@ -324,12 +320,7 @@ const AINoteTaker = ({
         }
       } else {
         if (result.insufficientCredits) {
-          toast.error(
-            t('errors.insufficient_credits', {
-              required: result.requiredCredits,
-              remaining: result.remainingCredits,
-            })
-          );
+          toast.error(t('errors.insufficient_credits_short'));
         } else {
           toast.error(result.error || t('errors.generation_failed'));
         }
@@ -386,12 +377,7 @@ const AINoteTaker = ({
         }
       } else {
         if (result.insufficientCredits) {
-          toast.error(
-            t('errors.insufficient_credits', {
-              required: result.requiredCredits,
-              remaining: result.remainingCredits,
-            })
-          );
+          toast.error(t('errors.insufficient_credits_short'));
         } else {
           toast.error(result.error || t('errors.generation_failed'));
         }
@@ -400,8 +386,13 @@ const AINoteTaker = ({
       }
     } catch (error: any) {
       console.error('Error processing link content:', error);
-      setError(error?.message || t('errors.processing_failed'));
-      toast.error(error?.message || t('errors.processing_failed'));
+      const message = getUserFacingErrorMessage({
+        error,
+        fallbackMessage: t('errors.processing_failed'),
+        insufficientCreditsMessage: t('errors.insufficient_credits_short'),
+      });
+      setError(message);
+      toast.error(message);
     } finally {
       setIsProcessing(false);
     }

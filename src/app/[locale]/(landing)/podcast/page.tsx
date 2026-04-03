@@ -84,6 +84,9 @@ const SUPPORTED_PLATFORMS = [
 
 const PodcastApp = () => {
   const t = useTranslations('podcast');
+  const insufficientCreditsToast = t.has('errors.insufficient_credits_short')
+    ? t('errors.insufficient_credits_short')
+    : 'Insufficient credits. Please top up and try again.';
 
   // 添加自定义滚动条样式
   useEffect(() => {
@@ -672,9 +675,7 @@ const PodcastApp = () => {
 
     if (!data.success) {
       if (data.insufficientCredits) {
-        toast.error(
-          `${t('errors.insufficient_credits')}: ${data.requiredCredits} ${t('credits.required')}, ${data.remainingCredits} ${t('credits.remaining')}`
-        );
+        toast.error(insufficientCreditsToast);
       } else if (data.notConfigured) {
         toast.error(t('errors.not_configured'));
       } else {

@@ -2377,16 +2377,25 @@ export default function Slides2Client({
     setUploadedFiles((prev) => [...prev, ...Array.from(files)]);
   };
 
-  const handleAddSlide = () => {
-    setSlides((prev) => [
-      ...prev,
-      {
-        id: `slide-${Date.now()}`,
-        title: `${t_aippt('v2.new_page')} ${prev.length + 1}`,
+  const handleAddSlide = (afterIndex?: number) => {
+    setSlides((prev) => {
+      const insertAt =
+        typeof afterIndex === 'number'
+          ? Math.min(Math.max(afterIndex + 1, 0), prev.length)
+          : prev.length;
+      const nextSlide: SlideData = {
+        id: `slide-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        title: `${t_aippt('v2.new_page')} ${insertAt + 1}`,
         content: t_aippt('v2.content_placeholder'),
         status: 'pending',
-      },
-    ]);
+      };
+
+      return [
+        ...prev.slice(0, insertAt),
+        nextSlide,
+        ...prev.slice(insertAt),
+      ];
+    });
   };
 
   const handleRemoveSlide = (id: string) => {
@@ -2696,19 +2705,25 @@ export default function Slides2Client({
             <h3 className="text-foreground text-sm font-semibold tracking-wide">
               {t_aippt('v2.outline')}
             </h3>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 rounded-full px-3 text-xs"
-              onClick={handleAddSlide}
-            >
-              <Plus className="mr-1 h-3.5 w-3.5" />
-              {t_aippt('v2.add_slide')}
-            </Button>
           </div>
           {slides.length === 0 ? (
-            <Card className="border-border bg-muted/50 text-muted-foreground border-dashed p-5 text-xs dark:bg-black/20 dark:text-white/55">
-              {t_aippt('v2.no_outline')}
+            <Card className="border-border bg-muted/50 border-dashed p-5 dark:bg-black/20">
+              <div className="space-y-3 text-center">
+                <p className="text-muted-foreground text-xs dark:text-white/55">
+                  {t_aippt('v2.no_outline')}
+                </p>
+                <div className="flex justify-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 rounded-full px-3 text-xs"
+                    onClick={() => handleAddSlide()}
+                  >
+                    <Plus className="mr-1 h-3.5 w-3.5" />
+                    {t_aippt('v2.add_slide')}
+                  </Button>
+                </div>
+              </div>
             </Card>
           ) : (
             <div className="space-y-4">
@@ -2751,6 +2766,17 @@ export default function Slides2Client({
                     rows={4}
                     className="border-border bg-muted/30 text-foreground text-sm dark:bg-black/20"
                   />
+                  <div className="mt-3 flex justify-center">
+                    <button
+                      type="button"
+                      className="border-border bg-background text-muted-foreground hover:border-primary hover:text-primary inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors dark:bg-black/30"
+                      onClick={() => handleAddSlide(idx)}
+                      title={t_aippt('v2.add_slide')}
+                      aria-label={t_aippt('v2.add_slide')}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

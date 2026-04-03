@@ -1,3 +1,5 @@
+import JSZip from 'jszip';
+
 /**
  * 通用学习文件读取工具
  *
@@ -14,6 +16,126 @@
  */
 
 export type LearningFileType = 'audio' | 'video' | 'pdf' | 'text';
+
+const getXmlElements = (node: Document | Element, tagName: string) =>
+  Array.from(node.getElementsByTagNameNS('*', tagName));
+
+const getColumnIndexFromRef = (cellRef: string) => {
+  const letters = cellRef.replace(/\d+/g, '').toUpperCase();
+  let index = 0;
+  for (const letter of letters) {
+    index = index * 26 + (letter.charCodeAt(0) - 64);
+  }
+  return Math.max(index - 1, 0);
+};
+
+const parseXml = (xml: string) =>
+  new DOMParser().parseFromString(xml, 'application/xml');
+
+const readXlsxFileContent = async (file: File): Promise<string> => {
+  const zip = await JSZip.loadAsync(await file.arrayBuffer());
+
+  const workbookFile = zip.file('xl/workbook.xml');
+  if (!workbookFile) {
+    throw new Error('XLSX workbook.xml not found');
+  }
+
+  const workbookDoc = parseXml(await workbookFile.async('string'));
+
+  const relsFile = zip.file('xl/_rels/workbook.xml.rels');
+  const relsDoc = relsFile ? parseXml(await relsFile.async('string')) : null;
+  const relMap = new Map<string, string>();
+
+  if (relsDoc) {
+    getXmlElements(relsDoc, 'Relationship').forEach((rel) => {
+      const id = rel.getAttribute('Id');
+      const target = rel.getAttribute('Target');
+      if (id && target) {
+        relMap.set(id, target.replace(/^\/+/, ''));
+      }
+    });
+  }
+
+  const sharedStringsFile = zip.file('xl/sharedStrings.xml');
+  const sharedStrings = sharedStringsFile
+    ? getXmlElements(
+        parseXml(await sharedStringsFile.async('string')),
+        'si'
+      ).map((item) =>
+        getXmlElements(item, 't')
+          .map((textNode) => textNode.textContent || '')
+          .join('')
+      )
+    : [];
+
+  const sheets = getXmlElements(workbookDoc, 'sheet');
+  const renderedSheets: string[] = [];
+
+  for (const sheet of sheets) {
+    const sheetName = sheet.getAttribute('name') || 'Sheet';
+    const relId = sheet.getAttribute('r:id') || sheet.getAttribute('id') || '';
+    const target = relMap.get(relId);
+    if (!target) continue;
+
+    const sheetPath = target.startsWith('xl/')
+      ? target
+      : `xl/${target.replace(/^\/+/, '')}`;
+    const sheetFile = zip.file(sheetPath);
+    if (!sheetFile) continue;
+
+    const sheetDoc = parseXml(await sheetFile.async('string'));
+    const rows = getXmlElements(sheetDoc, 'row')
+      .map((row) => {
+        const cells = new Map<number, string>();
+
+        getXmlElements(row, 'c').forEach((cell) => {
+          const ref = cell.getAttribute('r') || '';
+          const type = cell.getAttribute('t') || '';
+          const colIndex = getColumnIndexFromRef(ref);
+          const valueNode = getXmlElements(cell, 'v')[0];
+          const inlineNode = getXmlElements(cell, 'is')[0];
+
+          let value = '';
+          if (type === 's' && valueNode?.textContent) {
+            const sharedIndex = Number.parseInt(valueNode.textContent, 10);
+            value = sharedStrings[sharedIndex] || '';
+          } else if (type === 'inlineStr' && inlineNode) {
+            value = getXmlElements(inlineNode, 't')
+              .map((textNode) => textNode.textContent || '')
+              .join('');
+          } else if (type === 'b' && valueNode?.textContent) {
+            value = valueNode.textContent === '1' ? 'TRUE' : 'FALSE';
+          } else if (valueNode?.textContent) {
+            value = valueNode.textContent;
+          }
+
+          if (value.trim()) {
+            cells.set(colIndex, value.trim());
+          }
+        });
+
+        if (cells.size === 0) return '';
+
+        const lastColumn = Math.max(...cells.keys());
+        return Array.from({ length: lastColumn + 1 }, (_, index) =>
+          cells.get(index) || ''
+        )
+          .join('\t')
+          .trimEnd();
+      })
+      .filter(Boolean);
+
+    if (rows.length > 0) {
+      renderedSheets.push(`## Sheet: ${sheetName}\n${rows.join('\n')}`);
+    }
+  }
+
+  if (renderedSheets.length === 0) {
+    throw new Error('No readable sheet content found in XLSX file');
+  }
+
+  return `# Spreadsheet: ${file.name}\n\n${renderedSheets.join('\n\n')}`;
+};
 
 /**
  * 智能读取学习文件内容，返回可供 AI 使用的纯文本
@@ -157,7 +279,17 @@ export const readLearningFileContent = async (file: File): Promise<string> => {
     return content;
   }
 
-  // 5. 默认：按纯文本读取（适用于 .txt / .md 等）
+  // 5. XLSX：在前端解压并读取工作表文本内容
+  if (
+    mime ===
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+    name.endsWith('.xlsx') ||
+    name.endsWith('.xlsm')
+  ) {
+    return await readXlsxFileContent(file);
+  }
+
+  // 6. 默认：按纯文本读取（适用于 .txt / .md 等）
   return await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
 

@@ -1,3 +1,9 @@
+import {
+  AI_LAYOUT_TEMPLATE_PROMPT_HINTS,
+  AiLayoutTemplateId,
+  DEFAULT_AI_LAYOUT_TEMPLATE,
+} from '@/shared/lib/ai-layout';
+
 import { AIResponse, GenerateNotesParams } from './openrouter';
 
 export class DeepSeekService {
@@ -328,6 +334,130 @@ Please start generating notes:`;
         success: false,
         error: error instanceof Error ? error.message : 'DeepSeek API Error',
         notes: '',
+      };
+    }
+  }
+
+  async generateLayout(
+    input: GenerateNotesParams & { template?: AiLayoutTemplateId }
+  ): Promise<{
+    success: boolean;
+    layout?: string;
+    error?: string;
+    metadata?: {
+      wordCount: number;
+      type: string;
+      fileName?: string;
+      generatedAt: string;
+      template: AiLayoutTemplateId;
+    };
+  }> {
+    let targetLanguage = input.outputLanguage || 'auto';
+    if (targetLanguage === 'auto') {
+      targetLanguage = this.detectLanguage(input.content);
+    }
+
+    const languageInstructions: Record<string, string> = {
+      zh: '请使用中文输出，所有标题、段落、小标题、列表、表格内容都必须是中文。',
+      en: 'Please write everything in English, including headings, labels, lists, and tables.',
+      es: 'Por favor, redacta todo en español.',
+      fr: 'Veuillez rédiger tout le contenu en français.',
+      de: 'Bitte verfassen Sie den gesamten Inhalt auf Deutsch.',
+      ja: '見出し、本文、箇条書き、表を含め、すべて日本語で出力してください。',
+      ko: '제목, 본문, 목록, 표를 포함한 모든 내용을 한국어로 작성하세요.',
+      pt: 'Por favor, escreva tudo em português.',
+      ru: 'Пожалуйста, напишите весь контент на русском языке.',
+      ar: 'يرجى كتابة كل المحتوى باللغة العربية.',
+    };
+
+    const languageInstruction =
+      languageInstructions[targetLanguage] ||
+      `Please write all content in ${targetLanguage}.`;
+
+    const template = input.template || DEFAULT_AI_LAYOUT_TEMPLATE;
+    const templateHint = AI_LAYOUT_TEMPLATE_PROMPT_HINTS[template];
+    const isChinese = targetLanguage === 'zh';
+
+    const prompt = isChinese
+      ? `你是一位专业的信息设计编辑。请把用户提供的内容重组为“适合代码模板渲染”的高可读 Markdown 文稿。
+
+${languageInstruction}
+
+当前选择的版式模板：${template}
+模板方向提示：${templateHint}
+
+请严格遵守下面要求：
+1. 只输出 Markdown，不要输出 HTML、XML、JSON、解释文字或代码围栏。
+2. 结构必须是：
+   - 第一行使用 # 主标题
+   - 主标题后用 1 到 2 段做概述
+   - 然后拆成 3 到 6 个 ## 二级章节
+   - 每个章节内部可以使用 ### 小标题、列表、引用、表格、粗体
+3. 内容要“适合排版”：
+   - 章节标题短而有张力
+   - 多用短段落和列表
+   - 重要数字、结论、关键词用 **粗体** 强调
+   - 如果存在明显对比、分类或步骤，优先用表格或编号列表
+4. 不要编造事实，不要遗漏核心信息。
+5. 这是给视觉化排版页面使用的内容，语气应更像“内容设计稿”，不是普通作文。
+
+素材类型：${input.type}
+文件名：${input.fileName || 'Unknown'}
+
+原始内容：
+${input.content}
+
+请开始输出最终 Markdown：`
+      : `You are a professional information-design editor. Rewrite the user's source material into highly scannable Markdown that will be rendered by a code-based layout engine.
+
+${languageInstruction}
+
+Selected layout template: ${template}
+Template direction: ${templateHint}
+
+Follow these rules strictly:
+1. Output Markdown only. Do not output HTML, XML, JSON, explanations, or fenced code blocks unless the source itself requires code examples.
+2. The structure must be:
+   - First line: a single # title
+   - After the title: 1 to 2 short overview paragraphs
+   - Then: 3 to 6 ## sections
+   - Inside each section you may use ### subheads, lists, quotes, tables, and bold emphasis
+3. Make it layout-friendly:
+   - Section titles should be concise and punchy
+   - Prefer short paragraphs and lists
+   - Highlight important numbers, takeaways, and key terms with **bold**
+   - Use tables or numbered steps when comparisons or sequences are present
+4. Do not invent facts and do not omit the core information.
+5. This is content for a designed layout page, so write like an editorial content designer rather than a plain essay.
+
+Material type: ${input.type}
+File name: ${input.fileName || 'Unknown'}
+
+Source content:
+${input.content}
+
+Please output the final Markdown now:`;
+
+    try {
+      const result = await this.callAI(prompt);
+
+      return {
+        success: true,
+        layout: result,
+        metadata: {
+          wordCount: result.split(/\s+/).filter(Boolean).length,
+          type: input.type,
+          fileName: input.fileName,
+          generatedAt: new Date().toISOString(),
+          template,
+        },
+      };
+    } catch (error: any) {
+      console.error('Error generating layout with DeepSeek:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'DeepSeek API Error',
+        layout: '',
       };
     }
   }

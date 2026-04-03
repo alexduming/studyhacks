@@ -86,6 +86,7 @@
   "errors": {
     "generation_failed": "Quiz generation failed",
     "invalid_content": "Invalid content, please re-enter",
-    "network_error": "Network error, please check connection"
+    "network_error": "Network error, please check connection",
+    "insufficient_credits_short": "Insufficient credits. Please top up and try again."
   }
 }

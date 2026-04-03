@@ -1,0 +1,117 @@
+{
+  "badge": "AI 排版工作台",
+  "title": "把原始内容变成可切换模板的设计排版",
+  "subtitle": "上传文档、粘贴文本或抓取链接后，AI 先重组内容，再由我们用代码模板完成排版，并支持即时切换不同版式。",
+  "tabs": {
+    "input": "输入内容",
+    "preview": "查看排版"
+  },
+  "templates": {
+    "selected": "已选择",
+    "editorial": {
+      "title": "杂志排版",
+      "description": "灵感源自 Monocle 杂志，暖色纸张质感、衬线标题、优雅编辑节奏，适合深度文章和报告。"
+    },
+    "bento": {
+      "title": "Bento 卡片",
+      "description": "Apple Keynote 风格深色模块卡片，橙色聚焦、信息密集、快速扫描的产品化视觉体系。"
+    },
+    "spotlight": {
+      "title": "聚光灯",
+      "description": "Stripe/Linear 风格蓝紫渐变时间线，玻璃态卡片、大留白、强调关键结论和数据。"
+    },
+    "mono": {
+      "title": "瑞士极简",
+      "description": "瑞士国际主义风格，Helvetica 美学、零圆角、纯黑白线条、严格网格纪律。"
+    },
+    "newspaper": {
+      "title": "纽约时报",
+      "description": "经典报纸头版风格，衬线字体、双栏排版、编辑权威感，像翻开一份高端日报。"
+    },
+    "gallery": {
+      "title": "画廊展览",
+      "description": "Behance 项目展示风，紫粉渐变玻璃卡片、策展式布局，适合案例和观点展示。"
+    },
+    "blueprint": {
+      "title": "技术蓝图",
+      "description": "深海工程图纸美学，青蓝强调色、等宽字体标题、结构化规格说明块。"
+    },
+    "aurora": {
+      "title": "北欧极光",
+      "description": "多彩渐变极光背景 + 绿靛蓝玻璃拟态卡片，柔和氛围感的沉浸式阅读体验。"
+    },
+    "dossier": {
+      "title": "高管简报",
+      "description": "McKinsey 咨询风格，核心发现面板、数据驱动层级、严肃商业报告精度。"
+    },
+    "pulse": {
+      "title": "霓虹脉冲",
+      "description": "赛博朋克暗夜能量，玫红橙渐变发光卡片、深黑画布、高冲击力节奏感。"
+    }
+  },
+  "upload": {
+    "text_tab": "粘贴文本",
+    "upload_tab": "上传文件",
+    "link_tab": "抓取链接",
+    "text_placeholder": "可直接粘贴讲义、逐字稿、文章、报告、笔记或其他长文本内容...",
+    "link_placeholder": "https://example.com/article",
+    "generate_from_text": "从文本生成排版",
+    "generate_from_link": "从链接生成排版",
+    "upload_button": "选择文件",
+    "upload_hint": "支持 PDF、DOCX、XLSX、TXT、MD",
+    "file_selected": "已选择：",
+    "link_hint": "输入公开可访问的链接，我们会先提取正文内容，再进行设计排版。",
+    "text_empty": "请先粘贴要排版的文本",
+    "link_empty": "请先输入要抓取的链接",
+    "processing": "正在设计排版...",
+    "output_language": "输出语言",
+    "accent_color": "强调色",
+    "pdf_docs": "文档 / 表格",
+    "pdf_desc": "报告、课件、白皮书、电子表格与阅读材料",
+    "text_docs": "文本 / Markdown",
+    "text_formats": "TXT、MD、粘贴文本"
+  },
+  "preview": {
+    "title": "你的 AI 排版结果",
+    "subtitle": "生成一次内容后，可以即时切换模板，无需重新消耗积分。",
+    "modes": {
+      "desktop": "桌面模式",
+      "mobile": "手机模式"
+    },
+    "mode_hint_desktop": "桌面模式会保留更宽的画布，适合大屏浏览和常规导出。",
+    "mode_hint_mobile": "手机模式会渲染成窄版长图，适合在手机上直接查看，无需缩放。",
+    "copy": "复制 Markdown",
+    "download": "下载图片",
+    "empty": "还没有排版结果，先在输入内容里生成一个试试。",
+    "toast_no_layout": "请先生成排版结果，再使用预览操作。",
+    "copy_success": "排版 Markdown 已复制。",
+    "copy_error": "复制失败，请稍后重试。",
+    "download_success": "图片已准备好，正在保存...",
+    "download_error": "导出图片失败，请稍后重试。",
+    "generation_success": "排版生成成功！",
+    "ocr_processing": "检测到扫描版 PDF，正在进行 OCR 识别...",
+    "ocr_complete": "OCR 识别完成，正在生成排版...",
+    "ocr_failed": "OCR 识别失败"
+  },
+  "errors": {
+    "processing_failed": "文件处理失败，请稍后重试。",
+    "generation_failed": "排版生成失败，请稍后重试。",
+    "insufficient_credits": "积分不足！需要 {required} 积分，当前仅剩 {remaining} 积分。",
+    "insufficient_credits_short": "积分不足，请及时充值",
+    "ocr_conversion_failed": "PDF 转图片失败。",
+    "ocr_no_text": "OCR 未识别出有效文本。"
+  },
+  "languages": {
+    "auto": "自动",
+    "zh": "中文",
+    "en": "English",
+    "es": "Español",
+    "fr": "Français",
+    "de": "Deutsch",
+    "ja": "日本語",
+    "ko": "한국어",
+    "pt": "Português",
+    "ru": "Русский",
+    "ar": "العربية"
+  }
+}

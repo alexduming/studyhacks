@@ -69,6 +69,7 @@ function getSitemapBaseUrl(): string {
 const STATIC_MARKETING_ROUTES: StaticRoute[] = [
   { path: '/', changeFrequency: 'daily', priority: 1 },
   { path: '/ai-note-taker', changeFrequency: 'weekly', priority: 0.9 },
+  { path: '/ai-layout', changeFrequency: 'weekly', priority: 0.9 },
   { path: '/flashcards', changeFrequency: 'weekly', priority: 0.9 },
   { path: '/quiz', changeFrequency: 'weekly', priority: 0.9 },
   { path: '/slides', changeFrequency: 'weekly', priority: 0.9 },

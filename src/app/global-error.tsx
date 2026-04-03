@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { RefreshCcw } from 'lucide-react';
 import NextTopLoader from 'nextjs-toploader';
+import { getUserFacingErrorMessage } from '@/shared/lib/user-facing-error';
 
 // 最小化的全局错误处理组件，不依赖复杂 UI 库，确保在极端情况下也能渲染
 export default function GlobalError({
@@ -16,6 +17,12 @@ export default function GlobalError({
     // 记录错误到控制台
     console.error('[Global Error]', error);
   }, [error]);
+
+  const userFacingMessage = getUserFacingErrorMessage({
+    error,
+    fallbackMessage: '操作失败，请稍后重试。',
+    insufficientCreditsMessage: '积分不足，请及时充值。',
+  });
 
   return (
     <html>
@@ -76,7 +83,7 @@ export default function GlobalError({
                 maxHeight: '100px',
               }}
             >
-              Error: {error.message || 'Unknown error'}
+              Error: {userFacingMessage}
               {error.digest && <div style={{ fontSize: '12px', marginTop: '4px', color: '#9ca3af' }}>ID: {error.digest}</div>}
             </div>
             <button

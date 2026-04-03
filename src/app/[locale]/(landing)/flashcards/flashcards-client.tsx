@@ -61,6 +61,9 @@ interface FlashcardsAppProps {
 
 const FlashcardsApp = ({ initialHistoryData }: FlashcardsAppProps) => {
   const t = useTranslations('flashcards');
+  const insufficientCreditsToast = t.has('errors.insufficient_credits_short')
+    ? t('errors.insufficient_credits_short')
+    : 'Insufficient credits. Please top up and try again.';
   const { user, fetchUserCredits } = useAppContext();
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
 
@@ -401,9 +404,7 @@ const FlashcardsApp = ({ initialHistoryData }: FlashcardsAppProps) => {
         toast.success(t('create.generation_success'));
       } else {
         if (result.insufficientCredits) {
-          toast.error(
-            `积分不足！需要 ${result.requiredCredits} 积分，当前仅有 ${result.remainingCredits} 积分`
-          );
+          toast.error(insufficientCreditsToast);
         } else {
           toast.error(result.error || t('create.generation_error'));
         }

@@ -173,6 +173,7 @@
     "network_error": "Network error, please check connection",
     "no_content": "Please enter content, upload a file or paste a link",
     "insufficient_credits": "Insufficient credits",
+    "insufficient_credits_short": "Insufficient credits. Please top up and try again.",
     "not_configured": "ListenHub not configured, please contact administrator",
     "select_voices": "Please select at least one voice"
   },

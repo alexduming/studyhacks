@@ -49,6 +49,9 @@ const NOTE_TRANSFER_KEY = 'ai-note-transfer';
 
 const QuizApp = () => {
   const t = useTranslations('quiz');
+  const insufficientCreditsToast = t.has('errors.insufficient_credits_short')
+    ? t('errors.insufficient_credits_short')
+    : 'Insufficient credits. Please top up and try again.';
   const { user, fetchUserCredits } = useAppContext();
   const [questions, setQuestions] = useState<Question[]>([]);
 
@@ -223,9 +226,7 @@ const QuizApp = () => {
       } else {
         // 积分不足的特殊处理
         if (result.insufficientCredits) {
-          toast.error(
-            `积分不足！需要 ${result.requiredCredits} 积分，当前仅有 ${result.remainingCredits} 积分`
-          );
+          toast.error(insufficientCreditsToast);
         } else {
           toast.error(result.error || '生成测验时出错');
         }

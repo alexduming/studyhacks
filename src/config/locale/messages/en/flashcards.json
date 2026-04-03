@@ -65,7 +65,8 @@
   },
   "errors": {
     "generation_failed": "Error generating flashcards",
-    "invalid_content": "Invalid content, please re-enter"
+    "invalid_content": "Invalid content, please re-enter",
+    "insufficient_credits_short": "Insufficient credits. Please top up and try again."
   },
   "history": {
     "loading": "Loading your saved deck…",

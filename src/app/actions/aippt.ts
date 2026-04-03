@@ -18,51 +18,62 @@ import {
 } from '@/shared/models/credit';
 import { getSignUser } from '@/shared/models/user';
 
-// 绉婚櫎纭紪鐮佺殑 API Key锛屽己鍒朵娇鐢ㄧ幆澧冨彉閲?const KIE_API_KEY = process.env.KIE_NANO_BANANA_PRO_KEY || '';
+// 移除硬编码的 API Key，强制使用环境变量
+const KIE_API_KEY = process.env.KIE_NANO_BANANA_PRO_KEY || '';
 const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN || '';
 const FAL_KEY = process.env.FAL_KEY || '';
 const APIYI_API_KEY = process.env.APIYI_API_KEY || ''; // APIYI (Gemini 3 Pro Image)
-// 浣跨敤 DeepSeek 瀹樻柟 Key锛堜粠鐜鍙橀噺璇诲彇锛岄伩鍏嶆槑鏂囨毚闇诧級
+// 使用 DeepSeek 官方 Key（从环境变量读取，避免明文暴露）
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
-// 浣跨敤 OpenRouter API Key锛堢敤浜庤瑙?OCR锛?const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+// 使用 OpenRouter API Key（用于视觉 OCR）
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
 /**
- * 妫€娴嬫枃鏈殑涓昏璇█
+ * 检测文本的主要语言
  *
- * 闈炵▼搴忓憳瑙ｉ噴锛? * - 杩欎釜鍑芥暟閫氳繃妫€娴嬫枃鏈腑鐨勪腑鏂囧瓧绗︽瘮渚嬫潵鍒ゆ柇璇█
- * - 濡傛灉涓枃瀛楃鍗犳瘮瓒呰繃 5%锛屽垯璁や负鏄腑鏂囧唴瀹? * - 杩欐牱鍙互鍑嗙‘鍒ゆ柇鐢ㄦ埛杈撳叆鐨勮瑷€锛岄伩鍏?AI 鑷繁鐚滄祴瀵艰嚧璇█娣蜂贡
+ * 非程序员解释：
+ * - 这个函数通过检测文本中的中文字符比例来判断语言
+ * - 如果中文字符占比超过 5%，则认为是中文内容
+ * - 这样可以准确判断用户输入的语言，避免 AI 自己猜测导致语言混乱
  *
- * @param text 瑕佹娴嬬殑鏂囨湰
- * @returns 'zh' 琛ㄧず涓枃锛?en' 琛ㄧず鑻辨枃
+ * @param text 要检测的文本
+ * @returns 'zh' 表示中文，'en' 表示英文
  */
 function detectLanguage(text: string): 'zh' | 'en' {
   if (!text) return 'en';
 
-  // 缁熻涓枃瀛楃鏁伴噺锛堝寘鎷腑鏂囨爣鐐癸級
+  // 统计中文字符数量（包括中文标点）
   const chineseChars = text.match(/[\u4e00-\u9fa5\u3000-\u303f\uff00-\uffef]/g) || [];
-  const totalChars = text.replace(/\s/g, '').length; // 鍘婚櫎绌虹櫧瀛楃鍚庣殑鎬婚暱搴?
+  const totalChars = text.replace(/\s/g, '').length; // 去除空白字符后的总长度
+
   if (totalChars === 0) return 'en';
 
-  // 濡傛灉涓枃瀛楃鍗犳瘮瓒呰繃 5%锛屽垯璁や负鏄腑鏂囧唴瀹?  // 杩欎釜闃堝€煎彲浠ュ鐞嗘贩鍚堝唴瀹癸紙濡備腑鏂囧唴瀹逛腑鍖呭惈鑻辨枃鏈锛?  const chineseRatio = chineseChars.length / totalChars;
+  // 如果中文字符占比超过 5%，则认为是中文内容
+  // 这个阈值可以处理混合内容（如中文内容中包含英文术语）
+  const chineseRatio = chineseChars.length / totalChars;
 
   return chineseRatio > 0.05 ? 'zh' : 'en';
 }
 
 /**
- * 鐢熸垚璇█绾︽潫鎻愮ず璇? *
- * 闈炵▼搴忓憳瑙ｉ噴锛? * - 杩欎釜鍑芥暟鏍规嵁璇█璁剧疆鐢熸垚寮哄埗鎬х殑璇█绾︽潫鎸囦护
- * - 'auto' 妯″紡浼氳嚜鍔ㄦ娴嬬敤鎴疯緭鍏ョ殑璇█锛屽苟鏄庣‘鍛婅瘔 AI 搴旇浣跨敤浠€涔堣瑷€
- * - 杩欐牱鍙互閬垮厤 AI 鑷繁鍒ゆ柇璇█瀵艰嚧鐨勪笉涓€鑷撮棶棰? *
- * @param outputLanguage 璇█璁剧疆锛?auto' | 'zh' | 'en'
- * @param userContent 鐢ㄦ埛杈撳叆鐨勫唴瀹癸紙鐢ㄤ簬 auto 妯″紡涓嬬殑璇█妫€娴嬶級
- * @returns 璇█绾︽潫鎻愮ず璇? */
+ * 生成语言约束提示词
+ *
+ * 非程序员解释：
+ * - 这个函数根据语言设置生成强制性的语言约束指令
+ * - 'auto' 模式会自动检测用户输入的语言，并明确告诉 AI 应该使用什么语言
+ * - 这样可以避免 AI 自己判断语言导致的不一致问题
+ *
+ * @param outputLanguage 语言设置：'auto' | 'zh' | 'en'
+ * @param userContent 用户输入的内容（用于 auto 模式下的语言检测）
+ * @returns 语言约束提示词
+ */
 function generateLanguagePrompt(
   outputLanguage: 'auto' | 'zh' | 'en' | undefined,
   userContent: string
 ): string {
   if (outputLanguage === 'zh') {
     return `\n\n[Language Requirement - CRITICAL]
-鈿狅笍 MANDATORY: ALL text in the generated image MUST be in Simplified Chinese (绠€浣撲腑鏂?.
+⚠️ MANDATORY: ALL text in the generated image MUST be in Simplified Chinese (简体中文).
 - Title: Chinese
 - Subtitle: Chinese
 - Body text: Chinese
@@ -71,7 +82,7 @@ function generateLanguagePrompt(
 Do NOT use English for any visible text. Translate any English system instructions to Chinese if they appear in the final output.`;
   } else if (outputLanguage === 'en') {
     return `\n\n[Language Requirement - CRITICAL]
-鈿狅笍 MANDATORY: ALL text in the generated image MUST be in English.
+⚠️ MANDATORY: ALL text in the generated image MUST be in English.
 - Title: English
 - Subtitle: English
 - Body text: English
@@ -79,23 +90,23 @@ Do NOT use English for any visible text. Translate any English system instructio
 - Any other text: English
 Do NOT use Chinese or any other language for any visible text.`;
   } else {
-    // Auto 妯″紡锛氫富鍔ㄦ娴嬭瑷€骞舵槑纭憡璇?AI
+    // Auto 模式：主动检测语言并明确告诉 AI
     const detectedLang = detectLanguage(userContent);
 
     if (detectedLang === 'zh') {
       return `\n\n[Language Requirement - CRITICAL]
-鈿狅笍 DETECTED LANGUAGE: Chinese (涓枃)
-鈿狅笍 MANDATORY: Since the user's input content is in Chinese, ALL text in the generated image MUST be in Simplified Chinese (绠€浣撲腑鏂?.
-- Title: Chinese (涓枃鏍囬)
-- Subtitle: Chinese (涓枃鍓爣棰?
-- Body text: Chinese (涓枃姝ｆ枃)
-- Labels: Chinese (涓枃鏍囩)
+⚠️ DETECTED LANGUAGE: Chinese (中文)
+⚠️ MANDATORY: Since the user's input content is in Chinese, ALL text in the generated image MUST be in Simplified Chinese (简体中文).
+- Title: Chinese (中文标题)
+- Subtitle: Chinese (中文副标题)
+- Body text: Chinese (中文正文)
+- Labels: Chinese (中文标签)
 - Any other text: Chinese
 Do NOT mix languages. Do NOT use English for any visible text. Keep the entire slide in Chinese.`;
     } else {
       return `\n\n[Language Requirement - CRITICAL]
-鈿狅笍 DETECTED LANGUAGE: English
-鈿狅笍 MANDATORY: Since the user's input content is in English, ALL text in the generated image MUST be in English.
+⚠️ DETECTED LANGUAGE: English
+⚠️ MANDATORY: Since the user's input content is in English, ALL text in the generated image MUST be in English.
 - Title: English
 - Subtitle: English
 - Body text: English
@@ -107,58 +118,65 @@ Do NOT mix languages. Do NOT use Chinese for any visible text. Keep the entire s
 }
 
 /**
- * 鍥剧墖鐢熸垚鏈嶅姟浼樺厛绾ч厤缃紙浠庣幆澧冨彉閲忚鍙栵級
+ * 图片生成服务优先级配置（从环境变量读取）
  *
- * 闈炵▼搴忓憳瑙ｉ噴锛? * - 閫氳繃淇敼 .env.local 鏂囦欢涓殑 IMAGE_PROVIDER_PRIORITY 灏辫兘蹇€熷垏鎹富鍔?鎵樺簳椤哄簭
- * - 鏍煎紡锛氱敤閫楀彿鍒嗛殧鐨勬彁渚涘晢鍚嶇О锛屼粠宸﹀埌鍙充緷娆″皾璇? * - 鏀寔鐨勬彁渚涘晢锛欶AL銆並IE銆丷eplicate銆丄PIYI
- * - 绀轰緥锛欰PIYI,FAL,KIE,Replicate 琛ㄧず APIYI涓诲姏锛孎AL鎵樺簳锛孠IE鍐嶆墭搴曪紝Replicate鏈€缁堟墭搴? * - 濡傛灉鐜鍙橀噺鏈缃垨鏍煎紡閿欒锛岄粯璁や娇鐢?FAL,KIE,Replicate,APIYI
+ * 非程序员解释：
+ * - 通过修改 .env.local 文件中的 IMAGE_PROVIDER_PRIORITY 就能快速切换主力/托底顺序
+ * - 格式：用逗号分隔的提供商名称，从左到右依次尝试
+ * - 支持的提供商：FAL、KIE、Replicate、APIYI
+ * - 示例：APIYI,FAL,KIE,Replicate 表示 APIYI主力，FAL托底，KIE再托底，Replicate最终托底
+ * - 如果环境变量未设置或格式错误，默认使用 FAL,KIE,Replicate,APIYI
  */
 function getProviderPriority(): Array<'FAL' | 'KIE' | 'Replicate' | 'APIYI'> {
   const priorityStr = process.env.IMAGE_PROVIDER_PRIORITY || 'FAL,KIE,Replicate,APIYI';
 
-  // 瑙ｆ瀽閫楀彿鍒嗛殧鐨勫瓧绗︿覆锛屽幓闄ょ┖鏍?  const providers = priorityStr
+  // 解析逗号分隔的字符串，去除空格
+  const providers = priorityStr
     .split(',')
     .map(p => p.trim())
     .filter(p => ['FAL', 'KIE', 'Replicate', 'APIYI'].includes(p)) as Array<'FAL' | 'KIE' | 'Replicate' | 'APIYI'>;
 
-  // 濡傛灉瑙ｆ瀽鍚庝负绌烘垨灏戜簬1涓彁渚涘晢锛屼娇鐢ㄩ粯璁ら厤缃?  if (providers.length === 0) {
-    console.warn('鈿狅笍 IMAGE_PROVIDER_PRIORITY 閰嶇疆鏃犳晥锛屼娇鐢ㄩ粯璁ら『搴? FAL,KIE,Replicate,APIYI');
+  // 如果解析后为空或少于1个提供商，使用默认配置
+  if (providers.length === 0) {
+    console.warn('⚠️ IMAGE_PROVIDER_PRIORITY 配置无效，使用默认顺序: FAL,KIE,Replicate,APIYI');
     return ['FAL', 'KIE', 'Replicate', 'APIYI'];
   }
 
-  // 纭繚鎵€鏈夊洓涓彁渚涘晢閮藉瓨鍦紙闃叉閰嶇疆閬楁紡锛?  const allProviders: Array<'FAL' | 'KIE' | 'Replicate' | 'APIYI'> = ['FAL', 'KIE', 'Replicate', 'APIYI'];
+  // 确保所有四个提供商都存在（防止配置遗漏）
+  const allProviders: Array<'FAL' | 'KIE' | 'Replicate' | 'APIYI'> = ['FAL', 'KIE', 'Replicate', 'APIYI'];
   const missingProviders = allProviders.filter(p => !providers.includes(p));
 
-  // 灏嗛仐婕忕殑鎻愪緵鍟嗚拷鍔犲埌鏈熬
+  // 将遗漏的提供商追加到末尾
   const finalProviders = [...providers, ...missingProviders];
 
-  console.log(`馃搵 鍥剧墖鐢熸垚浼樺厛绾э紙鐜鍙橀噺閰嶇疆锛? ${finalProviders.join(' -> ')}`);
+  console.log(`📋 图片生成优先级（环境变量配置）: ${finalProviders.join(' -> ')}`);
   return finalProviders;
 }
 
-// 璧勬簮鐨勫熀纭€ URL
-// 浼樺厛浣跨敤 R2 鍩熷悕锛屽叾娆℃槸 App URL锛屾渶鍚庢槸鐢熶骇鐜鍩熷悕
-// 娉ㄦ剰锛欰I 鏈嶅姟鏃犳硶璁块棶 localhost锛屽繀椤讳娇鐢ㄥ叕缃?URL
+// 资源的基础 URL
+// 优先使用 R2 域名，其次是 App URL，最后是生产环境域名
+// 注意：AI 服务无法访问 localhost，必须使用公网 URL
 const ASSETS_BASE_URL =
   process.env.NEXT_PUBLIC_ASSETS_URL || 'https://cdn.studyhacks.ai';
 
 /**
- * 澶勭悊鍥剧墖 URL锛岀‘淇濇槸鍏綉鍙闂殑
+ * 处理图片 URL，确保是公网可访问的
  */
 function resolveImageUrl(url: string): string {
   if (!url) return '';
 
-  // 濡傛灉宸茬粡鏄?http 寮€澶达紝妫€鏌ユ槸鍚︽槸 localhost
+  // 如果已经是 http 开头，检查是否是 localhost
   if (url.startsWith('http')) {
     if (url.includes('localhost') || url.includes('127.0.0.1')) {
-      // 灏?localhost 鏇挎崲涓哄叕缃戝煙鍚?      // 鍋囪璺緞缁撴瀯淇濇寔涓€鑷达細http://localhost:3000/styles/... -> https://cdn.xxx.com/styles/...
+      // 将 localhost 替换为公网域名
+      // 假设路径结构保持一致：http://localhost:3000/styles/... -> https://cdn.xxx.com/styles/...
       const urlPath = new URL(url).pathname;
       return `${ASSETS_BASE_URL}${urlPath}`;
     }
     return url;
   }
 
-  // 濡傛灉鏄浉瀵硅矾寰勶紝娣诲姞 Base URL
+  // 如果是相对路径，添加 Base URL
   if (url.startsWith('/')) {
     return `${ASSETS_BASE_URL}${url}`;
   }
@@ -168,34 +186,37 @@ function resolveImageUrl(url: string): string {
 
 /**
  * Parse Image to Text using Vision AI (OCR)
- * 闈炵▼搴忓憳瑙ｉ噴锛? * - 杩欎釜鍑芥暟浣跨敤瑙嗚AI妯″瀷锛圙oogle Gemini Pro Vision锛夋潵璇嗗埆鍥剧墖涓殑鏂囧瓧
- * - 姣斾紶缁烵CR鏇存櫤鑳斤紝鑳界悊瑙ｆ枃瀛楃殑涓婁笅鏂囧拰鎺掔増缁撴瀯
- * - 鏀寔 JPG銆丳NG銆乄EBP 绛夊父瑙佸浘鐗囨牸寮? */
+ * 非程序员解释：
+ * - 这个函数使用视觉AI模型（Google Gemini Pro Vision）来识别图片中的文字
+ * - 比传统OCR更智能，能理解文字的上下文和排版结构
+ * - 支持 JPG、PNG、WEBP 等常见图片格式
+ */
 export async function parseImageAction(formData: FormData): Promise<string> {
   const file = formData.get('file') as File;
   if (!file) {
     throw new Error('No file uploaded');
   }
 
-  // 妫€鏌?API Key
+  // 检查 API Key
   if (!OPENROUTER_API_KEY) {
-    throw new Error('OpenRouter API Key 鏈厤缃紝鍥剧墖 OCR 鍔熻兘闇€瑕佹瀵嗛挜');
+    throw new Error('OpenRouter API Key 未配置，图片 OCR 功能需要此密钥');
   }
 
   try {
-    // 灏嗗浘鐗囪浆鎹负 base64
+    // 将图片转换为 base64
     const buffer = Buffer.from(await file.arrayBuffer());
     const base64Image = buffer.toString('base64');
     const mimeType = file.type || 'image/jpeg';
 
-    // 鏋勫缓 data URL 鏍煎紡
+    // 构建 data URL 格式
     const imageDataUrl = `data:${mimeType};base64,${base64Image}`;
 
-    console.log('[OCR] 寮€濮嬭瘑鍒浘鐗囨枃瀛楋紝浣跨敤 Qwen2.5 VL 32B...');
-    console.log('[OCR] 鍥剧墖澶у皬:', (buffer.length / 1024).toFixed(2), 'KB');
+    console.log('[OCR] 开始识别图片文字，使用 Qwen2.5 VL 32B...');
+    console.log('[OCR] 图片大小:', (buffer.length / 1024).toFixed(2), 'KB');
 
-    // 浣跨敤 OpenRouter 鐨?Qwen2.5 VL 32B Instruct 杩涜 OCR
-    // Qwen2.5-VL-32B 涓撻棬浼樺寲鐢ㄤ簬瑙嗚鍒嗘瀽锛屼环鏍间究瀹滀笖鏁堟灉濂?    const response = await fetch(
+    // 使用 OpenRouter 的 Qwen2.5 VL 32B Instruct 进行 OCR
+    // Qwen2.5-VL-32B 专门优化用于视觉分析，价格便宜且效果好
+    const response = await fetch(
       'https://openrouter.ai/api/v1/chat/completions',
       {
         method: 'POST',
@@ -207,7 +228,7 @@ export async function parseImageAction(formData: FormData): Promise<string> {
           'X-Title': 'StudyHacks AI PPT Generator',
         },
         body: JSON.stringify({
-          model: 'qwen/qwen2.5-vl-32b-instruct', // 浣跨敤 Qwen2.5 VL 32B Instruct 妯″瀷
+          model: 'qwen/qwen2.5-vl-32b-instruct', // 使用 Qwen2.5 VL 32B Instruct 模型
           messages: [
             {
               role: 'user',
@@ -225,7 +246,8 @@ export async function parseImageAction(formData: FormData): Promise<string> {
               ],
             },
           ],
-          temperature: 0.1, // 浣庢俯搴︾‘淇濆噯纭€?          max_tokens: 4000,
+          temperature: 0.1, // 低温度确保准确性
+          max_tokens: 4000,
         }),
       }
     );
@@ -234,55 +256,59 @@ export async function parseImageAction(formData: FormData): Promise<string> {
       const errorText = await response.text();
       console.error('[OCR] OpenRouter API Error:', response.status, errorText);
 
-      // 鎻愪緵鏇磋缁嗙殑閿欒淇℃伅
+      // 提供更详细的错误信息
       if (response.status === 401) {
-        throw new Error('API 瀵嗛挜鏃犳晥鎴栨湭鎺堟潈');
+        throw new Error('API 密钥无效或未授权');
       } else if (response.status === 429) {
-        throw new Error('API 璇锋眰棰戠巼闄愬埗锛岃绋嶅悗閲嶈瘯');
+        throw new Error('API 请求频率限制，请稍后重试');
       } else {
-        throw new Error(`API 璋冪敤澶辫触 (${response.status})`);
+        throw new Error(`API 调用失败 (${response.status})`);
       }
     }
 
     const data = await response.json();
 
-    // 妫€鏌ュ搷搴旀牸寮?    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-      console.error('[OCR] 鏃犳晥鐨?API 鍝嶅簲:', data);
-      throw new Error('API 杩斿洖浜嗘棤鏁堢殑鍝嶅簲鏍煎紡');
+    // 检查响应格式
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      console.error('[OCR] 无效的 API 响应:', data);
+      throw new Error('API 返回了无效的响应格式');
     }
 
     const extractedText = data.choices[0].message.content;
 
     if (!extractedText || extractedText.trim().length === 0) {
-      console.warn('[OCR] 鍥剧墖涓湭璇嗗埆鍒版枃瀛?);
-      return '锛堟湭璇嗗埆鍒版枃瀛楀唴瀹癸級';
+      console.warn('[OCR] 图片中未识别到文字');
+      return '（未识别到文字内容）';
     }
 
     console.log(
-      '[OCR] 鍥剧墖鏂囧瓧璇嗗埆鎴愬姛锛屾彁鍙栦簡',
+      '[OCR] 图片文字识别成功，提取了',
       extractedText.length,
-      '涓瓧绗?
+      '个字符'
     );
 
     return extractedText.trim();
   } catch (error: any) {
-    console.error('[OCR] 鍥剧墖瑙ｆ瀽閿欒:', error);
+    console.error('[OCR] 图片解析错误:', error);
 
-    // 鎻愪緵鏇村弸濂界殑閿欒淇℃伅
-    if (error.message.includes('API 瀵嗛挜')) {
-      throw new Error('API 瀵嗛挜閰嶇疆閿欒锛岃妫€鏌?OPENROUTER_API_KEY 鐜鍙橀噺');
-    } else if (error.message.includes('缃戠粶')) {
-      throw new Error('缃戠粶杩炴帴澶辫触锛岃妫€鏌ョ綉缁滆繛鎺ュ悗閲嶈瘯');
+    // 提供更友好的错误信息
+    if (error.message.includes('API 密钥')) {
+      throw new Error('API 密钥配置错误，请检查 OPENROUTER_API_KEY 环境变量');
+    } else if (error.message.includes('网络')) {
+      throw new Error('网络连接失败，请检查网络连接后重试');
     } else {
-      throw new Error('鍥剧墖鏂囧瓧璇嗗埆澶辫触锛? + (error.message || '鏈煡閿欒'));
+      throw new Error('图片文字识别失败：' + (error.message || '未知错误'));
     }
   }
 }
 
 /**
  * Parse Multiple Images to Text (Batch OCR)
- * 闈炵▼搴忓憳瑙ｉ噴锛? * - 杩欎釜鍑芥暟鏀寔鎵归噺璇嗗埆澶氬紶鍥剧墖涓殑鏂囧瓧
- * - 骞惰澶勭悊澶氬紶鍥剧墖锛屾彁楂樻晥鐜? * - 鑷姩鍚堝苟鎵€鏈夎瘑鍒粨鏋? */
+ * 非程序员解释：
+ * - 这个函数支持批量识别多张图片中的文字
+ * - 并行处理多张图片，提高效率
+ * - 自动合并所有识别结果
+ */
 export async function parseMultipleImagesAction(
   formData: FormData
 ): Promise<string> {
@@ -291,25 +317,26 @@ export async function parseMultipleImagesAction(
     throw new Error('No files uploaded');
   }
 
-  console.log(`[Batch OCR] 寮€濮嬫壒閲忚瘑鍒?${files.length} 寮犲浘鐗?..`);
+  console.log(`[Batch OCR] 开始批量识别 ${files.length} 张图片...`);
 
   try {
-    // 骞惰澶勭悊鎵€鏈夊浘鐗?    const results = await Promise.all(
+    // 并行处理所有图片
+    const results = await Promise.all(
       files.map(async (file, index) => {
         try {
           console.log(
-            `[Batch OCR] 姝ｅ湪璇嗗埆绗?${index + 1}/${files.length} 寮犲浘鐗? ${file.name}`
+            `[Batch OCR] 正在识别第 ${index + 1}/${files.length} 张图片: ${file.name}`
           );
 
-          // 涓烘瘡涓枃浠跺垱寤哄崟鐙殑 FormData
+          // 为每个文件创建单独的 FormData
           const singleFormData = new FormData();
           singleFormData.append('file', file);
 
-          // 璋冪敤鍗曞浘鐗?OCR
+          // 调用单图片 OCR
           const text = await parseImageAction(singleFormData);
 
           console.log(
-            `[Batch OCR] 绗?${index + 1} 寮犲浘鐗囪瘑鍒垚鍔燂紝鎻愬彇浜?${text.length} 涓瓧绗
+            `[Batch OCR] 第 ${index + 1} 张图片识别成功，提取了 ${text.length} 个字符`
           );
 
           return {
@@ -320,7 +347,7 @@ export async function parseMultipleImagesAction(
           };
         } catch (error: any) {
           console.error(
-            `[Batch OCR] 绗?${index + 1} 寮犲浘鐗囪瘑鍒け璐?`,
+            `[Batch OCR] 第 ${index + 1} 张图片识别失败:`,
             error.message
           );
           return {
@@ -333,80 +360,88 @@ export async function parseMultipleImagesAction(
       })
     );
 
-    // 缁熻鎴愬姛鍜屽け璐ユ暟閲?    const successCount = results.filter((r) => r.success).length;
+    // 统计成功和失败数量
+    const successCount = results.filter((r) => r.success).length;
     const failedCount = results.filter((r) => !r.success).length;
 
     console.log(
-      `[Batch OCR] 鎵归噺璇嗗埆瀹屾垚: 鎴愬姛 ${successCount}/${files.length}, 澶辫触 ${failedCount}`
+      `[Batch OCR] 批量识别完成: 成功 ${successCount}/${files.length}, 失败 ${failedCount}`
     );
 
-    // 濡傛灉鎵€鏈夊浘鐗囬兘澶辫触浜嗭紝鎻愪緵璇︾粏鐨勯敊璇俊鎭?    if (successCount === 0) {
+    // 如果所有图片都失败了，提供详细的错误信息
+    if (successCount === 0) {
       const failedDetails = results
         .filter((r) => !r.success)
         .map((r) => `${r.fileName}: ${r.error}`)
         .join('\n');
 
-      console.error('[Batch OCR] 鎵€鏈夊浘鐗囪瘑鍒け璐ワ紝璇︾粏淇℃伅:');
+      console.error('[Batch OCR] 所有图片识别失败，详细信息:');
       console.error(failedDetails);
 
-      // 妫€鏌ュ父瑙侀敊璇被鍨?      const hasApiKeyError = results.some(
-        (r) => r.error && r.error.includes('API 瀵嗛挜')
+      // 检查常见错误类型
+      const hasApiKeyError = results.some(
+        (r) => r.error && r.error.includes('API 密钥')
       );
       const hasNetworkError = results.some(
         (r) =>
-          r.error && (r.error.includes('缃戠粶') || r.error.includes('fetch'))
+          r.error && (r.error.includes('网络') || r.error.includes('fetch'))
       );
 
       if (hasApiKeyError) {
         throw new Error(
-          '鍥剧墖璇嗗埆澶辫触锛歄penRouter API 瀵嗛挜鏈厤缃垨鏃犳晥銆傝妫€鏌ョ幆澧冨彉閲?OPENROUTER_API_KEY'
+          '图片识别失败：OpenRouter API 密钥未配置或无效。请检查环境变量 OPENROUTER_API_KEY'
         );
       } else if (hasNetworkError) {
-        throw new Error('鍥剧墖璇嗗埆澶辫触锛氱綉缁滆繛鎺ラ敊璇€傝妫€鏌ョ綉缁滆繛鎺ユ垨绋嶅悗閲嶈瘯');
+        throw new Error('图片识别失败：网络连接错误。请检查网络连接或稍后重试');
       } else {
         throw new Error(
-          `鎵€鏈夊浘鐗囪瘑鍒兘澶辫触浜嗐€傚父瑙佸師鍥狅細\n1. API 瀵嗛挜鏈厤缃甛n2. 鍥剧墖鏍煎紡涓嶆敮鎸乗n3. 鍥剧墖杩囧ぇ鎴栨崯鍧廫n4. 缃戠粶闂\n\n璇︾粏閿欒锛?{results[0].error}`
+          `所有图片识别都失败了。常见原因：\n1. API 密钥未配置\n2. 图片格式不支持\n3. 图片过大或损坏\n4. 网络问题\n\n详细错误：${results[0].error}`
         );
       }
     }
 
-    // 鍚堝苟鎵€鏈夋垚鍔熻瘑鍒殑鏂囧瓧
+    // 合并所有成功识别的文字
     const combinedText = results
       .filter((r) => r.success)
       .map((r, idx) => {
-        // 涓烘瘡寮犲浘鐗囩殑鍐呭娣诲姞鍒嗛殧绗?        const separator = idx === 0 ? '' : '\n\n---\n\n';
-        return `${separator}[鍥剧墖 ${r.index + 1}: ${r.fileName}]\n${r.text}`;
+        // 为每张图片的内容添加分隔符
+        const separator = idx === 0 ? '' : '\n\n---\n\n';
+        return `${separator}[图片 ${r.index + 1}: ${r.fileName}]\n${r.text}`;
       })
       .join('');
 
-    // 濡傛灉鏈夊け璐ョ殑锛屽湪缁撴灉涓彁绀?    if (failedCount > 0) {
+    // 如果有失败的，在结果中提示
+    if (failedCount > 0) {
       const failedFiles = results
         .filter((r) => !r.success)
         .map((r) => r.fileName)
         .join(', ');
-      console.warn(`[Batch OCR] 浠ヤ笅鍥剧墖璇嗗埆澶辫触: ${failedFiles}`);
+      console.warn(`[Batch OCR] 以下图片识别失败: ${failedFiles}`);
 
-      // 鍦ㄥ悎骞剁殑鏂囨湰鏈熬娣诲姞鎻愮ず
+      // 在合并的文本末尾添加提示
       return (
         combinedText.trim() +
-        `\n\n[娉ㄦ剰锛?{failedCount} 寮犲浘鐗囪瘑鍒け璐? ${failedFiles}]`
+        `\n\n[注意：${failedCount} 张图片识别失败: ${failedFiles}]`
       );
     }
 
     return combinedText.trim();
   } catch (error: any) {
-    console.error('[Batch OCR] 鎵归噺璇嗗埆閿欒:', error);
-    throw error; // 鐩存帴鎶涘嚭閿欒锛屼繚鐣欒缁嗕俊鎭?  }
+    console.error('[Batch OCR] 批量识别错误:', error);
+    throw error; // 直接抛出错误，保留详细信息
+  }
 }
 
 /**
  * Parse public webpage link into clean text.
- * 闈炵▼搴忓憳瑙ｉ噴锛? * - 杩欎釜鍑芥暟浼氳闂敤鎴风矘璐寸殑缃戦〉閾炬帴
- * - 鑷姩鍘绘帀鑴氭湰銆佹牱寮忋€佸箍鍛婄瓑鍣煶
- * - 鍙繚鐣欐鏂囨枃瀛楋紝渚夸簬缁х画鍋氳嚜鍔ㄥ垎椤? */
+ * 非程序员解释：
+ * - 这个函数会访问用户粘贴的网页链接
+ * - 自动去掉脚本、样式、广告等噪音
+ * - 只保留正文文字，便于继续做自动分页
+ */
 export async function parseLinkContentAction(rawUrl: string): Promise<string> {
   if (!rawUrl || !rawUrl.trim()) {
-    throw new Error('璇峰厛杈撳叆瑕佹姄鍙栫殑閾炬帴');
+    throw new Error('请先输入要抓取的链接');
   }
 
   let normalizedUrl = rawUrl.trim();
@@ -426,7 +461,7 @@ export async function parseLinkContentAction(rawUrl: string): Promise<string> {
     });
 
     if (!res.ok) {
-      throw new Error(`閾炬帴璁块棶澶辫触锛圚TTP ${res.status}锛塦);
+      throw new Error(`链接访问失败（HTTP ${res.status}）`);
     }
 
     const html = await res.text();
@@ -445,28 +480,31 @@ export async function parseLinkContentAction(rawUrl: string): Promise<string> {
       .trim();
 
     if (!text) {
-      throw new Error('娌℃湁浠庤閾炬帴鎻愬彇鍒版湁鏁堟鏂?);
+      throw new Error('没有从该链接提取到有效正文');
     }
 
-    return text.slice(0, 20000); // 闄愬埗鏈€澶ч暱搴︼紝閬垮厤瓒呴暱 prompt
+    return text.slice(0, 20000); // 限制最大长度，避免超长 prompt
   } catch (error: any) {
-    console.error('[Link Parser] 瑙ｆ瀽缃戦〉澶辫触', error);
+    console.error('[Link Parser] 解析网页失败', error);
     throw new Error(
-      error.message || '瑙ｆ瀽缃戦〉鍐呭澶辫触锛岃妫€鏌ラ摼鎺ユ槸鍚﹀彲鍏紑璁块棶'
+      error.message || '解析网页内容失败，请检查链接是否可公开访问'
     );
   }
 }
 
 /**
  * Parse File (PDF/DOCX/TXT/Image) to Text
- * 闈炵▼搴忓憳瑙ｉ噴锛? * - 杩欎釜鍑芥暟鐜板湪鏀寔鏇村鏂囦欢鏍煎紡锛屽寘鎷浘鐗? * - 浼氳嚜鍔ㄨ瘑鍒枃浠剁被鍨嬪苟浣跨敤瀵瑰簲鐨勮В鏋愭柟娉? * - 鍥剧墖鏂囦欢浼氫娇鐢?AI 瑙嗚妯″瀷杩涜 OCR 璇嗗埆
+ * 非程序员解释：
+ * - 这个函数现在支持更多文件格式，包括图片
+ * - 会自动识别文件类型并使用对应的解析方法
+ * - 图片文件会使用 AI 视觉模型进行 OCR 识别
  */
 export async function parseFileAction(input: FormData | { fileUrl: string; fileType?: string; fileName?: string }) {
   let buffer: Buffer;
   let fileType = '';
   let fileName = '';
 
-  // 鏂瑰紡1锛氶€氳繃 FormData 浼犻€掞紙灏忔枃浠讹級
+  // 方式1：通过 FormData 传递（小文件）
   if (input instanceof FormData) {
     const file = input.get('file') as File;
     if (!file) {
@@ -476,14 +514,15 @@ export async function parseFileAction(input: FormData | { fileUrl: string; fileT
     fileType = file.type;
     fileName = file.name.toLowerCase();
   }
-  // 鏂瑰紡2锛氶€氳繃 URL 浼犻€掞紙澶ф枃浠讹紝宸蹭笂浼犲埌 R2锛?  else {
+  // 方式2：通过 URL 传递（大文件，已上传到 R2）
+  else {
     const { fileUrl } = input;
     if (!fileUrl) {
       throw new Error('No file URL provided');
     }
     console.log('[Parse] Downloading file from URL:', fileUrl);
     
-    // 涓嬭浇鏂囦欢
+    // 下载文件
     const response = await fetch(fileUrl);
     if (!response.ok) {
       throw new Error(`Failed to download file: ${response.statusText}`);
@@ -491,7 +530,7 @@ export async function parseFileAction(input: FormData | { fileUrl: string; fileT
     
     buffer = Buffer.from(await response.arrayBuffer());
     
-    // 灏濊瘯浠?input 鎴?Content-Type 鎺ㄦ柇绫诲瀷
+    // 尝试从 input 或 Content-Type 推断类型
     fileType = input.fileType || response.headers.get('content-type') || '';
     fileName = input.fileName?.toLowerCase() || fileUrl.split('/').pop()?.toLowerCase() || '';
     
@@ -501,7 +540,7 @@ export async function parseFileAction(input: FormData | { fileUrl: string; fileT
   try {
     let extractedText = '';
 
-    // 妫€鏌ユ槸鍚︿负鍥剧墖鏂囦欢
+    // 检查是否为图片文件
     const isImage =
       fileType.startsWith('image/') ||
       fileName.endsWith('.jpg') ||
@@ -511,16 +550,17 @@ export async function parseFileAction(input: FormData | { fileUrl: string; fileT
       fileName.endsWith('.gif');
 
     if (isImage) {
-      // 浣跨敤 AI OCR 璇嗗埆鍥剧墖涓殑鏂囧瓧
-      console.log('[Parse] 妫€娴嬪埌鍥剧墖鏂囦欢锛屼娇鐢?OCR 璇嗗埆...');
+      // 使用 AI OCR 识别图片中的文字
+      console.log('[Parse] 检测到图片文件，使用 OCR 识别...');
       
-      // 濡傛灉鏄?FormData 涓旀槸鍥剧墖锛屽鐢ㄧ幇鏈夌殑 parseImageAction
-      // 娉ㄦ剰锛歱arseImageAction 闇€瑕?FormData锛屽鏋滄槸 URL 妯″紡锛屾垜浠渶瑕侀噸鏋?OCR 閫昏緫鏀寔 URL
+      // 如果是 FormData 且是图片，复用现有的 parseImageAction
+      // 注意：parseImageAction 需要 FormData，如果是 URL 模式，我们需要重构 OCR 逻辑支持 URL
       if (input instanceof FormData) {
         extractedText = await parseImageAction(input);
       } else {
-        // 瀵逛簬澶у浘鐗?URL锛岀洰鍓嶆殏鏃朵笉鏀寔 OCR锛堝洜涓?OCR 閫昏緫寮虹粦瀹氫簡 FormData锛?        // 浣嗛€氬父澶ф枃浠舵槸 PDF/DOCX锛屽浘鐗囧緢灏戣秴杩?4.5MB
-        // 濡傛灉鐪熸湁闇€姹傦紝闇€瑕佹敼閫?parseImageAction 鏀寔 URL
+        // 对于大图片 URL，目前暂时不支持 OCR（因为 OCR 逻辑强绑定了 FormData）
+        // 但通常大文件是 PDF/DOCX，图片很少超过 4.5MB
+        // 如果真有需求，需要改造 parseImageAction 支持 URL
         throw new Error('OCR via URL is not supported yet. Please use smaller images.');
       }
     } else if (fileType === 'application/pdf' || fileName.endsWith('.pdf')) {
@@ -564,9 +604,10 @@ export async function generateOutlineAction(
     throw new Error('DeepSeek API Key is not configured');
   }
 
-  // 绠€鍗曠殑璇█妫€娴嬶細濡傛灉鏈変腑鏂囧瓧绗︼紝鍒欏€惧悜浜庝腑鏂囷紱鍚﹀垯榛樿涓鸿嫳鏂囷紙閽堝绾嫳鏂囪緭鍏ョ殑鎯呭喌锛?  const hasChineseChar = /[\u4e00-\u9fa5]/.test(content);
+  // 简单的语言检测：如果有中文字符，则倾向于中文；否则默认为英文（针对纯英文输入的情况）
+  const hasChineseChar = /[\u4e00-\u9fa5]/.test(content);
   const languageInstruction = hasChineseChar
-    ? 'The user input contains Chinese characters. Output MUST be in Chinese (绠€浣撲腑鏂?.'
+    ? 'The user input contains Chinese characters. Output MUST be in Chinese (简体中文).'
     : 'The user input is in English. Output MUST be in English. Do NOT use Chinese.';
 
   const systemPrompt = `You are an expert presentation designer.
@@ -682,6 +723,7 @@ export async function consumeCreditsAction(params: {
 
   return { success: true as const, remaining: remaining - params.credits };
 }
+
 /**
  * Refund Credits Action (Server Side)
  */
@@ -706,8 +748,9 @@ export async function refundCreditsAction(params: {
 /**
  * Create Image Generation Task via KIE API
  *
- * 馃幆 2026-02-10 鏇存柊锛氭敮鎸佺紪杈戞ā寮? * KIE 鐨?nano-banana-pro 妯″瀷閫氳繃 image_input 鍙傛暟鏀寔缂栬緫鍔熻兘
- * 缂栬緫妯″紡涓嬶紝灏嗗甫鏍囪鐨勫浘鐗囦綔涓?image_input 浼犲叆鍗冲彲
+ * 🎯 2026-02-10 更新：支持编辑模式
+ * KIE 的 nano-banana-pro 模型通过 image_input 参数支持编辑功能
+ * 编辑模式下，将带标记的图片作为 image_input 传入即可
  */
 export async function createKieTaskAction(params: {
   prompt: string;
@@ -718,36 +761,39 @@ export async function createKieTaskAction(params: {
   isEnhancedMode?: boolean;
   isPromptEnhancedMode?: boolean;
   outputLanguage?: 'auto' | 'zh' | 'en';
-  /** 馃幆 缂栬緫妯″紡锛氬師濮嬪浘鐗嘦RL锛堢敤浜庡眬閮ㄧ紪杈戯級 */
+  /** 🎯 编辑模式：原始图片URL（用于局部编辑） */
   editImageUrl?: string;
-  /** 馃幆 缂栬緫妯″紡锛歮ask 鍥剧墖锛圔ase64 鎴?URL锛?*/
+  /** 🎯 编辑模式：mask 图片（Base64 或 URL） */
   maskImage?: string;
-  /** 馃幆 缂栬緫妯″紡锛氬甫鏍囪鐨勫浘鐗囷紙鐢ㄤ簬缂栬緫锛?*/
+  /** 🎯 编辑模式：带标记的图片（用于编辑） */
   markedImage?: string;
-  /** Deck涓婁笅鏂囷細浼犻€掑綋鍓嶉〉鐮佷俊鎭互澧炲己瑙嗚涓€鑷存€?*/
+  /** Deck上下文：传递当前页码信息以增强视觉一致性 */
   deckContext?: DeckContext;
 }) {
   const endpoint = 'https://api.kie.ai/api/v1/jobs/createTask';
 
-  // 馃幆 鍒ゆ柇鏄惁涓虹紪杈戞ā寮?  const isEditMode = !!(params.editImageUrl || params.markedImage);
+  // 🎯 判断是否为编辑模式
+  const isEditMode = !!(params.editImageUrl || params.markedImage);
 
   // Styles
   let styleSuffix = '';
-  // 澶勭悊鍙傝€冨浘鐗?URL锛氱‘淇濇槸鍏綉鍙闂殑
+  // 处理参考图片 URL：确保是公网可访问的
   let referenceImages: string[] = [];
 
-  // 馃幆 缂栬緫妯″紡涓嬶紝浣跨敤甯︽爣璁扮殑鍥剧墖浣滀负鍙傝€?  if (isEditMode && params.markedImage) {
+  // 🎯 编辑模式下，使用带标记的图片作为参考
+  if (isEditMode && params.markedImage) {
     referenceImages = [params.markedImage];
-    console.log('[KIE] 馃帹 缂栬緫妯″紡锛氫娇鐢ㄥ甫鏍囪鐨勫浘鐗?);
+    console.log('[KIE] 🎨 编辑模式：使用带标记的图片');
   } else {
-    // 闈炵紪杈戞ā寮忥細姝ｅ父澶勭悊鍙傝€冨浘鐗?    referenceImages = (params.customImages || []).map(resolveImageUrl);
+    // 非编辑模式：正常处理参考图片
+    referenceImages = (params.customImages || []).map(resolveImageUrl);
 
     if (params.styleId) {
       const style = PPT_STYLES.find((s) => s.id === params.styleId);
       if (style && params.isPromptEnhancedMode !== false) {
         styleSuffix = style.prompt;
 
-        // 馃幆 鍏抽敭锛氬鏋滈鏍煎畾涔変簡鍙傝€冨浘鎴栭瑙堝浘锛屽皢鍏跺姞鍏ュ弬鑰冨浘鍒楄〃
+        // 🎯 关键：如果风格定义了参考图或预览图，将其加入参考图列表
         let styleRefs: string[] = [];
         if (style.preview) {
           styleRefs.push(resolveImageUrl(style.preview));
@@ -757,16 +803,17 @@ export async function createKieTaskAction(params: {
         }
 
         if (styleRefs.length > 0) {
-          // 鍘婚噸
+          // 去重
           const uniqueStyleRefs = Array.from(new Set(styleRefs));
-          // 灏嗛鏍煎弬鑰冨浘鏀惧湪鍓嶉潰
+          // 将风格参考图放在前面
           referenceImages = [...uniqueStyleRefs, ...referenceImages];
         }
       }
     }
   }
 
-  // 馃幆 2026-02-10 鏇存柊锛氫娇鐢ㄧ粺涓€鐨勮瑷€妫€娴嬪拰鎻愮ず璇嶇敓鎴愬嚱鏁?  // 杩欐牱鍙互纭繚 auto 妯″紡涓嬪噯纭娴嬬敤鎴疯緭鍏ョ殑璇█锛岄伩鍏嶈瑷€娣蜂贡
+  // 🎯 2026-02-10 更新：使用统一的语言检测和提示词生成函数
+  // 这样可以确保 auto 模式下准确检测用户输入的语言，避免语言混乱
   const languagePrompt = generateLanguagePrompt(params.outputLanguage, params.prompt);
 
   // Content Strategy Prompt
@@ -775,12 +822,13 @@ export async function createKieTaskAction(params: {
     : `\n\n[Strict Mode]\nSTRICTLY follow the provided text for Title and Content. Do NOT add, remove, or modify any words. Do NOT expand or summarize. Render the text exactly as given.`;
 
   // Combine prompts
-  // 馃幆 璇█绾︽潫鏀惧湪鏈€鍚庯紝纭繚 AI 浼樺厛閬靛畧璇█瑕佹眰
+  // 🎯 语言约束放在最后，确保 AI 优先遵守语言要求
   let finalPrompt = params.prompt + ' ' + styleSuffix + contentStrategy + languagePrompt;
 
-  // 馃幆 缂栬緫妯″紡锛氭坊鍔犵壒娈婄紪杈戞寚浠?  if (isEditMode && params.markedImage) {
-    finalPrompt += `\n\n[閲嶈缂栬緫鎸囦护]\n鍥剧墖涓殑绾㈣壊妗嗘爣璁颁簡闇€瑕佷慨鏀圭殑鍖哄煙銆傝浠呬慨鏀圭孩妗嗗唴鐨勫唴瀹癸紝淇濇寔绾㈡澶栫殑鎵€鏈夊厓绱犱笉鍙樸€備慨鏀瑰畬鎴愬悗锛岃绉婚櫎鎵€鏈夌孩鑹叉爣璁版銆俙;
-    console.log('[KIE] 馃帹 宸叉坊鍔犵紪杈戞ā寮忔寚浠?);
+  // 🎯 编辑模式：添加特殊编辑指令
+  if (isEditMode && params.markedImage) {
+    finalPrompt += `\n\n[重要编辑指令]\n图片中的红色框标记了需要修改的区域。请仅修改红框内的内容，保持红框外的所有元素不变。修改完成后，请移除所有红色标记框。`;
+    console.log('[KIE] 🎨 已添加编辑模式指令');
   }
 
   // Log reference images info
@@ -790,9 +838,10 @@ export async function createKieTaskAction(params: {
       `[KIE] Reference images (${limitedImages.length} URLs):`,
       limitedImages.map(url => url.substring(0, 80) + '...')
     );
-    // 闈炵紪杈戞ā寮忎笅娣诲姞椋庢牸鍙傝€冩寚浠?    if (!isEditMode) {
+    // 非编辑模式下添加风格参考指令
+    if (!isEditMode) {
       finalPrompt +=
-        '锛堣瑙夐鏍煎弬鑰冿細璇蜂弗鏍奸伒寰墍鎻愪緵鍙傝€冨浘鐨勮璁￠鏍笺€侀厤鑹叉柟妗堝拰鏋勫浘甯冨眬锛?;
+        '（视觉风格参考：请严格遵循所提供参考图的设计风格、配色方案和构图布局）';
     }
 
     referenceImages = limitedImages;
@@ -896,59 +945,67 @@ export async function queryKieTaskAction(taskId: string) {
 }
 
 /**
- * APIYI API 绔偣
- * - 缁熶竴浣跨敤 Gemini 鍘熺敓鏍煎紡锛堟敮鎸佹枃鐢熷浘鍜屽浘鐢熷浘锛屼笖鏀寔鍒嗚鲸鐜囧弬鏁帮級
+ * APIYI API 端点
+ * - 统一使用 Gemini 原生格式（支持文生图和图生图，且支持分辨率参数）
  */
 const APIYI_TEXT2IMG_URL = 'https://api.apiyi.com/v1beta/models/gemini-3-pro-image-preview:generateContent';
 
 /**
- * 涓嬭浇鍥剧墖骞惰浆鎹负 base64
+ * 下载图片并转换为 base64
  *
- * 闈炵▼搴忓憳瑙ｉ噴锛? * - 浠?URL 涓嬭浇鍥剧墖鏂囦欢
- * - 灏嗗浘鐗囨暟鎹浆鎹负 base64 缂栫爜瀛楃涓? * - 鐢ㄤ簬 APIYI 鍥剧敓鍥炬ā寮忥紙Gemini 鍘熺敓鏍煎紡闇€瑕?base64 鍥剧墖锛? */
+ * 非程序员解释：
+ * - 从 URL 下载图片文件
+ * - 将图片数据转换为 base64 编码字符串
+ * - 用于 APIYI 图生图模式（Gemini 原生格式需要 base64 图片）
+ */
 async function downloadImageAsBase64ForApiyi(imageUrl: string): Promise<{ base64: string; mimeType: string } | null> {
   try {
-    console.log('[APIYI] 馃摜 涓嬭浇鍙傝€冨浘:', imageUrl.substring(0, 80) + '...');
+    console.log('[APIYI] 📥 下载参考图:', imageUrl.substring(0, 80) + '...');
 
     const response = await fetch(imageUrl, {
-      signal: AbortSignal.timeout(30000), // 30绉掕秴鏃?    });
+      signal: AbortSignal.timeout(30000), // 30秒超时
+    });
 
     if (!response.ok) {
-      console.warn('[APIYI] 涓嬭浇鍙傝€冨浘澶辫触:', response.status);
+      console.warn('[APIYI] 下载参考图失败:', response.status);
       return null;
     }
 
-    // 鑾峰彇 MIME 绫诲瀷
+    // 获取 MIME 类型
     const contentType = response.headers.get('content-type') || 'image/png';
     const mimeType = contentType.split(';')[0].trim();
 
-    // 杞崲涓?base64
+    // 转换为 base64
     const arrayBuffer = await response.arrayBuffer();
     const base64 = Buffer.from(arrayBuffer).toString('base64');
 
-    console.log(`[APIYI] 鉁?鍙傝€冨浘涓嬭浇鎴愬姛锛屽ぇ灏? ${(base64.length / 1024).toFixed(1)} KB, 绫诲瀷: ${mimeType}`);
+    console.log(`[APIYI] ✅ 参考图下载成功，大小: ${(base64.length / 1024).toFixed(1)} KB, 类型: ${mimeType}`);
 
     return { base64, mimeType };
   } catch (error: any) {
-    console.warn('[APIYI] 涓嬭浇鍙傝€冨浘寮傚父:', error.message);
+    console.warn('[APIYI] 下载参考图异常:', error.message);
     return null;
   }
 }
 
 /**
- * Create Image Generation Task via APIYI API (鍚屾妯″紡)
+ * Create Image Generation Task via APIYI API (同步模式)
  *
- * 闈炵▼搴忓憳瑙ｉ噴锛? * - APIYI 缁熶竴浣跨敤 Google Gemini 鍘熺敓鏍煎紡锛屾敮鎸?aspectRatio 鍜?imageSize
- * - 鏂囩敓鍥撅細鐩存帴浼犻€掓枃鏈?prompt
- * - 鍥剧敓鍥撅細灏嗗弬鑰冨浘杞负 base64锛岄€氳繃 inline_data 浼犻€? * - 鍚屾鎺ュ彛锛氱洿鎺ョ瓑寰呯敓鎴愬畬鎴愶紝杩斿洖 base64 鍥剧墖鏁版嵁
- * - 閫熷害蹇紙绾?8-22 绉掞級锛屼环鏍间究瀹滐紙$0.05/寮狅級
+ * 非程序员解释：
+ * - APIYI 统一使用 Google Gemini 原生格式，支持 aspectRatio 和 imageSize
+ * - 文生图：直接传递文本 prompt
+ * - 图生图：将参考图转为 base64，通过 inline_data 传递
+ * - 同步接口：直接等待生成完成，返回 base64 图片数据
+ * - 速度快（约 8-22 秒），价格便宜（$0.05/张）
  *
- * 馃幆 娉ㄦ剰锛欰PIYI 鏄悓姝?API锛屼細鐩存帴杩斿洖鍥剧墖鏁版嵁
- * 涓轰簡涓庡叾浠栧紓姝ユ彁渚涘晢淇濇寔涓€鑷寸殑鎺ュ彛锛岃繖閲岃繑鍥炰竴涓壒娈婄殑 task_id
- * 鍓嶇杞鏃朵細绔嬪嵆杩斿洖宸插畬鎴愮姸鎬佸拰鍥剧墖 URL
+ * 🎯 注意：APIYI 是同步 API，会直接返回图片数据
+ * 为了与其他异步提供商保持一致的接口，这里返回一个特殊的 task_id
+ * 前端轮询时会立即返回已完成状态和图片 URL
  *
- * 閲嶈淇锛?026-02-12锛夛細
- * - 涔嬪墠鍥剧敓鍥句娇鐢?OpenAI 鍏煎鏍煎紡锛屼笉鏀寔鍒嗚鲸鐜囧弬鏁? * - 鐜板湪缁熶竴浣跨敤 Gemini 鍘熺敓鏍煎紡 + base64 鍥剧墖锛屾敮鎸佸畬鏁寸殑鍒嗚鲸鐜囨帶鍒? */
+ * 重要修复（2026-02-12）：
+ * - 之前图生图使用 OpenAI 兼容格式，不支持分辨率参数
+ * - 现在统一使用 Gemini 原生格式 + base64 图片，支持完整的分辨率控制
+ */
 export async function createApiyiTaskAction(params: {
   prompt: string;
   styleId?: string;
@@ -963,15 +1020,17 @@ export async function createApiyiTaskAction(params: {
   markedImage?: string;
   deckContext?: DeckContext;
 }) {
-  // 馃幆 鍒ゆ柇鏄惁涓虹紪杈戞ā寮?  const isEditMode = !!(params.editImageUrl || params.markedImage);
+  // 🎯 判断是否为编辑模式
+  const isEditMode = !!(params.editImageUrl || params.markedImage);
 
   // Styles
   let styleSuffix = '';
   let referenceImages: string[] = [];
 
-  // 馃幆 缂栬緫妯″紡涓嬶紝浣跨敤甯︽爣璁扮殑鍥剧墖浣滀负鍙傝€?  if (isEditMode && params.markedImage) {
+  // 🎯 编辑模式下，使用带标记的图片作为参考
+  if (isEditMode && params.markedImage) {
     referenceImages = [params.markedImage];
-    console.log('[APIYI] 馃帹 缂栬緫妯″紡锛氫娇鐢ㄥ甫鏍囪鐨勫浘鐗?);
+    console.log('[APIYI] 🎨 编辑模式：使用带标记的图片');
   } else {
     referenceImages = (params.customImages || []).map(resolveImageUrl);
 
@@ -996,7 +1055,8 @@ export async function createApiyiTaskAction(params: {
     }
   }
 
-  // 浣跨敤缁熶竴鐨勮瑷€妫€娴嬪拰鎻愮ず璇嶇敓鎴愬嚱鏁?  const languagePrompt = generateLanguagePrompt(params.outputLanguage, params.prompt);
+  // 使用统一的语言检测和提示词生成函数
+  const languagePrompt = generateLanguagePrompt(params.outputLanguage, params.prompt);
 
   // Content Strategy Prompt
   const contentStrategy = params.isEnhancedMode
@@ -1006,9 +1066,10 @@ export async function createApiyiTaskAction(params: {
   // Combine prompts
   let finalPrompt = params.prompt + ' ' + styleSuffix + contentStrategy + languagePrompt;
 
-  // 馃幆 缂栬緫妯″紡锛氭坊鍔犵壒娈婄紪杈戞寚浠?  if (isEditMode && params.markedImage) {
-    finalPrompt += `\n\n[閲嶈缂栬緫鎸囦护]\n鍥剧墖涓殑绾㈣壊妗嗘爣璁颁簡闇€瑕佷慨鏀圭殑鍖哄煙銆傝浠呬慨鏀圭孩妗嗗唴鐨勫唴瀹癸紝淇濇寔绾㈡澶栫殑鎵€鏈夊厓绱犱笉鍙樸€備慨鏀瑰畬鎴愬悗锛岃绉婚櫎鎵€鏈夌孩鑹叉爣璁版銆俙;
-    console.log('[APIYI] 馃帹 宸叉坊鍔犵紪杈戞ā寮忔寚浠?);
+  // 🎯 编辑模式：添加特殊编辑指令
+  if (isEditMode && params.markedImage) {
+    finalPrompt += `\n\n[重要编辑指令]\n图片中的红色框标记了需要修改的区域。请仅修改红框内的内容，保持红框外的所有元素不变。修改完成后，请移除所有红色标记框。`;
+    console.log('[APIYI] 🎨 已添加编辑模式指令');
   }
 
   // Log reference images info
@@ -1020,26 +1081,31 @@ export async function createApiyiTaskAction(params: {
     );
   }
 
-  // 鏄犲皠瀹介珮姣斿拰鍒嗚鲸鐜?  const aspectRatio = params.aspectRatio || '16:9';
+  // 映射宽高比和分辨率
+  const aspectRatio = params.aspectRatio || '16:9';
   const imageSize = params.imageSize || '2K';
 
-  // 鏍规嵁鍒嗚鲸鐜囪缃秴鏃舵椂闂?  const timeoutMap: Record<string, number> = { '1K': 180000, '2K': 300000, '4K': 360000 };
+  // 根据分辨率设置超时时间
+  const timeoutMap: Record<string, number> = { '1K': 180000, '2K': 300000, '4K': 360000 };
   const timeout = timeoutMap[imageSize] || 300000;
 
-  // 馃幆 缁熶竴浣跨敤 Gemini 鍘熺敓鏍煎紡绔偣锛堟敮鎸佸垎杈ㄧ巼鍙傛暟锛?  const hasReferenceImages = referenceImages.length > 0;
+  // 🎯 统一使用 Gemini 原生格式端点（支持分辨率参数）
+  const hasReferenceImages = referenceImages.length > 0;
   const apiUrl = APIYI_TEXT2IMG_URL;
 
-  // 鏋勫缓璇锋眰浣擄紙Gemini 鍘熺敓鏍煎紡锛?  let parts: any[] = [{ text: finalPrompt }];
+  // 构建请求体（Gemini 原生格式）
+  let parts: any[] = [{ text: finalPrompt }];
 
-  // 濡傛灉鏈夊弬鑰冨浘锛屼笅杞藉苟杞负 base64锛屾坊鍔犲埌 parts 涓?  if (hasReferenceImages) {
-    const limitedImages = referenceImages.slice(0, 8); // 鏈€澶?8 寮犲弬鑰冨浘
-    console.log('[APIYI] 馃帹 寮€濮嬩笅杞藉弬鑰冨浘锛屾暟閲?', limitedImages.length);
+  // 如果有参考图，下载并转为 base64，添加到 parts 中
+  if (hasReferenceImages) {
+    const limitedImages = referenceImages.slice(0, 8); // 最多 8 张参考图
+    console.log('[APIYI] 🎨 开始下载参考图，数量:', limitedImages.length);
 
-    // 骞惰涓嬭浇鎵€鏈夊弬鑰冨浘
+    // 并行下载所有参考图
     const downloadPromises = limitedImages.map(url => downloadImageAsBase64ForApiyi(url));
     const downloadResults = await Promise.all(downloadPromises);
 
-    // 灏嗘垚鍔熶笅杞界殑鍥剧墖娣诲姞鍒?parts 鏁扮粍
+    // 将成功下载的图片添加到 parts 数组
     let successCount = 0;
     for (const imageData of downloadResults) {
       if (imageData) {
@@ -1054,9 +1120,9 @@ export async function createApiyiTaskAction(params: {
     }
 
     if (successCount > 0) {
-      console.log(`[APIYI] 馃帹 浣跨敤鍥剧敓鍥炬ā寮忥紙Gemini 鍘熺敓鏍煎紡 + base64 鍥剧墖锛夛紝鎴愬姛鍔犺浇 ${successCount}/${limitedImages.length} 寮犲弬鑰冨浘`);
+      console.log(`[APIYI] 🎨 使用图生图模式（Gemini 原生格式 + base64 图片），成功加载 ${successCount}/${limitedImages.length} 张参考图`);
     } else {
-      console.warn('[APIYI] 鈿狅笍 鎵€鏈夊弬鑰冨浘涓嬭浇澶辫触锛岄檷绾т负绾枃鐢熷浘妯″紡');
+      console.warn('[APIYI] ⚠️ 所有参考图下载失败，降级为纯文生图模式');
     }
   }
 
@@ -1071,8 +1137,8 @@ export async function createApiyiTaskAction(params: {
     },
   };
 
-  console.log('[APIYI] 璇锋眰鍙傛暟:', {
-    apiUrl: 'Gemini 鍘熺敓鏍煎紡',
+  console.log('[APIYI] 请求参数:', {
+    apiUrl: 'Gemini 原生格式',
     aspectRatio,
     imageSize,
     promptLength: finalPrompt.length,
@@ -1082,7 +1148,8 @@ export async function createApiyiTaskAction(params: {
   });
 
   try {
-    // 鍙戦€佽姹傦紙鍚屾绛夊緟锛?    const startTime = Date.now();
+    // 发送请求（同步等待）
+    const startTime = Date.now();
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
@@ -1094,34 +1161,35 @@ export async function createApiyiTaskAction(params: {
     });
 
     const elapsed = (Date.now() - startTime) / 1000;
-    console.log(`[APIYI] 璇锋眰鑰楁椂: ${elapsed.toFixed(1)} 绉抈);
+    console.log(`[APIYI] 请求耗时: ${elapsed.toFixed(1)} 秒`);
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('[APIYI] 璇锋眰澶辫触:', response.status, errorText);
+      console.error('[APIYI] 请求失败:', response.status, errorText);
       throw new Error(`APIYI API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
 
-    // 瑙ｆ瀽 Gemini 鍘熺敓鏍煎紡鐨勫搷搴?    if (!data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data) {
+    // 解析 Gemini 原生格式的响应
+    if (!data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data) {
       const finishReason = data.candidates?.[0]?.finishReason;
       if (finishReason && finishReason !== 'STOP') {
-        console.error('[APIYI] 鍐呭琚嫆缁?', finishReason);
+        console.error('[APIYI] 内容被拒绝:', finishReason);
         throw new Error(`Content rejected: ${finishReason}`);
       }
-      console.error('[APIYI] 鍝嶅簲鏍煎紡寮傚父:', JSON.stringify(data).substring(0, 500));
+      console.error('[APIYI] 响应格式异常:', JSON.stringify(data).substring(0, 500));
       throw new Error('Invalid response format from APIYI');
     }
 
     const base64Data = data.candidates[0].content.parts[0].inlineData.data;
     const mimeType = data.candidates[0].content.parts[0].inlineData.mimeType || 'image/png';
 
-    console.log(`鉁?[APIYI] 鐢熸垚鎴愬姛锛佸浘鐗囧ぇ灏? ${(base64Data.length / 1024).toFixed(1)} KB`);
+    console.log(`✅ [APIYI] 生成成功！图片大小: ${(base64Data.length / 1024).toFixed(1)} KB`);
 
-    // 馃幆 鍏抽敭淇锛氬皢 base64 鍥剧墖涓婁紶鍒?R2锛岄伩鍏嶅ぇ鏁版嵁閫氳繃 Server Action 浼犺緭
-    // 鍘熷洜锛歜ase64 鏁版嵁绾?4-6MB锛岄€氳繃 Server Action 杩斿洖浼氳秴杩?Next.js middleware 鐨?10MB 闄愬埗
-    // 瑙ｅ喅锛氬厛涓婁紶鍒?R2 CDN锛岀劧鍚庡彧缂撳瓨 CDN URL
+    // 🎯 关键修复：将 base64 图片上传到 R2，避免大数据通过 Server Action 传输
+    // 原因：base64 数据约 4-6MB，通过 Server Action 返回会超过 Next.js middleware 的 10MB 限制
+    // 解决：先上传到 R2 CDN，然后只缓存 CDN URL
     let finalImageUrl: string;
 
     try {
@@ -1134,7 +1202,7 @@ export async function createApiyiTaskAction(params: {
       const configs = await getAllConfigs();
 
       if (user && configs.r2_bucket_name && configs.r2_access_key) {
-        console.log('[APIYI] 寮€濮嬩笂浼犲浘鐗囧埌 R2...');
+        console.log('[APIYI] 开始上传图片到 R2...');
         const storageService = getStorageServiceWithConfigs(configs);
         const timestamp = Date.now();
         const randomId = nanoid(8);
@@ -1142,7 +1210,8 @@ export async function createApiyiTaskAction(params: {
         const fileName = `${timestamp}_${randomId}.${fileExtension}`;
         const storageKey = `slides/${user.id}/${fileName}`;
 
-        // 灏?base64 杞崲涓?Buffer 骞朵笂浼?        const buffer = Buffer.from(base64Data, 'base64');
+        // 将 base64 转换为 Buffer 并上传
+        const buffer = Buffer.from(base64Data, 'base64');
         const uploadResult = await storageService.uploadFile({
           body: buffer,
           key: storageKey,
@@ -1152,27 +1221,28 @@ export async function createApiyiTaskAction(params: {
 
         if (uploadResult.success && uploadResult.url) {
           finalImageUrl = uploadResult.url;
-          console.log(`[APIYI] 鉁?鍥剧墖涓婁紶鎴愬姛: ${finalImageUrl.substring(0, 60)}...`);
+          console.log(`[APIYI] ✅ 图片上传成功: ${finalImageUrl.substring(0, 60)}...`);
         } else {
-          // 涓婁紶澶辫触锛岄檷绾т娇鐢?data URL锛堝彲鑳戒細瀵艰嚧澶ф暟鎹棶棰橈紝浣嗚嚦灏戜笉浼氬畬鍏ㄥけ璐ワ級
-          console.warn('[APIYI] 鈿狅笍 R2 涓婁紶澶辫触锛岄檷绾т娇鐢?data URL');
+          // 上传失败，降级使用 data URL（可能会导致大数据问题，但至少不会完全失败）
+          console.warn('[APIYI] ⚠️ R2 上传失败，降级使用 data URL');
           finalImageUrl = `data:${mimeType};base64,${base64Data}`;
         }
       } else {
-        // 鏈厤缃?R2锛屼娇鐢?data URL
-        console.warn('[APIYI] 鈿狅笍 R2 鏈厤缃紝浣跨敤 data URL锛堝彲鑳藉鑷村ぇ鍥剧墖浼犺緭闂锛?);
+        // 未配置 R2，使用 data URL
+        console.warn('[APIYI] ⚠️ R2 未配置，使用 data URL（可能导致大图片传输问题）');
         finalImageUrl = `data:${mimeType};base64,${base64Data}`;
       }
     } catch (uploadError: any) {
-      // 涓婁紶寮傚父锛岄檷绾т娇鐢?data URL
-      console.error('[APIYI] 鈿狅笍 R2 涓婁紶寮傚父:', uploadError.message);
+      // 上传异常，降级使用 data URL
+      console.error('[APIYI] ⚠️ R2 上传异常:', uploadError.message);
       finalImageUrl = `data:${mimeType};base64,${base64Data}`;
     }
 
-    // 杩斿洖鐗规畩鏍煎紡鐨?task_id
+    // 返回特殊格式的 task_id
     const taskId = `apiyi-sync-${Date.now()}`;
 
-    // 灏嗙粨鏋滃瓨鍌ㄥ埌鍏ㄥ眬缂撳瓨涓紙鐜板湪瀛樺偍鐨勬槸 CDN URL 鑰岄潪 data URL锛?    apiyiResultCache.set(taskId, {
+    // 将结果存储到全局缓存中（现在存储的是 CDN URL 而非 data URL）
+    apiyiResultCache.set(taskId, {
       status: 'SUCCESS',
       imageUrl: finalImageUrl,
       createdAt: Date.now(),
@@ -1181,7 +1251,7 @@ export async function createApiyiTaskAction(params: {
     return { task_id: taskId };
   } catch (e: any) {
     if (e.name === 'TimeoutError' || e.name === 'AbortError') {
-      console.error('[APIYI] 璇锋眰瓒呮椂');
+      console.error('[APIYI] 请求超时');
       throw new Error('APIYI request timeout');
     }
     console.error('[APIYI] Create Error:', e);
@@ -1190,9 +1260,9 @@ export async function createApiyiTaskAction(params: {
 }
 
 /**
- * APIYI 缁撴灉缂撳瓨
- * 鐢变簬 APIYI 鏄悓姝?API锛岀敓鎴愬畬鎴愬悗鐩存帴杩斿洖缁撴灉
- * 杩欓噷鐢ㄧ紦瀛樺瓨鍌ㄧ粨鏋滐紝渚?queryApiyiTaskAction 鏌ヨ
+ * APIYI 结果缓存
+ * 由于 APIYI 是同步 API，生成完成后直接返回结果
+ * 这里用缓存存储结果，供 queryApiyiTaskAction 查询
  */
 const apiyiResultCache = new Map<string, {
   status: 'SUCCESS' | 'FAILED';
@@ -1201,26 +1271,30 @@ const apiyiResultCache = new Map<string, {
   createdAt: number;
 }>();
 
-// 瀹氭湡娓呯悊杩囨湡缂撳瓨锛堣秴杩?10 鍒嗛挓鐨勭紦瀛橈級
+// 定期清理过期缓存（超过 10 分钟的缓存）
 setInterval(() => {
   const now = Date.now();
-  const expireTime = 10 * 60 * 1000; // 10 鍒嗛挓
+  const expireTime = 10 * 60 * 1000; // 10 分钟
   for (const [key, value] of apiyiResultCache.entries()) {
     if (now - value.createdAt > expireTime) {
       apiyiResultCache.delete(key);
     }
   }
-}, 60 * 1000); // 姣忓垎閽熸鏌ヤ竴娆?
+}, 60 * 1000); // 每分钟检查一次
+
 /**
- * Query Task Status via APIYI (浠庣紦瀛樿鍙?
+ * Query Task Status via APIYI (从缓存读取)
  *
- * 闈炵▼搴忓憳瑙ｉ噴锛? * - APIYI 鏄悓姝?API锛宑reateApiyiTaskAction 宸茬粡瀹屾垚浜嗙敓鎴? * - 杩欎釜鍑芥暟鍙槸浠庣紦瀛樹腑璇诲彇缁撴灉锛岀珛鍗宠繑鍥? */
+ * 非程序员解释：
+ * - APIYI 是同步 API，createApiyiTaskAction 已经完成了生成
+ * - 这个函数只是从缓存中读取结果，立即返回
+ */
 export async function queryApiyiTaskAction(taskId: string) {
-  // 浠庣紦瀛樹腑鑾峰彇缁撴灉
+  // 从缓存中获取结果
   const cached = apiyiResultCache.get(taskId);
 
   if (!cached) {
-    // 缂撳瓨涓嶅瓨鍦紝鍙兘宸茶繃鏈熸垨 taskId 鏃犳晥
+    // 缓存不存在，可能已过期或 taskId 无效
     return {
       data: {
         status: 'FAILED',
@@ -1249,22 +1323,26 @@ export async function queryApiyiTaskAction(taskId: string) {
 }
 
 /**
- * Create Image Generation Task with Load Balancing (涓夌骇鏈哄埗 - 鏀寔鐜鍙橀噺閰嶇疆)
+ * Create Image Generation Task with Load Balancing (三级机制 - 支持环境变量配置)
  *
- * 闈炵▼搴忓憳瑙ｉ噴锛? * - 瀹炵幇浜嗕笁绾ч檷绾х瓥鐣ワ紝涓诲姏/鎵樺簳椤哄簭鍙€氳繃鐜鍙橀噺蹇€熷垏鎹? * - 閰嶇疆鏂瑰紡锛氬湪 .env.local 鏂囦欢涓慨鏀?IMAGE_PROVIDER_PRIORITY
- * - 榛樿椤哄簭锛欶AL -> KIE -> Replicate
- * - 鍒囨崲绀轰緥锛? *   - 鎯宠 KIE 鍋氫富鍔涳細IMAGE_PROVIDER_PRIORITY=KIE,FAL,Replicate
- *   - 鎯宠 FAL 鍋氫富鍔涳細IMAGE_PROVIDER_PRIORITY=FAL,KIE,Replicate
- * - 浼樺娍锛氫笉闇€瑕佹敼浠ｇ爜锛岄噸鍚湇鍔″悗绔嬪嵆鐢熸晥
+ * 非程序员解释：
+ * - 实现了三级降级策略，主力/托底顺序可通过环境变量快速切换
+ * - 配置方式：在 .env.local 文件中修改 IMAGE_PROVIDER_PRIORITY
+ * - 默认顺序：FAL -> KIE -> Replicate
+ * - 切换示例：
+ *   - 想让 KIE 做主力：IMAGE_PROVIDER_PRIORITY=KIE,FAL,Replicate
+ *   - 想让 FAL 做主力：IMAGE_PROVIDER_PRIORITY=FAL,KIE,Replicate
+ * - 优势：不需要改代码，重启服务后立即生效
  */
 /**
- * Deck涓婁笅鏂囦俊鎭?- 鐢ㄤ簬澶氶〉PPT鐢熸垚鏃朵繚鎸佷竴鑷存€? */
+ * Deck上下文信息 - 用于多页PPT生成时保持一致性
+ */
 export interface DeckContext {
-  /** 褰撳墠鏄鍑犻〉锛堜粠1寮€濮嬶級 */
+  /** 当前是第几页（从1开始） */
   currentSlide: number;
-  /** 鎬诲叡澶氬皯椤?*/
+  /** 总共多少页 */
   totalSlides: number;
-  /** 绗竴寮犲凡鐢熸垚鐨勫浘鐗嘦RL锛堜綔涓鸿瑙夐敋瀹氬弬鑰冿級 */
+  /** 第一张已生成的图片URL（作为视觉锚定参考） */
   anchorImageUrl?: string;
 }
 
@@ -1274,18 +1352,18 @@ export async function createKieTaskWithFallbackAction(params: {
   aspectRatio?: string;
   imageSize?: string;
   customImages?: string[];
-  preferredProvider?: 'FAL' | 'Replicate' | 'KIE'; // 棣栭€夋彁渚涘晢
+  preferredProvider?: 'FAL' | 'Replicate' | 'KIE'; // 首选提供商
   isEnhancedMode?: boolean;
   isPromptEnhancedMode?: boolean;
   outputLanguage?: 'auto' | 'zh' | 'en';
-  refundCredits?: number; // 澶辫触鏃惰嚜鍔ㄩ€€杩樼殑绉垎鏁伴噺
-  /** Deck涓婁笅鏂囷細浼犻€掑綋鍓嶉〉鐮佸拰鎬婚〉鏁帮紝甯姪AI淇濇寔涓€鑷存€?*/
+  refundCredits?: number; // 失败时自动退还的积分数量
+  /** Deck上下文：传递当前页码和总页数，帮助AI保持一致性 */
   deckContext?: DeckContext;
-  /** 馃幆 缂栬緫妯″紡锛氬師濮嬪浘鐗嘦RL锛堢敤浜庡眬閮ㄧ紪杈戯級 */
+  /** 🎯 编辑模式：原始图片URL（用于局部编辑） */
   editImageUrl?: string;
-  /** 馃幆 缂栬緫妯″紡锛歮ask 鍥剧墖锛圔ase64 鎴?URL锛?*/
+  /** 🎯 编辑模式：mask 图片（Base64 或 URL） */
   maskImage?: string;
-  /** 馃幆 缂栬緫妯″紡锛氬甫鏍囪鐨勫浘鐗囷紙闄嶇骇鏂规锛?*/
+  /** 🎯 编辑模式：带标记的图片（降级方案） */
   markedImage?: string;
 }) {
   const {
@@ -1301,17 +1379,19 @@ export async function createKieTaskWithFallbackAction(params: {
     ...taskParams
   } = params;
 
-  // 棰勫鐞嗗浘鐗?URL锛岀‘淇濆鎵€鏈夋彁渚涘晢閮芥槸鍏綉鍙闂殑
-  // 濡傛灉鏈夐敋瀹氬浘鐗囷紙绗竴寮犲凡鐢熸垚鐨勫浘鐗囷級锛屽皢鍏舵坊鍔犲埌鍙傝€冨浘鐗囧垪琛ㄧ殑鏈€鍓嶉潰
+  // 预处理图片 URL，确保对所有提供商都是公网可访问的
+  // 如果有锚定图片（第一张已生成的图片），将其添加到参考图片列表的最前面
   let customImagesWithAnchor = (taskParams.customImages || []).map(
     resolveImageUrl
   );
 
-  // 棣栧紶閿氬畾鏈哄埗锛氬鏋滀笉鏄涓€寮狅紝涓旀湁閿氬畾鍥剧墖锛屽垯灏嗗叾浣滀负棣栬鍙傝€?  if (deckContext?.anchorImageUrl && deckContext.currentSlide > 1) {
+  // 首张锚定机制：如果不是第一张，且有锚定图片，则将其作为首要参考
+  if (deckContext?.anchorImageUrl && deckContext.currentSlide > 1) {
     const anchorUrl = resolveImageUrl(deckContext.anchorImageUrl);
-    // 灏嗛敋瀹氬浘鐗囨斁鍦ㄦ渶鍓嶉潰锛岀‘淇滱I浼樺厛鍙傝€?    customImagesWithAnchor = [anchorUrl, ...customImagesWithAnchor];
+    // 将锚定图片放在最前面，确保AI优先参考
+    customImagesWithAnchor = [anchorUrl, ...customImagesWithAnchor];
     console.log(
-      `[涓€鑷存€ч敋瀹歖 绗?${deckContext.currentSlide}/${deckContext.totalSlides} 椤典娇鐢ㄩ寮犱綔涓洪鏍奸敋瀹歚
+      `[一致性锚定] 第 ${deckContext.currentSlide}/${deckContext.totalSlides} 页使用首张作为风格锚定`
     );
   }
 
@@ -1321,32 +1401,41 @@ export async function createKieTaskWithFallbackAction(params: {
     isPromptEnhancedMode,
     outputLanguage,
     customImages: customImagesWithAnchor,
-    deckContext, // 浼犻€抎eck涓婁笅鏂?    editImageUrl, // 馃幆 浼犻€掔紪杈戞ā寮忓弬鏁?    maskImage, // 馃幆 浼犻€?mask
-    markedImage, // 馃幆 浼犻€掑甫鏍囪鐨勫浘鐗?  };
+    deckContext, // 传递deck上下文
+    editImageUrl, // 🎯 传递编辑模式参数
+    maskImage, // 🎯 传递 mask
+    markedImage, // 🎯 传递带标记的图片
+  };
 
-  // 瀹氫箟浼樺厛绾ч『搴忥紙浠庣幆澧冨彉閲忚鍙栵紝鍙湪 .env.local 涓慨鏀?IMAGE_PROVIDER_PRIORITY锛?  // 闈炵▼搴忓憳瑙ｉ噴锛氱幇鍦ㄤ笉闇€瑕佹敼浠ｇ爜锛屽彧闇€瑕佷慨鏀?.env.local 鏂囦欢灏辫兘鍒囨崲涓诲姏/鎵樺簳椤哄簭
+  // 定义优先级顺序（从环境变量读取，可在 .env.local 中修改 IMAGE_PROVIDER_PRIORITY）
+  // 非程序员解释：现在不需要改代码，只需要修改 .env.local 文件就能切换主力/托底顺序
   let providerChain = getProviderPriority();
 
-  // 馃幆 缂栬緫妯″紡鍒ゆ柇閫昏緫浼樺寲
-  // 1. 灞€閮ㄧ紪杈戯細鏈夊師鍥?+ 鏍囪鍥?  // 2. 鏁翠綋缂栬緫锛氭湁鍘熷浘锛坋ditImageUrl锛?  // 3. 瀹归敊澶勭悊锛氬鏋?customImages 涓彧鏈変竴寮犲浘涓旀病鏈?styleId锛岄€氬父涔熸槸缂栬緫琛屼负
+  // 🎯 编辑模式判断逻辑优化
+  // 1. 局部编辑：有原图 + 标记图
+  // 2. 整体编辑：有原图（editImageUrl）
+  // 3. 容错处理：如果 customImages 中只有一张图且没有 styleId，通常也是编辑行为
   const isEditMode = !!(editImageUrl || markedImage || (taskParams.customImages && taskParams.customImages.length === 1 && !params.styleId));
 
-  // 馃幆 2026-02-10 鏇存柊锛欿IE 鐨?nano-banana-pro 涔熸敮鎸佺紪杈戝姛鑳斤紙閫氳繃 image_input 鍙傛暟锛?  // 鍥犳缂栬緫妯″紡涓嶅啀寮哄埗浣跨敤 FAL锛岃€屾槸鎸夌収鐜鍙橀噺閰嶇疆鐨勪紭鍏堢骇椤哄簭灏濊瘯
-  // 鍙湁 Replicate 涓嶆敮鎸佺紪杈戞ā寮忥紝闇€瑕佷粠閾句腑绉婚櫎
+  // 🎯 2026-02-10 更新：KIE 的 nano-banana-pro 也支持编辑功能（通过 image_input 参数）
+  // 因此编辑模式不再强制使用 FAL，而是按照环境变量配置的优先级顺序尝试
+  // 只有 Replicate 不支持编辑模式，需要从链中移除
   if (isEditMode) {
-    // 缂栬緫妯″紡涓嬬Щ闄?Replicate锛堜笉鏀寔缂栬緫锛?    providerChain = providerChain.filter(p => p !== 'Replicate');
-    console.log(`\n馃帹 缂栬緫妯″紡纭锛?{markedImage ? '灞€閮ㄦ爣璁扮紪杈? : '鏁翠綋鏁堟灉缂栬緫'}`);
-    console.log(`馃搵 缂栬緫妯″紡鍙敤鎻愪緵鍟? ${providerChain.join(' -> ')}`);
+    // 编辑模式下移除 Replicate（不支持编辑）
+    providerChain = providerChain.filter(p => p !== 'Replicate');
+    console.log(`\n🎨 编辑模式确认：${markedImage ? '局部标记编辑' : '整体效果编辑'}`);
+    console.log(`📋 编辑模式可用提供商: ${providerChain.join(' -> ')}`);
   } else if (preferredProvider && providerChain.includes(preferredProvider)) {
-    // 灏嗛閫?provider 绉诲埌绗竴浣?    providerChain = [
+    // 将首选 provider 移到第一位
+    providerChain = [
       preferredProvider,
       ...providerChain.filter((p) => p !== preferredProvider),
     ];
   }
 
-  console.log(`\n馃幆 鐢熸垚浠诲姟 - 浼樺厛绾ч『搴? ${providerChain.join(' -> ')}`);
+  console.log(`\n🎯 生成任务 - 优先级顺序: ${providerChain.join(' -> ')}`);
 
-  // 馃幆 璁板綍涓诲姏鎻愪緵鍟嗭紙浼樺厛绾ч摼鐨勭涓€涓級
+  // 🎯 记录主力提供商（优先级链的第一个）
   const primaryProvider = providerChain[0];
 
   let lastError: any = null;
@@ -1355,28 +1444,28 @@ export async function createKieTaskWithFallbackAction(params: {
     try {
       if (provider === 'FAL') {
         if (!FAL_KEY) {
-          console.warn('鈿狅笍 FAL Key 鏈厤缃紝璺宠繃');
+          console.warn('⚠️ FAL Key 未配置，跳过');
           continue;
         }
         console.log(
-          `馃攧 [${provider === primaryProvider ? '涓诲姏' : '鎵樺簳'}] 浣跨敤 FAL (nano-banana-pro)...`
+          `🔄 [${provider === primaryProvider ? '主力' : '托底'}] 使用 FAL (nano-banana-pro)...`
         );
         const result = await createFalTaskAction(processedParams);
-        console.log('鉁?FAL 浠诲姟鎴愬姛');
+        console.log('✅ FAL 任务成功');
         return {
           ...result,
           fallbackUsed: provider !== primaryProvider,
         };
       } else if (provider === 'KIE') {
         if (!KIE_API_KEY) {
-          console.warn('鈿狅笍 KIE Key 鏈厤缃紝璺宠繃');
+          console.warn('⚠️ KIE Key 未配置，跳过');
           continue;
         }
         console.log(
-          `馃攧 [${provider === primaryProvider ? '涓诲姏' : '鎵樺簳'}] 浣跨敤 KIE (nano-banana-pro)...`
+          `🔄 [${provider === primaryProvider ? '主力' : '托底'}] 使用 KIE (nano-banana-pro)...`
         );
         const result = await createKieTaskAction(processedParams);
-        console.log('鉁?KIE 浠诲姟鍒涘缓鎴愬姛:', result.task_id);
+        console.log('✅ KIE 任务创建成功:', result.task_id);
         return {
           success: true,
           task_id: result.task_id,
@@ -1385,28 +1474,28 @@ export async function createKieTaskWithFallbackAction(params: {
         };
       } else if (provider === 'Replicate') {
         if (!REPLICATE_API_TOKEN) {
-          console.warn('鈿狅笍 Replicate Token 鏈厤缃紝璺宠繃');
+          console.warn('⚠️ Replicate Token 未配置，跳过');
           continue;
         }
         console.log(
-          `馃攧 [${provider === primaryProvider ? '涓诲姏' : '鎵樺簳'}] 浣跨敤 Replicate (nano-banana-pro)...`
+          `🔄 [${provider === primaryProvider ? '主力' : '托底'}] 使用 Replicate (nano-banana-pro)...`
         );
         const result = await createReplicateTaskAction(processedParams);
-        console.log('鉁?Replicate 浠诲姟鎴愬姛');
+        console.log('✅ Replicate 任务成功');
         return {
           ...result,
           fallbackUsed: provider !== primaryProvider,
         };
       } else if (provider === 'APIYI') {
         if (!APIYI_API_KEY) {
-          console.warn('鈿狅笍 APIYI Key 鏈厤缃紝璺宠繃');
+          console.warn('⚠️ APIYI Key 未配置，跳过');
           continue;
         }
         console.log(
-          `馃攧 [${provider === primaryProvider ? '涓诲姏' : '鎵樺簳'}] 浣跨敤 APIYI (gemini-3-pro-image)...`
+          `🔄 [${provider === primaryProvider ? '主力' : '托底'}] 使用 APIYI (gemini-3-pro-image)...`
         );
         const result = await createApiyiTaskAction(processedParams);
-        console.log('鉁?APIYI 浠诲姟鎴愬姛:', result.task_id);
+        console.log('✅ APIYI 任务成功:', result.task_id);
         return {
           success: true,
           task_id: result.task_id,
@@ -1415,24 +1504,26 @@ export async function createKieTaskWithFallbackAction(params: {
         };
       }
     } catch (error: any) {
-      console.warn(`鈿狅笍 ${provider} 澶辫触:`, error.message);
+      console.warn(`⚠️ ${provider} 失败:`, error.message);
       lastError = error;
 
-      // 馃幆 缂栬緫妯″紡涓嬭褰曡缁嗛敊璇紝浣嗙户缁皾璇曚笅涓€涓彁渚涘晢
+      // 🎯 编辑模式下记录详细错误，但继续尝试下一个提供商
       if (isEditMode) {
-        console.error(`鉂?缂栬緫妯″紡 ${provider} 澶辫触:`, error.message);
+        console.error(`❌ 编辑模式 ${provider} 失败:`, error.message);
       }
-      // 缁х画涓嬩竴涓?loop
+      // 继续下一个 loop
     }
   }
 
-  // 濡傛灉鎵€鏈夐兘澶辫触浜?  console.error(`鉂?鎵€鏈夊浘鐗囩敓鎴愭湇鍔￠兘澶辫触`);
+  // 如果所有都失败了
+  console.error(`❌ 所有图片生成服务都失败`);
 
-  // 鑷姩閫€杩樼Н鍒?  if (refundAmount && refundAmount > 0) {
+  // 自动退还积分
+  if (refundAmount && refundAmount > 0) {
     try {
       const user = await getSignUser();
       if (user) {
-        console.log(`馃挵 鐢熸垚澶辫触锛岃嚜鍔ㄩ€€杩樼敤鎴?${refundAmount} 绉垎`);
+        console.log(`💰 生成失败，自动退还用户 ${refundAmount} 积分`);
         await refundCredits({
           userId: user.id,
           credits: refundAmount,
@@ -1445,12 +1536,12 @@ export async function createKieTaskWithFallbackAction(params: {
   }
 
   throw new Error(
-    `鎵€鏈夊浘鐗囩敓鎴愭湇鍔￠兘鏆傛椂涓嶅彲鐢? ${lastError?.message || '鏈煡閿欒'}`
+    `所有图片生成服务都暂时不可用: ${lastError?.message || '未知错误'}`
   );
 }
 
 /**
- * Force Create FAL Task (浣跨敤 fal-ai/nano-banana-pro/edit)
+ * Force Create FAL Task (使用 fal-ai/nano-banana-pro/edit)
  */
 export async function createFalTaskAction(params: {
   prompt: string;
@@ -1461,28 +1552,29 @@ export async function createFalTaskAction(params: {
   isEnhancedMode?: boolean;
   isPromptEnhancedMode?: boolean;
   outputLanguage?: 'auto' | 'zh' | 'en';
-  /** Deck涓婁笅鏂囷細浼犻€掑綋鍓嶉〉鐮佷俊鎭互澧炲己瑙嗚涓€鑷存€?*/
+  /** Deck上下文：传递当前页码信息以增强视觉一致性 */
   deckContext?: DeckContext;
-  /** 馃幆 缂栬緫妯″紡锛氬師濮嬪浘鐗嘦RL锛堢敤浜庡眬閮ㄧ紪杈戯級 */
+  /** 🎯 编辑模式：原始图片URL（用于局部编辑） */
   editImageUrl?: string;
-  /** 馃幆 缂栬緫妯″紡锛歮ask 鍥剧墖锛圔ase64 鎴?URL锛?*/
+  /** 🎯 编辑模式：mask 图片（Base64 或 URL） */
   maskImage?: string;
-  /** 馃幆 缂栬緫妯″紡锛氬甫鏍囪鐨勫浘鐗囷紙闄嶇骇鏂规锛岀敤浜庝笉鏀寔 mask 鐨勬ā鍨嬶級 */
+  /** 🎯 编辑模式：带标记的图片（降级方案，用于不支持 mask 的模型） */
   markedImage?: string;
-  /** 馃幆 缂栬緫妯″紡锛氭槸鍚︿娇鐢?inpainting 涓撶敤妯″瀷 */
+  /** 🎯 编辑模式：是否使用 inpainting 专用模型 */
   useInpaintingModel?: boolean;
 }) {
   if (!FAL_KEY) {
-    throw new Error('FAL API Key 鏈厤缃?);
+    throw new Error('FAL API Key 未配置');
   }
 
   try {
-    // 閰嶇疆 FAL Client
+    // 配置 FAL Client
     fal.config({
       credentials: FAL_KEY,
     });
 
-    // 澶勭悊鏍峰紡鍜岃瑙夎鑼?    let styleSuffix = '';
+    // 处理样式和视觉规范
+    let styleSuffix = '';
     let visualSpecPrompt = '';
 
     if (params.styleId) {
@@ -1490,7 +1582,8 @@ export async function createFalTaskAction(params: {
       if (style && params.isPromptEnhancedMode !== false) {
         styleSuffix = style.prompt;
 
-        // 馃幆 鍏抽敭锛氬鏋滈鏍兼湁瑙嗚瑙勮寖锛岀敓鎴愬己鍒舵€х殑瑙嗚绾︽潫鎻愮ず璇?        if (style.visualSpec) {
+        // 🎯 关键：如果风格有视觉规范，生成强制性的视觉约束提示词
+        if (style.visualSpec) {
           visualSpecPrompt = generateVisualSpecPrompt(
             style.visualSpec,
             params.deckContext
@@ -1504,13 +1597,15 @@ export async function createFalTaskAction(params: {
       }
     }
 
-    // 馃幆 棣栧紶閿氬畾鎻愮ず璇嶏細濡傛灉涓嶆槸绗竴寮犱笖鏈夐敋瀹氬浘鐗?    const anchorPrompt = generateAnchorPrompt(
+    // 🎯 首张锚定提示词：如果不是第一张且有锚定图片
+    const anchorPrompt = generateAnchorPrompt(
       params.deckContext?.currentSlide && params.deckContext.currentSlide > 1
         ? params.deckContext.anchorImageUrl
         : null
     );
 
-    // 馃幆 2026-02-10 鏇存柊锛氫娇鐢ㄧ粺涓€鐨勮瑷€妫€娴嬪拰鎻愮ず璇嶇敓鎴愬嚱鏁?    // 杩欐牱鍙互纭繚 auto 妯″紡涓嬪噯纭娴嬬敤鎴疯緭鍏ョ殑璇█锛岄伩鍏嶈瑷€娣蜂贡
+    // 🎯 2026-02-10 更新：使用统一的语言检测和提示词生成函数
+    // 这样可以确保 auto 模式下准确检测用户输入的语言，避免语言混乱
     const languagePrompt = generateLanguagePrompt(params.outputLanguage, params.prompt);
 
     // Content Strategy Prompt
@@ -1518,8 +1613,8 @@ export async function createFalTaskAction(params: {
       ? `\n\n[Content Enhancement Strategy]\nIf user provided content is detailed, use it directly. If content is simple/sparse, use your professional knowledge to expand on the subject to create a rich, complete slide, BUT you must STRICTLY preserve any specific data, numbers, and professional terms provided. Do NOT invent false data. For sparse content, use advanced layout techniques (grid, whitespace, font size) to fill the space professionally without forced filling.`
       : `\n\n[Strict Mode]\nSTRICTLY follow the provided text for Title and Content. Do NOT add, remove, or modify any words. Do NOT expand or summarize. Render the text exactly as given.`;
 
-    // 馃幆 鏋勫缓鏈€缁堟彁绀鸿瘝锛氬唴瀹?+ 椋庢牸 + 瑙嗚瑙勮寖 + 閿氬畾 + 绛栫暐 + 璇█绾︽潫
-    // 璇█绾︽潫鏀惧湪鏈€鍚庯紝纭繚 AI 浼樺厛閬靛畧璇█瑕佹眰
+    // 🎯 构建最终提示词：内容 + 风格 + 视觉规范 + 锚定 + 策略 + 语言约束
+    // 语言约束放在最后，确保 AI 优先遵守语言要求
     let finalPrompt =
       params.prompt +
       ' ' +
@@ -1529,12 +1624,14 @@ export async function createFalTaskAction(params: {
       contentStrategy +
       languagePrompt;
 
-    // 馃幆 鍒ゆ柇鏄惁涓虹紪杈戞ā寮忥紙鏈夊師鍥惧拰mask锛?    const isEditMode = !!(params.editImageUrl && params.maskImage);
+    // 🎯 判断是否为编辑模式（有原图和mask）
+    const isEditMode = !!(params.editImageUrl && params.maskImage);
 
-    // 澶勭悊鍙傝€冨浘鐗囷紙缂栬緫妯″紡涓嬩笉浣跨敤鍙傝€冨浘锛?    let referenceImages: string[] = [];
+    // 处理参考图片（编辑模式下不使用参考图）
+    let referenceImages: string[] = [];
 
     if (!isEditMode) {
-      // 鍙湪闈炵紪杈戞ā寮忎笅娣诲姞鍙傝€冨浘
+      // 只在非编辑模式下添加参考图
       referenceImages = (params.customImages || []).map(resolveImageUrl);
 
       if (params.styleId) {
@@ -1551,37 +1648,38 @@ export async function createFalTaskAction(params: {
       num_images: 1,
       aspect_ratio: params.aspectRatio === '16:9' ? '16:9' : 'auto',
       output_format: 'png',
-      resolution: params.imageSize || '2K', // 鏀寔 1K, 2K, 4K
+      resolution: params.imageSize || '2K', // 支持 1K, 2K, 4K
     };
 
     let falModel = 'fal-ai/nano-banana-pro';
 
     if (isEditMode) {
-      // 馃幆 缂栬緫妯″紡锛氫娇鐢ㄨ瑙夋爣璁版柟妗堬紙鍦ㄥ浘鐗囦笂缁樺埗閫夊尯妗嗭級
-      // 鍥犱负 nano-banana-pro/edit 闇€瑕?image_urls 鍙傛暟锛屼笉鏀寔鍗曠嫭鐨?mask
+      // 🎯 编辑模式：使用视觉标记方案（在图片上绘制选区框）
+      // 因为 nano-banana-pro/edit 需要 image_urls 参数，不支持单独的 mask
       if (params.markedImage) {
-        // 浣跨敤甯︽爣璁扮殑鍥剧墖浣滀负鍙傝€冨浘
+        // 使用带标记的图片作为参考图
         falModel = 'fal-ai/nano-banana-pro/edit';
         input.image_urls = [params.markedImage];
 
-        // 澧炲己鎻愮ず璇嶏細鏄庣‘鎸囧嚭瑕佺紪杈戠孩妗嗗尯鍩?        finalPrompt = `${finalPrompt}\n\n[閲嶈缂栬緫鎸囦护]\n鍥剧墖涓殑绾㈣壊妗嗘爣璁颁簡闇€瑕佷慨鏀圭殑鍖哄煙銆傝浠呬慨鏀圭孩妗嗗唴鐨勫唴瀹癸紝淇濇寔绾㈡澶栫殑鎵€鏈夊厓绱犱笉鍙樸€備慨鏀瑰畬鎴愬悗锛岃绉婚櫎鎵€鏈夌孩鑹叉爣璁版銆俙;
+        // 增强提示词：明确指出要编辑红框区域
+        finalPrompt = `${finalPrompt}\n\n[重要编辑指令]\n图片中的红色框标记了需要修改的区域。请仅修改红框内的内容，保持红框外的所有元素不变。修改完成后，请移除所有红色标记框。`;
 
-        console.log('[FAL] 馃帹 缂栬緫妯″紡锛氫娇鐢ㄨ瑙夋爣璁版柟妗堬紙绾㈡鏍囪缂栬緫鍖哄煙锛?);
-        console.log('[FAL] 鏍囪鍥剧墖闀垮害:', params.markedImage.length, '瀛楃');
+        console.log('[FAL] 🎨 编辑模式：使用视觉标记方案（红框标记编辑区域）');
+        console.log('[FAL] 标记图片长度:', params.markedImage.length, '字符');
       } else {
-        throw new Error('缂栬緫妯″紡闇€瑕佸甫鏍囪鐨勫浘鐗?);
+        throw new Error('编辑模式需要带标记的图片');
       }
     } else if (referenceImages.length > 0) {
-      // 馃幆 鍙傝€冨浘妯″紡锛氫娇鐢?edit 妯″瀷 + 鍙傝€冨浘锛堥潪灞€閮ㄧ紪杈戯級
+      // 🎯 参考图模式：使用 edit 模型 + 参考图（非局部编辑）
       falModel = 'fal-ai/nano-banana-pro/edit';
       const limitedImages = referenceImages.slice(0, 8);
       finalPrompt +=
-        '锛堣瑙夐鏍煎弬鑰冿細璇蜂弗鏍奸伒寰墍鎻愪緵鍙傝€冨浘鐨勮璁￠鏍笺€侀厤鑹叉柟妗堝拰鏋勫浘甯冨眬锛?;
-      console.log(`[FAL] 浣跨敤 ${limitedImages.length} 寮犲弬鑰冨浘`);
+        '（视觉风格参考：请严格遵循所提供参考图的设计风格、配色方案和构图布局）';
+      console.log(`[FAL] 使用 ${limitedImages.length} 张参考图`);
       input.image_urls = limitedImages;
     }
 
-    console.log('[FAL] 璇锋眰鍙傛暟:', {
+    console.log('[FAL] 请求参数:', {
       model: falModel,
       prompt: input.prompt.substring(0, 100) + '...',
       hasReferenceImages: referenceImages.length > 0,
@@ -1589,12 +1687,13 @@ export async function createFalTaskAction(params: {
     });
 
     const startTime = Date.now();
-    const maxRetries = 2; // 鏈€澶ч噸璇曟鏁?    let attempt = 0;
+    const maxRetries = 2; // 最大重试次数
+    let attempt = 0;
     let result: any;
 
     while (attempt <= maxRetries) {
       try {
-        // 浣跨敤 subscribe 绛夊緟缁撴灉
+        // 使用 subscribe 等待结果
         result = await fal.subscribe(falModel, {
           input,
           logs: true,
@@ -1604,51 +1703,54 @@ export async function createFalTaskAction(params: {
             }
           },
         });
-        // 濡傛灉鎴愬姛锛岃烦鍑洪噸璇曞惊鐜?        break;
+        // 如果成功，跳出重试循环
+        break;
       } catch (error: any) {
         attempt++;
-        // 鍙湁鍦ㄧ綉缁滈敊璇紙fetch failed锛夋垨鏈嶅姟鍣?5xx 閿欒鏃舵墠閲嶈瘯
+        // 只有在网络错误（fetch failed）或服务器 5xx 错误时才重试
         const isNetworkError =
           error.message?.includes('fetch failed') ||
           error.status >= 500 ||
-          error.status === 429; // 429 涔熷€煎緱閲嶈瘯
+          error.status === 429; // 429 也值得重试
 
         if (attempt <= maxRetries && isNetworkError) {
           console.warn(
-            `鈿狅笍 [FAL] 绗?${attempt} 娆″皾璇曞け璐?(${error.message})锛屾鍦ㄨ繘琛岀 ${
+            `⚠️ [FAL] 第 ${attempt} 次尝试失败 (${error.message})，正在进行第 ${
               attempt + 1
-            } 娆￠噸璇?..`
+            } 次重试...`
           );
-          // 鎸囨暟閫€閬匡細绗竴娆￠噸璇曠瓑 1s锛岀浜屾閲嶈瘯绛?2s
+          // 指数退避：第一次重试等 1s，第二次重试等 2s
           await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
           continue;
         }
 
-        // 璁板綍澶辫触鏃ュ織骞舵姏鍑洪敊璇紝瑙﹀彂 providerChain 鐨勬墭搴曢€昏緫
-        console.error('鉂?FAL 澶辫触:', error.message);
+        // 记录失败日志并抛出错误，触发 providerChain 的托底逻辑
+        console.error('❌ FAL 失败:', error.message);
         if (error.body) {
-          console.error('[FAL] 閿欒璇︽儏:', JSON.stringify(error.body, null, 2));
+          console.error('[FAL] 错误详情:', JSON.stringify(error.body, null, 2));
         }
         if (error.status) {
-          console.error('[FAL] HTTP 鐘舵€佺爜:', error.status);
+          console.error('[FAL] HTTP 状态码:', error.status);
         }
         throw error;
       }
     }
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`[FAL] API 璋冪敤瀹屾垚锛屾€昏€楁椂: ${elapsed}s (灏濊瘯娆℃暟: ${attempt + 1})`);
+    console.log(`[FAL] API 调用完成，总耗时: ${elapsed}s (尝试次数: ${attempt + 1})`);
 
-    // 杩斿洖鐢熸垚缁撴灉
+    // 返回生成结果
     if (!result || !result.data || !result.data.images || result.data.images.length === 0) {
-      throw new Error('FAL API 鏈繑鍥炴湁鏁堢殑鍥剧墖缁撴灉');
+      throw new Error('FAL API 未返回有效的图片结果');
     }
 
     const tempImageUrl = result.data.images[0].url;
-    console.log('[FAL] 鉁?鐢熸垚鎴愬姛:', tempImageUrl.substring(0, 60) + '...');
+    console.log('[FAL] ✅ 生成成功:', tempImageUrl.substring(0, 60) + '...');
 
-    // 馃幆 2026-02-13 淇锛氬悓姝ョ瓑寰?R2 涓婁紶瀹屾垚锛岀洿鎺ヨ繑鍥炴案涔呴摼鎺?    // 鍘熷洜锛氬悗鍙板紓姝ユ洿鏂版暟鎹簱鐨勬柟妗堝お澶嶆潅涓斿鏄撳嚭闂锛圧eact 鐘舵€佹洿鏂板紓姝ャ€乸resentationId 鍙兘涓虹┖绛夛級
-    // 鏂版柟妗堬細鐗虹壊鍑犵绛夊緟鏃堕棿锛屾崲鍙栨暟鎹竴鑷存€у拰鍙潬鎬?    let finalImageUrl = tempImageUrl;
+    // 🎯 2026-02-13 修复：同步等待 R2 上传完成，直接返回永久链接
+    // 原因：后台异步更新数据库的方案太复杂且容易出问题（React 状态更新异步、presentationId 可能为空等）
+    // 新方案：牺牲几秒等待时间，换取数据一致性和可靠性
+    let finalImageUrl = tempImageUrl;
     try {
       const { getStorageServiceWithConfigs } = await import(
         '@/shared/services/storage'
@@ -1661,7 +1763,7 @@ export async function createFalTaskAction(params: {
       const configs = await getAllConfigs();
 
       if (user && configs.r2_bucket_name && configs.r2_access_key) {
-        console.log('[FAL] 寮€濮嬪悓姝ヤ繚瀛樺浘鐗囧埌 R2...');
+        console.log('[FAL] 开始同步保存图片到 R2...');
         const storageService = getStorageServiceWithConfigs(configs);
         const timestamp = Date.now();
         const randomId = nanoid(8);
@@ -1678,13 +1780,13 @@ export async function createFalTaskAction(params: {
 
         if (uploadResult.success && uploadResult.url) {
           finalImageUrl = uploadResult.url;
-          console.log(`[FAL] 鉁?鍥剧墖宸蹭繚瀛樺埌 R2: ${finalImageUrl.substring(0, 60)}...`);
+          console.log(`[FAL] ✅ 图片已保存到 R2: ${finalImageUrl.substring(0, 60)}...`);
         } else {
-          console.warn('[FAL] 鈿狅笍 R2 涓婁紶澶辫触锛屼娇鐢ㄤ复鏃堕摼鎺?', uploadResult.error);
+          console.warn('[FAL] ⚠️ R2 上传失败，使用临时链接:', uploadResult.error);
         }
       }
     } catch (saveError) {
-      console.error('[FAL] R2 淇濆瓨寮傚父锛屼娇鐢ㄤ复鏃堕摼鎺?', saveError);
+      console.error('[FAL] R2 保存异常，使用临时链接:', saveError);
     }
 
     return {
@@ -1692,17 +1794,18 @@ export async function createFalTaskAction(params: {
       prompt: params.prompt,
     };
   } catch (error: any) {
-    console.error('[FAL] 鉂?createFalTaskAction 閿欒:', error.message);
+    console.error('[FAL] ❌ createFalTaskAction 错误:', error.message);
     throw error;
   }
 }
 
 /**
- * Force Create Replicate Task (浣跨敤 google/nano-banana-pro)
+ * Force Create Replicate Task (使用 google/nano-banana-pro)
  *
- * 闈炵▼搴忓憳瑙ｉ噴锛? * - 杩欎釜鍑芥暟寮哄埗浣跨敤 Replicate 鐨?google/nano-banana-pro 妯″瀷鐢熸垚鍥剧墖
- * - 鏀寔 1K/2K/4K 鍒嗚鲸鐜囧拰澶氬浘鍙傝€冿紙鏈€澶?寮狅級
- * - 鐢ㄤ簬涓诲姏鐢熸垚鎴?KIE 瓒呮椂/澶辫触鏃剁殑鐩存帴璋冪敤
+ * 非程序员解释：
+ * - 这个函数强制使用 Replicate 的 google/nano-banana-pro 模型生成图片
+ * - 支持 1K/2K/4K 分辨率和多图参考（最多8张）
+ * - 用于主力生成或 KIE 超时/失败时的直接调用
  */
 export async function createReplicateTaskAction(params: {
   prompt: string;
@@ -1713,24 +1816,25 @@ export async function createReplicateTaskAction(params: {
   isEnhancedMode?: boolean;
   isPromptEnhancedMode?: boolean;
   outputLanguage?: 'auto' | 'zh' | 'en';
-  /** Deck涓婁笅鏂囷細浼犻€掑綋鍓嶉〉鐮佷俊鎭互澧炲己瑙嗚涓€鑷存€?*/
+  /** Deck上下文：传递当前页码信息以增强视觉一致性 */
   deckContext?: DeckContext;
 }) {
   if (!REPLICATE_API_TOKEN) {
-    console.log('鈴笍 璺宠繃 Replicate锛堟湭閰嶇疆API Token锛?);
-    throw new Error('Replicate API Token 鏈厤缃?);
+    console.log('⏭️ 跳过 Replicate（未配置API Token）');
+    throw new Error('Replicate API Token 未配置');
   }
 
   try {
-    console.log('馃攧 灏濊瘯浣跨敤 Replicate (google/nano-banana-pro)...');
+    console.log('🔄 尝试使用 Replicate (google/nano-banana-pro)...');
 
-    // 棰勫鐞嗗浘鐗?URL
+    // 预处理图片 URL
     const processedParams = {
       ...params,
       customImages: (params.customImages || []).map(resolveImageUrl),
     };
 
-    // 澶勭悊鏍峰紡鍜岃瑙夎鑼?    let styleSuffix = '';
+    // 处理样式和视觉规范
+    let styleSuffix = '';
     let visualSpecPrompt = '';
 
     if (params.styleId) {
@@ -1738,7 +1842,8 @@ export async function createReplicateTaskAction(params: {
       if (style && params.isPromptEnhancedMode !== false) {
         styleSuffix = style.prompt;
 
-        // 馃幆 鍏抽敭锛氬鏋滈鏍兼湁瑙嗚瑙勮寖锛岀敓鎴愬己鍒舵€х殑瑙嗚绾︽潫鎻愮ず璇?        if (style.visualSpec) {
+        // 🎯 关键：如果风格有视觉规范，生成强制性的视觉约束提示词
+        if (style.visualSpec) {
           visualSpecPrompt = generateVisualSpecPrompt(
             style.visualSpec,
             params.deckContext
@@ -1752,13 +1857,15 @@ export async function createReplicateTaskAction(params: {
       }
     }
 
-    // 馃幆 棣栧紶閿氬畾鎻愮ず璇?    const anchorPrompt = generateAnchorPrompt(
+    // 🎯 首张锚定提示词
+    const anchorPrompt = generateAnchorPrompt(
       params.deckContext?.currentSlide && params.deckContext.currentSlide > 1
         ? params.deckContext.anchorImageUrl
         : null
     );
 
-    // 馃幆 2026-02-10 鏇存柊锛氫娇鐢ㄧ粺涓€鐨勮瑷€妫€娴嬪拰鎻愮ず璇嶇敓鎴愬嚱鏁?    // 杩欐牱鍙互纭繚 auto 妯″紡涓嬪噯纭娴嬬敤鎴疯緭鍏ョ殑璇█锛岄伩鍏嶈瑷€娣蜂贡
+    // 🎯 2026-02-10 更新：使用统一的语言检测和提示词生成函数
+    // 这样可以确保 auto 模式下准确检测用户输入的语言，避免语言混乱
     const languagePrompt = generateLanguagePrompt(params.outputLanguage, params.prompt);
 
     // Content Strategy Prompt
@@ -1766,8 +1873,8 @@ export async function createReplicateTaskAction(params: {
       ? `\n\n[Content Enhancement Strategy]\nIf user provided content is detailed, use it directly. If content is simple/sparse, use your professional knowledge to expand on the subject to create a rich, complete slide, BUT you must STRICTLY preserve any specific data, numbers, and professional terms provided. Do NOT invent false data. For sparse content, use advanced layout techniques (grid, whitespace, font size) to fill the space professionally without forced filling.`
       : `\n\n[Strict Mode]\nSTRICTLY follow the provided text for Title and Content. Do NOT add, remove, or modify any words. Do NOT expand or summarize. Render the text exactly as given.`;
 
-    // 馃幆 鏋勫缓鏈€缁堟彁绀鸿瘝锛氬唴瀹?+ 椋庢牸 + 瑙嗚瑙勮寖 + 閿氬畾 + 绛栫暐 + 璇█绾︽潫
-    // 璇█绾︽潫鏀惧湪鏈€鍚庯紝纭繚 AI 浼樺厛閬靛畧璇█瑕佹眰
+    // 🎯 构建最终提示词：内容 + 风格 + 视觉规范 + 锚定 + 策略 + 语言约束
+    // 语言约束放在最后，确保 AI 优先遵守语言要求
     let finalPrompt =
       params.prompt +
       ' ' +
@@ -1777,7 +1884,8 @@ export async function createReplicateTaskAction(params: {
       contentStrategy +
       languagePrompt;
 
-    // 澶勭悊鍙傝€冨浘鐗?    let referenceImages = (params.customImages || []).map(resolveImageUrl);
+    // 处理参考图片
+    let referenceImages = (params.customImages || []).map(resolveImageUrl);
 
     if (params.styleId) {
       const style = PPT_STYLES.find((s) => s.id === params.styleId);
@@ -1788,107 +1896,119 @@ export async function createReplicateTaskAction(params: {
     }
 
     if (referenceImages.length > 0) {
-      // nano-banana-pro 鏀寔澶氬浘铻嶅悎锛屾渶澶?寮?      const limitedImages = referenceImages.slice(0, 8);
+      // nano-banana-pro 支持多图融合，最多8张
+      const limitedImages = referenceImages.slice(0, 8);
       finalPrompt +=
-        '锛堣瑙夐鏍煎弬鑰冿細璇蜂弗鏍奸伒寰墍鎻愪緵鍙傝€冨浘鐨勮璁￠鏍笺€侀厤鑹叉柟妗堝拰鏋勫浘甯冨眬锛?;
+        '（视觉风格参考：请严格遵循所提供参考图的设计风格、配色方案和构图布局）';
       console.log(
-        `[Replicate] 浣跨敤 ${limitedImages.length} 寮犲弬鑰冨浘:`,
+        `[Replicate] 使用 ${limitedImages.length} 张参考图:`,
         limitedImages
       );
     }
 
-    // 璋冪敤 Replicate API
+    // 调用 Replicate API
     const replicate = new Replicate({ auth: REPLICATE_API_TOKEN });
 
-    // google/nano-banana-pro 鐨勫弬鏁扮粨鏋勶紙涓?KIE 绫讳技锛?    const input: any = {
+    // google/nano-banana-pro 的参数结构（与 KIE 类似）
+    const input: any = {
       prompt: finalPrompt,
       aspect_ratio: params.aspectRatio || '16:9',
       resolution: params.imageSize || '4K', // 1K/2K/4K
       output_format: 'png',
     };
 
-    // 濡傛灉鏈夊弬鑰冨浘锛屼紶鍏?image_input锛坣ano-banana-pro 鏀寔澶氬浘铻嶅悎锛?    if (referenceImages.length > 0) {
-      input.image_input = referenceImages.slice(0, 8); // 鏈€澶?寮?    }
+    // 如果有参考图，传入 image_input（nano-banana-pro 支持多图融合）
+    if (referenceImages.length > 0) {
+      input.image_input = referenceImages.slice(0, 8); // 最多8张
+    }
 
-    console.log('[Replicate] 璇锋眰鍙傛暟:', {
+    console.log('[Replicate] 请求参数:', {
       model: 'google/nano-banana-pro',
       input: {
         ...input,
-        prompt: input.prompt.substring(0, 100) + '...', // 鍙樉绀洪儴鍒唒rompt
+        prompt: input.prompt.substring(0, 100) + '...', // 只显示部分prompt
       },
     });
 
-    // 浣跨敤 run() 骞剁瓑寰呭畬鎴?    // run() 浼氳嚜鍔ㄥ鐞嗚疆璇紝鐩村埌浠诲姟瀹屾垚
-    console.log('[Replicate] 寮€濮嬭皟鐢?API...');
+    // 使用 run() 并等待完成
+    // run() 会自动处理轮询，直到任务完成
+    console.log('[Replicate] 开始调用 API...');
 
     const startTime = Date.now();
     let output = await replicate.run('google/nano-banana-pro', {
       input,
-      wait: { mode: 'poll', interval: 2000 }, // 姣?2 绉掓鏌ヤ竴娆＄姸鎬?    });
+      wait: { mode: 'poll', interval: 2000 }, // 每 2 秒检查一次状态
+    });
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`[Replicate] API 璋冪敤瀹屾垚锛岃€楁椂: ${elapsed}s`);
-    console.log('[Replicate] 鍘熷杈撳嚭绫诲瀷:', typeof output);
+    console.log(`[Replicate] API 调用完成，耗时: ${elapsed}s`);
+    console.log('[Replicate] 原始输出类型:', typeof output);
     console.log(
-      '[Replicate] 鍘熷杈撳嚭:',
+      '[Replicate] 原始输出:',
       typeof output === 'string'
         ? output
         : JSON.stringify(output).substring(0, 200)
     );
 
-    // 澶勭悊鍚勭鍙兘鐨勮緭鍑烘牸寮?    let imageUrl: string;
+    // 处理各种可能的输出格式
+    let imageUrl: string;
 
     if (typeof output === 'string') {
       console.log(
-        '[Replicate] 鉁?杈撳嚭鏄瓧绗︿覆绫诲瀷锛岄暱搴?',
+        '[Replicate] ✓ 输出是字符串类型，长度:',
         (output as string).length
       );
       imageUrl = output;
     } else if (Array.isArray(output)) {
       console.log(
-        '[Replicate] 鉁?杈撳嚭鏄暟缁勶紝闀垮害:',
+        '[Replicate] ✓ 输出是数组，长度:',
         (output as any[]).length,
-        ', 绗竴椤圭被鍨?',
+        ', 第一项类型:',
         typeof (output as any[])[0]
       );
 
       const firstItem = output[0];
 
-      // 濡傛灉鏁扮粍绗竴椤规槸瀵硅薄涓旀湁 url 灞炴€э紙FileOutput锛?      if (firstItem && typeof firstItem === 'object' && 'url' in firstItem) {
+      // 如果数组第一项是对象且有 url 属性（FileOutput）
+      if (firstItem && typeof firstItem === 'object' && 'url' in firstItem) {
         const urlValue = (firstItem as any).url;
-        console.log('[Replicate] 鏁扮粍绗竴椤?url 绫诲瀷:', typeof urlValue);
+        console.log('[Replicate] 数组第一项.url 类型:', typeof urlValue);
 
         if (typeof urlValue === 'function') {
-          console.log('[Replicate] url 鏄嚱鏁帮紝姝ｅ湪璋冪敤...');
+          console.log('[Replicate] url 是函数，正在调用...');
           const result = await urlValue();
-          console.log('[Replicate] 鍑芥暟杩斿洖鍊肩被鍨?', typeof result);
-          console.log('[Replicate] 鍑芥暟杩斿洖鍊?', result);
+          console.log('[Replicate] 函数返回值类型:', typeof result);
+          console.log('[Replicate] 函数返回值:', result);
 
-          // 濡傛灉杩斿洖鐨勬槸 URL 瀵硅薄锛岄渶瑕佽浆鎹负瀛楃涓?          if (result && typeof result === 'object' && 'href' in result) {
-            imageUrl = result.href; // URL 瀵硅薄鐨?href 灞炴€ф槸瀛楃涓?            console.log('[Replicate] 浠?URL 瀵硅薄鎻愬彇 href:', imageUrl);
+          // 如果返回的是 URL 对象，需要转换为字符串
+          if (result && typeof result === 'object' && 'href' in result) {
+            imageUrl = result.href; // URL 对象的 href 属性是字符串
+            console.log('[Replicate] 从 URL 对象提取 href:', imageUrl);
           } else if (typeof result === 'string') {
             imageUrl = result;
           } else {
-            imageUrl = String(result); // 寮哄埗杞崲涓哄瓧绗︿覆
+            imageUrl = String(result); // 强制转换为字符串
           }
         } else {
           imageUrl = urlValue;
         }
       } else {
-        // 鐩存帴浣跨敤绗竴椤癸紙鍋囪鏄瓧绗︿覆锛?        imageUrl = firstItem;
+        // 直接使用第一项（假设是字符串）
+        imageUrl = firstItem;
       }
     } else if (output && typeof output === 'object') {
       console.log(
-        '[Replicate] 鉁?杈撳嚭鏄璞★紝灞炴€?',
+        '[Replicate] ✓ 输出是对象，属性:',
         Object.keys(output).slice(0, 10)
       );
-      console.log('[Replicate] 鉁?Constructor name:', output.constructor?.name);
+      console.log('[Replicate] ✓ Constructor name:', output.constructor?.name);
 
-      // 濡傛灉鏄?ReadableStream锛岄渶瑕佽鍙栧唴瀹?      if (
+      // 如果是 ReadableStream，需要读取内容
+      if (
         'readable' in output ||
         output.constructor?.name === 'ReadableStream'
       ) {
-        console.log('[Replicate] 妫€娴嬪埌 ReadableStream锛屾鍦ㄨ鍙?..');
+        console.log('[Replicate] 检测到 ReadableStream，正在读取...');
         const reader = (output as any).getReader();
         const chunks: any[] = [];
         let chunkCount = 0;
@@ -1896,66 +2016,71 @@ export async function createReplicateTaskAction(params: {
         while (true) {
           const { done, value } = await reader.read();
           if (done) {
-            console.log(`[Replicate] Stream 璇诲彇瀹屾垚锛屽叡 ${chunkCount} 鍧楁暟鎹甡);
+            console.log(`[Replicate] Stream 读取完成，共 ${chunkCount} 块数据`);
             break;
           }
           chunks.push(value);
           chunkCount++;
           if (chunkCount % 10 === 0) {
-            console.log(`[Replicate] 宸茶鍙?${chunkCount} 鍧?..`);
+            console.log(`[Replicate] 已读取 ${chunkCount} 块...`);
           }
         }
 
-        // 灏?chunks 鍚堝苟骞惰浆鎹负瀛楃涓?        const blob = new Blob(chunks as BlobPart[]);
+        // 将 chunks 合并并转换为字符串
+        const blob = new Blob(chunks as BlobPart[]);
         const text = await blob.text();
 
         console.log(
-          `[Replicate] Stream 鍐呭闀垮害: ${text.length}, 鍓?00瀛楃:`,
+          `[Replicate] Stream 内容长度: ${text.length}, 前100字符:`,
           text.substring(0, 100)
         );
 
         try {
-          // 灏濊瘯瑙ｆ瀽涓?JSON
+          // 尝试解析为 JSON
           const parsed = JSON.parse(text);
-          console.log('[Replicate] JSON 瑙ｆ瀽鎴愬姛:', typeof parsed);
+          console.log('[Replicate] JSON 解析成功:', typeof parsed);
           imageUrl = Array.isArray(parsed) ? parsed[0] : parsed.url || parsed;
         } catch (e) {
-          // 濡傛灉涓嶆槸 JSON锛岀洿鎺ヤ娇鐢ㄦ枃鏈?          console.log('[Replicate] 涓嶆槸 JSON锛岀洿鎺ヤ娇鐢ㄦ枃鏈?);
+          // 如果不是 JSON，直接使用文本
+          console.log('[Replicate] 不是 JSON，直接使用文本');
           imageUrl = text.trim();
         }
       } else if ('url' in output) {
-        console.log('[Replicate] 鉁?瀵硅薄鍖呭惈 url 灞炴€?);
+        console.log('[Replicate] ✓ 对象包含 url 属性');
         const urlValue = (output as any).url;
-        console.log('[Replicate] url 绫诲瀷:', typeof urlValue);
+        console.log('[Replicate] url 类型:', typeof urlValue);
 
-        // Replicate SDK 鐨?FileOutput 绫诲瀷锛寀rl 鍙兘鏄嚱鏁?        if (typeof urlValue === 'function') {
-          console.log('[Replicate] url 鏄嚱鏁帮紝姝ｅ湪璋冪敤...');
-          const result = await urlValue(); // 璋冪敤鍑芥暟鑾峰彇瀹為檯 URL
-          console.log('[Replicate] 鍑芥暟杩斿洖鍊肩被鍨?', typeof result);
-          console.log('[Replicate] 鍑芥暟杩斿洖鍊?', result);
+        // Replicate SDK 的 FileOutput 类型，url 可能是函数
+        if (typeof urlValue === 'function') {
+          console.log('[Replicate] url 是函数，正在调用...');
+          const result = await urlValue(); // 调用函数获取实际 URL
+          console.log('[Replicate] 函数返回值类型:', typeof result);
+          console.log('[Replicate] 函数返回值:', result);
 
-          // 濡傛灉杩斿洖鐨勬槸 URL 瀵硅薄锛岄渶瑕佽浆鎹负瀛楃涓?          if (result && typeof result === 'object' && 'href' in result) {
-            imageUrl = result.href; // URL 瀵硅薄鐨?href 灞炴€ф槸瀛楃涓?            console.log('[Replicate] 浠?URL 瀵硅薄鎻愬彇 href:', imageUrl);
+          // 如果返回的是 URL 对象，需要转换为字符串
+          if (result && typeof result === 'object' && 'href' in result) {
+            imageUrl = result.href; // URL 对象的 href 属性是字符串
+            console.log('[Replicate] 从 URL 对象提取 href:', imageUrl);
           } else if (typeof result === 'string') {
             imageUrl = result;
           } else {
-            imageUrl = String(result); // 寮哄埗杞崲涓哄瓧绗︿覆
-            console.log('[Replicate] 寮哄埗杞崲涓哄瓧绗︿覆:', imageUrl);
+            imageUrl = String(result); // 强制转换为字符串
+            console.log('[Replicate] 强制转换为字符串:', imageUrl);
           }
         } else {
           imageUrl = urlValue;
         }
       } else if ('output' in output) {
-        console.log('[Replicate] 鉁?瀵硅薄鍖呭惈 output 灞炴€?);
+        console.log('[Replicate] ✓ 对象包含 output 属性');
         const innerOutput = (output as any).output;
         imageUrl = Array.isArray(innerOutput) ? innerOutput[0] : innerOutput;
       } else {
-        console.warn('[Replicate] 鈿?鏈瘑鍒殑瀵硅薄鏍煎紡锛岃浆涓哄瓧绗︿覆');
+        console.warn('[Replicate] ⚠ 未识别的对象格式，转为字符串');
         imageUrl = String(output);
       }
     } else {
-      console.error('[Replicate] 鉁?瀹屽叏鏃犳硶瑙ｆ瀽鐨勮緭鍑虹被鍨?);
-      throw new Error('Replicate 杩斿洖浜嗘棤娉曡В鏋愮殑缁撴灉鏍煎紡');
+      console.error('[Replicate] ✗ 完全无法解析的输出类型');
+      throw new Error('Replicate 返回了无法解析的结果格式');
     }
 
     if (
@@ -1963,14 +2088,15 @@ export async function createReplicateTaskAction(params: {
       typeof imageUrl !== 'string' ||
       !imageUrl.startsWith('http')
     ) {
-      console.error('[Replicate] 鉁?鏃犳晥鐨勫浘鐗?URL:', imageUrl);
-      console.error('[Replicate] 鉁?imageUrl 绫诲瀷:', typeof imageUrl);
-      throw new Error('Replicate 杩斿洖浜嗘棤鏁堢殑鍥剧墖 URL');
+      console.error('[Replicate] ✗ 无效的图片 URL:', imageUrl);
+      console.error('[Replicate] ✗ imageUrl 类型:', typeof imageUrl);
+      throw new Error('Replicate 返回了无效的图片 URL');
     }
 
-    console.log('鉁?Replicate 鐢熸垚鎴愬姛锛孶RL:', imageUrl);
+    console.log('✅ Replicate 生成成功，URL:', imageUrl);
 
-    // 馃幆 2026-02-13 淇锛氬悓姝ョ瓑寰?R2 涓婁紶瀹屾垚锛岀洿鎺ヨ繑鍥炴案涔呴摼鎺?    let finalImageUrl = imageUrl;
+    // 🎯 2026-02-13 修复：同步等待 R2 上传完成，直接返回永久链接
+    let finalImageUrl = imageUrl;
     try {
       const { getStorageServiceWithConfigs } = await import(
         '@/shared/services/storage'
@@ -1983,7 +2109,7 @@ export async function createReplicateTaskAction(params: {
       const configs = await getAllConfigs();
 
       if (user && configs.r2_bucket_name && configs.r2_access_key) {
-        console.log('[Replicate] 寮€濮嬪悓姝ヤ繚瀛樺浘鐗囧埌 R2...');
+        console.log('[Replicate] 开始同步保存图片到 R2...');
         const storageService = getStorageServiceWithConfigs(configs);
         const timestamp = Date.now();
         const randomId = nanoid(8);
@@ -2003,32 +2129,32 @@ export async function createReplicateTaskAction(params: {
 
         if (uploadResult.success && uploadResult.url) {
           finalImageUrl = uploadResult.url;
-          console.log(`[Replicate] 鉁?鍥剧墖宸蹭繚瀛樺埌 R2: ${finalImageUrl.substring(0, 60)}...`);
+          console.log(`[Replicate] ✅ 图片已保存到 R2: ${finalImageUrl.substring(0, 60)}...`);
         } else {
-          console.warn('[Replicate] 鈿狅笍 R2 涓婁紶澶辫触锛屼娇鐢ㄤ复鏃堕摼鎺?', uploadResult.error);
+          console.warn('[Replicate] ⚠️ R2 上传失败，使用临时链接:', uploadResult.error);
         }
       }
     } catch (saveError: any) {
-      console.error('[Replicate] R2 淇濆瓨寮傚父锛屼娇鐢ㄤ复鏃堕摼鎺?', saveError);
+      console.error('[Replicate] R2 保存异常，使用临时链接:', saveError);
     }
 
-    // 杩斿洖绫讳技KIE鐨勬牸寮忥紝浣嗘爣璁颁负鍚屾缁撴灉
+    // 返回类似KIE的格式，但标记为同步结果
     const result = {
       success: true,
       task_id: `replicate-${Date.now()}`,
       provider: 'Replicate',
       fallbackUsed: false,
-      imageUrl: finalImageUrl, // 杩斿洖 R2 姘镐箙閾炬帴
+      imageUrl: finalImageUrl, // 返回 R2 永久链接
     };
 
-    console.log('[Replicate] 杩斿洖鍊?', {
+    console.log('[Replicate] 返回值:', {
       ...result,
       imageUrl: result.imageUrl.substring(0, 80) + '...',
     });
 
     return result;
   } catch (error: any) {
-    console.error('鉂?Replicate 澶辫触:', error.message);
+    console.error('❌ Replicate 失败:', error.message);
     throw error;
   }
 }
@@ -2036,14 +2162,17 @@ export async function createReplicateTaskAction(params: {
 /**
  * Query Task Status with Fallback Support
  *
- * 闈炵▼搴忓憳瑙ｉ噴锛? * - 杩欎釜鍑芥暟鏌ヨ浠诲姟鐘舵€侊紝鏀寔KIE銆丷eplicate銆丗AL鍜孉PIYI
- * - 瀵逛簬Replicate鍜孎AL鐨勫悓姝ョ粨鏋滐紝鐩存帴杩斿洖鎴愬姛鐘舵€? * - 瀵逛簬APIYI鐨勫悓姝ョ粨鏋滐紝浠庣紦瀛樹腑璇诲彇鍥剧墖鏁版嵁
- * - 鉁?2026-02-13 淇锛欿IE 浠诲姟鎴愬姛鍚庡悓姝ヤ笂浼犲埌 R2锛岃繑鍥炴案涔呴摼鎺? */
+ * 非程序员解释：
+ * - 这个函数查询任务状态，支持KIE、Replicate、FAL和APIYI
+ * - 对于Replicate和FAL的同步结果，直接返回成功状态
+ * - 对于APIYI的同步结果，从缓存中读取图片数据
+ * - ✅ 2026-02-13 修复：KIE 任务成功后同步上传到 R2，返回永久链接
+ */
 export async function queryKieTaskWithFallbackAction(
   taskId: string,
   provider?: string
 ) {
-  // 濡傛灉鏄疪eplicate鎴朏AL鐨勪换鍔★紙鍚屾API锛夛紝鐩存帴杩斿洖鎴愬姛
+  // 如果是Replicate或FAL的任务（同步API），直接返回成功
   if (
     provider === 'Replicate' ||
     taskId.startsWith('replicate-') ||
@@ -2053,19 +2182,21 @@ export async function queryKieTaskWithFallbackAction(
     return {
       data: {
         status: 'SUCCESS',
-        results: [], // 鍥剧墖URL宸插湪鍒涘缓鏃惰繑鍥?      },
+        results: [], // 图片URL已在创建时返回
+      },
     };
   }
 
-  // 濡傛灉鏄疉PIYI鐨勪换鍔★紙鍚屾API锛夛紝浠庣紦瀛樹腑璇诲彇缁撴灉
+  // 如果是APIYI的任务（同步API），从缓存中读取结果
   if (provider === 'APIYI' || taskId.startsWith('apiyi-sync-')) {
     return await queryApiyiTaskAction(taskId);
   }
 
-  // 鍚﹀垯浣跨敤鍘熸潵鐨凨IE鏌ヨ閫昏緫
+  // 否则使用原来的KIE查询逻辑
   const result = await queryKieTaskAction(taskId);
 
-  // 馃幆 2026-02-13 淇锛氬鏋滀换鍔℃垚鍔熶笖鏈夌粨鏋滐紝鍚屾涓婁紶鍒?R2 骞惰繑鍥炴案涔呴摼鎺?  if (
+  // 🎯 2026-02-13 修复：如果任务成功且有结果，同步上传到 R2 并返回永久链接
+  if (
     result?.data?.status === 'SUCCESS' &&
     result.data.results &&
     result.data.results.length > 0
@@ -2086,7 +2217,7 @@ export async function queryKieTaskWithFallbackAction(
 
       if (user && configs.r2_bucket_name && configs.r2_access_key) {
         console.log(
-          `[KIE] 寮€濮嬪悓姝ヤ繚瀛?${originalResults.length} 寮犲浘鐗囧埌 R2`
+          `[KIE] 开始同步保存 ${originalResults.length} 张图片到 R2`
         );
         const storageService = getStorageServiceWithConfigs(configs);
 
@@ -2111,24 +2242,27 @@ export async function queryKieTaskWithFallbackAction(
 
             if (uploadResult.success && uploadResult.url) {
               r2Results.push(uploadResult.url);
-              console.log(`[KIE] 鉁?鍥剧墖 ${index + 1} 宸蹭繚瀛樺埌 R2`);
+              console.log(`[KIE] ✅ 图片 ${index + 1} 已保存到 R2`);
             } else {
-              r2Results.push(imageUrl); // 澶辫触鏃朵娇鐢ㄥ師濮嬮摼鎺?              console.warn(`[KIE] 鈿狅笍 鍥剧墖 ${index + 1} R2 涓婁紶澶辫触锛屼娇鐢ㄤ复鏃堕摼鎺);
+              r2Results.push(imageUrl); // 失败时使用原始链接
+              console.warn(`[KIE] ⚠️ 图片 ${index + 1} R2 上传失败，使用临时链接`);
             }
           } catch (e) {
-            r2Results.push(imageUrl); // 寮傚父鏃朵娇鐢ㄥ師濮嬮摼鎺?            console.error(`[KIE] 淇濆瓨绗?${index + 1} 寮犲け璐, e);
+            r2Results.push(imageUrl); // 异常时使用原始链接
+            console.error(`[KIE] 保存第 ${index + 1} 张失败`, e);
           }
         }
-        console.log(`[KIE] 鉁?鍥剧墖淇濆瓨瀹屾垚`);
+        console.log(`[KIE] ✅ 图片保存完成`);
       } else {
-        // 娌℃湁 R2 閰嶇疆锛屼娇鐢ㄥ師濮嬮摼鎺?        r2Results.push(...originalResults);
+        // 没有 R2 配置，使用原始链接
+        r2Results.push(...originalResults);
       }
     } catch (error) {
-      console.error('[KIE] R2 淇濆瓨寮傚父锛屼娇鐢ㄤ复鏃堕摼鎺?, error);
+      console.error('[KIE] R2 保存异常，使用临时链接', error);
       r2Results.push(...originalResults);
     }
 
-    // 杩斿洖 R2 姘镐箙閾炬帴
+    // 返回 R2 永久链接
     return {
       data: {
         status: 'SUCCESS',
@@ -2141,156 +2275,145 @@ export async function queryKieTaskWithFallbackAction(
 }
 
 /**
- * 鐪熸鐨?Inpainting 灞€閮ㄧ紪杈?- 浣跨敤 APIYI (Gemini 3 Pro Image)
+ * 真正的 Inpainting 局部编辑 - 使用 mask 精确控制编辑区域
  *
- * 鏍稿績浼樺娍锛? * - 浣跨敤 APIYI 鐨?gemini-3-pro-image-preview 妯″瀷
- * - 閫氳繃鍘熷浘 + mask 鍥剧墖绮剧‘鎸囧畾闇€瑕佷慨鏀圭殑鍖哄煙锛堢櫧鑹?淇敼锛岄粦鑹?淇濇寔锛? * - 闈炵紪杈戝尯鍩熷儚绱犵骇淇濇寔涓嶅彉锛屼笉浼氬嚭鐜版ā绯婃垨鍙樺舰
+ * 核心优势：
+ * - 使用 FAL 的 flux-pro/v1/fill inpainting API
+ * - 通过 mask 图片精确指定需要修改的区域（白色=修改，黑色=保持）
+ * - 非编辑区域像素级保持不变，不会出现模糊或变形
  *
- * 宸ヤ綔娴佺▼锛? * 1. 鍓嶇鏍规嵁鐢ㄦ埛妗嗛€夊尯鍩熺敓鎴?mask 鍥剧墖锛堢櫧鑹茬煩褰?閫変腑鍖哄煙锛? * 2. 鍓嶇灏?mask 涓婁紶鍒?R2 鑾峰彇 URL
- * 3. 璋冪敤姝ゅ嚱鏁帮紝浼犲叆鍘熷浘 URL + mask URL + 淇敼鎻忚堪
- * 4. Gemini 妯″瀷鏍规嵁 mask 鍙噸鏂扮敓鎴愮櫧鑹插尯鍩燂紝鍏朵粬鍖哄煙瀹屽叏淇濇寔鍘熸牱
+ * 工作流程：
+ * 1. 前端根据用户框选区域生成 mask 图片（白色矩形=选中区域）
+ * 2. 前端将 mask 上传到 R2 获取 URL
+ * 3. 调用此函数，传入原图 URL + mask URL + 修改描述
+ * 4. FAL inpainting API 只重新生成 mask 白色区域，其他区域完全保持原样
  *
- * @param params 缂栬緫鍙傛暟
- * @returns 缂栬緫鍚庣殑鍥剧墖 URL
+ * @param params 编辑参数
+ * @returns 编辑后的图片 URL
  */
 export async function editImageWithInpaintingAction(params: {
-  /** 寰呯紪杈戠殑鍘熷浘 URL */
+  /** 待编辑的原图 URL */
   imageUrl: string;
-  /** mask 鍥剧墖 URL锛堢櫧鑹?闇€瑕佷慨鏀圭殑鍖哄煙锛岄粦鑹?淇濇寔涓嶅彉锛?*/
+  /** mask 图片 URL（白色=需要修改的区域，黑色=保持不变） */
   maskUrl: string;
-  /** 淇敼鎻忚堪锛堟弿杩拌鍦ㄩ€変腑鍖哄煙鐢熸垚浠€涔堝唴瀹癸級 */
+  /** 修改描述（描述要在选中区域生成什么内容） */
   prompt: string;
-  /** 鍒嗚鲸鐜?*/
+  /** 分辨率 */
   resolution?: string;
-  /** 瀹介珮姣?*/
+  /** 宽高比 */
   aspectRatio?: string;
 }) {
   'use server';
 
-  if (!APIYI_API_KEY) {
-    throw new Error('APIYI API Key 鏈厤缃?);
+  if (!FAL_KEY) {
+    throw new Error('FAL API Key 未配置');
   }
 
-  console.log('\n========== Inpainting 灞€閮ㄧ紪杈?(APIYI Gemini) ==========');
-  console.log('[Inpaint] 鍘熷浘:', params.imageUrl);
+  console.log('\n========== Inpainting 局部编辑 ==========');
+  console.log('[Inpaint] 原图:', params.imageUrl);
   console.log('[Inpaint] Mask:', params.maskUrl);
-  console.log('[Inpaint] 鎻愮ず璇?', params.prompt);
+  console.log('[Inpaint] 提示词:', params.prompt);
 
   try {
-    // 澶勭悊鍥剧墖 URL锛岀‘淇濆叕缃戝彲璁块棶
+    // 配置 FAL Client
+    fal.config({
+      credentials: FAL_KEY,
+    });
+
+    // 处理图片 URL，确保公网可访问
     const imageUrl = resolveImageUrl(params.imageUrl);
     const maskUrl = resolveImageUrl(params.maskUrl);
 
-    console.log('[Inpaint] 澶勭悊鍚庣殑鍘熷浘 URL:', imageUrl);
-    console.log('[Inpaint] 澶勭悊鍚庣殑 Mask URL:', maskUrl);
+    console.log('[Inpaint] 处理后的原图 URL:', imageUrl);
+    console.log('[Inpaint] 处理后的 Mask URL:', maskUrl);
 
-    // 馃幆 涓嬭浇鍘熷浘鍜?mask 鍥剧墖杞负 base64锛圙emini 鍘熺敓鏍煎紡闇€瑕侊級
-    console.log('[Inpaint] 寮€濮嬩笅杞藉師鍥惧拰 mask...');
-    const [originalImageData, maskImageData] = await Promise.all([
-      downloadImageAsBase64ForApiyi(imageUrl),
-      downloadImageAsBase64ForApiyi(maskUrl),
-    ]);
-
-    if (!originalImageData) {
-      throw new Error('鏃犳硶涓嬭浇鍘熷浘');
-    }
-    if (!maskImageData) {
-      throw new Error('鏃犳硶涓嬭浇 mask 鍥剧墖');
-    }
-
-    console.log(`[Inpaint] 鍘熷浘澶у皬: ${(originalImageData.base64.length / 1024).toFixed(1)} KB`);
-    console.log(`[Inpaint] Mask澶у皬: ${(maskImageData.base64.length / 1024).toFixed(1)} KB`);
-
-    // 馃幆 鏋勫缓 Gemini 鍘熺敓鏍煎紡鐨?inpainting 璇锋眰
-    // 鎻愮ず璇嶉渶瑕佹槑纭鏄庤繖鏄眬閮ㄧ紪杈戜换鍔?    const inpaintPrompt = `銆愬浘鐗囧眬閮ㄧ紪杈戜换鍔°€?
-浣犻渶瑕佸杩欏紶鍥剧墖杩涜绮剧‘鐨勫眬閮ㄤ慨鏀广€?
-銆愰噸瑕佽鍒欍€?1. 鎴戞彁渚涗簡涓ゅ紶鍥剧墖锛氱涓€寮犳槸鍘熷浘锛岀浜屽紶鏄?mask锛堥伄缃╋級
-2. mask 涓櫧鑹插尯鍩熸槸闇€瑕佷慨鏀圭殑閮ㄥ垎锛岄粦鑹插尯鍩熷繀椤讳繚鎸佸畬鍏ㄤ笉鍙?3. 鍙慨鏀圭櫧鑹插尯鍩熺殑鍐呭锛屽叾浠栨墍鏈夊尯鍩熷繀椤诲儚绱犵骇淇濇寔鍘熸牱
-4. 淇敼鍚庣殑鍐呭瑕佷笌鍛ㄥ洿鐜鑷劧铻嶅悎
-
-銆愪慨鏀硅姹傘€?${params.prompt}
-
-銆愭墽琛岃姹傘€?- 涓ユ牸鎸夌収 mask 鐧借壊鍖哄煙淇敼锛屼笉瑕佽秴鍑鸿寖鍥?- 榛戣壊鍖哄煙鐨勪换浣曞厓绱狅紙鏂囧瓧銆佸浘褰€佽儗鏅級閮戒笉鑳芥敼鍙?- 杈撳嚭瀹屾暣鐨勪慨鏀瑰悗鍥剧墖`;
-
-    // 鏋勫缓璇锋眰浣擄紙Gemini 鍘熺敓鏍煎紡锛?    const parts: any[] = [
-      { text: inpaintPrompt },
-      // 鍘熷浘
-      {
-        inline_data: {
-          mime_type: originalImageData.mimeType,
-          data: originalImageData.base64,
-        },
-      },
-      // Mask 鍥剧墖
-      {
-        inline_data: {
-          mime_type: maskImageData.mimeType,
-          data: maskImageData.base64,
-        },
-      },
-    ];
-
-    const payload = {
-      contents: [{ parts }],
-      generationConfig: {
-        responseModalities: ['IMAGE'],
-        imageConfig: {
-          aspectRatio: params.aspectRatio || '16:9',
-          imageSize: params.resolution || '2K',
-        },
-      },
+    // 构建 inpainting 请求参数
+    // 使用 fal-ai/flux-pro/v1/fill 模型进行真正的 inpainting
+    const input: any = {
+      prompt: params.prompt,
+      image_url: imageUrl,
+      mask_url: maskUrl,
+      num_images: 1,
+      output_format: 'png',
+      // enhance_prompt: true, // 可选：增强提示词
     };
 
-    console.log('[Inpaint] APIYI 璇锋眰鍙傛暟:', {
-      model: 'gemini-3-pro-image-preview',
-      promptLength: inpaintPrompt.length,
-      aspectRatio: params.aspectRatio,
-      resolution: params.resolution,
-      partsCount: parts.length,
+    console.log('[Inpaint] FAL 请求参数:', {
+      model: 'fal-ai/flux-pro/v1/fill',
+      prompt: params.prompt.substring(0, 100) + '...',
+      image_url: imageUrl.substring(0, 60) + '...',
+      mask_url: maskUrl.substring(0, 60) + '...',
     });
 
-    // 鍙戦€佽姹?    const startTime = Date.now();
-    const timeout = 300000; // 5 鍒嗛挓瓒呮椂
+    const startTime = Date.now();
+    const maxRetries = 2;
+    let attempt = 0;
+    let result: any;
 
-    console.log('[Inpaint] 寮€濮嬭皟鐢?APIYI API...');
-    const response = await fetch(APIYI_TEXT2IMG_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${APIYI_API_KEY}`,
-      },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(timeout),
-    });
+    while (attempt <= maxRetries) {
+      try {
+        // 使用 flux-pro/v1/fill 进行 inpainting
+        console.log('[Inpaint] 开始调用 FAL API...');
+        result = await fal.subscribe('fal-ai/flux-pro/v1/fill', {
+          input,
+          logs: true,
+          onQueueUpdate: (update: any) => {
+            console.log('[Inpaint] 队列状态:', update.status);
+            if (update.logs) {
+              update.logs.forEach((log: any) => console.log('[Inpaint] Log:', log.message));
+            }
+          },
+        });
+        console.log('[Inpaint] FAL API 返回原始结果:', JSON.stringify(result).substring(0, 500));
+        break;
+      } catch (error: any) {
+        attempt++;
+        console.error('[Inpaint] 调用失败:', error);
+        console.error('[Inpaint] 错误类型:', error.constructor?.name);
+        console.error('[Inpaint] 错误消息:', error.message);
+        console.error('[Inpaint] 错误状态:', error.status);
 
-    const elapsed = (Date.now() - startTime) / 1000;
-    console.log(`[Inpaint] APIYI 璇锋眰鑰楁椂: ${elapsed.toFixed(1)} 绉抈);
+        const isNetworkError =
+          error.message?.includes('fetch failed') ||
+          error.status >= 500 ||
+          error.status === 429;
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[Inpaint] APIYI 璇锋眰澶辫触:', response.status, errorText);
-      throw new Error(`APIYI API error: ${response.status} - ${errorText}`);
-    }
+        if (attempt <= maxRetries && isNetworkError) {
+          console.warn(
+            `⚠️ [Inpaint] 第 ${attempt} 次尝试失败 (${error.message})，正在进行第 ${
+              attempt + 1
+            } 次重试...`
+          );
+          await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+          continue;
+        }
 
-    const data = await response.json();
-
-    // 瑙ｆ瀽 Gemini 鍘熺敓鏍煎紡鐨勫搷搴?    if (!data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data) {
-      const finishReason = data.candidates?.[0]?.finishReason;
-      if (finishReason && finishReason !== 'STOP') {
-        console.error('[Inpaint] 鍐呭琚嫆缁?', finishReason);
-        throw new Error(`Content rejected: ${finishReason}`);
+        console.error('[Inpaint] ❌ 编辑失败:', error.message);
+        if (error.body) {
+          console.error('[Inpaint] 错误详情:', JSON.stringify(error.body, null, 2));
+        }
+        throw error;
       }
-      console.error('[Inpaint] 鍝嶅簲鏍煎紡寮傚父:', JSON.stringify(data).substring(0, 500));
-      throw new Error('Invalid response format from APIYI');
     }
 
-    const base64Data = data.candidates[0].content.parts[0].inlineData.data;
-    const mimeType = data.candidates[0].content.parts[0].inlineData.mimeType || 'image/png';
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.log(
+      `[Inpaint] FAL 调用完成，总耗时: ${elapsed}s (尝试次数: ${attempt + 1})`
+    );
 
-    console.log(`[Inpaint] 鉁?APIYI 鐢熸垚鎴愬姛锛佸浘鐗囧ぇ灏? ${(base64Data.length / 1024).toFixed(1)} KB`);
+    // 🎯 修复：FAL SDK 返回格式可能是 { data: { images } } 或直接 { images }
+    let images = result?.data?.images || result?.images;
 
-    // 馃幆 灏嗙紪杈戝悗鐨勫浘鐗囦笂浼犲埌 R2锛岃繑鍥炴案涔呴摼鎺?    let finalImageUrl: string;
+    if (!images || images.length === 0) {
+      console.error('[Inpaint] 无效的返回结果:', JSON.stringify(result).substring(0, 500));
+      throw new Error('FAL Inpainting API 未返回有效的编辑结果');
+    }
 
+    const editedImageUrl = images[0].url;
+    console.log('[Inpaint] ✅ 编辑成功:', editedImageUrl.substring(0, 60) + '...');
+
+    // 🎯 将编辑后的图片上传到 R2，返回永久链接
+    let finalImageUrl = editedImageUrl;
     try {
       const { getStorageServiceWithConfigs } = await import('@/shared/services/storage');
       const { getAllConfigs } = await import('@/shared/models/config');
@@ -2301,101 +2424,102 @@ export async function editImageWithInpaintingAction(params: {
       const configs = await getAllConfigs();
 
       if (user && configs.r2_bucket_name && configs.r2_access_key) {
-        console.log('[Inpaint] 寮€濮嬩笂浼犲浘鐗囧埌 R2...');
+        console.log('[Inpaint] 开始同步保存图片到 R2...');
         const storageService = getStorageServiceWithConfigs(configs);
         const timestamp = Date.now();
         const randomId = nanoid(8);
-        const fileExtension = mimeType.includes('jpeg') || mimeType.includes('jpg') ? 'jpg' : 'png';
-        const fileName = `${timestamp}_${randomId}.${fileExtension}`;
+        const fileName = `${timestamp}_${randomId}.png`;
         const storageKey = `infographic-edits/${user.id}/${fileName}`;
 
-        // 灏?base64 杞崲涓?Buffer 骞朵笂浼?        const buffer = Buffer.from(base64Data, 'base64');
-        const uploadResult = await storageService.uploadFile({
-          body: buffer,
+        const uploadResult = await storageService.downloadAndUpload({
+          url: editedImageUrl,
           key: storageKey,
-          contentType: mimeType,
+          contentType: 'image/png',
           disposition: 'inline',
         });
 
         if (uploadResult.success && uploadResult.url) {
           finalImageUrl = uploadResult.url;
-          console.log(`[Inpaint] 鉁?鍥剧墖宸蹭繚瀛樺埌 R2: ${finalImageUrl.substring(0, 60)}...`);
+          console.log(`[Inpaint] ✅ 图片已保存到 R2: ${finalImageUrl.substring(0, 60)}...`);
         } else {
-          console.warn('[Inpaint] 鈿狅笍 R2 涓婁紶澶辫触锛屼娇鐢?data URL');
-          finalImageUrl = `data:${mimeType};base64,${base64Data}`;
+          console.warn('[Inpaint] ⚠️ R2 上传失败，使用临时链接:', uploadResult.error);
         }
-      } else {
-        console.warn('[Inpaint] 鈿狅笍 R2 鏈厤缃紝浣跨敤 data URL');
-        finalImageUrl = `data:${mimeType};base64,${base64Data}`;
       }
-    } catch (uploadError: any) {
-      console.error('[Inpaint] 鈿狅笍 R2 涓婁紶寮傚父:', uploadError.message);
-      finalImageUrl = `data:${mimeType};base64,${base64Data}`;
+    } catch (saveError) {
+      console.error('[Inpaint] R2 保存异常，使用临时链接:', saveError);
     }
 
     return {
       imageUrl: finalImageUrl,
       success: true,
-      provider: 'APIYI-Gemini' as const,
+      provider: 'FAL-Inpainting' as const,
     };
   } catch (error: any) {
-    if (error.name === 'TimeoutError' || error.name === 'AbortError') {
-      console.error('[Inpaint] 鉂?APIYI 璇锋眰瓒呮椂');
-      throw new Error('APIYI request timeout');
-    }
-    console.error('[Inpaint] 鉂?editImageWithInpaintingAction 閿欒:', error.message);
+    console.error('[Inpaint] ❌ editImageWithInpaintingAction 错误:', error.message);
     throw error;
   }
 }
 
 /**
- * 灞€閮ㄧ紪杈?- 鏁村浘閲嶇敓鎴愭柟妗? *
- * 宸ヤ綔娴佺▼锛? * 1. 灏嗗師鍥惧拰鍧愭爣淇℃伅涓€璧峰彂缁?AI
- * 2. AI 鏍规嵁鍧愭爣鎻愮ず璇嶄慨鏀规寚瀹氬尯鍩? * 3. 杩斿洖瀹屾暣鐨勪慨鏀瑰悗鍥剧墖
+ * 精简版局部编辑 - 旧方案（保留作为降级方案）
  *
- * 娉ㄦ剰锛氭鏂规鍙兘瀵艰嚧闈炵紪杈戝尯鍩熸湁缁嗗井鍙樺寲锛屼絾涓嶄細鏈夋嫾鎺ユ劅
+ * 注意：此方案会重新生成整张图片，可能导致非编辑区域质量下降
+ * 推荐使用 editImageWithInpaintingAction 进行真正的局部编辑
  *
- * @param params 缂栬緫鍙傛暟
- * @returns 缂栬緫鍚庣殑鍥剧墖 URL
+ * 核心思路：
+ * 1. 只上传当前图片作为唯一参考
+ * 2. 将框选坐标转换为提示词
+ * 3. 结合用户的修改描述
+ * 4. 支持多选框
+ *
+ * @param params 编辑参数
+ * @returns 编辑后的图片 URL
  */
 export async function editImageRegionAction(params: {
-  /** 寰呯紪杈戠殑鍘熷浘 URL */
+  /** 待编辑的原图 URL */
   imageUrl: string;
-  /** 閫夊尯鍒楄〃锛堟敮鎸佸閫夋锛?*/
+  /** 选区列表（支持多选框） */
   regions: Array<{
-    /** 閫夊尯鏍囩锛堝 A, B, C锛?*/
+    /** 选区标签（如 A, B, C） */
     label: string;
-    /** 褰掍竴鍖栧潗鏍?0-1 */
+    /** 归一化坐标 0-1 */
     x: number;
     y: number;
     width: number;
     height: number;
-    /** 璇ラ€夊尯鐨勪慨鏀规弿杩?*/
+    /** 该选区的修改描述 */
     note: string;
   }>;
-  /** 鍥剧墖瀹藉害锛堝儚绱狅級 */
+  /** 图片宽度（像素） */
   imageWidth: number;
-  /** 鍥剧墖楂樺害锛堝儚绱狅級 */
+  /** 图片高度（像素） */
   imageHeight: number;
-  /** 鍒嗚鲸鐜?*/
+  /** 分辨率 */
   resolution?: string;
-  /** 馃幆 瀹介珮姣旓紙蹇呴』浼犻€掞紝纭繚缂栬緫鍚庝繚鎸佸師姣斾緥锛?*/
+  /** 🎯 宽高比（必须传递，确保编辑后保持原比例） */
   aspectRatio: string;
 }) {
   'use server';
 
-  if (!APIYI_API_KEY) {
-    throw new Error('APIYI API Key 鏈厤缃?);
+  if (!FAL_KEY) {
+    throw new Error('FAL API Key 未配置');
   }
 
-  console.log('\n========== 灞€閮ㄧ紪杈?(APIYI Gemini) ==========');
-  console.log('[Edit] 鍘熷浘:', params.imageUrl);
-  console.log('[Edit] 閫夊尯鏁伴噺:', params.regions.length);
-  console.log('[Edit] 鍥剧墖灏哄:', params.imageWidth, 'x', params.imageHeight);
-  console.log('[Edit] 瀹介珮姣?', params.aspectRatio);
+  console.log('\n========== 精简版局部编辑 ==========');
+  console.log('[Edit] 原图:', params.imageUrl);
+  console.log('[Edit] 选区数量:', params.regions.length);
+  console.log('[Edit] 图片尺寸:', params.imageWidth, 'x', params.imageHeight);
+  console.log('[Edit] 宽高比:', params.aspectRatio);
 
   try {
-    // 馃幆 鏋勫缓鍧愭爣淇℃伅鎻愮ず璇?    const regionPrompts = params.regions.map((region) => {
+    // 配置 FAL Client
+    fal.config({
+      credentials: FAL_KEY,
+    });
+
+    // 🎯 构建坐标信息提示词
+    // 将归一化坐标(0-1)转换为像素坐标，并生成描述
+    const regionPrompts = params.regions.map((region) => {
       const pixelX = Math.round(region.x * params.imageWidth);
       const pixelY = Math.round(region.y * params.imageHeight);
       const pixelWidth = Math.round(region.width * params.imageWidth);
@@ -2403,110 +2527,122 @@ export async function editImageRegionAction(params: {
       const pixelX2 = pixelX + pixelWidth;
       const pixelY2 = pixelY + pixelHeight;
 
+      // 同时提供百分比和像素坐标，增强 AI 理解
       const percentX = Math.round(region.x * 100);
       const percentY = Math.round(region.y * 100);
       const percentWidth = Math.round(region.width * 100);
       const percentHeight = Math.round(region.height * 100);
 
-      return `銆愬尯鍩?${region.label}銆?浣嶇疆锛氫粠宸︿笂瑙?(${percentX}%, ${percentY}%) 鍒?(${percentX + percentWidth}%, ${percentY + percentHeight}%)
-鍍忕礌鍧愭爣锛氬乏涓?(${pixelX}, ${pixelY}) 鍙充笅 (${pixelX2}, ${pixelY2})
-灏哄锛?{pixelWidth}脳${pixelHeight} 鍍忕礌
-淇敼瑕佹眰锛?{region.note || '淇濇寔涓嶅彉'}`;
+      return `【区域 ${region.label}】
+位置：从左上角 (${percentX}%, ${percentY}%) 到 (${percentX + percentWidth}%, ${percentY + percentHeight}%)
+像素坐标：左上 (${pixelX}, ${pixelY}) 右下 (${pixelX2}, ${pixelY2})
+尺寸：${pixelWidth}×${pixelHeight} 像素
+修改要求：${region.note || '保持不变'}`;
     }).join('\n\n');
 
-    const finalPrompt = `銆愬浘鐗囧眬閮ㄧ紪杈戜换鍔°€?
-浣犻渶瑕佸杩欏紶鍥剧墖杩涜绮剧‘鐨勫眬閮ㄤ慨鏀广€?
-銆愰噸瑕佽鍒欍€?1. 鍙慨鏀逛笅闈㈡寚瀹氱殑鍖哄煙锛屽叾浠栨墍鏈夊尯鍩熷繀椤讳繚鎸佸畬鍏ㄤ笉鍙?2. 淇濇寔鍥剧墖鐨勬暣浣撻鏍笺€侀厤鑹层€佽川鎰熶竴鑷?3. 淇敼鍚庣殑鍐呭瑕佷笌鍛ㄥ洿鐜鑷劧铻嶅悎
+    // 🎯 构建最终提示词 - 简洁明确
+    const finalPrompt = `【图片局部编辑任务】
 
-銆愰渶瑕佷慨鏀圭殑鍖哄煙銆?${regionPrompts}
+你需要对这张图片进行精确的局部修改。
 
-銆愭墽琛岃姹傘€?- 涓ユ牸鎸夌収鍧愭爣鑼冨洿淇敼锛屼笉瑕佽秴鍑烘寚瀹氬尯鍩?- 鍖哄煙澶栫殑浠讳綍鍏冪礌锛堟枃瀛椼€佸浘褰€佽儗鏅級閮戒笉鑳芥敼鍙?- 杈撳嚭瀹屾暣鐨勪慨鏀瑰悗鍥剧墖`;
+【重要规则】
+1. 只修改下面指定的区域，其他所有区域必须保持完全不变
+2. 保持图片的整体风格、配色、质感一致
+3. 修改后的内容要与周围环境自然融合
 
-    console.log('[Edit] 鏈€缁堟彁绀鸿瘝:\n', finalPrompt);
+【需要修改的区域】
+${regionPrompts}
 
-    // 馃幆 澶勭悊鍥剧墖 URL 骞朵笅杞戒负 base64
+【执行要求】
+- 严格按照坐标范围修改，不要超出指定区域
+- 区域外的任何元素（文字、图形、背景）都不能改变
+- 输出完整的修改后图片`;
+
+    console.log('[Edit] 最终提示词:\n', finalPrompt);
+
+    // 🎯 处理图片 URL
     const imageUrl = resolveImageUrl(params.imageUrl);
-    console.log('[Edit] 澶勭悊鍚庣殑鍥剧墖 URL:', imageUrl);
+    console.log('[Edit] 处理后的图片 URL:', imageUrl);
 
-    console.log('[Edit] 寮€濮嬩笅杞藉師鍥?..');
-    const imageData = await downloadImageAsBase64ForApiyi(imageUrl);
-    if (!imageData) {
-      throw new Error('鏃犳硶涓嬭浇鍘熷浘');
-    }
-    console.log(`[Edit] 鍘熷浘澶у皬: ${(imageData.base64.length / 1024).toFixed(1)} KB`);
-
-    // 馃幆 鏋勫缓 Gemini 鍘熺敓鏍煎紡璇锋眰
-    const parts: any[] = [
-      { text: finalPrompt },
-      {
-        inline_data: {
-          mime_type: imageData.mimeType,
-          data: imageData.base64,
-        },
-      },
-    ];
-
-    const payload = {
-      contents: [{ parts }],
-      generationConfig: {
-        responseModalities: ['IMAGE'],
-        imageConfig: {
-          aspectRatio: params.aspectRatio || '16:9',
-          imageSize: params.resolution || '2K',
-        },
-      },
+    // 调用 FAL nano-banana-pro/edit
+    // 🎯 关键修复：使用传入的 aspectRatio 而非硬编码的 16:9
+    const input: any = {
+      prompt: finalPrompt,
+      num_images: 1,
+      aspect_ratio: params.aspectRatio || '16:9',
+      output_format: 'png',
+      resolution: params.resolution || '2K',
+      // 🎯 关键：只上传当前图片作为唯一参考
+      image_urls: [imageUrl],
     };
 
-    console.log('[Edit] APIYI 璇锋眰鍙傛暟:', {
-      model: 'gemini-3-pro-image-preview',
-      promptLength: finalPrompt.length,
-      aspectRatio: params.aspectRatio,
-      resolution: params.resolution,
+    console.log('[Edit] FAL 请求参数:', {
+      model: 'fal-ai/nano-banana-pro/edit',
+      prompt: finalPrompt.substring(0, 100) + '...',
+      image_urls: input.image_urls,
     });
 
     const startTime = Date.now();
-    const timeout = 300000;
+    const maxRetries = 2; // 最大重试次数
+    let attempt = 0;
+    let result: any;
 
-    console.log('[Edit] 寮€濮嬭皟鐢?APIYI API...');
-    const response = await fetch(APIYI_TEXT2IMG_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${APIYI_API_KEY}`,
-      },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(timeout),
-    });
+    while (attempt <= maxRetries) {
+      try {
+        result = await fal.subscribe('fal-ai/nano-banana-pro/edit', {
+          input,
+          logs: true,
+          onQueueUpdate: (update: any) => {
+            if (update.status === 'IN_PROGRESS') {
+              console.log('[Edit] 生成中...');
+            }
+          },
+        });
+        // 成功则跳出重试循环
+        break;
+      } catch (error: any) {
+        attempt++;
+        // 只有在网络错误（fetch failed）或服务器 5xx 错误时才重试
+        const isNetworkError =
+          error.message?.includes('fetch failed') ||
+          error.status >= 500 ||
+          error.status === 429;
 
-    const elapsed = (Date.now() - startTime) / 1000;
-    console.log(`[Edit] APIYI 璇锋眰鑰楁椂: ${elapsed.toFixed(1)} 绉抈);
+        if (attempt <= maxRetries && isNetworkError) {
+          console.warn(
+            `⚠️ [Edit] 第 ${attempt} 次尝试失败 (${error.message})，正在进行第 ${
+              attempt + 1
+            } 次重试...`
+          );
+          // 指数退避：第一次重试等 1s，第二次重试等 2s
+          await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+          continue;
+        }
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[Edit] APIYI 璇锋眰澶辫触:', response.status, errorText);
-      throw new Error(`APIYI API error: ${response.status} - ${errorText}`);
-    }
-
-    const data = await response.json();
-
-    if (!data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data) {
-      const finishReason = data.candidates?.[0]?.finishReason;
-      if (finishReason && finishReason !== 'STOP') {
-        console.error('[Edit] 鍐呭琚嫆缁?', finishReason);
-        throw new Error(`Content rejected: ${finishReason}`);
+        // 记录最终失败日志并抛出错误
+        console.error('[Edit] ❌ 编辑失败:', error.message);
+        if (error.body) {
+          console.error('[Edit] 错误详情:', JSON.stringify(error.body, null, 2));
+        }
+        throw error;
       }
-      console.error('[Edit] 鍝嶅簲鏍煎紡寮傚父:', JSON.stringify(data).substring(0, 500));
-      throw new Error('Invalid response format from APIYI');
     }
 
-    const base64Data = data.candidates[0].content.parts[0].inlineData.data;
-    const mimeType = data.candidates[0].content.parts[0].inlineData.mimeType || 'image/png';
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.log(
+      `[Edit] FAL 调用完成，总耗时: ${elapsed}s (尝试次数: ${attempt + 1})`
+    );
 
-    console.log(`[Edit] 鉁?APIYI 鐢熸垚鎴愬姛锛佸浘鐗囧ぇ灏? ${(base64Data.length / 1024).toFixed(1)} KB`);
+    // 返回编辑结果
+    if (!result || !result.data || !result.data.images || result.data.images.length === 0) {
+      throw new Error('FAL API 未返回有效的编辑结果');
+    }
 
-    // 馃幆 灏嗙紪杈戝悗鐨勫浘鐗囦笂浼犲埌 R2
-    let finalImageUrl: string;
+    const editedImageUrl = result.data.images[0].url;
+    console.log('[Edit] ✅ 编辑成功:', editedImageUrl.substring(0, 60) + '...');
 
+    // 🎯 将编辑后的图片上传到 R2，返回永久链接
+    let finalImageUrl = editedImageUrl;
     try {
       const { getStorageServiceWithConfigs } = await import('@/shared/services/storage');
       const { getAllConfigs } = await import('@/shared/models/config');
@@ -2517,49 +2653,38 @@ export async function editImageRegionAction(params: {
       const configs = await getAllConfigs();
 
       if (user && configs.r2_bucket_name && configs.r2_access_key) {
-        console.log('[Edit] 寮€濮嬩笂浼犲浘鐗囧埌 R2...');
+        console.log('[Edit] 开始同步保存图片到 R2...');
         const storageService = getStorageServiceWithConfigs(configs);
         const timestamp = Date.now();
         const randomId = nanoid(8);
-        const fileExtension = mimeType.includes('jpeg') || mimeType.includes('jpg') ? 'jpg' : 'png';
-        const fileName = `${timestamp}_${randomId}.${fileExtension}`;
+        const fileName = `${timestamp}_${randomId}.png`;
         const storageKey = `infographic-edits/${user.id}/${fileName}`;
 
-        const buffer = Buffer.from(base64Data, 'base64');
-        const uploadResult = await storageService.uploadFile({
-          body: buffer,
+        const uploadResult = await storageService.downloadAndUpload({
+          url: editedImageUrl,
           key: storageKey,
-          contentType: mimeType,
+          contentType: 'image/png',
           disposition: 'inline',
         });
 
         if (uploadResult.success && uploadResult.url) {
           finalImageUrl = uploadResult.url;
-          console.log(`[Edit] 鉁?鍥剧墖宸蹭繚瀛樺埌 R2: ${finalImageUrl.substring(0, 60)}...`);
+          console.log(`[Edit] ✅ 图片已保存到 R2: ${finalImageUrl.substring(0, 60)}...`);
         } else {
-          console.warn('[Edit] 鈿狅笍 R2 涓婁紶澶辫触锛屼娇鐢?data URL');
-          finalImageUrl = `data:${mimeType};base64,${base64Data}`;
+          console.warn('[Edit] ⚠️ R2 上传失败，使用临时链接:', uploadResult.error);
         }
-      } else {
-        console.warn('[Edit] 鈿狅笍 R2 鏈厤缃紝浣跨敤 data URL');
-        finalImageUrl = `data:${mimeType};base64,${base64Data}`;
       }
-    } catch (uploadError: any) {
-      console.error('[Edit] 鈿狅笍 R2 涓婁紶寮傚父:', uploadError.message);
-      finalImageUrl = `data:${mimeType};base64,${base64Data}`;
+    } catch (saveError) {
+      console.error('[Edit] R2 保存异常，使用临时链接:', saveError);
     }
 
     return {
       imageUrl: finalImageUrl,
       success: true,
-      provider: 'APIYI-Gemini' as const,
+      provider: 'FAL' as const,
     };
   } catch (error: any) {
-    if (error.name === 'TimeoutError' || error.name === 'AbortError') {
-      console.error('[Edit] 鉂?APIYI 璇锋眰瓒呮椂');
-      throw new Error('APIYI request timeout');
-    }
-    console.error('[Edit] 鉂?editImageRegionAction 閿欒:', error.message);
+    console.error('[Edit] ❌ editImageRegionAction 错误:', error.message);
     throw error;
   }
 }

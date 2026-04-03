@@ -120,6 +120,7 @@
     "unsupported_format": "不支持的文件格式",
     "generation_failed": "笔记生成失败，请重试",
     "insufficient_credits": "积分不足！需要 {required} 积分，当前仅有 {remaining} 积分",
+    "insufficient_credits_short": "积分不足，请及时充值",
     "podcast_upgrading": "Podcast功能正在升级维护中，请稍后再试",
     "ocr_conversion_failed": "PDF 转换图片失败",
     "ocr_no_text": "OCR 未能识别出有效文字",
