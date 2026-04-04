@@ -165,6 +165,49 @@ function isRetryableAuthError(error: any): boolean {
   return false;
 }
 
+function isExpectedSessionError(error: any): boolean {
+  if (!error) return false;
+
+  const errorMessage =
+    error instanceof Error ? error.message : String(error);
+  const errorCode = (error as any)?.code || '';
+  const statusCode = Number(
+    (error as any)?.statusCode || (error as any)?.status || 0
+  );
+
+  const expectedCodes = [
+    'UNAUTHORIZED',
+    'FORBIDDEN',
+    'INVALID_SESSION',
+    'INVALID_TOKEN',
+    'SESSION_EXPIRED',
+  ];
+
+  if (expectedCodes.includes(String(errorCode).toUpperCase())) {
+    return true;
+  }
+
+  if (statusCode === 401 || statusCode === 403) {
+    return true;
+  }
+
+  const expectedKeywords = [
+    'session expired',
+    'session not found',
+    'invalid session',
+    'invalid token',
+    'invalid signature',
+    'unauthorized',
+    'forbidden',
+    'token expired',
+    'token invalid',
+    'failed to verify',
+  ];
+
+  const lowerMessage = errorMessage.toLowerCase();
+  return expectedKeywords.some((keyword) => lowerMessage.includes(keyword));
+}
+
 /**
  * 获取已登录用户信息
  * 非程序员解释：
@@ -289,8 +332,8 @@ export async function getSignUser(options?: { throwError?: boolean }) {
         return session?.user;
       } catch (retryError) {
         console.warn('[Auth] getSession 重试也失败:', retryError);
-        
-        if (options?.throwError) {
+
+        if (options?.throwError && !isExpectedSessionError(retryError)) {
           throw retryError;
         }
         // 重试失败，为了页面稳定性，返回 null 而不是抛出
@@ -298,7 +341,8 @@ export async function getSignUser(options?: { throwError?: boolean }) {
       }
     }
 
-    if (options?.throwError) {
+    // 已知的会话失效/校验失败按“未登录”处理，交给上层做登录重定向。
+    if (options?.throwError && !isExpectedSessionError(error)) {
       throw error;
     }
 

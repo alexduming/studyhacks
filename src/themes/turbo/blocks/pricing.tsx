@@ -394,6 +394,15 @@ export function Pricing({
             const selectedCurrency =
               currencyState?.selectedCurrency || item.currency;
             const currencies = getCurrenciesFromItem(item);
+            const isYearlyProratedUpgrade =
+              currentSubscription?.productId === 'plus-yearly' &&
+              currentSubscription?.interval === 'year' &&
+              item.product_id === 'pro-yearly';
+            const buttonTitle = isYearlyProratedUpgrade
+              ? locale === 'zh'
+                ? '补差价升级专业版'
+                : 'Prorated upgrade to Pro'
+              : item.button?.title;
 
             return (
               <Card key={idx} className="relative">
@@ -513,7 +522,7 @@ export function Pricing({
                               className="size-4"
                             />
                           )}
-                          <span className="block">{item.button?.title}</span>
+                          <span className="block">{buttonTitle}</span>
                         </>
                       )}
                     </Button>

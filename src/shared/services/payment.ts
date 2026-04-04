@@ -7,6 +7,7 @@ import {
   user as userTable,
 } from '@/config/db/schema';
 import { getSnowId, getUuid } from '@/shared/lib/hash';
+import { getCanonicalPlanInfo } from '@/shared/config/pricing-guard';
 import {
   CreditStatus,
   CreditTransactionScene,
@@ -31,7 +32,13 @@ import {
   NewSubscription,
   Subscription,
   SubscriptionStatus,
+  findSubscriptionBySubscriptionNo,
 } from '@/shared/models/subscription';
+import {
+  getMembershipPeriodEnd,
+  getYearlyUpgradeContextFromCheckoutInfo,
+  isPaidMembershipProduct,
+} from '@/shared/lib/membership-upgrade';
 // 分销系统：佣金相关导入
 import { createCommission, CommissionStatus } from '@/shared/models/commission';
 
@@ -105,11 +112,6 @@ export async function getPaymentService(): Promise<PaymentManager> {
   }
 
   return paymentService;
-}
-function isPaidMembershipProduct(productId?: string | null) {
-  return Boolean(
-    productId && (productId.includes('plus') || productId.includes('pro'))
-  );
 }
 
 function isYearlySubscriptionInterval(interval?: string | null) {
@@ -187,6 +189,146 @@ function buildYearlySubscriptionCredit({
   };
 }
 
+function shouldGrantYearlyCredits({
+  subscriptionInfo,
+  membershipInterval,
+}: {
+  subscriptionInfo?: { interval?: string | null };
+  membershipInterval?: string | null;
+}) {
+  return isYearlySubscriptionInterval(subscriptionInfo?.interval || membershipInterval);
+}
+
+async function handleYearlyUpgradeSuccess({
+  order,
+  session,
+}: {
+  order: Order;
+  session: PaymentSession;
+}) {
+  const upgradeContext = getYearlyUpgradeContextFromCheckoutInfo(order.checkoutInfo);
+  if (!upgradeContext) {
+    return false;
+  }
+
+  if (session.paymentStatus !== PaymentStatus.SUCCESS) {
+    throw new Error('upgrade payment not successful');
+  }
+
+  const sourceSubscription = await findSubscriptionBySubscriptionNo(
+    upgradeContext.sourceSubscriptionNo
+  );
+  if (!sourceSubscription) {
+    throw new Error('source subscription not found');
+  }
+
+  const paidAt = session.paymentInfo?.paidAt || new Date();
+  const newSubscriptionNo = getSnowId();
+  const targetPlan = getCanonicalPlanInfo(order.productId || '');
+  if (!targetPlan) {
+    throw new Error('target plan not found');
+  }
+
+  const newSubscription: NewSubscription = {
+    id: getUuid(),
+    subscriptionNo: newSubscriptionNo,
+    userId: order.userId,
+    userEmail: order.paymentEmail || order.userEmail,
+    orderId: order.id,
+    planId: order.productId || '',
+    status: SubscriptionStatus.ACTIVE,
+    paymentProvider: order.paymentProvider,
+    subscriptionId:
+      session.paymentInfo?.transactionId || `upgrade_${newSubscriptionNo}`,
+    subscriptionResult: JSON.stringify(session.paymentResult),
+    productId: order.productId,
+    description: order.description || `Yearly upgrade: ${order.productName}`,
+    amount: upgradeContext.targetPlanAmount,
+    currency: order.currency,
+    interval: order.paymentInterval || 'year',
+    intervalCount: 1,
+    currentPeriodStart: new Date(upgradeContext.currentPeriodStart),
+    currentPeriodEnd: new Date(upgradeContext.currentPeriodEnd),
+    planName: order.planName || order.productName,
+    productName: order.productName,
+    creditsAmount: targetPlan.credits,
+    creditsValidDays: targetPlan.valid_days,
+    paymentProductId: order.paymentProductId,
+    paymentUserId:
+      session.paymentInfo?.paymentUserId || sourceSubscription.paymentUserId,
+  };
+
+  const topUpCredits = Math.max(0, upgradeContext.immediateCreditsDelta);
+  const topUpCredit =
+    topUpCredits > 0
+      ? {
+          id: getUuid(),
+          userId: order.userId,
+          userEmail: order.userEmail,
+          orderNo: order.orderNo,
+          subscriptionNo: newSubscriptionNo,
+          transactionNo: getSnowId(),
+          transactionType: CreditTransactionType.GRANT,
+          transactionScene: CreditTransactionScene.SUBSCRIPTION,
+          credits: topUpCredits,
+          remainingCredits: topUpCredits,
+          description: `Subscription credits - month ${upgradeContext.currentMonthNumber} of subscription (${order.productName || order.productId})`,
+          metadata: JSON.stringify({
+            monthNumber: upgradeContext.currentMonthNumber,
+            cycleStart: upgradeContext.currentCycleStart,
+            upgradeFrom: upgradeContext.sourceProductId,
+            topUp: true,
+          }),
+          expiresAt: new Date(upgradeContext.currentCycleEnd),
+          status: CreditStatus.ACTIVE,
+        }
+      : undefined;
+
+  const updateOrder: UpdateOrder = {
+    status: OrderStatus.PAID,
+    paymentResult: JSON.stringify(session.paymentResult),
+    paymentAmount: session.paymentInfo?.paymentAmount,
+    paymentCurrency: session.paymentInfo?.paymentCurrency,
+    discountAmount: session.paymentInfo?.discountAmount,
+    discountCurrency: session.paymentInfo?.discountCurrency,
+    discountCode: session.paymentInfo?.discountCode,
+    paymentEmail: session.paymentInfo?.paymentEmail,
+    paidAt,
+    invoiceId: session.paymentInfo?.invoiceId,
+    invoiceUrl: session.paymentInfo?.invoiceUrl,
+    subscriptionNo: newSubscriptionNo,
+    subscriptionId: newSubscription.subscriptionId,
+    subscriptionResult: JSON.stringify(session.paymentResult),
+    transactionId: session.paymentInfo?.transactionId,
+    paymentUserName: session.paymentInfo?.paymentUserName,
+    paymentUserId: session.paymentInfo?.paymentUserId,
+  };
+
+  await db().transaction(async (tx) => {
+    await tx
+      .update(subscriptionTable)
+      .set({
+        status: SubscriptionStatus.EXPIRED,
+        endedAt: paidAt,
+        updatedAt: paidAt,
+      })
+      .where(eq(subscriptionTable.id, sourceSubscription.id));
+
+    await tx.insert(subscriptionTable).values(newSubscription);
+
+    if (topUpCredit) {
+      await tx.insert(creditTable).values(topUpCredit);
+    }
+
+    await tx
+      .update(orderTable)
+      .set(updateOrder)
+      .where(eq(orderTable.orderNo, order.orderNo));
+  });
+
+  return true;
+}
+
 
 /**
  * handle checkout success
@@ -204,6 +346,13 @@ export async function handleCheckoutSuccess({
   }
 
   if (order.status === OrderStatus.PAID) {
+    return;
+  }
+
+  if (
+    order.paymentType === PaymentType.ONE_TIME &&
+    (await handleYearlyUpgradeSuccess({ order, session }))
+  ) {
     return;
   }
 
@@ -285,15 +434,16 @@ export async function handleCheckoutSuccess({
       // - 结果：用户付了钱，但系统查不到有效的订阅，导致会员状态一直是 Free。
       // - 现在：即使是一次性付款，只要购买的是会员产品，我们也会创建一个"模拟订阅"记录，让用户获得会员权益。
       const now = new Date();
-      const currentPeriodStart = session.paymentInfo?.paidAt || now;
-      const currentPeriodEnd = new Date(currentPeriodStart);
+		      const currentPeriodStart = session.paymentInfo?.paidAt || now;
+	      const currentPeriodEnd = getMembershipPeriodEnd({
+	        startAt: currentPeriodStart,
+	        interval: order.paymentInterval,
+	        fallbackDays: order.creditsValidDays || 30,
+	      });
 
       // 计算有效期（默认 30 天，或者根据订单配置）
-      const days = order.creditsValidDays || 30;
-      currentPeriodEnd.setDate(currentPeriodEnd.getDate() + days);
-
-      const planName =
-        order.planName || (order.productId?.includes('pro') ? 'Pro' : 'Plus');
+	      const planName =
+	        order.planName || (order.productId?.includes('pro') ? 'Pro' : 'Plus');
       const subscriptionNo = getSnowId();
 
       newSubscription = {
@@ -338,19 +488,29 @@ export async function handleCheckoutSuccess({
           ? subscriptionInfo
           : undefined;
 
-      if (yearlySubscriptionInfo && newSubscription) {
-        newCredit = buildYearlySubscriptionCredit({
-          userId: order.userId,
-          userEmail: order.userEmail,
-          orderNo: order.orderNo,
-          subscriptionNo: newSubscription.subscriptionNo,
-          credits,
-          validDays: order.creditsValidDays || 30,
-          currentPeriodStart: yearlySubscriptionInfo.currentPeriodStart,
-          currentPeriodEnd: yearlySubscriptionInfo.currentPeriodEnd,
-          productId: order.productId,
-          productName: order.productName,
-        });
+	      if (
+	        newSubscription &&
+	        shouldGrantYearlyCredits({
+	          subscriptionInfo,
+	          membershipInterval: newSubscription.interval,
+	        })
+	      ) {
+	        newCredit = buildYearlySubscriptionCredit({
+	          userId: order.userId,
+	          userEmail: order.userEmail,
+	          orderNo: order.orderNo,
+	          subscriptionNo: newSubscription.subscriptionNo,
+	          credits,
+	          validDays: order.creditsValidDays || 30,
+	          currentPeriodStart:
+	            yearlySubscriptionInfo?.currentPeriodStart ||
+	            newSubscription.currentPeriodStart,
+	          currentPeriodEnd:
+	            yearlySubscriptionInfo?.currentPeriodEnd ||
+	            newSubscription.currentPeriodEnd,
+	          productId: order.productId,
+	          productName: order.productName,
+	        });
       } else {
         const expiresAt =
           credits > 0
@@ -469,6 +629,13 @@ export async function handlePaymentSuccess({
     return;
   }
 
+  if (
+    order.paymentType === PaymentType.ONE_TIME &&
+    (await handleYearlyUpgradeSuccess({ order, session }))
+  ) {
+    return;
+  }
+
   if (order.paymentType === PaymentType.SUBSCRIPTION) {
     if (!session.subscriptionId || !session.subscriptionInfo) {
       throw new Error('subscription id or subscription info not found');
@@ -540,11 +707,12 @@ export async function handlePaymentSuccess({
     ) {
       // 非程序员解释：同样修复一次性支付无法激活会员的问题
       const now = new Date();
-      const currentPeriodStart = session.paymentInfo?.paidAt || now;
-      const currentPeriodEnd = new Date(currentPeriodStart);
-
-      const days = order.creditsValidDays || 30;
-      currentPeriodEnd.setDate(currentPeriodEnd.getDate() + days);
+	      const currentPeriodStart = session.paymentInfo?.paidAt || now;
+	      const currentPeriodEnd = getMembershipPeriodEnd({
+	        startAt: currentPeriodStart,
+	        interval: order.paymentInterval,
+	        fallbackDays: order.creditsValidDays || 30,
+	      });
 
       const planName =
         order.planName || (order.productId?.includes('pro') ? 'Pro' : 'Plus');
@@ -591,19 +759,29 @@ export async function handlePaymentSuccess({
           ? subscriptionInfo
           : undefined;
 
-      if (yearlySubscriptionInfo && newSubscription) {
-        newCredit = buildYearlySubscriptionCredit({
-          userId: order.userId,
-          userEmail: order.userEmail,
-          orderNo: order.orderNo,
-          subscriptionNo: newSubscription.subscriptionNo,
-          credits,
-          validDays: order.creditsValidDays || 30,
-          currentPeriodStart: yearlySubscriptionInfo.currentPeriodStart,
-          currentPeriodEnd: yearlySubscriptionInfo.currentPeriodEnd,
-          productId: order.productId,
-          productName: order.productName,
-        });
+	      if (
+	        newSubscription &&
+	        shouldGrantYearlyCredits({
+	          subscriptionInfo,
+	          membershipInterval: newSubscription.interval,
+	        })
+	      ) {
+	        newCredit = buildYearlySubscriptionCredit({
+	          userId: order.userId,
+	          userEmail: order.userEmail,
+	          orderNo: order.orderNo,
+	          subscriptionNo: newSubscription.subscriptionNo,
+	          credits,
+	          validDays: order.creditsValidDays || 30,
+	          currentPeriodStart:
+	            yearlySubscriptionInfo?.currentPeriodStart ||
+	            newSubscription.currentPeriodStart,
+	          currentPeriodEnd:
+	            yearlySubscriptionInfo?.currentPeriodEnd ||
+	            newSubscription.currentPeriodEnd,
+	          productId: order.productId,
+	          productName: order.productName,
+	        });
       } else {
         const expiresAt =
           credits > 0
