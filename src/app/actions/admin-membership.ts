@@ -7,9 +7,19 @@ import { db } from '@/core/db';
 import { user, order, subscription } from '@/config/db/schema';
 import { getUuid, getSnowId } from '@/shared/lib/hash';
 import { OrderStatus } from '@/shared/models/order';
-import { SubscriptionStatus } from '@/shared/models/subscription';
+import {
+  createCredit,
+  CreditStatus,
+  CreditTransactionScene,
+  CreditTransactionType,
+} from '@/shared/models/credit';
+import {
+  getCurrentSubscription,
+  SubscriptionStatus,
+} from '@/shared/models/subscription';
 import { PaymentType } from '@/extensions/payment';
 import { getCanonicalPlanInfo } from '@/shared/config/pricing-guard';
+import { getPlanTier, getYearlyCycleInfo } from '@/shared/lib/membership-upgrade';
 
 /**
  * Manually set user membership level
@@ -59,13 +69,29 @@ export async function manageUserMembership(prevState: any, formData: FormData) {
     const planName = planId.includes('pro') ? 'Pro' : 'Plus';
     const interval = isYearly ? 'year' : 'month';
     const amount = planId.includes('pro') ? (isYearly ? 1399 * 12 : 1999) : (isYearly ? 699 * 12 : 999);
+    const currentSubscription = await getCurrentSubscription(userId);
+    const currentPlanInfo = getCanonicalPlanInfo(currentSubscription?.productId || '');
+    const currentPlanTier = getPlanTier(currentSubscription?.productId);
+    const targetPlanTier = getPlanTier(planId);
+    const isProratedUpgrade =
+      !!currentSubscription &&
+      currentSubscription.currentPeriodEnd > now &&
+      currentSubscription.interval === interval &&
+      currentPlanInfo &&
+      targetPlanTier > currentPlanTier;
 
-    const currentPeriodStart = new Date(now);
-    const currentPeriodEnd = new Date(now);
-    if (isYearly) {
-      currentPeriodEnd.setFullYear(currentPeriodEnd.getFullYear() + 1);
-    } else {
-      currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
+    const currentPeriodStart = isProratedUpgrade
+      ? new Date(currentSubscription.currentPeriodStart)
+      : new Date(now);
+    const currentPeriodEnd = isProratedUpgrade
+      ? new Date(currentSubscription.currentPeriodEnd)
+      : new Date(now);
+    if (!isProratedUpgrade) {
+      if (isYearly) {
+        currentPeriodEnd.setFullYear(currentPeriodEnd.getFullYear() + 1);
+      } else {
+        currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
+      }
     }
 
     // 1. Create Order
@@ -88,7 +114,9 @@ export async function manageUserMembership(prevState: any, formData: FormData) {
       paidAt: now,
       creditsAmount: planInfo.credits,
       creditsValidDays: planInfo.valid_days,
-      description: `Manual membership assignment - ${productName}`,
+      description: isProratedUpgrade
+        ? `Manual membership upgrade - ${productName}`
+        : `Manual membership assignment - ${productName}`,
     });
 
     // 2. Cancel existing subscriptions
@@ -121,6 +149,74 @@ export async function manageUserMembership(prevState: any, formData: FormData) {
         ${`Manual membership - ${productName}`}, ${now.toISOString()}::timestamp, ${now.toISOString()}::timestamp
       )
     `);
+
+    let creditAmount = planInfo.credits ?? 0;
+    let creditExpiresAt: Date | null = null;
+    let creditDescription = `Manual membership credits - ${productName}`;
+    let creditMetadata = JSON.stringify({ source: 'admin_action' });
+
+    if (isProratedUpgrade && currentPlanInfo) {
+      creditAmount = Math.max(
+        0,
+        (planInfo.credits ?? 0) - (currentPlanInfo.credits ?? 0)
+      );
+
+      if (isYearly) {
+        const cycleInfo = getYearlyCycleInfo({
+          currentPeriodStart,
+          currentPeriodEnd,
+          now,
+        });
+        creditExpiresAt = cycleInfo.currentCycleEnd;
+        creditDescription = `Subscription credits - month ${cycleInfo.currentMonthNumber} of subscription (${productName})`;
+        creditMetadata = JSON.stringify({
+          monthNumber: cycleInfo.currentMonthNumber,
+          cycleStart: cycleInfo.currentCycleStart.toISOString(),
+          source: 'admin_action',
+          upgradeFrom: currentSubscription.productId,
+          topUp: true,
+        });
+      } else {
+        creditExpiresAt = currentPeriodEnd;
+        creditDescription = `Manual membership upgrade credits - ${productName}`;
+        creditMetadata = JSON.stringify({
+          source: 'admin_action',
+          upgradeFrom: currentSubscription.productId,
+          topUp: true,
+        });
+      }
+    } else if (isYearly) {
+      const expiresAt = new Date(currentPeriodStart);
+      expiresAt.setDate(expiresAt.getDate() + (planInfo.valid_days || 30));
+      creditExpiresAt = expiresAt > currentPeriodEnd ? currentPeriodEnd : expiresAt;
+      creditDescription = `Subscription credits - month 1 of subscription (${productName})`;
+      creditMetadata = JSON.stringify({
+        monthNumber: 1,
+        cycleStart: currentPeriodStart.toISOString(),
+        source: 'admin_action',
+      });
+    } else {
+      creditExpiresAt = currentPeriodEnd;
+    }
+
+    if (creditAmount > 0) {
+      await createCredit({
+        id: getUuid(),
+        userId,
+        userEmail: targetUser.email || '',
+        orderNo: undefined,
+        subscriptionNo,
+        transactionNo: getSnowId(),
+        transactionType: CreditTransactionType.GRANT,
+        transactionScene: CreditTransactionScene.SUBSCRIPTION,
+        credits: creditAmount,
+        remainingCredits: creditAmount,
+        description: creditDescription,
+        metadata: creditMetadata,
+        expiresAt: creditExpiresAt,
+        status: CreditStatus.ACTIVE,
+      });
+    }
 
     revalidatePath('/[locale]/(admin)/admin/users', 'page');
     return { success: true };
