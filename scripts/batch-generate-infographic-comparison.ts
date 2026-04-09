@@ -65,6 +65,7 @@ async function loadConfigsFromDb() {
 
   return {
     ...configs,
+    kie_api_key: configs.kie_api_key || process.env.KIE_NANO_BANANA_PRO_KEY || process.env.KIE_API_KEY || '',
     r2_bucket_name: configs.r2_bucket_name || process.env.R2_BUCKET_NAME || '',
     r2_access_key: configs.r2_access_key || process.env.R2_ACCESS_KEY || '',
     r2_secret_key: configs.r2_secret_key || process.env.R2_SECRET_KEY || '',
