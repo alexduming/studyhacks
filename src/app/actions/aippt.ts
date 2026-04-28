@@ -842,14 +842,15 @@ export async function createKieTaskAction(params: {
   }
 
   // New payload structure per documentation: wrap params in 'input'
-  // Note: image_input expects array of publicly accessible URLs, NOT base64
+  // 🎯 2026-04-28 切换到 GPT Image 2 图生图模型
+  // Note: input_urls expects array of publicly accessible URLs, NOT base64
   const body = {
-    model: 'nano-banana-pro',
+    model: 'gpt-image-2-image-to-image',
     input: {
       prompt: finalPrompt,
       aspect_ratio: params.aspectRatio || '16:9',
       resolution: params.imageSize || '4K', // doc says 'resolution' (1K/2K/4K)
-      image_input: referenceImages.length > 0 ? referenceImages : undefined, // array of URLs
+      input_urls: referenceImages.length > 0 ? referenceImages : undefined, // array of URLs - GPT Image 2 图生图参数
       output_format: 'png',
     },
   };
@@ -884,9 +885,10 @@ export async function createKieTaskAction(params: {
 
 /**
  * Query Task Status via KIE API
+ * 🎯 2026-04-28: GPT Image 2 任务查询
  */
 export async function queryKieTaskAction(taskId: string) {
-  // Kie Query Endpoint
+  // Kie Query Endpoint - 正确的端点
   const endpoint = `https://api.kie.ai/api/v1/jobs/recordInfo?taskId=${taskId}`;
 
   try {
@@ -933,8 +935,41 @@ export async function queryKieTaskAction(taskId: string) {
 
     return data;
   } catch (e: any) {
-    console.error('[KIE] Query Error:', e);
-    throw e;
+    // 🎯 2026-04-28 增加重试机制应对网络不稳定
+    console.warn('[KIE] 查询失败，1秒后重试...');
+    await new Promise(r => setTimeout(r, 1000));
+    try {
+      const retryRes = await fetch(endpoint, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${KIE_API_KEY}`,
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        },
+      });
+      const retryData = await retryRes.json();
+      if (retryData.data && retryData.data.resultJson) {
+        let results: string[] = [];
+        try {
+          if (typeof retryData.data.resultJson === 'string') {
+            const parsed = JSON.parse(retryData.data.resultJson);
+            results = parsed.resultUrls || [];
+          } else if (retryData.data.resultJson.resultUrls) {
+            results = retryData.data.resultJson.resultUrls;
+          }
+        } catch {}
+        return {
+          data: {
+            status: retryData.data.state === 'success' ? 'SUCCESS' : retryData.data.state === 'fail' ? 'FAILED' : 'PENDING',
+            results: results,
+          },
+        };
+      }
+      return retryData;
+    } catch (retryError) {
+      console.error('[KIE] 重试也失败:', retryError);
+      throw e;
+    }
   }
 }
 
@@ -1456,7 +1491,7 @@ export async function createKieTaskWithFallbackAction(params: {
           continue;
         }
         console.log(
-          `🔄 [${provider === primaryProvider ? '主力' : '托底'}] 使用 KIE (nano-banana-pro)...`
+          `🔄 [${provider === primaryProvider ? '主力' : '托底'}] 使用 KIE (gpt-image-2)...`
         );
         const result = await createKieTaskAction(processedParams);
         console.log('✅ KIE 任务创建成功:', result.task_id);
