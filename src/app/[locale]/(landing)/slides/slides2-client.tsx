@@ -923,6 +923,12 @@ export default function Slides2Client({
           parsed = parts.join('\n\n');
         }
         combined = combined ? `${combined}\n\n${parsed}` : parsed;
+      } catch (error: any) {
+        // 🎯 OCR 失败时，抛出让外部 handleApiError 处理并显示友好 toast
+        console.error('文件解析失败:', error);
+        throw new Error(
+          error?.message || t_aippt('errors.general_failed')
+        );
       } finally {
         setParsingProgress('');
         setIsParsingFiles(false);

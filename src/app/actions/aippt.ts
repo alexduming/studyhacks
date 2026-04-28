@@ -185,11 +185,11 @@ function resolveImageUrl(url: string): string {
 }
 
 /**
- * Parse Image to Text using Vision AI (OCR)
+ * Parse Image to Text using OpenRouter Vision API (OCR)
  * 非程序员解释：
- * - 这个函数使用视觉AI模型（Google Gemini Pro Vision）来识别图片中的文字
- * - 比传统OCR更智能，能理解文字的上下文和排版结构
- * - 支持 JPG、PNG、WEBP 等常见图片格式
+ * - 使用 OpenRouter 上的 Google Gemini Flash Vision 模型进行文字识别
+ * - 之前用了错误的 Qwen 模型名导致失败，现在换成 Gemini
+ * - 支持中文和英文
  */
 export async function parseImageAction(formData: FormData): Promise<string> {
   const file = formData.get('file') as File;
@@ -199,11 +199,18 @@ export async function parseImageAction(formData: FormData): Promise<string> {
 
   // 检查 API Key
   if (!OPENROUTER_API_KEY) {
-    throw new Error('OpenRouter API Key 未配置，图片 OCR 功能需要此密钥');
+    throw new Error('OpenRouter API Key 未配置，请联系管理员');
   }
 
+  // 超时控制（在 try 外定义）
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 60000);
+
   try {
-    // 将图片转换为 base64
+    console.log('[OCR] 开始识别图片文字，使用 OpenRouter Gemini 2.5 Flash...');
+    console.log('[OCR] 图片大小:', (file.size / 1024).toFixed(2), 'KB');
+
+    // 将图片转为 base64
     const buffer = Buffer.from(await file.arrayBuffer());
     const base64Image = buffer.toString('base64');
     const mimeType = file.type || 'image/jpeg';
@@ -211,67 +218,61 @@ export async function parseImageAction(formData: FormData): Promise<string> {
     // 构建 data URL 格式
     const imageDataUrl = `data:${mimeType};base64,${base64Image}`;
 
-    console.log('[OCR] 开始识别图片文字，使用 Qwen2.5 VL 32B...');
-    console.log('[OCR] 图片大小:', (buffer.length / 1024).toFixed(2), 'KB');
-
-    // 使用 OpenRouter 的 Qwen2.5 VL 32B Instruct 进行 OCR
-    // Qwen2.5-VL-32B 专门优化用于视觉分析，价格便宜且效果好
-    const response = await fetch(
-      'https://openrouter.ai/api/v1/chat/completions',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-          'HTTP-Referer':
-            process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-          'X-Title': 'StudyHacks AI PPT Generator',
-        },
-        body: JSON.stringify({
-          model: 'qwen/qwen2.5-vl-32b-instruct', // 使用 Qwen2.5 VL 32B Instruct 模型
-          messages: [
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'text',
-                  text: 'Extract all text content from this image. Preserve the original text structure, formatting, and language. Output only the extracted text without any additional comments, explanations, or formatting.',
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+        'X-Title': 'StudyHacks OCR',
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        // 使用 Google Gemini 2.5 Flash Lite 模型
+        model: 'google/gemini-2.5-flash-lite-preview-09-2025',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: 'Extract ALL text content from this image. Preserve the original text structure, line breaks, and formatting. Output ONLY the extracted text, no explanations.',
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: imageDataUrl,
                 },
-                {
-                  type: 'image_url',
-                  image_url: {
-                    url: imageDataUrl,
-                  },
-                },
-              ],
-            },
-          ],
-          temperature: 0.1, // 低温度确保准确性
-          max_tokens: 4000,
-        }),
-      }
-    );
+              },
+            ],
+          },
+        ],
+        temperature: 0.1,
+        max_tokens: 4000,
+      }),
+    });
 
     if (!response.ok) {
+      clearTimeout(timeout);
       const errorText = await response.text();
       console.error('[OCR] OpenRouter API Error:', response.status, errorText);
 
-      // 提供更详细的错误信息
-      if (response.status === 401) {
-        throw new Error('API 密钥无效或未授权');
-      } else if (response.status === 429) {
-        throw new Error('API 请求频率限制，请稍后重试');
-      } else {
-        throw new Error(`API 调用失败 (${response.status})`);
+      // 提取具体错误
+      try {
+        const err = JSON.parse(errorText);
+        throw new Error(err.error?.message || `API 调用失败 (${response.status})`);
+      } catch {
+        throw new Error(`API 调用失败 (${response.status}): ${errorText.slice(0, 200)}`);
       }
     }
 
     const data = await response.json();
+    clearTimeout(timeout);
 
     // 检查响应格式
     if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-      console.error('[OCR] 无效的 API 响应:', data);
-      throw new Error('API 返回了无效的响应格式');
+      console.error('[OCR] OpenRouter 无效响应:', data);
+      throw new Error('OpenRouter API 返回了无效的响应');
     }
 
     const extractedText = data.choices[0].message.content;
@@ -289,16 +290,9 @@ export async function parseImageAction(formData: FormData): Promise<string> {
 
     return extractedText.trim();
   } catch (error: any) {
+    clearTimeout(timeout);
     console.error('[OCR] 图片解析错误:', error);
-
-    // 提供更友好的错误信息
-    if (error.message.includes('API 密钥')) {
-      throw new Error('API 密钥配置错误，请检查 OPENROUTER_API_KEY 环境变量');
-    } else if (error.message.includes('网络')) {
-      throw new Error('网络连接失败，请检查网络连接后重试');
-    } else {
-      throw new Error('图片文字识别失败：' + (error.message || '未知错误'));
-    }
+    throw new Error('图片文字识别失败：' + (error.message || '未知错误'));
   }
 }
 
