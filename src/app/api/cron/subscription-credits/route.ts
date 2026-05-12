@@ -146,8 +146,8 @@ export async function POST(request: NextRequest) {
         }
 
         // 3.2 Check whether this cycle month has already been granted
-        // Only inspect grants created in the current yearly cycle.
-        const latestCredits = await database
+        // 优先用 subscriptionNo 匹配，如果查不到则用 userId + userEmail 兜底
+        let latestCredits = await database
           .select({
             metadata: credit.metadata,
             description: credit.description,
@@ -163,6 +163,26 @@ export async function POST(request: NextRequest) {
           )
           .orderBy(desc(credit.createdAt))
           .limit(1);
+
+        // 兜底：用 userId 查询（处理 subscriptionNo 为空的边界 case）
+        if (latestCredits.length === 0 && sub.userId) {
+          latestCredits = await database
+            .select({
+              metadata: credit.metadata,
+              description: credit.description,
+            })
+            .from(credit)
+            .where(
+              and(
+                eq(credit.userId, sub.userId),
+                eq(credit.transactionType, CreditTransactionType.GRANT),
+                eq(credit.transactionScene, CreditTransactionScene.SUBSCRIPTION),
+                gte(credit.createdAt, subscriptionStart)
+              )
+            )
+            .orderBy(desc(credit.createdAt))
+            .limit(1);
+        }
 
         const currentMonthNumber = monthsPassed + 1;
         const lastMonthNumber = latestCredits[0]

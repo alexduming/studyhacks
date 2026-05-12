@@ -26,7 +26,9 @@
       "Bash(npm run build)",
       "Bash(npm install sharp)",
       "Bash(pnpm next build:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(export PGPASSWORD=\"SYzijPJBeJIse4IE\")",
+      "Bash(psql \"postgresql://postgres.gfessyrqwqusmspivrxr@aws-1-us-east-1.pooler.supabase.com:6543/postgres\" -c \"SELECT id, email, name, created_at FROM \\\\\\\\\\\\\"user\\\\\\\\\\\\\" WHERE email = '2131604349@qq.com';\")"
     ]
   }
 }
