@@ -68,6 +68,21 @@ export function getMembershipPeriodEnd({
   return endAt;
 }
 
+export function addMonthsClamped(date: Date, months: number) {
+  const result = new Date(date);
+  const originalDay = result.getUTCDate();
+
+  result.setUTCDate(1);
+  result.setUTCMonth(result.getUTCMonth() + months);
+
+  const lastDayOfTargetMonth = new Date(
+    Date.UTC(result.getUTCFullYear(), result.getUTCMonth() + 1, 0)
+  ).getUTCDate();
+  result.setUTCDate(Math.min(originalDay, lastDayOfTargetMonth));
+
+  return result;
+}
+
 export function getYearlyCycleInfo({
   currentPeriodStart,
   currentPeriodEnd,
@@ -79,14 +94,12 @@ export function getYearlyCycleInfo({
 }) {
   let currentMonthNumber = 1;
   let currentCycleStart = new Date(currentPeriodStart);
-  let nextCycleStart = new Date(currentCycleStart);
-  nextCycleStart.setMonth(nextCycleStart.getMonth() + 1);
+  let nextCycleStart = addMonthsClamped(currentPeriodStart, 1);
 
   while (nextCycleStart <= now && nextCycleStart < currentPeriodEnd) {
     currentCycleStart = new Date(nextCycleStart);
-    nextCycleStart = new Date(currentCycleStart);
-    nextCycleStart.setMonth(nextCycleStart.getMonth() + 1);
     currentMonthNumber += 1;
+    nextCycleStart = addMonthsClamped(currentPeriodStart, currentMonthNumber);
   }
 
   const currentCycleEnd =

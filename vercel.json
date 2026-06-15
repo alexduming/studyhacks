@@ -9,6 +9,9 @@
     }
   },
   "functions": {
+    "src/app/api/cron/subscription-credits/route.ts": {
+      "maxDuration": 300
+    },
     "src/app/api/**/*.ts": {
       "maxDuration": 30
     },
