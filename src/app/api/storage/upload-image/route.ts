@@ -7,8 +7,9 @@ export async function POST(req: Request) {
   try {
     const formData = await req.formData();
     const files = formData.getAll('files') as File[];
+    const customPath = formData.get('path') as string;
 
-    console.log('[API] Received files:', files.length);
+    console.log('[API] Received files:', files.length, 'Path:', customPath);
     files.forEach((file, i) => {
       console.log(`[API] File ${i}:`, {
         name: file.name,
@@ -25,13 +26,21 @@ export async function POST(req: Request) {
 
     for (const file of files) {
       // Validate file type
-      if (!file.type.startsWith('image/')) {
-        return respErr(`File ${file.name} is not an image`);
+      // Some browsers might not send content-type, so we also check extension
+      const isImage =
+        file.type.startsWith('image/') ||
+        /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
+
+      if (!isImage) {
+        return respErr(`File ${file.name} is not an image (type: ${file.type})`);
       }
 
       // Generate unique key
       const ext = file.name.split('.').pop();
-      const key = `uploads/${Date.now()}-${uuidv4()}.${ext}`;
+      const fileName = `${Date.now()}-${uuidv4()}.${ext}`;
+      const key = customPath
+        ? `${customPath.replace(/\/$/, '')}/${fileName}`
+        : `uploads/${fileName}`;
 
       // Convert file to buffer
       const arrayBuffer = await file.arrayBuffer();
@@ -43,12 +52,12 @@ export async function POST(req: Request) {
       const result = await storageService.uploadFile({
         body: buffer,
         key: key,
-        contentType: file.type,
+        contentType: file.type || 'application/octet-stream',
         disposition: 'inline',
       });
 
       if (!result.success) {
-        console.error('[API] Upload failed:', result.error);
+        console.error('[API] Upload failed details:', result);
         return respErr(result.error || 'Upload failed');
       }
 
@@ -70,8 +79,9 @@ export async function POST(req: Request) {
       urls: uploadResults.map((r) => r.url),
       results: uploadResults,
     });
-  } catch (e) {
+  } catch (e: any) {
     console.error('upload image failed:', e);
-    return respErr('upload image failed');
+    // Return detailed error message
+    return respErr(`Upload failed: ${e.message || 'Unknown error'}`);
   }
 }

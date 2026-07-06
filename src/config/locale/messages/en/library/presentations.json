@@ -1,0 +1,21 @@
+{
+  "title": "My Presentations",
+  "subtitle": "All AI slide decks you generated are stored here for quick access.",
+  "buttons": {
+    "new": "New presentation",
+    "empty": "Create presentation"
+  },
+  "empty": {
+    "title": "No presentations yet",
+    "description": "Your generated presentations will appear here. Click the button below to start building your deck.",
+    "button": "Create now"
+  },
+  "actions": {
+    "delete": "Delete",
+    "delete_confirm": "Are you sure you want to delete this presentation? This action cannot be undone.",
+    "delete_success": "Presentation deleted",
+    "delete_failed": "Failed to delete, please try again",
+    "cancel": "Cancel"
+  }
+}
+

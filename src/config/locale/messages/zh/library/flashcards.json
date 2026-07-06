@@ -1,0 +1,24 @@
+{
+  "title": "闪卡库",
+  "subtitle": "集中查看所有 AI 生成的闪卡，随时复习任意学习材料。",
+  "buttons": {
+    "new": "继续生成闪卡",
+    "empty": "生成闪卡"
+  },
+  "empty": {
+    "title": "Flashcards Library",
+    "description": "还没有历史记录，去上传一份资料尝试生成吧。",
+    "button": "生成新闪卡"
+  },
+  "cards": {
+    "groupTitle": "闪卡组 · {count} 张",
+    "questionLabel": "第{index}题",
+    "answerLabel": "A:",
+    "empty": "解析记录为空，可以前往生成页重新触发一次。",
+    "remaining": "... 还有 {count} 张闪卡。",
+    "actions": {
+      "resume": "打开这组闪卡",
+      "resumeHint": "点击后即可复习全部 {count} 张卡片"
+    }
+  }
+}

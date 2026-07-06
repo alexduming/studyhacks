@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 
+import { AIMediaType, AITaskStatus } from '@/extensions/ai';
+import { createAITaskRecordOnly } from '@/shared/models/ai_task';
 import OpenRouterService from '@/shared/services/openrouter';
 import { getUserInfo } from '@/shared/models/user';
 import { consumeCredits, getRemainingCredits } from '@/shared/models/credit';
@@ -71,8 +73,9 @@ export async function POST(request: Request) {
     }
 
     // 消耗积分
+    let consumedCredit;
     try {
-      await consumeCredits({
+      consumedCredit = await consumeCredits({
         userId: user.id,
         credits: requiredCredits,
         scene: 'ai_flashcards',
@@ -98,6 +101,33 @@ export async function POST(request: Request) {
       typeof count === 'number' ? count : 10,
       outputLanguage ?? 'auto'
     );
+
+    if (result.success) {
+      try {
+        await createAITaskRecordOnly({
+          userId: user.id,
+          mediaType: AIMediaType.TEXT,
+          provider: 'OpenRouter',
+          model: 'openrouter',
+          prompt: `AI Flashcards preview: ${content.slice(0, 120)}`,
+          options: JSON.stringify({
+            count: typeof count === 'number' ? count : 10,
+            outputLanguage: outputLanguage ?? 'auto',
+          }),
+          scene: 'ai_flashcards',
+          costCredits: requiredCredits,
+          creditId: consumedCredit?.id,
+          status: AITaskStatus.SUCCESS,
+          taskInfo: JSON.stringify({ status: 'SUCCESS' }),
+          taskResult: JSON.stringify({
+            flashcards: result.flashcards,
+            metadata: result.metadata,
+          }),
+        });
+      } catch (logError) {
+        console.error('[Flashcards] Failed to record history:', logError);
+      }
+    }
 
     return NextResponse.json(result);
   } catch (error: any) {

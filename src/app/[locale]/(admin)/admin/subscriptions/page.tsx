@@ -10,6 +10,8 @@ import {
 import { Crumb, Tab } from '@/shared/types/blocks/common';
 import { type Table } from '@/shared/types/blocks/table';
 
+import { GenerateMembershipCodesDialog } from './generate-membership-codes-dialog';
+
 export default async function SubscriptionsPage({
   params,
   searchParams,
@@ -132,7 +134,11 @@ export default async function SubscriptionsPage({
     <>
       <Header crumbs={crumbs} />
       <Main>
-        <MainHeader title={t('list.title')} tabs={tabs} />
+        <MainHeader
+          title={t('list.title')}
+          tabs={tabs}
+          extraActions={<GenerateMembershipCodesDialog />}
+        />
         <TableCard table={table} />
       </Main>
     </>

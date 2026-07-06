@@ -49,6 +49,12 @@
               "description": "从您的笔记和文档创建信息图",
               "url": "/infographic",
               "icon": "Image"
+            },
+            {
+              "title": "AI PPT 生成器",
+              "description": "使用 AI 生成专业演示文稿",
+              "url": "/slides",
+              "icon": "Presentation"
             }
           ]
         },
@@ -64,34 +70,23 @@
       "show_name": true,
       "show_credits": true,
       "show_sign_out": true,
-      "items": [
-        {
-          "title": "账单",
-          "url": "/settings/billing",
-          "icon": "CreditCard"
-        },
-        {
-          "title": "活动记录",
-          "url": "/activity",
-          "icon": "Activity"
-        }
-      ]
+      "items": []
     },
     "show_sign": true,
-    "show_theme": false,
+    "show_theme": true,
     "show_locale": true
   },
   "hero": {
     "id": "hero",
-    "title": "你唯一需要的AI笔记助手",
-    "highlight_text": "AI笔记助手",
+    "title": "你唯一需要的AI学习助手",
+    "highlight_text": "AI学习助手",
     "description": "将 PDF、视频、讲座和音频转换为智能笔记。<br/>生成闪卡、测验和学习指南，让学习比以往更快。",
     "announcement": {
       "badge": "新功能",
       "title": "年费用户立省30%",
       "url": "/pricing"
     },
-    "tip": "🎓 受到牛津、剑桥和顶尖大学学生的信赖",
+    "tip": "🎓 帮助学生、职场人、自媒体人更高效地学习、汇报与创作",
     "show_avatars": true,
     "avatars_tip": "50,000+ 学生正在使用 StudyHacks",
     "show_award": false,
@@ -103,6 +98,49 @@
       "src": "/imgs/features/admin-dark.png",
       "alt": "hero"
     }
+  },
+  "tool_index": {
+    "id": "tool-index",
+    "title": "今天，你想做什么？",
+    "description": "一键开启今日学习与创作",
+    "items": [
+      {
+        "title": "生成AI笔记",
+        "description": "上传材料，自动提炼结构化重点",
+        "url": "/ai-note-taker",
+        "icon": "FileText"
+      },
+      {
+        "title": "生成闪卡",
+        "description": "把知识点变成可复习记忆卡片",
+        "url": "/flashcards",
+        "icon": "Brain"
+      },
+      {
+        "title": "生成测验",
+        "description": "即时出题，检查掌握程度",
+        "url": "/quiz",
+        "icon": "Target"
+      },
+      {
+        "title": "生成播客",
+        "description": "把内容转换成可听的学习音频",
+        "url": "/podcast",
+        "icon": "Headphones"
+      },
+      {
+        "title": "生成信息图",
+        "description": "一键生成高可读的视觉总结",
+        "url": "/infographic",
+        "icon": "BarChart3"
+      },
+      {
+        "title": "AI PPT（AI Slides）",
+        "description": "快速创建可演示的专业幻灯片",
+        "url": "/slides",
+        "icon": "Presentation"
+      }
+    ]
   },
   "logos": {
     "title": "受到全球顶尖大学学生的信赖",

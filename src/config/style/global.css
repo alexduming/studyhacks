@@ -6,6 +6,12 @@
 @plugin 'tailwindcss-animate';
 
 @layer base {
+  :root {
+    --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-serif: Georgia, Cambria, 'Times New Roman', Times, serif;
+    --font-mono: Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+  }
+
   /* 全局字号稍微放大，提升可读性（参考 turbo.ai） */
   html {
     font-size: 16px;

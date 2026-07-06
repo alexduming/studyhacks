@@ -4,13 +4,21 @@
     "user": "User",
     "amount": "Amount",
     "remaining": "Remaining",
+    "status": "Status",
     "type": "Type",
     "scene": "Scene",
     "description": "Description",
     "created_at": "Created At",
     "expires_at": "Expires At",
     "metadata": "Metadata",
-    "action": "Action"
+    "action": "Action",
+    "user_email": "User Email"
+  },
+  "create": {
+    "title": "Grant Credits",
+    "buttons": {
+      "submit": "Submit"
+    }
   },
   "list": {
     "title": "Credits",
@@ -18,10 +26,19 @@
       "admin": "Admin",
       "credits": "Credits"
     },
+    "buttons": {
+      "create": "Grant Credits"
+    },
     "tabs": {
       "all": "All",
       "grant": "Grant",
       "consume": "Consume"
     }
+  },
+  "status": {
+    "available": "Available",
+    "used": "Used",
+    "expired": "Expired",
+    "consumed": "Consumed"
   }
 }

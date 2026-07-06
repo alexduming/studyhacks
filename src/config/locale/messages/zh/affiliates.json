@@ -1,0 +1,126 @@
+{
+  "title": "教练计划",
+  "description": "邀请朋友使用 Studyhacks，获得积分与返现奖励。",
+  "loading": "加载中...",
+  "stats": {
+    "invitations": {
+      "title": "邀请人数",
+      "subtitle": "已注册用户"
+    },
+    "paid_users": {
+      "title": "付费用户",
+      "subtitle": "共 {count} 笔订单"
+    },
+    "total_commission": {
+      "title": "总佣金",
+      "withdrawn": "已提现: {amount}"
+    },
+    "available": {
+      "title": "可提现"
+    }
+  },
+  "invite_card": {
+    "title": "邀请链接",
+    "badge": "初级",
+    "description": "分享您的专属邀请链接，邀请好友注册",
+    "copy_button": "复制链接",
+    "invite_code": "邀请码",
+    "edit_tooltip": "修改邀请码"
+  },
+  "reward_card": {
+    "title": "奖励",
+    "badge": "余额",
+    "description": "已邀请 {total} 人，{paid} 人已支付；总奖励金额：{totalAmount}，已提现：{withdrawn}，剩余可提现：{balance}",
+    "withdraw_button": "申请提现",
+    "available_balance": "可用余额: {amount}",
+    "withdraw_dialog": {
+      "title": "提现申请",
+      "description": "输入提现金额和收款账户信息",
+      "amount_label": "提现金额",
+      "method_label": "提现方式",
+      "account_label": "收款账户",
+      "paypal_email_label": "PayPal 邮箱",
+      "paypal_placeholder": "your@email.com",
+      "real_name_label": "真实姓名",
+      "real_name_placeholder": "请输入收款人真实姓名",
+      "alipay_account_label": "支付宝账号",
+      "alipay_placeholder": "手机号或邮箱",
+      "bank_account_label": "银行卡号",
+      "bank_account_placeholder": "请输入银行卡号",
+      "bank_name_label": "银行名称",
+      "bank_name_placeholder": "如：中国工商银行",
+      "bank_branch_label": "开户行",
+      "bank_branch_placeholder": "如：北京市朝阳区支行",
+      "bank_placeholder": "银行账户信息",
+      "submit_button": "提交申请",
+      "submitting": "提交中..."
+    },
+    "withdraw_methods": {
+      "paypal": "PayPal",
+      "alipay": "支付宝",
+      "bank_transfer": "银行转账"
+    }
+  },
+  "panel": {
+    "title": "联盟",
+    "subtitle": "我的联盟管理",
+    "tabs": {
+      "referrals": "付费用户",
+      "invitation": "邀请记录",
+      "reward": "佣金记录",
+      "withdraw": "提现记录"
+    },
+    "referrals": {
+      "title": "付费用户订单",
+      "description": "通过您的邀请码注册并付费的用户订单",
+      "no_data": "暂无付费用户",
+      "commission": "佣金"
+    },
+    "invitation_table": {
+      "title": "邀请记录",
+      "description": "您邀请注册的用户列表",
+      "user": "邀请用户",
+      "code": "邀请码",
+      "time": "邀请时间",
+      "status": "付费状态",
+      "amount": "首次付费金额",
+      "no_data": "暂无邀请记录",
+      "waiting": "等待注册",
+      "registered": "已注册",
+      "pending": "待注册"
+    },
+    "reward_table": {
+      "title": "佣金记录",
+      "description": "您获得的佣金明细",
+      "id": "ID",
+      "amount": "金额",
+      "status": "状态",
+      "type": "类型",
+      "time": "时间",
+      "no_data": "暂无佣金记录",
+      "status_paid": "可提现",
+      "status_pending": "待确认"
+    },
+    "withdraw_table": {
+      "title": "提现记录",
+      "description": "您的提现申请记录",
+      "id": "ID",
+      "amount": "金额",
+      "status": "状态",
+      "method": "方式",
+      "time": "时间",
+      "no_data": "暂无提现记录",
+      "status_paid": "已打款",
+      "status_approved": "已批准",
+      "status_rejected": "已拒绝",
+      "status_pending": "待审核"
+    }
+  },
+  "messages": {
+    "withdraw_success": "提现申请已提交",
+    "withdraw_error": "提现失败",
+    "fill_complete": "请填写完整信息",
+    "invalid_amount": "请输入有效金额",
+    "exceed_balance": "提现金额超过可用余额"
+  }
+}

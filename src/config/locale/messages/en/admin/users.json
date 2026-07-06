@@ -8,7 +8,8 @@
     "remaining_credits": "Remaining Credits",
     "created_at": "Created At",
     "actions": "Actions",
-    "roles": "Roles"
+    "roles": "Roles",
+    "delete": "Delete"
   },
   "list": {
     "title": "Users",
@@ -21,7 +22,8 @@
       "edit": "Edit User",
       "view": "View User",
       "delete": "Delete User",
-      "edit_roles": "Edit Roles"
+      "edit_roles": "Edit Roles",
+      "credit_details": "Credit Details"
     },
     "search": {
       "email": {
@@ -29,6 +31,20 @@
         "placeholder": "Email"
       }
     }
+  },
+  "credit_details": {
+    "title": "Credit Details",
+    "description": "View credit changes for {userName} ({email}). Current balance: {credits}",
+    "crumbs": {
+      "admin": "Admin",
+      "users": "Users",
+      "credit_details": "Credit Details"
+    },
+    "empty": "User not found",
+    "expired_summary_title": "Expired Credits Summary",
+    "expired_summary_total": "Expired and unused credits: {credits}",
+    "expired_summary_empty": "No expired unused credits found.",
+    "expired_summary_item": "{credits} credits expired on {date}. Source: {description}"
   },
   "edit": {
     "title": "Edit User",

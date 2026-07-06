@@ -1,0 +1,21 @@
+{
+  "title": "AI 笔记库",
+  "subtitle": "随时回到这里继续编辑你的 AI 笔记，或将它们应用到其他学习工具。",
+  "buttons": {
+    "new": "新建笔记",
+    "empty": "生成新笔记"
+  },
+  "empty": {
+    "title": "Notes Library",
+    "description": "你生成的笔记会显示在这里，点击下方按钮开始创建第一篇 AI 笔记。",
+    "button": "生成笔记"
+  },
+  "list": {
+    "previewEmpty": "暂无预览内容",
+    "wordCount": "{count} 字"
+  },
+  "errors": {
+    "fetchFailed": "加载笔记失败"
+  }
+}
+

@@ -41,6 +41,8 @@ export interface PricingItem {
   product_name?: string;
   plan_name?: string;
 
+  cn_amount?: number;
+
   credits?: number;
   valid_days?: number;
   group?: string;

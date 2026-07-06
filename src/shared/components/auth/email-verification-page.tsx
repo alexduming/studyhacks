@@ -104,7 +104,7 @@ export function EmailVerificationPage({
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
@@ -132,7 +132,7 @@ export function EmailVerificationPage({
 
           {showResendButton && (
             <div className="space-y-4 pt-4 border-t">
-              <div className="text-center text-sm text-gray-600">
+              <div className="text-center text-sm text-gray-600 dark:text-gray-400">
                 {t('email_verification.resend_title')}
               </div>
 
@@ -179,7 +179,7 @@ export function EmailVerificationPage({
             <Button
               variant="ghost"
               onClick={() => router.push('/sign-up')}
-              className="text-sm text-gray-600 hover:text-gray-900"
+              className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
             >
               {t('email_verification.back_to_register')}
             </Button>

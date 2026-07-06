@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Mail, ArrowRight } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
@@ -36,6 +36,19 @@ export function EmailVerificationSignUp({ configs, callbackUrl = '/' }: Props) {
   const [loading, setLoading] = useState(false);
   const [sentEmail, setSentEmail] = useState('');
 
+  // 检查并保存邀请码
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const invite = params.get('invite');
+      if (invite) {
+        // 保存邀请码到 sessionStorage，以便在后续步骤中使用
+        sessionStorage.setItem('invite_code', invite.toUpperCase());
+        console.log('✅ 保存邀请码到 sessionStorage:', invite);
+      }
+    }
+  }, []);
+
   const isGoogleAuthEnabled = configs.google_auth_enabled === 'true';
   const isGithubAuthEnabled = configs.github_auth_enabled === 'true';
   const isEmailAuthEnabled =
@@ -60,6 +73,13 @@ export function EmailVerificationSignUp({ configs, callbackUrl = '/' }: Props) {
     setLoading(true);
 
     try {
+      // 获取保存的邀请码
+      const inviteCode = typeof window !== 'undefined' 
+        ? sessionStorage.getItem('invite_code') 
+        : null;
+
+      console.log('📧 发送验证邮件:', { email: email.trim(), inviteCode: inviteCode || '无' });
+
       const response = await fetch('/api/auth/send-verification', {
         method: 'POST',
         headers: {
@@ -68,6 +88,7 @@ export function EmailVerificationSignUp({ configs, callbackUrl = '/' }: Props) {
         body: JSON.stringify({
           email: email.trim(),
           type: 'registration',
+          inviteCode: inviteCode || undefined, // 传递邀请码给后端
         }),
       });
 
@@ -127,25 +148,25 @@ export function EmailVerificationSignUp({ configs, callbackUrl = '/' }: Props) {
 
         <CardContent className="space-y-4">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h4 className="font-medium text-blue-900 mb-2">{t('email_register.features_title')}:</h4>
+            <h4 className="font-medium text-blue-900 mb-2">{t('email_register.next_steps_title')}:</h4>
             <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
-              <li>{t('email_register.quality_courses')}</li>
-              <li>{t('email_register.personalized_learning')}</li>
-              <li>{t('email_register.community')}</li>
+              <li>{t('email_register.step_check_email')}</li>
+              <li>{t('email_register.step_click_link')}</li>
+              <li>{t('email_register.step_complete_setup')}</li>
             </ol>
+            <p className="mt-3 text-xs text-blue-700">
+              {t('email_register.spam_folder_note')}
+            </p>
           </div>
 
           <div className="text-center space-y-2">
-            <p className="text-sm text-gray-600">
-              {t('email_register.achievement_description')}
-            </p>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setSentEmail('')}
               disabled={loading}
             >
-              {t('payment.cancel_title')}
+              {t('email_verification.resend_button')}
             </Button>
           </div>
         </CardContent>
@@ -204,7 +225,7 @@ export function EmailVerificationSignUp({ configs, callbackUrl = '/' }: Props) {
                   <Loader2 size={16} className="animate-spin" />
                 ) : (
                   <>
-                    {t('email_verification.resend_button')}
+                    {t('email_verification.send_verification')}
                     <ArrowRight size={16} className="ml-2" />
                   </>
                 )}

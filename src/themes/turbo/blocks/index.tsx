@@ -3,6 +3,7 @@ export * from './header';
 export * from './footer';
 
 export * from './hero';
+export * from './tools-index';
 
 export * from './features';
 export * from './features-list';

@@ -62,7 +62,7 @@ export default async function RetrieveBillingPage({
 
     billingUrl = billing.billingUrl;
 
-    await updateSubscriptionBySubscriptionNo(subscription.subscriptionNo, {
+    await updateSubscriptionBySubscriptionNo(subscription.subscriptionNo || '', {
       billingUrl: billing.billingUrl,
     });
   } catch (error: any) {

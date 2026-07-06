@@ -9,10 +9,16 @@
     }
   },
   "functions": {
+    "src/app/api/cron/subscription-credits/route.ts": {
+      "maxDuration": 300
+    },
     "src/app/api/**/*.ts": {
       "maxDuration": 30
     },
     "src/app/api/ai/**/*.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/infographic/**/*.ts": {
       "maxDuration": 60
     },
     "src/app/api/payment/**/*.ts": {
@@ -22,5 +28,14 @@
       "maxDuration": 30
     }
   },
-  "crons": []
+  "crons": [
+    {
+      "path": "/api/cron/subscription-credits",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/warmup",
+      "schedule": "*/5 * * * *"
+    }
+  ]
 }

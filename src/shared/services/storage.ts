@@ -45,6 +45,16 @@ export function getStorageServiceWithConfigs(configs: Configs) {
     );
   }
 
+  // Check if any provider was added
+  if (storageManager.getProviderNames().length === 0) {
+    console.error('[Storage] No storage provider configured! Please check your configuration.');
+    console.error('[Storage] R2 Configs present:', {
+      hasAccessKey: !!configs.r2_access_key,
+      hasSecretKey: !!configs.r2_secret_key,
+      hasBucket: !!configs.r2_bucket_name,
+    });
+  }
+
   return storageManager;
 }
 
