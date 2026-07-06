@@ -31,6 +31,7 @@ import { Button } from '@/shared/components/ui/button';
 import { Dialog, DialogContent } from '@/shared/components/ui/dialog';
 import { Progress } from '@/shared/components/ui/progress';
 import { ScrollAnimation } from '@/shared/components/ui/scroll-animation';
+import { convertPdfToImages } from '@/shared/lib/pdf-to-image';
 
 import { InfographicEditDialog } from './infographic-edit-dialog';
 
@@ -83,6 +84,27 @@ const ADAPTIVE_STYLE_INTENSITY_OPTIONS: AdaptiveStyleIntensity[] = [
   'artistic',
   'signature',
 ];
+
+const PDF_OCR_MAX_PAGES = 10;
+
+function isPdfFile(file: File): boolean {
+  return (
+    file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+  );
+}
+
+function dataUrlToFile(dataUrl: string, fileName: string): File {
+  const [metadata, base64Data] = dataUrl.split(',');
+  const mimeType = metadata.match(/data:(.*?);base64/)?.[1] || 'image/jpeg';
+  const binary = atob(base64Data || '');
+  const bytes = new Uint8Array(binary.length);
+
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+
+  return new File([bytes], fileName, { type: mimeType });
+}
 
 function normalizeStylePreset(value: unknown): StylePresetId {
   if (
@@ -171,7 +193,10 @@ interface InfographicClientProps {
   editTaskData: InfographicTaskData | null;
 }
 
-const InfographicClient = ({ editTaskId, editTaskData }: InfographicClientProps) => {
+const InfographicClient = ({
+  editTaskId,
+  editTaskData,
+}: InfographicClientProps) => {
   const t = useTranslations('infographic');
   const router = useRouter();
 
@@ -184,6 +209,57 @@ const InfographicClient = ({ editTaskId, editTaskData }: InfographicClientProps)
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState('');
   const [taskId, setTaskId] = useState<string | null>(null);
+
+  const parsePdfWithOcrFallback = async (
+    file: File,
+    parseTextLayer: () => Promise<string>
+  ): Promise<string> => {
+    try {
+      const text = await parseTextLayer();
+      if (text.trim()) {
+        return text;
+      }
+
+      console.warn(
+        '[Infographic] PDF text layer is empty, falling back to OCR'
+      );
+    } catch (error) {
+      console.warn(
+        '[Infographic] PDF text parsing failed, falling back to OCR:',
+        error
+      );
+    }
+
+    setParsingProgress(
+      t('upload.processing_single_file', { fileName: file.name })
+    );
+
+    const pageImages = await convertPdfToImages(file, PDF_OCR_MAX_PAGES);
+    if (pageImages.length === 0) {
+      throw new Error('PDF OCR failed: no pages could be rendered');
+    }
+
+    const ocrFormData = new FormData();
+    const baseName = file.name.replace(/\.pdf$/i, '') || 'pdf';
+
+    pageImages.forEach((dataUrl, index) => {
+      ocrFormData.append(
+        'files',
+        dataUrlToFile(dataUrl, `${baseName}-page-${index + 1}.jpg`)
+      );
+    });
+
+    setParsingProgress(
+      t('upload.recognizing_images', { count: pageImages.length })
+    );
+
+    const ocrText = await parseMultipleImagesAction(ocrFormData);
+    if (!ocrText.trim()) {
+      throw new Error('PDF OCR failed: no text was recognized');
+    }
+
+    return `[Scanned PDF OCR: ${file.name}, pages ${pageImages.length}/${PDF_OCR_MAX_PAGES}]\n${ocrText}`;
+  };
 
   /**
    * 智能文件解析：自动判断文件大小并选择最优策略
@@ -219,16 +295,25 @@ const InfographicClient = ({ editTaskId, editTaskData }: InfographicClientProps)
       console.log(`[Parse] File uploaded to R2:`, fileUrl);
 
       // 从 URL 解析
-      return await parseFileAction({
-        fileUrl,
-        fileName: file.name,
-        fileType: file.type,
-      });
+      const parseTextLayer = () =>
+        parseFileAction({
+          fileUrl,
+          fileName: file.name,
+          fileType: file.type,
+        });
+
+      return isPdfFile(file)
+        ? await parsePdfWithOcrFallback(file, parseTextLayer)
+        : await parseTextLayer();
     } else {
       // 小文件直接解析
       const formData = new FormData();
       formData.append('file', file);
-      return await parseFileAction(formData);
+      const parseTextLayer = () => parseFileAction(formData);
+
+      return isPdfFile(file)
+        ? await parsePdfWithOcrFallback(file, parseTextLayer)
+        : await parseTextLayer();
     }
   };
   const [imageUrls, setImageUrls] = useState<string[]>([]);
@@ -293,7 +378,9 @@ const InfographicClient = ({ editTaskId, editTaskData }: InfographicClientProps)
     }
   }, [editTaskId, editTaskData]);
 
-  const loadEditTaskFromServerData = (task: NonNullable<typeof editTaskData>) => {
+  const loadEditTaskFromServerData = (
+    task: NonNullable<typeof editTaskData>
+  ) => {
     setIsLoadingTask(true);
     setError('');
 
@@ -982,7 +1069,7 @@ const InfographicClient = ({ editTaskId, editTaskData }: InfographicClientProps)
               transition={{ duration: 0.8 }}
             >
               {/* 标题渐变：白色 → primary，而不是白色 → 蓝色 */}
-              <h1 className="via-primary/80 to-primary/60 mb-6 bg-gradient-to-r from-white bg-clip-text text-transparent text-4xl font-bold md:text-5xl">
+              <h1 className="via-primary/80 to-primary/60 mb-6 bg-gradient-to-r from-white bg-clip-text text-4xl font-bold text-transparent md:text-5xl">
                 {isEditMode
                   ? t('edit.title', { defaultMessage: 'Edit Infographic' })
                   : t('title', { defaultMessage: 'AI 学习信息图生成器' })}
