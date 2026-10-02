@@ -6,6 +6,10 @@ import { PaymentType } from '@/extensions/payment';
 
 import { CreditStatus, CreditTransactionType, NewCredit } from './credit';
 import {
+  insertPaymentCommission,
+  lockPaymentOrder,
+} from './payment-transaction';
+import {
   NewSubscription,
   SubscriptionStatus,
   UpdateSubscription,
@@ -177,6 +181,7 @@ export async function updateOrderInTransaction({
   newCredit,
   expireActiveSubscriptionsForUserId,
   expireSubscriptionsAt,
+  commissionType = 'one_time',
 }: {
   orderNo: string;
   updateOrder: UpdateOrder;
@@ -184,18 +189,23 @@ export async function updateOrderInTransaction({
   newCredit?: NewCredit;
   expireActiveSubscriptionsForUserId?: string;
   expireSubscriptionsAt?: Date;
+  commissionType?: 'one_time' | 'recurring';
 }) {
   if (!orderNo || !updateOrder) {
     throw new Error('orderNo and updateOrder are required');
   }
 
-  // only update order, no need transaction
-  if (!newSubscription && !newCredit && !expireActiveSubscriptionsForUserId) {
-    return updateOrderByOrderNo(orderNo, updateOrder);
-  }
-
   // need transaction
   const result = await db().transaction(async (tx) => {
+    const currentOrder = await lockPaymentOrder(tx, orderNo);
+    if (currentOrder.status === OrderStatus.PAID) {
+      return {
+        order: currentOrder,
+        subscription: null,
+        credit: null,
+        duplicate: true,
+      };
+    }
     let result: any = {
       order: null,
       subscription: null,
@@ -322,6 +332,10 @@ export async function updateOrderInTransaction({
       .returning();
 
     result.order = orderResult;
+
+    if (updateOrder.status === OrderStatus.PAID) {
+      await insertPaymentCommission(tx, currentOrder, commissionType);
+    }
 
     return result;
   });
