@@ -81,11 +81,26 @@ export class R2Provider implements StorageProvider {
       const response = await client.fetch(request);
 
       if (!response.ok) {
+        let errorDetails = response.statusText;
+        try {
+          const text = await response.text();
+          if (text) errorDetails += ` - ${text}`;
+        } catch (e) {
+          // ignore error reading body
+        }
+        
+        console.error(`[R2] Upload failed: ${response.status} ${errorDetails}`);
         return {
           success: false,
-          error: `Upload failed: ${response.statusText}`,
+          error: `Upload failed: ${response.status} ${errorDetails}`,
           provider: this.name,
         };
+      }
+
+      if (!this.configs.publicDomain) {
+        console.warn(
+          '⚠️ [R2] Warning: publicDomain (R2_DOMAIN) is not configured. The returned URL will be a private endpoint and may not be accessible publicly.'
+        );
       }
 
       const publicUrl = this.configs.publicDomain
@@ -114,11 +129,22 @@ export class R2Provider implements StorageProvider {
     options: StorageDownloadUploadOptions
   ): Promise<StorageUploadResult> {
     try {
-      const response = await fetch(options.url);
+      console.log(`[R2] Downloading from: ${options.url}`);
+      
+      const response = await fetch(options.url, {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+      });
+
       if (!response.ok) {
+        console.error(
+          `[R2] Download failed: ${response.status} ${response.statusText}`
+        );
         return {
           success: false,
-          error: `HTTP error! status: ${response.status}`,
+          error: `HTTP error! status: ${response.status} ${response.statusText}`,
           provider: this.name,
         };
       }

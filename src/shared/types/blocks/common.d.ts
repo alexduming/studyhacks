@@ -66,6 +66,7 @@ export interface Search {
   title?: string;
   placeholder?: string;
   value?: string;
+  withButton?: boolean;
 }
 
 // button props for button component

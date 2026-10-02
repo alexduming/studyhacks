@@ -104,6 +104,7 @@ export interface Testimonials extends Section {
 export interface Landing {
   header?: Header;
   hero?: Hero;
+  tool_index?: Section;
   logos?: Logos;
   introduce?: Features;
   benefits?: Features;

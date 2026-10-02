@@ -1,0 +1,66 @@
+{
+  "page_title": "风格库管理",
+  "add_new_style": "添加新风格",
+  "edit_style": "编辑风格",
+  "add_style_dialog_title": "添加新风格到库",
+  "dialog_description": "通过 AI 分析图片并自动生成提示词与视觉规范",
+  "refs_count": "REFS",
+  "step_1": {
+    "upload_title": "上传参考图片",
+    "upload_placeholder": "点击上传或 Ctrl+V 粘贴",
+    "analyze_button": "分析风格",
+    "analyzing": "分析中...",
+    "uploaded_count": "已上传 {count} 张图片"
+  },
+  "step_2": {
+    "prompt_label": "提示词",
+    "prompt_placeholder": "AI 生成的提示词...",
+    "visual_spec_label": "视觉规范"
+  },
+  "step_3": {
+    "preview_theme_label": "预览主题",
+    "preview_theme_placeholder": "例如：Studyhacks产品介绍",
+    "suggested_themes": "建议主题：",
+    "theme_hint": "这将作为生成预览图的主题内容，参考图仅作为视觉风格参考",
+    "generate_title": "生成预览图",
+    "generate_description": "使用 KIE 引擎生成「{theme}」封面，验证风格还原度",
+    "generate_button": "生成预览图",
+    "generating": "生成中...",
+    "regenerate": "重新生成",
+    "continue": "满意，继续"
+  },
+  "step_4": {
+    "style_id_label": "风格 ID",
+    "style_id_placeholder": "如：minimal_blue",
+    "style_title_label": "风格标题",
+    "style_title_placeholder": "如：科技简约",
+    "tagline_label": "副标题 / 描述",
+    "tagline_placeholder": "一句话概括核心特征",
+    "ready_title": "准备就绪",
+    "ready_description": "点击下方按钮保存到风格库，配置将立即生效",
+    "save_button": "添加到风格库",
+    "saving": "保存中..."
+  },
+  "actions": {
+    "cancel": "取消",
+    "previous": "上一步",
+    "next_preview": "下一步：生成预览"
+  },
+  "messages": {
+    "upload_success": "图片上传成功",
+    "upload_failed": "上传失败",
+    "upload_error": "上传过程中出错",
+    "analysis_complete": "风格分析完成",
+    "analysis_failed": "分析失败",
+    "preview_generating": "正在生成预览图，请稍候...",
+    "preview_complete": "预览图已生成",
+    "preview_failed": "生成预览图失败",
+    "style_saved": "风格已添加到风格库",
+    "save_failed": "保存失败",
+    "delete_confirm": "确定要删除这个风格吗？此操作不可撤销且会修改配置文件。",
+    "delete_success": "风格已删除",
+    "delete_failed": "删除失败",
+    "fill_required": "请填写完整信息，并确保已生成预览图",
+    "upload_required": "请先上传参考图"
+  }
+}

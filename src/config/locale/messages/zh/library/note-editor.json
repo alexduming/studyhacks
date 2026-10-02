@@ -1,0 +1,44 @@
+{
+  "header": {
+    "title": "编辑笔记",
+    "wordCount": "{count} 字"
+  },
+  "status": {
+    "saved": "已保存 {time}",
+    "unsaved": "尚未保存"
+  },
+  "buttons": {
+    "previewTooltip": "全屏预览与导出",
+    "preview": "预览",
+    "saving": "保存中...",
+    "save": "保存更改",
+    "export": "保存为图片"
+  },
+  "placeholders": {
+    "title": "无标题笔记"
+  },
+  "toolbar": {
+    "paragraph": "正文",
+    "heading1": "H1",
+    "heading2": "H2",
+    "heading3": "H3",
+    "bold": "加粗",
+    "italic": "斜体",
+    "underline": "下划线",
+    "blockquote": "引用块",
+    "color": "文字颜色"
+  },
+  "labels": {
+    "editorLoading": "编辑器加载中...",
+    "previewDialog": "预览模式"
+  },
+  "toast": {
+    "saveSuccess": "保存成功，预览已更新",
+    "saveFail": "保存失败，请稍后重试",
+    "previewMissing": "预览区域未找到",
+    "generating": "正在生成图片，请稍候...",
+    "exportSuccess": "图片已保存到本地",
+    "exportFail": "导出图片失败：{message}"
+  }
+}
+

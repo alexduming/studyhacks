@@ -1,0 +1,22 @@
+{
+  "title": "测验库",
+  "subtitle": "回顾所有 AI 生成的测验题，随时复制或导出到题库工具。",
+  "buttons": {
+    "new": "继续生成测验",
+    "empty": "生成测验"
+  },
+  "empty": {
+    "title": "Quizzes Library",
+    "description": "目前还没有测验题记录，上传资料即可生成首套自测试题。",
+    "button": "生成新测验"
+  },
+  "cards": {
+    "groupTitle": "测验组 · {count} 题",
+    "questionLabel": "第{index}题",
+    "answerLabel": "正确答案：",
+    "explanationLabel": "解析：",
+    "empty": "解析记录为空，可以回到测验页重新生成。",
+    "remaining": "... 还有 {count} 道题，稍后支持导出为 CSV/QTI。"
+  }
+}
+

@@ -12,10 +12,12 @@
     "result": "Result",
     "created_at": "Created At",
     "action": "Action",
-    "scene": "Scene"
+    "scene": "Scene",
+    "transaction_no": "Transaction No"
   },
   "list": {
     "title": "AI Tasks",
+    "search_placeholder": "Search Task ID or Transaction No",
     "crumbs": {
       "admin": "Admin",
       "ai-tasks": "AI Tasks"

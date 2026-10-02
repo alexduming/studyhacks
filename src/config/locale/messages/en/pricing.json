@@ -70,15 +70,15 @@
           "Priority email support"
         ],
         "interval": "month",
-        "amount": 999,
+        "amount": 1499,
         "currency": "USD",
-        "price": "$9.99",
-        "original_price": "",
+        "price": "$14.99",
+        "original_price": "$24.99",
         "unit": "/ month",
         "is_featured": true,
         "tip": "Unlimited AI tools, study smarter",
         "button": {
-          "title": "Start Free Trial",
+          "title": "Upgrade to Plus",
           "url": "/#pricing",
           "icon": "RiFlashlightFill"
         },
@@ -87,7 +87,16 @@
         "credits": 600,
         "valid_days": 30,
         "group": "monthly",
-        "plan_name": "Plus"
+        "plan_name": "Plus",
+        "cn_amount": 9900,
+        "currencies": [
+          {
+            "currency": "CNY",
+            "amount": 9900,
+            "price": "¥99.00",
+            "original_price": "¥169.00"
+          }
+        ]
       },
       {
         "title": "Pro",
@@ -103,10 +112,10 @@
           "Offline learning mode"
         ],
         "interval": "month",
-        "amount": 1999,
+        "amount": 2999,
         "currency": "USD",
-        "price": "$19.99",
-        "original_price": "",
+        "price": "$29.99",
+        "original_price": "$39.99",
         "unit": "/ month",
         "is_featured": false,
         "tip": "Ultimate learning experience, unlimited usage",
@@ -120,7 +129,16 @@
         "credits": 2000,
         "valid_days": 30,
         "group": "monthly",
-        "plan_name": "Pro"
+        "plan_name": "Pro",
+        "cn_amount": 19900,
+        "currencies": [
+          {
+            "currency": "CNY",
+            "amount": 19900,
+            "price": "¥199.00",
+            "original_price": "¥279.00"
+          }
+        ]
       },
       {
         "title": "Free",
@@ -149,8 +167,8 @@
         },
         "product_id": "free-yearly",
         "product_name": "StudyHacks Free Plan Yearly",
-        "credits": 120,
-        "valid_days": 365,
+        "credits": 10,
+        "valid_days": 30,
         "group": "yearly",
         "plan_name": "Free"
       },
@@ -170,24 +188,33 @@
           "Priority email support"
         ],
         "interval": "year",
-        "amount": 699,
+        "amount": 12588,
         "currency": "USD",
-        "price": "$6.99",
-        "original_price": "$9.99",
+        "price": "$10.49",
+        "original_price": "$14.99",
         "unit": "/ month",
         "is_featured": true,
         "tip": "Annual subscription, study smarter and save money",
         "button": {
-          "title": "Start Free Trial",
+          "title": "Upgrade to Plus",
           "url": "/#pricing",
           "icon": "RiFlashlightFill"
         },
         "product_id": "plus-yearly",
         "product_name": "StudyHacks Plus Yearly",
-        "credits": 7200,
-        "valid_days": 365,
+        "credits": 600,
+        "valid_days": 30,
         "group": "yearly",
-        "plan_name": "Plus"
+        "plan_name": "Plus",
+        "cn_amount": 82800,
+        "currencies": [
+          {
+            "currency": "CNY",
+            "amount": 82800,
+            "price": "¥69.00",
+            "original_price": "¥99.00"
+          }
+        ]
       },
       {
         "title": "Pro",
@@ -204,10 +231,10 @@
           "24/7 priority support"
         ],
         "interval": "year",
-        "amount": 1399,
+        "amount": 25188,
         "currency": "USD",
-        "price": "$13.99",
-        "original_price": "$19.99",
+        "price": "$20.99",
+        "original_price": "$29.99",
         "unit": "/ month",
         "is_featured": false,
         "tip": "Ultimate learning experience, unlimited usage",
@@ -218,15 +245,31 @@
         },
         "product_id": "pro-yearly",
         "product_name": "StudyHacks Pro Yearly",
-        "credits": 24000,
-        "valid_days": 365,
+        "credits": 2000,
+        "valid_days": 30,
         "group": "yearly",
-        "plan_name": "Pro"
+        "plan_name": "Pro",
+        "cn_amount": 166800,
+        "currencies": [
+          {
+            "currency": "CNY",
+            "amount": 166800,
+            "price": "¥139.00",
+            "original_price": "¥199.00"
+          }
+        ]
       }
     ]
   },
   "page": {
     "current_plan": "Current Plan",
-    "processing": "Processing"
+    "processing": "Processing",
+    "or_pay_with": "WeChat Pay 👉",
+    "wechat_alipay": "WeChat Pay",
+    "pay_monthly": "Pay monthly",
+    "pay_yearly": "Pay yearly",
+    "save_more_with_annual_billing": "Save more with annual billing",
+    "pay_annually": "Pay annually",
+    "save_30_percent": "Save 30%"
   }
 }

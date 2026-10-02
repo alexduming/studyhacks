@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -53,6 +53,8 @@ export function RegisterCompletePage({ email, token }: Props) {
     setLoading(true);
 
     try {
+      console.log('🚀 [Frontend] 开始调用注册 API', { email, name: name.trim() });
+      
       const response = await fetch('/api/auth/register-with-email', {
         method: 'POST',
         headers: {
@@ -63,20 +65,35 @@ export function RegisterCompletePage({ email, token }: Props) {
           password,
           name: name.trim(),
           token,
+          // 邀请码处理逻辑：
+          // 前端不需要再传递 inviteCode，后端会自动从 email_verification 记录中查找
+          // 这样即使在跳转过程中丢失参数，只要初始步骤（发送验证邮件）时有邀请码，就能正确关联
         }),
       });
 
+      console.log('📡 [Frontend] API 响应状态:', response.status, response.statusText);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ [Frontend] API 返回错误:', errorText);
+        throw new Error(`API 返回错误: ${response.status}`);
+      }
+
       const data = await response.json();
+      console.log('📦 [Frontend] API 返回数据:', data);
 
       if (data.success) {
+        console.log('✅ [Frontend] 注册成功，准备跳转');
+        
         toast.success(t('email_register.welcome_title'));
         // 跳转到登录页面或用户仪表板
         router.push('/sign-in');
       } else {
+        console.error('❌ [Frontend] 注册失败:', data.error);
         toast.error(data.error || t('email_register.registering'));
       }
     } catch (error) {
-      console.error('Registration error:', error);
+      console.error('❌ [Frontend] 注册异常:', error);
       toast.error(t('email_register.registering'));
     } finally {
       setLoading(false);
@@ -84,7 +101,7 @@ export function RegisterCompletePage({ email, token }: Props) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
@@ -94,7 +111,7 @@ export function RegisterCompletePage({ email, token }: Props) {
             {t('email_register.page_title')}
           </CardTitle>
           <CardDescription>
-            您的邮箱 <span className="font-medium text-blue-600">{email}</span> 已验证成功
+            {t('email_register.subtitle', { email })}
             <br />
             {t('email_register.instruction')}
           </CardDescription>
@@ -174,7 +191,7 @@ export function RegisterCompletePage({ email, token }: Props) {
             <Button
               variant="ghost"
               onClick={() => router.push('/sign-in')}
-              className="text-sm text-gray-600 hover:text-gray-900"
+              className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
             >
               {t('email_register.back_to_login')}
             </Button>

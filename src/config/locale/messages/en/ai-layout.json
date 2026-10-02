@@ -1,0 +1,117 @@
+{
+  "badge": "AI Layout Studio",
+  "title": "Turn raw content into designed layouts",
+  "subtitle": "Upload a document, paste text, or fetch a link. AI restructures the content, then our code renders it with switchable layout templates.",
+  "tabs": {
+    "input": "Input",
+    "preview": "Preview"
+  },
+  "templates": {
+    "selected": "Selected",
+    "editorial": {
+      "title": "Editorial",
+      "description": "Monocle-inspired magazine style with warm paper tones, serif titles, and sophisticated editorial pacing."
+    },
+    "bento": {
+      "title": "Bento",
+      "description": "Apple Keynote-style dark modular cards with orange accents, scannable blocks, and a product-focused visual system."
+    },
+    "spotlight": {
+      "title": "Spotlight",
+      "description": "Stripe/Linear-inspired clean timeline with blue-purple gradients, bold emphasis, and glassmorphism cards."
+    },
+    "mono": {
+      "title": "Mono",
+      "description": "Swiss International Style with Helvetica aesthetics, zero-radius borders, strict black-and-white grid discipline."
+    },
+    "newspaper": {
+      "title": "Newspaper",
+      "description": "New York Times-style front page with serif typography, dual-column layout, and classic editorial authority."
+    },
+    "gallery": {
+      "title": "Gallery",
+      "description": "Behance-inspired exhibition panels with purple-pink gradients, glass cards, and curated showcase flow."
+    },
+    "blueprint": {
+      "title": "Blueprint",
+      "description": "Dark engineering-diagram aesthetic with cyan accents, monospace headers, and structured specification blocks."
+    },
+    "aurora": {
+      "title": "Aurora",
+      "description": "Nordic-inspired multi-color gradients with green-indigo glass surfaces and an atmospheric reading experience."
+    },
+    "dossier": {
+      "title": "Dossier",
+      "description": "McKinsey-style executive briefing with key-findings panels, data-forward hierarchy, and corporate precision."
+    },
+    "pulse": {
+      "title": "Pulse",
+      "description": "Cyberpunk neon energy with rose-orange gradients on dark canvas, glowing cards, and high-impact rhythm."
+    }
+  },
+  "upload": {
+    "text_tab": "Paste Text",
+    "upload_tab": "Upload File",
+    "link_tab": "Fetch Link",
+    "text_placeholder": "Paste notes, transcripts, articles, reports, or any long-form content here...",
+    "link_placeholder": "https://example.com/article",
+    "generate_from_text": "Generate Layout from Text",
+    "generate_from_link": "Generate Layout from Link",
+    "upload_button": "Choose File",
+    "upload_hint": "Supports PDF, DOCX, XLSX, TXT, MD",
+    "file_selected": "Selected:",
+    "link_hint": "Enter a public URL. We'll extract the readable content first, then design the layout.",
+    "text_empty": "Please paste some text first",
+    "link_empty": "Please enter a link first",
+    "processing": "Designing layout...",
+    "output_language": "Output Language",
+    "accent_color": "Accent Color",
+    "pdf_docs": "Docs & Sheets",
+    "pdf_desc": "Reports, decks, whitepapers, spreadsheets, and reading materials",
+    "text_docs": "Text & Markdown",
+    "text_formats": "TXT, MD, pasted text"
+  },
+  "preview": {
+    "title": "Your designed layout",
+    "subtitle": "Switch templates instantly without regenerating the content.",
+    "modes": {
+      "desktop": "Desktop Mode",
+      "mobile": "Mobile Mode"
+    },
+    "mode_hint_desktop": "Desktop mode keeps a wider canvas for landscape-friendly previews and exports.",
+    "mode_hint_mobile": "Mobile mode renders a narrow long-image version that is readable on phones without zooming.",
+    "copy": "Copy Markdown",
+    "download": "Download Image",
+    "empty": "No layout yet. Generate one from the input tab to preview it here.",
+    "toast_no_layout": "Generate a layout first before using preview actions.",
+    "copy_success": "Layout markdown copied.",
+    "copy_error": "Copy failed. Please try again.",
+    "download_success": "Image ready! Saving to your device...",
+    "download_error": "Failed to export image. Please try again.",
+    "generation_success": "Layout generated successfully!",
+    "ocr_processing": "Scanned PDF detected, performing OCR recognition...",
+    "ocr_complete": "OCR completed, generating layout...",
+    "ocr_failed": "OCR recognition failed"
+  },
+  "errors": {
+    "processing_failed": "File processing failed. Please try again.",
+    "generation_failed": "Layout generation failed. Please try again.",
+    "insufficient_credits": "Insufficient credits! Need {required} credits, but only {remaining} credits available.",
+    "insufficient_credits_short": "Insufficient credits. Please top up and try again.",
+    "ocr_conversion_failed": "PDF conversion to images failed.",
+    "ocr_no_text": "OCR failed to extract any text."
+  },
+  "languages": {
+    "auto": "Auto",
+    "zh": "Chinese",
+    "en": "English",
+    "es": "Español",
+    "fr": "Français",
+    "de": "Deutsch",
+    "ja": "日本語",
+    "ko": "한국어",
+    "pt": "Português",
+    "ru": "Русский",
+    "ar": "العربية"
+  }
+}

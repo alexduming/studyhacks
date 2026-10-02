@@ -195,6 +195,7 @@ export interface PaymentSession {
 }
 
 export enum PaymentEventType {
+  IGNORED = 'ignored', // authenticated event without an application handler
   CHECKOUT_SUCCESS = 'checkout.success', // checkout success
   PAYMENT_SUCCESS = 'payment.success', // payment success
   PAYMENT_FAILED = 'payment.failed', // payment failed

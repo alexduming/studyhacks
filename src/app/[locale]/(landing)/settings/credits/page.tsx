@@ -1,10 +1,8 @@
 import { getTranslations } from 'next-intl/server';
 
 import { Empty } from '@/shared/blocks/common';
-import { PanelCard } from '@/shared/blocks/panel';
 import { TableCard } from '@/shared/blocks/table';
 import {
-  Credit,
   CreditStatus,
   CreditTransactionType,
   getCredits,
@@ -14,6 +12,8 @@ import {
 import { getUserInfo } from '@/shared/models/user';
 import { Tab } from '@/shared/types/blocks/common';
 import { type Table } from '@/shared/types/blocks/table';
+
+import { RedeemCard } from './redeem-card';
 
 export default async function CreditsPage({
   searchParams,
@@ -30,6 +30,24 @@ export default async function CreditsPage({
   }
 
   const t = await getTranslations('settings.credits');
+  // Temporary translations for new features until added to locale files
+  const tRedeem = {
+    title: t('view.title'),
+    purchase: t('view.buttons.purchase'),
+    redeem: 'Redeem Credits',
+    redeem_title: 'Redeem Credits',
+    redeem_desc: 'Enter your redemption code below to claim your credits.',
+    redeem_membership: 'Redeem Membership',
+    redeem_membership_title: 'Redeem Membership',
+    redeem_membership_desc: 'Enter your membership redemption code to upgrade your plan.',
+    code_label: 'Redemption Code',
+    code_placeholder: 'XXXX-XXXX-XXXX-XXXX',
+    cancel: 'Cancel',
+    confirm: 'Confirm',
+    success: 'Credits redeemed successfully!',
+    success_membership: 'Membership redeemed successfully!',
+    error: 'Invalid or expired code.',
+  };
 
   const total = await getCreditsCount({
     transactionType: type as CreditTransactionType,
@@ -119,22 +137,7 @@ export default async function CreditsPage({
 
   return (
     <div className="space-y-8">
-      <PanelCard
-        title={t('view.title')}
-        buttons={[
-          {
-            title: t('view.buttons.purchase'),
-            url: '/pricing',
-            target: '_blank',
-            icon: 'Coins',
-          },
-        ]}
-        className="max-w-md"
-      >
-        <div className="text-primary text-3xl font-bold">
-          {remainingCredits}
-        </div>
-      </PanelCard>
+      <RedeemCard remainingCredits={remainingCredits} t={tRedeem} />
       <TableCard title={t('list.title')} tabs={tabs} table={table} />
     </div>
   );

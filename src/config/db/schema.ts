@@ -5,6 +5,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 
 export const user = pgTable(
@@ -35,21 +36,15 @@ export const session = pgTable(
     id: text('id').primaryKey(),
     expiresAt: timestamp('expires_at').notNull(),
     token: text('token').notNull().unique(),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at')
-      .$onUpdate(() => /* @__PURE__ */ new Date())
-      .notNull(),
+    createdAt: timestamp('created_at').notNull(),
+    updatedAt: timestamp('updated_at').notNull(),
     ipAddress: text('ip_address'),
     userAgent: text('user_agent'),
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
   },
-  (table) => [
-    // Composite: Query user sessions and filter by expiration
-    // Can also be used for: WHERE userId = ? (left-prefix)
-    index('idx_session_user_expires').on(table.userId, table.expiresAt),
-  ]
+  (table) => [index('idx_session_user_id').on(table.userId)]
 );
 
 export const account = pgTable(
@@ -71,15 +66,10 @@ export const account = pgTable(
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at')
       .$onUpdate(() => /* @__PURE__ */ new Date())
+      .defaultNow()
       .notNull(),
   },
-  (table) => [
-    // Query all linked accounts for a user
-    index('idx_account_user_id').on(table.userId),
-    // Composite: OAuth login (most critical)
-    // Can also be used for: WHERE providerId = ? (left-prefix)
-    index('idx_account_provider_account').on(table.providerId, table.accountId),
-  ]
+  (table) => [index('idx_account_user_id').on(table.userId)]
 );
 
 export const verification = pgTable(
@@ -89,16 +79,10 @@ export const verification = pgTable(
     identifier: text('identifier').notNull(),
     value: text('value').notNull(),
     expiresAt: timestamp('expires_at').notNull(),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at')
-      .defaultNow()
-      .$onUpdate(() => /* @__PURE__ */ new Date())
-      .notNull(),
+    createdAt: timestamp('created_at'),
+    updatedAt: timestamp('updated_at'),
   },
-  (table) => [
-    // Find verification code by identifier (e.g., find code by email)
-    index('idx_verification_identifier').on(table.identifier),
-  ]
+  (table) => [index('idx_verification_identifier').on(table.identifier)]
 );
 
 export const emailVerification = pgTable(
@@ -106,60 +90,157 @@ export const emailVerification = pgTable(
   {
     id: text('id').primaryKey(),
     email: text('email').notNull(),
-    token: text('token').notNull().unique(),
-    type: text('type').notNull().default('registration'), // registration, password_reset
+    token: text('token').notNull(),
+    type: text('type').notNull(), // registration, password_reset
     attempts: integer('attempts').default(0).notNull(),
     isVerified: boolean('is_verified').default(false).notNull(),
+    verifiedAt: timestamp('verified_at'),
     expiresAt: timestamp('expires_at').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at')
-      .defaultNow()
-      .$onUpdate(() => /* @__PURE__ */ new Date())
-      .notNull(),
     lastSentAt: timestamp('last_sent_at'),
-    verifiedAt: timestamp('verified_at'),
+    inviteCode: text('invite_code'),
   },
   (table) => [
-    // Find verification by email
     index('idx_email_verification_email').on(table.email),
-    // Find verification by token
     index('idx_email_verification_token').on(table.token),
-    // Composite: Query unverified tokens by expiration
-    index('idx_email_verification_expires').on(table.expiresAt, table.isVerified),
   ]
 );
 
-export const config = pgTable('config', {
-  name: text('name').unique().notNull(),
-  value: text('value'),
-});
-
-export const taxonomy = pgTable(
-  'taxonomy',
+export const role = pgTable(
+  'role',
   {
     id: text('id').primaryKey(),
-    userId: text('user_id')
-      .notNull()
-      .references(() => user.id, { onDelete: 'cascade' }),
-    parentId: text('parent_id'),
-    slug: text('slug').unique().notNull(),
-    type: text('type').notNull(),
+    name: text('name').unique().notNull(),
     title: text('title').notNull(),
     description: text('description'),
-    image: text('image'),
-    icon: text('icon'),
     status: text('status').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at')
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
-    deletedAt: timestamp('deleted_at'),
-    sort: integer('sort').default(0).notNull(),
+    sort: integer('sort').notNull(),
+  },
+  (table) => [index('idx_role_name').on(table.name)]
+);
+
+export const permission = pgTable(
+  'permission',
+  {
+    id: text('id').primaryKey(),
+    code: text('code').unique().notNull(), // e.g., 'admin.users.read'
+    resource: text('resource').notNull(), // e.g., 'users', 'posts'
+    action: text('action').notNull(), // e.g., 'read', 'write', 'delete'
+    title: text('title').notNull(), // Display name, e.g., 'Read Users'
+    description: text('description'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [index('idx_permission_code').on(table.code)]
+);
+
+export const rolePermission = pgTable(
+  'role_permission',
+  {
+    roleId: text('role_id')
+      .notNull()
+      .references(() => role.id, { onDelete: 'cascade' }),
+    permissionId: text('permission_id')
+      .notNull()
+      .references(() => permission.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
   },
   (table) => [
-    // Composite: Query taxonomies by type and status
-    // Can also be used for: WHERE type = ? (left-prefix)
-    index('idx_taxonomy_type_status').on(table.type, table.status),
+    index('idx_role_permission_role').on(table.roleId),
+    uniqueIndex('idx_role_permission_unique').on(
+      table.roleId,
+      table.permissionId
+    ),
+  ]
+);
+
+export const userRole = pgTable(
+  'user_role',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    roleId: text('role_id')
+      .notNull()
+      .references(() => role.id, { onDelete: 'cascade' }),
+    expiresAt: timestamp('expires_at'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    index('idx_user_role_user').on(table.userId),
+    uniqueIndex('idx_user_role_unique').on(table.userId, table.roleId),
+  ]
+);
+
+export const credit = pgTable(
+  'credit',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    userEmail: text('user_email'),
+    orderNo: text('order_no'),
+    subscriptionNo: text('subscription_no'),
+    transactionNo: text('transaction_no').unique().notNull(),
+    transactionType: text('transaction_type').notNull(), // grant, consume
+    transactionScene: text('transaction_scene'), // payment, subscription, renewal, gift, award
+    credits: integer('credits').notNull(), // positive for grant, negative for consume
+    remainingCredits: integer('remaining_credits').default(0).notNull(), // for grant: remaining credits; for consume: 0
+    status: text('status').notNull(), // active, expired, deleted
+    description: text('description'),
+    metadata: text('metadata'),
+    consumedDetail: text('consumed_detail'), // for consume: detail of consumed credits (json)
+    expiresAt: timestamp('expires_at'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+    deletedAt: timestamp('deleted_at'),
+  },
+  (table) => [
+    index('idx_credit_user_created').on(table.userId, table.createdAt),
+    index('idx_credit_user_remaining_expires').on(
+      table.userId,
+      table.remainingCredits,
+      table.expiresAt
+    ),
+  ]
+);
+
+export const taxonomy = pgTable(
+  'taxonomy',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id'),
+    parentId: text('parent_id'),
+    slug: text('slug').unique().notNull(),
+    type: text('type').notNull(), // category, tag
+    title: text('title').notNull(),
+    description: text('description'),
+    image: text('image'),
+    icon: text('icon'),
+    status: text('status'),
+    sort: integer('sort'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+    deletedAt: timestamp('deleted_at'),
+  },
+  (table) => [
+    index('idx_taxonomy_type').on(table.type),
+    index('idx_taxonomy_slug').on(table.slug),
   ]
 );
 
@@ -209,58 +290,50 @@ export const order = pgTable(
     amount: integer('amount').notNull(), // checkout amount in cents
     currency: text('currency').notNull(), // checkout currency
     productId: text('product_id'),
+    productName: text('product_name'), // product name
+    planName: text('plan_name'), // Added
     paymentType: text('payment_type'), // one_time, subscription
     paymentInterval: text('payment_interval'), // day, week, month, year
     paymentProvider: text('payment_provider').notNull(),
+    paymentProductId: text('payment_product_id'), // Added
     paymentSessionId: text('payment_session_id'),
     checkoutInfo: text('checkout_info').notNull(), // checkout request info
+    checkoutUrl: text('checkout_url'), // checkout url
+    callbackUrl: text('callback_url'), // callback url, after handle callback
     checkoutResult: text('checkout_result'), // checkout result
     paymentResult: text('payment_result'), // payment result
+    transactionId: text('transaction_id'), // Added
+    subscriptionId: text('subscription_id'), // provider subscription id
+    subscriptionNo: text('subscription_no'), // Added
+    subscriptionResult: text('subscription_result'), // provider subscription result
     discountCode: text('discount_code'), // discount code
     discountAmount: integer('discount_amount'), // discount amount in cents
     discountCurrency: text('discount_currency'), // discount currency
     paymentEmail: text('payment_email'), // actual payment email
     paymentAmount: integer('payment_amount'), // actual payment amount
     paymentCurrency: text('payment_currency'), // actual payment currency
+    paymentUserName: text('payment_user_name'), // Added
+    paymentUserId: text('payment_user_id'), // Added
     paidAt: timestamp('paid_at'), // paid at
+    invoiceId: text('invoice_id'), // Added
+    invoiceUrl: text('invoice_url'), // Added
+    creditsAmount: integer('credits_amount'), // credits amount (granted)
+    creditsValidDays: integer('credits_valid_days'), // Added
+    description: text('description'), // order description
+    // 分销系统：记录推荐人ID，用于计算佣金
+    referrerId: text('referrer_id').references(() => user.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at')
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
     deletedAt: timestamp('deleted_at'),
-    description: text('description'), // order description
-    productName: text('product_name'), // product name
-    subscriptionId: text('subscription_id'), // provider subscription id
-    subscriptionResult: text('subscription_result'), // provider subscription result
-    checkoutUrl: text('checkout_url'), // checkout url
-    callbackUrl: text('callback_url'), // callback url, after handle callback
-    creditsAmount: integer('credits_amount'), // credits amount
-    creditsValidDays: integer('credits_valid_days'), // credits validity days
-    planName: text('plan_name'), // subscription plan name
-    paymentProductId: text('payment_product_id'), // payment product id
-    invoiceId: text('invoice_id'),
-    invoiceUrl: text('invoice_url'),
-    subscriptionNo: text('subscription_no'), // order subscription no
-    transactionId: text('transaction_id'), // payment transaction id
-    paymentUserName: text('payment_user_name'), // payment user name
-    paymentUserId: text('payment_user_id'), // payment user id
   },
   (table) => [
-    // Composite: Query user orders by status (most common)
-    // Can also be used for: WHERE userId = ? (left-prefix)
-    index('idx_order_user_status_payment_type').on(
-      table.userId,
-      table.status,
-      table.paymentType
-    ),
-    // Composite: Prevent duplicate payments
-    // Can also be used for: WHERE transactionId = ? (left-prefix)
-    index('idx_order_transaction_provider').on(
-      table.transactionId,
-      table.paymentProvider
-    ),
-    // Order orders by creation time for listing
+    index('idx_order_user').on(table.userId),
+    index('idx_order_status').on(table.status),
+    index('idx_order_no').on(table.orderNo),
     index('idx_order_created_at').on(table.createdAt),
+    index('idx_order_referrer').on(table.referrerId), // 分销系统：推荐人索引
   ]
 );
 
@@ -268,221 +341,133 @@ export const subscription = pgTable(
   'subscription',
   {
     id: text('id').primaryKey(),
-    subscriptionNo: text('subscription_no').unique().notNull(), // subscription no
+    subscriptionNo: text('subscription_no'),
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
-    userEmail: text('user_email'), // subscription user email
-    status: text('status').notNull(), // subscription status
-    paymentProvider: text('payment_provider').notNull(),
-    subscriptionId: text('subscription_id').notNull(), // provider subscription id
-    subscriptionResult: text('subscription_result'), // provider subscription result
-    productId: text('product_id'), // product id
-    description: text('description'), // subscription description
-    amount: integer('amount'), // subscription amount
-    currency: text('currency'), // subscription currency
-    interval: text('interval'), // subscription interval, day, week, month, year
-    intervalCount: integer('interval_count'), // subscription interval count
-    trialPeriodDays: integer('trial_period_days'), // subscription trial period days
-    currentPeriodStart: timestamp('current_period_start'), // subscription current period start
-    currentPeriodEnd: timestamp('current_period_end'), // subscription current period end
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at')
-      .$onUpdate(() => /* @__PURE__ */ new Date())
-      .notNull(),
-    deletedAt: timestamp('deleted_at'),
+    userEmail: text('user_email'),
+    orderId: text('order_id')
+      .notNull()
+      .references(() => order.id, { onDelete: 'cascade' }),
+    status: text('status').notNull(), // active, canceled, expired
+    planId: text('plan_id').notNull(),
     planName: text('plan_name'),
+    productId: text('product_id'),
+    productName: text('product_name'),
+    amount: integer('amount'),
+    currency: text('currency'),
+    interval: text('interval'),
+    intervalCount: integer('interval_count'),
+    paymentProvider: text('payment_provider'),
+    paymentProductId: text('payment_product_id'),
+    paymentUserId: text('payment_user_id'),
+    subscriptionId: text('subscription_id'), // provider subscription id
+    subscriptionResult: text('subscription_result'),
+    trialPeriodDays: integer('trial_period_days'),
     billingUrl: text('billing_url'),
-    productName: text('product_name'), // subscription product name
-    creditsAmount: integer('credits_amount'), // subscription credits amount
-    creditsValidDays: integer('credits_valid_days'), // subscription credits valid days
-    paymentProductId: text('payment_product_id'), // subscription payment product id
-    paymentUserId: text('payment_user_id'), // subscription payment user id
-    canceledAt: timestamp('canceled_at'), // subscription canceled apply at
-    canceledEndAt: timestamp('canceled_end_at'), // subscription canceled end at
-    canceledReason: text('canceled_reason'), // subscription canceled reason
-    canceledReasonType: text('canceled_reason_type'), // subscription canceled reason type
-  },
-  (table) => [
-    // Composite: Query user's subscriptions by status (most common)
-    // Can also be used for: WHERE userId = ? (left-prefix)
-    index('idx_subscription_user_status_interval').on(
-      table.userId,
-      table.status,
-      table.interval
-    ),
-    // Composite: Prevent duplicate subscriptions
-    // Can also be used for: WHERE paymentProvider = ? (left-prefix)
-    index('idx_subscription_provider_id').on(
-      table.subscriptionId,
-      table.paymentProvider
-    ),
-    // Order subscriptions by creation time for listing
-    index('idx_subscription_created_at').on(table.createdAt),
-  ]
-);
-
-export const credit = pgTable(
-  'credit',
-  {
-    id: text('id').primaryKey(),
-    userId: text('user_id')
-      .notNull()
-      .references(() => user.id, { onDelete: 'cascade' }), // user id
-    userEmail: text('user_email'), // user email
-    orderNo: text('order_no'), // payment order no
-    subscriptionNo: text('subscription_no'), // subscription no
-    transactionNo: text('transaction_no').unique().notNull(), // transaction no
-    transactionType: text('transaction_type').notNull(), // transaction type, grant / consume
-    transactionScene: text('transaction_scene'), // transaction scene, payment / subscription / gift / award
-    credits: integer('credits').notNull(), // credits amount, n or -n
-    remainingCredits: integer('remaining_credits').notNull().default(0), // remaining credits amount
-    description: text('description'), // transaction description
-    expiresAt: timestamp('expires_at'), // transaction expires at
-    status: text('status').notNull(), // transaction status
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at')
-      .$onUpdate(() => /* @__PURE__ */ new Date())
-      .notNull(),
-    deletedAt: timestamp('deleted_at'),
-    consumedDetail: text('consumed_detail'), // consumed detail
-    metadata: text('metadata'), // transaction metadata
-  },
-  (table) => [
-    // Critical composite index for credit consumption (FIFO queue)
-    // Query: WHERE userId = ? AND transactionType = 'grant' AND status = 'active'
-    //        AND remainingCredits > 0 ORDER BY expiresAt
-    // Can also be used for: WHERE userId = ? (left-prefix)
-    index('idx_credit_consume_fifo').on(
-      table.userId,
-      table.status,
-      table.transactionType,
-      table.remainingCredits,
-      table.expiresAt
-    ),
-    // Query credits by order number
-    index('idx_credit_order_no').on(table.orderNo),
-    // Query credits by subscription number
-    index('idx_credit_subscription_no').on(table.subscriptionNo),
-  ]
-);
-
-export const apikey = pgTable(
-  'apikey',
-  {
-    id: text('id').primaryKey(),
-    userId: text('user_id')
-      .notNull()
-      .references(() => user.id, { onDelete: 'cascade' }),
-    key: text('key').notNull(),
-    title: text('title').notNull(),
-    status: text('status').notNull(),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at')
-      .$onUpdate(() => /* @__PURE__ */ new Date())
-      .notNull(),
-    deletedAt: timestamp('deleted_at'),
-  },
-  (table) => [
-    // Composite: Query user's API keys by status
-    // Can also be used for: WHERE userId = ? (left-prefix)
-    index('idx_apikey_user_status').on(table.userId, table.status),
-    // Composite: Validate active API key (most common for auth)
-    // Can also be used for: WHERE key = ? (left-prefix)
-    index('idx_apikey_key_status').on(table.key, table.status),
-  ]
-);
-
-// RBAC Tables
-export const role = pgTable(
-  'role',
-  {
-    id: text('id').primaryKey(),
-    name: text('name').notNull().unique(), // admin, editor, viewer
-    title: text('title').notNull(),
-    description: text('description'),
-    status: text('status').notNull(),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at')
-      .$onUpdate(() => /* @__PURE__ */ new Date())
-      .notNull(),
-    sort: integer('sort').default(0).notNull(),
-  },
-  (table) => [
-    // Query active roles
-    index('idx_role_status').on(table.status),
-  ]
-);
-
-export const permission = pgTable(
-  'permission',
-  {
-    id: text('id').primaryKey(),
-    code: text('code').notNull().unique(), // admin.users.read, admin.posts.write
-    resource: text('resource').notNull(), // users, posts, categories
-    action: text('action').notNull(), // read, write, delete
-    title: text('title').notNull(),
+    creditsAmount: integer('credits_amount'),
+    creditsValidDays: integer('credits_valid_days'),
+    currentPeriodStart: timestamp('current_period_start').notNull(),
+    currentPeriodEnd: timestamp('current_period_end').notNull(),
+    cancelAtPeriodEnd: boolean('cancel_at_period_end').default(false).notNull(),
+    canceledAt: timestamp('canceled_at'),
+    canceledEndAt: timestamp('canceled_end_at'),
+    canceledReason: text('canceled_reason'),
+    canceledReasonType: text('canceled_reason_type'),
+    endedAt: timestamp('ended_at'),
     description: text('description'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at')
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
-  },
-  (table) => [
-    // Composite: Query permissions by resource and action
-    // Can also be used for: WHERE resource = ? (left-prefix)
-    index('idx_permission_resource_action').on(table.resource, table.action),
-  ]
-);
-
-export const rolePermission = pgTable(
-  'role_permission',
-  {
-    id: text('id').primaryKey(),
-    roleId: text('role_id')
-      .notNull()
-      .references(() => role.id, { onDelete: 'cascade' }),
-    permissionId: text('permission_id')
-      .notNull()
-      .references(() => permission.id, { onDelete: 'cascade' }),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at')
-      .$onUpdate(() => /* @__PURE__ */ new Date())
-      .notNull(),
     deletedAt: timestamp('deleted_at'),
   },
   (table) => [
-    // Composite: Query permissions for a role
-    // Can also be used for: WHERE roleId = ? (left-prefix)
-    index('idx_role_permission_role_permission').on(
-      table.roleId,
-      table.permissionId
-    ),
+    index('idx_subscription_user').on(table.userId),
+    index('idx_subscription_status').on(table.status),
   ]
 );
 
-export const userRole = pgTable(
-  'user_role',
+export const notification = pgTable(
+  'notification',
   {
     id: text('id').primaryKey(),
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
-    roleId: text('role_id')
-      .notNull()
-      .references(() => role.id, { onDelete: 'cascade' }),
+    type: text('type').notNull(), // system, message
+    title: text('title').notNull(),
+    content: text('content'),
+    link: text('link'),
+    isRead: boolean('is_read').default(false).notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at')
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
+  },
+  (table) => [
+    index('idx_notification_user').on(table.userId),
+    index('idx_notification_is_read').on(table.isRead),
+  ]
+);
+
+export const apiKey = pgTable(
+  'api_key',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    key: text('key').unique().notNull(),
+    description: text('description'),
+    status: text('status').default('active').notNull(), // active, disabled
+    lastUsedAt: timestamp('last_used_at'),
     expiresAt: timestamp('expires_at'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
   },
   (table) => [
-    // Composite: Query user's active roles (most critical for auth)
-    // Can also be used for: WHERE userId = ? (left-prefix)
-    index('idx_user_role_user_expires').on(table.userId, table.expiresAt),
+    index('idx_api_key_user').on(table.userId),
+    index('idx_api_key_value').on(table.key),
   ]
 );
+
+export const file = pgTable(
+  'file',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    path: text('path').notNull(),
+    url: text('url').notNull(),
+    size: integer('size').notNull(),
+    type: text('type').notNull(), // image, video, document, etc.
+    mimeType: text('mime_type'),
+    provider: text('provider').notNull(), // r2, s3, local
+    bucket: text('bucket'),
+    metadata: text('metadata'),
+    hash: text('hash'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+    deletedAt: timestamp('deleted_at'),
+  },
+  (table) => [
+    index('idx_file_user').on(table.userId),
+    index('idx_file_path').on(table.path),
+  ]
+);
+
+export const systemConfig = pgTable('config', {
+  name: text('name').primaryKey(),
+  value: text('value'),
+});
 
 export const aiTask = pgTable(
   'ai_task',
@@ -491,31 +476,29 @@ export const aiTask = pgTable(
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
+    taskId: text('task_id'),
     mediaType: text('media_type').notNull(),
     provider: text('provider').notNull(),
-    model: text('model').notNull(),
-    prompt: text('prompt').notNull(),
-    options: text('options'),
+    model: text('model'),
+    prompt: text('prompt'),
+    options: text('options'), // JSON string
     status: text('status').notNull(),
+    taskInfo: text('task_info'), // JSON string
+    taskResult: text('task_result'), // JSON string
+    costCredits: integer('cost_credits').default(0),
+    scene: text('scene'),
+    creditId: text('credit_id'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at')
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
     deletedAt: timestamp('deleted_at'),
-    taskId: text('task_id'), // provider task id
-    taskInfo: text('task_info'), // provider task info
-    taskResult: text('task_result'), // provider task result
-    costCredits: integer('cost_credits').notNull().default(0),
-    scene: text('scene').notNull().default(''),
-    creditId: text('credit_id'), // credit consumption record id
   },
   (table) => [
-    // Composite: Query user's AI tasks by status
-    // Can also be used for: WHERE userId = ? (left-prefix)
-    index('idx_ai_task_user_media_type').on(table.userId, table.mediaType),
-    // Composite: Query user's AI tasks by media type and provider
-    // Can also be used for: WHERE mediaType = ? AND provider = ? (left-prefix)
-    index('idx_ai_task_media_type_status').on(table.mediaType, table.status),
+    index('idx_ai_task_user').on(table.userId),
+    index('idx_ai_task_status').on(table.status),
+    index('idx_ai_task_created_at').on(table.createdAt),
+    index('idx_ai_task_task_id').on(table.taskId),
   ]
 );
 
@@ -552,18 +535,282 @@ export const chatMessage = pgTable(
       .notNull()
       .references(() => chat.id, { onDelete: 'cascade' }),
     status: text('status').notNull(),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at')
-      .$onUpdate(() => new Date())
-      .notNull(),
-    role: text('role').notNull(),
-    parts: text('parts').notNull(),
+    role: text('role').notNull(), // user, assistant, system
+    parts: text('parts').notNull(), // json string of parts
     metadata: text('metadata'),
     model: text('model').notNull(),
     provider: text('provider').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
   },
   (table) => [
-    index('idx_chat_message_chat_id').on(table.chatId, table.status),
-    index('idx_chat_message_user_id').on(table.userId, table.status),
+    index('idx_chat_message_chat').on(table.chatId),
+    index('idx_chat_message_user').on(table.userId),
+  ]
+);
+
+export const apikey = pgTable(
+  'apikey',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    key: text('key').unique().notNull(),
+    title: text('title').notNull(),
+    status: text('status').notNull().default('active'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+    deletedAt: timestamp('deleted_at'),
+  },
+  (table) => [
+    index('idx_apikey_user').on(table.userId),
+    index('idx_apikey_key').on(table.key),
+  ]
+);
+
+export const invitation = pgTable(
+  'invitation',
+  {
+    id: text('id').primaryKey(),
+    inviterId: text('inviter_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    inviterEmail: text('inviter_email'),
+    inviteeId: text('invitee_id').references(() => user.id, {
+      onDelete: 'set null',
+    }),
+    inviteeEmail: text('invitee_email'),
+    code: text('code').notNull(),
+    status: text('status').notNull().default('pending'), // pending, accepted
+    rewardAmount: integer('reward_amount').default(0), // Credits earned by inviter
+    inviteeRewardAmount: integer('invitee_reward_amount').default(0), // Credits earned by invitee
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+    acceptedAt: timestamp('accepted_at'),
+    inviterCreditId: text('inviter_credit_id'),
+    inviteeCreditId: text('invitee_credit_id'),
+    note: text('note'),
+  },
+  (table) => [
+    index('idx_invitation_inviter').on(table.inviterId),
+    index('idx_invitation_code').on(table.code),
+    index('idx_invitation_invitee_email').on(table.inviteeEmail),
+  ]
+);
+
+export const redemptionCode = pgTable(
+  'redemption_code',
+  {
+    id: text('id').primaryKey(),
+    code: text('code').unique().notNull(),
+    credits: integer('credits').notNull(),
+    type: text('type').notNull().default('credits'), // credits, membership
+    planId: text('plan_id'),
+    membershipDays: integer('membership_days'),
+    status: text('status').notNull().default('active'), // active, used
+    userId: text('user_id'),
+    usedAt: timestamp('used_at'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    createdBy: text('created_by'),
+    maxUses: integer('max_uses').default(1).notNull(),
+    usedCount: integer('used_count').default(0).notNull(),
+    expiresAt: timestamp('expires_at'),
+    creditValidityDays: integer('credit_validity_days').default(30),
+  },
+  (table) => [
+    index('idx_redemption_code_status').on(table.code, table.status),
+    index('idx_redemption_code_created_at').on(table.createdAt),
+  ]
+);
+
+export const redemptionRecord = pgTable(
+  'redemption_record',
+  {
+    id: text('id').primaryKey(),
+    codeId: text('code_id')
+      .notNull()
+      .references(() => redemptionCode.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    redeemedAt: timestamp('redeemed_at').defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('idx_redemption_record_unique').on(table.userId, table.codeId),
+  ]
+);
+
+export const presentation = pgTable(
+  'presentation',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    content: text('content'), // JSON string for slides content
+    status: text('status').notNull(), // generating, completed, failed
+    kieTaskId: text('kie_task_id'), // task id from KIE/RPA service if applicable
+    styleId: text('style_id'), // style template id
+    thumbnailUrl: text('thumbnail_url'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    index('idx_presentation_user').on(table.userId),
+    index('idx_presentation_created_at').on(table.createdAt),
+  ]
+);
+
+// Podcast table - stores AI generated podcasts
+export const podcast = pgTable(
+  'podcast',
+  {
+    id: text('id').primaryKey(), // episode_id from ListenHub
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    episodeId: text('episode_id').notNull(), // ListenHub episode ID
+    title: text('title').notNull(),
+    description: text('description'),
+    audioUrl: text('audio_url').notNull(),
+    duration: integer('duration').notNull(), // in seconds
+    mode: text('mode').notNull(), // quick, deep, debate
+    language: text('language').notNull(), // zh, en, ja
+    speakerIds: text('speaker_ids'), // JSON array of speaker IDs
+    coverUrl: text('cover_url'),
+    outline: text('outline'), // podcast outline
+    scripts: text('scripts'), // JSON array of podcast scripts
+    status: text('status').notNull().default('completed'), // pending, processing, completed, failed
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    index('idx_podcast_user').on(table.userId),
+    index('idx_podcast_created_at').on(table.createdAt),
+    index('idx_podcast_episode_id').on(table.episodeId),
+  ]
+);
+
+export const noteDocument = pgTable(
+  'note_document',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    language: text('language').default('auto'),
+    sourceType: text('source_type'),
+    sourceName: text('source_name'),
+    tags: text('tags'), // JSON 数组字符串，记录用户自定义标签
+    markdown: text('markdown').notNull(),
+    html: text('html'),
+    summary: text('summary'),
+    wordCount: integer('word_count').default(0),
+    status: text('status').notNull().default('draft'), // draft, published, archived
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    index('idx_note_document_user').on(table.userId),
+    index('idx_note_document_created_at').on(table.createdAt),
+  ]
+);
+
+// Commission table - records affiliate commissions
+export const commission = pgTable(
+  'commission',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }), // Beneficiary (Inviter)
+    orderId: text('order_id')
+      .notNull()
+      .references(() => order.id, { onDelete: 'cascade' }), // Source Order
+    amount: integer('amount').notNull(), // Amount in cents
+    currency: text('currency').notNull(),
+    status: text('status').notNull().default('pending'), // pending, paid (available for withdraw), cancelled
+    type: text('type').notNull().default('one_time'), // one_time, recurring
+    rate: text('rate'), // '50%' or '$50'
+    description: text('description'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    index('idx_commission_user').on(table.userId),
+    index('idx_commission_order').on(table.orderId),
+    index('idx_commission_status').on(table.status),
+    index('idx_commission_created_at').on(table.createdAt),
+  ]
+);
+
+// Withdrawal table - records withdrawal requests
+export const withdrawal = pgTable(
+  'withdrawal',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    amount: integer('amount').notNull(), // Amount in cents
+    currency: text('currency').notNull(),
+    status: text('status').notNull().default('pending'), // pending, approved, rejected, paid
+    method: text('method').notNull(), // paypal, bank_transfer
+    account: text('account').notNull(), // account details (JSON or string)
+    note: text('note'), // admin note or user note
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+    processedAt: timestamp('processed_at'), // when admin processed
+  },
+  (table) => [
+    index('idx_withdrawal_user').on(table.userId),
+    index('idx_withdrawal_status').on(table.status),
+    index('idx_withdrawal_created_at').on(table.createdAt),
+  ]
+);
+
+// 分销员申请表 - 用户申请成为分销员需要审批
+export const affiliateApplication = pgTable(
+  'affiliate_application',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    status: text('status').notNull().default('pending'), // pending, approved, rejected
+    reason: text('reason'), // 申请理由
+    socialMedia: text('social_media'), // 社交媒体账号
+    adminNote: text('admin_note'), // 管理员备注
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+    processedAt: timestamp('processed_at'), // 审批时间
+  },
+  (table) => [
+    index('idx_affiliate_app_user').on(table.userId),
+    index('idx_affiliate_app_status').on(table.status),
   ]
 );

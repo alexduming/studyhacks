@@ -3,12 +3,27 @@ import { getTranslations } from 'next-intl/server';
 import { PERMISSIONS, requirePermission } from '@/core/rbac';
 import { Header, Main, MainHeader } from '@/shared/blocks/dashboard';
 import { TableCard } from '@/shared/blocks/table';
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from '@/shared/components/ui/avatar';
 import { Badge } from '@/shared/components/ui/badge';
 import { getRemainingCredits } from '@/shared/models/credit';
-import { getUsers, getUsersCount, User } from '@/shared/models/user';
-import { getUserRoles } from '@/shared/services/rbac';
+import {
+  getUserInfo,
+  getUserMembership,
+  getUsers,
+  getUsersCount,
+  User,
+} from '@/shared/models/user';
+import { getUserRoles, hasPermission } from '@/shared/services/rbac';
 import { Crumb, Search } from '@/shared/types/blocks/common';
 import { type Table } from '@/shared/types/blocks/table';
+
+import { ManageCreditsDialog } from './manage-credits-dialog';
+import { ManageMembershipDialog } from './manage-membership-dialog';
+import { DeleteUserDialog } from './delete-user-dialog';
 
 export default async function AdminUsersPage({
   params,
@@ -44,6 +59,10 @@ export default async function AdminUsersPage({
     page,
     limit,
   });
+  const currentUser = await getUserInfo();
+  const canReadCredits = currentUser
+    ? await hasPermission(currentUser.id, PERMISSIONS.CREDITS_READ)
+    : false;
 
   const crumbs: Crumb[] = [
     { title: t('list.crumbs.admin'), url: '/admin' },
@@ -55,6 +74,7 @@ export default async function AdminUsersPage({
     title: t('list.search.email.title'),
     placeholder: t('list.search.email.placeholder'),
     value: email,
+    withButton: true,
   };
 
   const table: Table = {
@@ -64,10 +84,46 @@ export default async function AdminUsersPage({
       {
         name: 'image',
         title: t('fields.avatar'),
-        type: 'image',
-        placeholder: '-',
+        callback: async (item: User) => {
+          const membership = await getUserMembership(item.id);
+          return (
+            <Avatar
+              isVip={membership.level === 'plus' || membership.level === 'pro'}
+              vipLevel={membership.level as 'plus' | 'pro'}
+            >
+              <AvatarImage src={item.image || ''} alt={item.name || ''} />
+              <AvatarFallback>{item.name?.charAt(0) || 'U'}</AvatarFallback>
+            </Avatar>
+          );
+        },
       },
       { name: 'email', title: t('fields.email'), type: 'copy' },
+      {
+        name: 'membership',
+        title: 'Membership',
+        callback: async (item: User) => {
+          const membership = await getUserMembership(item.id);
+
+          const colors = {
+            free: 'bg-slate-500',
+            plus: 'bg-blue-500',
+            pro: 'bg-purple-500',
+          };
+
+          return (
+            <div className="flex items-center gap-2">
+              <Badge className={`${colors[membership.level]} text-white`}>
+                {membership.level.toUpperCase()}
+              </Badge>
+              <ManageMembershipDialog
+                userId={item.id}
+                userName={item.name}
+                currentLevel={membership.level}
+              />
+            </div>
+          );
+        },
+      },
       {
         name: 'roles',
         title: t('fields.roles'),
@@ -97,7 +153,16 @@ export default async function AdminUsersPage({
         callback: async (item: User) => {
           const credits = await getRemainingCredits(item.id);
 
-          return <div className="text-green-500">{credits}</div>;
+          return (
+            <div className="flex items-center gap-2">
+              <div className="text-green-500">{credits}</div>
+              <ManageCreditsDialog
+                userId={item.id}
+                userName={item.name}
+                currentCredits={credits}
+              />
+            </div>
+          );
         },
       },
       { name: 'createdAt', title: t('fields.created_at'), type: 'time' },
@@ -105,20 +170,51 @@ export default async function AdminUsersPage({
         name: 'actions',
         title: t('fields.actions'),
         type: 'dropdown',
-        callback: (item: User) => [
-          {
-            name: 'edit',
-            title: t('list.buttons.edit'),
-            icon: 'RiEditLine',
-            url: `/admin/users/${item.id}/edit`,
-          },
-          {
-            name: 'edit-roles',
-            title: t('list.buttons.edit_roles'),
-            icon: 'Users',
-            url: `/admin/users/${item.id}/edit-roles`,
-          },
-        ],
+        callback: (item: User) => {
+          const actions: Array<{
+            name: string;
+            title: string;
+            icon: string;
+            url: string;
+          }> = [];
+
+          if (canReadCredits) {
+            actions.push({
+              name: 'credit-details',
+              title: t('list.buttons.credit_details'),
+              icon: 'Coins',
+              url: `/admin/users/${item.id}/credits`,
+            });
+          }
+
+          actions.push(
+            {
+              name: 'edit',
+              title: t('list.buttons.edit'),
+              icon: 'RiEditLine',
+              url: `/admin/users/${item.id}/edit`,
+            },
+            {
+              name: 'edit-roles',
+              title: t('list.buttons.edit_roles'),
+              icon: 'Users',
+              url: `/admin/users/${item.id}/edit-roles`,
+            }
+          );
+
+          return actions;
+        },
+      },
+      {
+        name: 'delete',
+        title: t('fields.delete'),
+        callback: (item: User) => (
+          <DeleteUserDialog
+            userId={item.id}
+            userName={item.name}
+            userEmail={item.email}
+          />
+        ),
       },
     ],
     data: users,
@@ -139,3 +235,4 @@ export default async function AdminUsersPage({
     </>
   );
 }
+

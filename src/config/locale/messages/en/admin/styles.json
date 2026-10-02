@@ -1,0 +1,66 @@
+{
+  "page_title": "Style Library Management",
+  "add_new_style": "Add New Style",
+  "edit_style": "Edit Style",
+  "add_style_dialog_title": "Add New Style to Library",
+  "dialog_description": "Analyze images with AI and automatically generate prompts and visual specifications",
+  "refs_count": "REFS",
+  "step_1": {
+    "upload_title": "Upload Reference Images",
+    "upload_placeholder": "Click to upload or Ctrl+V to paste",
+    "analyze_button": "Analyze Style",
+    "analyzing": "Analyzing...",
+    "uploaded_count": "{count} images uploaded"
+  },
+  "step_2": {
+    "prompt_label": "Prompt",
+    "prompt_placeholder": "AI-generated prompt...",
+    "visual_spec_label": "Visual Specification"
+  },
+  "step_3": {
+    "preview_theme_label": "Preview Theme",
+    "preview_theme_placeholder": "e.g., Studyhacks Product Introduction",
+    "suggested_themes": "Suggested Themes:",
+    "theme_hint": "This will be used as the theme content for generating the preview image. Reference images are only used for visual style reference.",
+    "generate_title": "Generate Preview",
+    "generate_description": "Use KIE engine to generate \"{theme}\" cover and verify style fidelity",
+    "generate_button": "Generate Preview",
+    "generating": "Generating...",
+    "regenerate": "Regenerate",
+    "continue": "Satisfied, Continue"
+  },
+  "step_4": {
+    "style_id_label": "Style ID",
+    "style_id_placeholder": "e.g., minimal_blue",
+    "style_title_label": "Style Title",
+    "style_title_placeholder": "e.g., Tech Minimalism",
+    "tagline_label": "Tagline / Description",
+    "tagline_placeholder": "Summarize core characteristics in one sentence",
+    "ready_title": "Ready",
+    "ready_description": "Click the button below to save to the style library. Configuration will take effect immediately.",
+    "save_button": "Add to Style Library",
+    "saving": "Saving..."
+  },
+  "actions": {
+    "cancel": "Cancel",
+    "previous": "Previous",
+    "next_preview": "Next: Generate Preview"
+  },
+  "messages": {
+    "upload_success": "Images uploaded successfully",
+    "upload_failed": "Upload failed",
+    "upload_error": "Error occurred during upload",
+    "analysis_complete": "Style analysis complete",
+    "analysis_failed": "Analysis failed",
+    "preview_generating": "Generating preview image, please wait...",
+    "preview_complete": "Preview image generated",
+    "preview_failed": "Failed to generate preview image",
+    "style_saved": "Style added to library",
+    "save_failed": "Save failed",
+    "delete_confirm": "Are you sure you want to delete this style? This action cannot be undone and will modify the configuration file.",
+    "delete_success": "Style deleted",
+    "delete_failed": "Delete failed",
+    "fill_required": "Please fill in all required information and ensure the preview image has been generated",
+    "upload_required": "Please upload reference images first"
+  }
+}

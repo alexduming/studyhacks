@@ -1,12 +1,17 @@
-import { and, count, desc, eq } from 'drizzle-orm';
+import { and, count, desc, eq, inArray } from 'drizzle-orm';
 
 import { db } from '@/core/db';
 import { credit, order, subscription } from '@/config/db/schema';
 import { PaymentType } from '@/extensions/payment';
 
-import { NewCredit } from './credit';
+import { CreditStatus, CreditTransactionType, NewCredit } from './credit';
+import {
+  insertPaymentCommission,
+  lockPaymentOrder,
+} from './payment-transaction';
 import {
   NewSubscription,
+  SubscriptionStatus,
   UpdateSubscription,
   updateSubscriptionBySubscriptionNo,
 } from './subscription';
@@ -174,28 +179,98 @@ export async function updateOrderInTransaction({
   updateOrder,
   newSubscription,
   newCredit,
+  expireActiveSubscriptionsForUserId,
+  expireSubscriptionsAt,
+  commissionType = 'one_time',
 }: {
   orderNo: string;
   updateOrder: UpdateOrder;
   newSubscription?: NewSubscription;
   newCredit?: NewCredit;
+  expireActiveSubscriptionsForUserId?: string;
+  expireSubscriptionsAt?: Date;
+  commissionType?: 'one_time' | 'recurring';
 }) {
   if (!orderNo || !updateOrder) {
     throw new Error('orderNo and updateOrder are required');
   }
 
-  // only update order, no need transaction
-  if (!newSubscription && !newCredit) {
-    return updateOrderByOrderNo(orderNo, updateOrder);
-  }
-
   // need transaction
   const result = await db().transaction(async (tx) => {
+    const currentOrder = await lockPaymentOrder(tx, orderNo);
+    if (currentOrder.status === OrderStatus.PAID) {
+      return {
+        order: currentOrder,
+        subscription: null,
+        credit: null,
+        duplicate: true,
+      };
+    }
     let result: any = {
       order: null,
       subscription: null,
       credit: null,
     };
+
+    if (expireActiveSubscriptionsForUserId) {
+      const expireAt = expireSubscriptionsAt || new Date();
+      const activeSubscriptions = await tx
+        .select({
+          subscriptionNo: subscription.subscriptionNo,
+        })
+        .from(subscription)
+        .where(
+          and(
+            eq(subscription.userId, expireActiveSubscriptionsForUserId),
+            inArray(subscription.status, [
+              SubscriptionStatus.ACTIVE,
+              SubscriptionStatus.PENDING_CANCEL,
+              SubscriptionStatus.TRIALING,
+            ])
+          )
+        );
+
+      const subscriptionNos = activeSubscriptions
+        .map((item) => item.subscriptionNo)
+        .filter((item): item is string => Boolean(item));
+
+      if (activeSubscriptions.length > 0) {
+        await tx
+          .update(subscription)
+          .set({
+            status: SubscriptionStatus.EXPIRED,
+            endedAt: expireAt,
+            updatedAt: expireAt,
+          })
+          .where(
+            and(
+              eq(subscription.userId, expireActiveSubscriptionsForUserId),
+              inArray(subscription.status, [
+                SubscriptionStatus.ACTIVE,
+                SubscriptionStatus.PENDING_CANCEL,
+                SubscriptionStatus.TRIALING,
+              ])
+            )
+          );
+      }
+
+      if (subscriptionNos.length > 0) {
+        await tx
+          .update(credit)
+          .set({
+            status: CreditStatus.EXPIRED,
+            expiresAt: expireAt,
+          })
+          .where(
+            and(
+              eq(credit.userId, expireActiveSubscriptionsForUserId),
+              inArray(credit.subscriptionNo, subscriptionNos),
+              eq(credit.transactionType, CreditTransactionType.GRANT),
+              eq(credit.status, CreditStatus.ACTIVE)
+            )
+          );
+      }
+    }
 
     // deal with subscription
     if (newSubscription) {
@@ -257,6 +332,10 @@ export async function updateOrderInTransaction({
       .returning();
 
     result.order = orderResult;
+
+    if (updateOrder.status === OrderStatus.PAID) {
+      await insertPaymentCommission(tx, currentOrder, commissionType);
+    }
 
     return result;
   });

@@ -28,6 +28,14 @@ async function extractTextFromPDF(buffer: ArrayBuffer): Promise<{
     const nodeBuffer = Buffer.from(buffer);
     const parsed = await pdf(nodeBuffer);
 
+    console.log('[PDF Debug] Parsed Info:', {
+      numpages: parsed.numpages,
+      info: parsed.info,
+      metadata: parsed.metadata,
+      textLength: parsed.text?.length || 0,
+      version: parsed.version
+    });
+
     return {
       text: (parsed.text || '').trim(),
       totalPages: parsed.numpages || 0,
@@ -152,14 +160,14 @@ export async function POST(request: NextRequest) {
       await extractTextFromPDF(buffer);
 
     if (!extractedText || !extractedText.trim()) {
-      console.error('❌ PDF 解析失败: 未能从 PDF 中提取到任何文本');
+      console.warn('⚠️ PDF 文本提取为空，可能是扫描版 PDF，建议前端尝试 OCR');
       return NextResponse.json(
         {
           success: false,
-          error:
-            '无法从 PDF 文件中提取文本。这可能是因为 PDF 是扫描版（图片格式）或文件已损坏。',
+          error: 'PDF 似乎是扫描版（无文本层），需要进行 OCR 识别。',
+          needsOCR: true, // 告诉前端需要进行 OCR 处理
         },
-        { status: 400 }
+        { status: 422 } // 422 Unprocessable Entity
       );
     }
 

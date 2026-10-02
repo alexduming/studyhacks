@@ -23,18 +23,23 @@
         "icon": "Coins"
       },
       {
-        "title": "API Keys",
-        "url": "/settings/apikeys",
-        "icon": "RiKeyLine"
+        "title": "Invite Friends",
+        "url": "/settings/invitation",
+        "icon": "Users"
+      },
+      {
+        "title": "Coach Program",
+        "url": "/settings/affiliates",
+        "icon": "Award"
       }
     ]
   },
   "top_nav": {
     "items": [
       {
-        "title": "Activity",
-        "url": "/activity",
-        "icon": "Activity"
+        "title": "Library",
+        "url": "/library",
+        "icon": "Library"
       },
       {
         "title": "Settings",

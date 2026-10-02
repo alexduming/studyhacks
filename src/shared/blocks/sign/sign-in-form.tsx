@@ -74,7 +74,8 @@ export function SignInForm({
           },
           onSuccess: (ctx) => {},
           onError: (e: any) => {
-            toast.error(e?.error?.message || 'sign in failed');
+            // 使用友好的错误提示，引导用户重置密码
+            toast.error(t('sign_in_failed'));
             setLoading(false);
           },
         }
@@ -106,12 +107,15 @@ export function SignInForm({
             </div>
 
             <div className="grid gap-2">
-              {/* <div className="flex items-center">
-              <Label htmlFor="password">{t("password_title")}</Label>
-              <Link href="#" className="ml-auto inline-block text-sm underline">
-                Forgot your password?
-              </Link>
-            </div> */}
+              <div className="flex items-center">
+                <Label htmlFor="password">{t('password_title')}</Label>
+                <Link
+                  href="/forgot-password"
+                  className="ml-auto inline-block text-sm underline hover:text-primary"
+                >
+                  {t('forgot_password')}
+                </Link>
+              </div>
 
               <Input
                 id="password"

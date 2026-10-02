@@ -1,5 +1,5 @@
 {
-  "title": "AI闪卡 - 智能学习",
+  "title": "AI闪卡",
   "subtitle": "科学证明的间隔重复闪卡，由AI驱动以提升记忆力和学习速度",
   "stats": {
     "total_cards": "总卡片",
@@ -54,6 +54,7 @@
     "en": "英文输出"
   },
   "quick_actions": {
+    "library": "闪卡历史",
     "ai_generate": "AI 生成闪卡",
     "reset_progress": "重置进度",
     "view_stats": "查看统计"
@@ -65,5 +66,15 @@
   "errors": {
     "generation_failed": "生成闪卡时出错",
     "invalid_content": "内容无效，请重新输入"
+  },
+  "history": {
+    "loading": "正在载入历史闪卡…",
+    "load_success": "已载入 {count} 张闪卡，可以直接开始复习。",
+    "load_error": "无法打开这组闪卡，请重试或重新生成。",
+    "load_empty": "这条记录里没有闪卡，请重新生成一组。",
+    "banner": "来自历史记录的 {count} 张闪卡 · 生成时间 {time}",
+    "clear": "切换其他闪卡",
+    "fallback_front": "第 {index} 张闪卡",
+    "fallback_back": "参考答案 {index}"
   }
 }

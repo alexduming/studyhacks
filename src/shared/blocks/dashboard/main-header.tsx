@@ -19,6 +19,7 @@ export function MainHeader({
   filters,
   search,
   actions,
+  extraActions,
 }: {
   title?: string;
   description?: string;
@@ -26,6 +27,7 @@ export function MainHeader({
   filters?: FilterType[];
   search?: SearchType;
   actions?: ButtonType[];
+  extraActions?: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col">
@@ -34,7 +36,8 @@ export function MainHeader({
           <h2 className="text-2xl font-bold tracking-tight">{title || ''}</h2>
           <p className="text-muted-foreground">{description || ''}</p>
         </div>
-        <div>
+        <div className="flex items-center gap-2">
+          {extraActions}
           {actions?.map((action, idx) => (
             <Link
               key={idx}

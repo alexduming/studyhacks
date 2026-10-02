@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray } from 'drizzle-orm';
+import { and, count, desc, eq, gt, inArray, lte } from 'drizzle-orm';
 
 import { db } from '@/core/db';
 import { subscription } from '@/config/db/schema';
@@ -21,6 +21,32 @@ export enum SubscriptionStatus {
   TRIALING = 'trialing',
   EXPIRED = 'expired',
   PAUSED = 'paused',
+}
+
+const LIVE_SUBSCRIPTION_STATUSES = [
+  SubscriptionStatus.ACTIVE,
+  SubscriptionStatus.PENDING_CANCEL,
+  SubscriptionStatus.TRIALING,
+];
+
+export async function syncExpiredSubscriptions(userId?: string) {
+  const now = new Date();
+
+  return await db()
+    .update(subscription)
+    .set({
+      status: SubscriptionStatus.EXPIRED,
+      endedAt: now,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        userId ? eq(subscription.userId, userId) : undefined,
+        inArray(subscription.status, LIVE_SUBSCRIPTION_STATUSES),
+        lte(subscription.currentPeriodEnd, now)
+      )
+    )
+    .returning();
 }
 
 /**
@@ -124,6 +150,10 @@ export async function getSubscriptions({
   page?: number;
   limit?: number;
 }): Promise<Subscription[]> {
+  if (userId) {
+    await syncExpiredSubscriptions(userId);
+  }
+
   const result = await db()
     .select()
     .from(subscription)
@@ -134,7 +164,7 @@ export async function getSubscriptions({
         interval ? eq(subscription.interval, interval) : undefined
       )
     )
-    .orderBy(desc(subscription.createdAt))
+    .orderBy(desc(subscription.currentPeriodEnd), desc(subscription.createdAt))
     .limit(limit)
     .offset((page - 1) * limit);
 
@@ -149,20 +179,20 @@ export async function getSubscriptions({
  * get current subscription
  */
 export async function getCurrentSubscription(userId: string) {
+  await syncExpiredSubscriptions(userId);
+
+  const now = new Date();
   const [result] = await db()
     .select()
     .from(subscription)
     .where(
       and(
         eq(subscription.userId, userId),
-        inArray(subscription.status, [
-          SubscriptionStatus.ACTIVE,
-          SubscriptionStatus.PENDING_CANCEL,
-          SubscriptionStatus.TRIALING,
-        ])
+        inArray(subscription.status, LIVE_SUBSCRIPTION_STATUSES),
+        gt(subscription.currentPeriodEnd, now)
       )
     )
-    .orderBy(desc(subscription.createdAt))
+    .orderBy(desc(subscription.currentPeriodEnd), desc(subscription.createdAt))
     .limit(1);
 
   return result;
@@ -180,6 +210,10 @@ export async function getSubscriptionsCount({
   status?: string;
   interval?: string;
 } = {}): Promise<number> {
+  if (userId) {
+    await syncExpiredSubscriptions(userId);
+  }
+
   const [result] = await db()
     .select({ count: count() })
     .from(subscription)

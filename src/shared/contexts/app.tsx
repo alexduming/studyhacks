@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useState,
+  useCallback,
 } from 'react';
 
 import { getAuthClient, useSession } from '@/core/auth/client';
@@ -81,7 +82,7 @@ export const AppContextProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const fetchUserCredits = async function () {
+  const fetchUserCredits = useCallback(async function () {
     try {
       if (!user) {
         return;
@@ -98,11 +99,16 @@ export const AppContextProvider = ({ children }: { children: ReactNode }) => {
         throw new Error(message);
       }
 
-      setUser({ ...user, credits: data });
+      // 只有当积分真的发生变化时才更新 user 状态
+      // 避免因为引用变化导致 useEffect 死循环
+      if (JSON.stringify(user.credits) !== JSON.stringify(data)) {
+         setUser(prev => prev ? { ...prev, credits: data } : null);
+      }
+
     } catch (e) {
       console.log('fetch user credits failed:', e);
     }
-  };
+  }, [user?.id]); // 只在 userId 变化时重新生成函数，或者在 user 为空时。注意不要依赖 user 整个对象，否则会死循环。
 
   const fetchUserInfo = async function () {
     try {
@@ -152,12 +158,16 @@ export const AppContextProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (session && session.user) {
-      setUser(session.user as User);
-      fetchUserInfo();
+      // 只有当 session.user.id 和当前 user.id 不一致时才更新
+      // 或者 user 为空时更新
+      if (!user || user.id !== session.user.id) {
+         setUser(session.user as User);
+         fetchUserInfo();
+      }
     } else {
       setUser(null);
     }
-  }, [session]);
+  }, [session, user?.id]); // 依赖 session 和 user.id
 
   useEffect(() => {
     if (
@@ -171,11 +181,12 @@ export const AppContextProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [configs, session, isPending]);
 
-  useEffect(() => {
-    if (user && !user.credits) {
-      // fetchUserCredits();
-    }
-  }, [user]);
+  // Removed the problematic useEffect that was triggering infinite loops
+  // useEffect(() => {
+  //   if (user && !user.credits) {
+  //     // fetchUserCredits();
+  //   }
+  // }, [user]);
 
   useEffect(() => {
     setIsCheckSign(isPending);

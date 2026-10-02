@@ -33,6 +33,9 @@ export async function POST(
     }
 
     const eventType = event.eventType;
+    if (eventType === PaymentEventType.IGNORED) {
+      return Response.json({ message: 'ignored' });
+    }
     if (!eventType) {
       throw new Error('event type not found');
     }
@@ -136,13 +139,20 @@ export async function POST(
       message: 'success',
     });
   } catch (err: any) {
-    console.log('handle payment notify failed', err);
+    const invalidSignature =
+      err?.type === 'StripeSignatureVerificationError' ||
+      err?.message === 'Invalid webhook request';
+    console.error('handle payment notify failed', {
+      type: err?.type || err?.name,
+    });
     return Response.json(
       {
-        message: `handle payment notify failed: ${err.message}`,
+        message: invalidSignature
+          ? 'invalid webhook signature'
+          : 'payment notification could not be processed',
       },
       {
-        status: 500,
+        status: invalidSignature ? 400 : 500,
       }
     );
   }

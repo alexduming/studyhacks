@@ -139,6 +139,7 @@ export class StripeProvider implements PaymentProvider {
             client: 'web',
           };
         }
+        // 启用支付宝支付方式（仅支持一次性支付，不支持订阅）
         if (allowedPaymentMethods.includes('alipay')) {
           sessionParams.payment_method_types.push('alipay');
           sessionParams.payment_method_options.alipay = {};
@@ -238,6 +239,10 @@ export class StripeProvider implements PaymentProvider {
       let paymentSession: PaymentSession | undefined = undefined;
 
       const eventType = this.mapStripeEventType(event.type);
+
+      if (eventType === PaymentEventType.IGNORED) {
+        return { eventType, eventResult: event };
+      }
 
       if (eventType === PaymentEventType.CHECKOUT_SUCCESS) {
         paymentSession = await this.buildPaymentSessionFromCheckoutSession(
@@ -344,17 +349,16 @@ export class StripeProvider implements PaymentProvider {
   private mapStripeEventType(eventType: string): PaymentEventType {
     switch (eventType) {
       case 'checkout.session.completed':
+      case 'checkout.session.async_payment_succeeded':
         return PaymentEventType.CHECKOUT_SUCCESS;
       case 'invoice.payment_succeeded':
         return PaymentEventType.PAYMENT_SUCCESS;
-      case 'invoice.payment_failed':
-        return PaymentEventType.PAYMENT_FAILED;
       case 'customer.subscription.updated':
         return PaymentEventType.SUBSCRIBE_UPDATED;
       case 'customer.subscription.deleted':
         return PaymentEventType.SUBSCRIBE_CANCELED;
       default:
-        throw new Error(`Unknown Stripe event type: ${eventType}`);
+        return PaymentEventType.IGNORED;
     }
   }
 
@@ -446,8 +450,13 @@ export class StripeProvider implements PaymentProvider {
       undefined;
     let billingUrl = '';
 
-    if (invoice.lines.data.length > 0) {
-      const data = invoice.lines.data[0];
+    const subscriptionLine = invoice.lines.data.find(
+      (line) =>
+        line.subscription ||
+        line.parent?.subscription_item_details?.subscription
+    );
+    if (subscriptionLine) {
+      const data = subscriptionLine;
       let subscriptionId = '';
 
       // get subscription id from invoice line data
@@ -500,6 +509,16 @@ export class StripeProvider implements PaymentProvider {
     if (subscription) {
       result.subscriptionId = subscription.id;
       result.subscriptionInfo = await this.buildSubscriptionInfo(subscription);
+      // Retries can arrive after Stripe has advanced the subscription again.
+      // Credits belong to this invoice's period, not the latest period.
+      if (subscriptionLine?.period) {
+        result.subscriptionInfo.currentPeriodStart = new Date(
+          subscriptionLine.period.start * 1000
+        );
+        result.subscriptionInfo.currentPeriodEnd = new Date(
+          subscriptionLine.period.end * 1000
+        );
+      }
       result.subscriptionResult = subscription;
     }
 

@@ -56,9 +56,9 @@ export class EmailVerificationService {
   /**
    * 发送验证链接
    */
-  static async sendVerificationLink(email: string, type: 'registration' | 'password_reset' = 'registration'): Promise<VerificationResult> {
+  static async sendVerificationLink(email: string, type: 'registration' | 'password_reset' = 'registration', inviteCode?: string): Promise<VerificationResult> {
     try {
-      console.log(`🚀 开始发送验证链接: email=${email}, type=${type}`);
+      console.log(`🚀 开始发送验证链接: email=${email}, type=${type}, inviteCode=${inviteCode || 'none'}`);
 
       // 验证邮箱格式
       if (!this.isValidEmail(email)) {
@@ -102,11 +102,19 @@ export class EmailVerificationService {
         expiresAt,
         createdAt: now,
         lastSentAt: now,
+        inviteCode: inviteCode ? inviteCode.toUpperCase() : null,
       });
 
       // 生成验证链接
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-      const verificationUrl = `${baseUrl}/verify-email?token=${token}&email=${encodeURIComponent(email)}`;
+      // 根据不同类型生成不同的跳转路径
+      // - registration: 走原有的邮箱验证 + 完成注册流程
+      // - password_reset: 直接跳转到重置密码页面
+      const path =
+        type === 'password_reset' ? '/reset-password' : '/verify-email';
+      const verificationUrl = `${baseUrl}${path}?token=${token}&email=${encodeURIComponent(
+        email
+      )}`;
 
       console.log('🔧 验证链接已生成:');
       console.log(`- 邮箱: ${email}`);
@@ -238,6 +246,24 @@ export class EmailVerificationService {
   }
 
   /**
+   * 获取验证记录中的邀请码
+   */
+  static async getInviteCode(email: string): Promise<string | null> {
+    try {
+      const database = db();
+      const verification = await database.select()
+        .from(emailVerification)
+        .where(eq(emailVerification.email, email))
+        .limit(1);
+
+      return verification[0]?.inviteCode || null;
+    } catch (error) {
+      console.error('获取邀请码失败:', error);
+      return null;
+    }
+  }
+
+  /**
    * 检查邮箱是否已验证（用于注册流程）
    */
   static async isEmailVerified(email: string): Promise<boolean> {
@@ -306,3 +332,4 @@ export class EmailVerificationService {
     }
   }
 }
+

@@ -6,12 +6,12 @@ export function Label({
   metadata,
   className,
 }: {
-  value: string;
+  value: string | number | null | undefined;
   placeholder?: string;
   metadata?: Record<string, any>;
   className?: string;
 }) {
-  if (!value) {
+  if (value === null || value === undefined || value === '') {
     if (placeholder) {
       return <div className={className}>{placeholder}</div>;
     }

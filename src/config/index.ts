@@ -68,6 +68,17 @@ export const envConfigs = {
   auth_url: process.env.AUTH_URL || getAppUrl(), // 使用与 app_url 相同的逻辑
   auth_secret: process.env.AUTH_SECRET ?? '', // openssl rand -base64 32
 
+  // ====== 社交登录配置 (Social Auth) ======
+  // 允许通过环境变量配置社交登录，方便本地开发和部署
+  google_auth_enabled: process.env.GOOGLE_AUTH_ENABLED ?? 'false',
+  google_client_id: process.env.GOOGLE_CLIENT_ID ?? '',
+  google_client_secret: process.env.GOOGLE_CLIENT_SECRET ?? '',
+  google_one_tap_enabled: process.env.GOOGLE_ONE_TAP_ENABLED ?? 'false',
+
+  github_auth_enabled: process.env.GITHUB_AUTH_ENABLED ?? 'false',
+  github_client_id: process.env.GITHUB_CLIENT_ID ?? '',
+  github_client_secret: process.env.GITHUB_CLIENT_SECRET ?? '',
+
   // ====== 支付配置（Payment Configuration） ======
   // 非程序员解释：
   // - 这些配置控制支付功能（Stripe/PayPal/Creem）
@@ -96,4 +107,29 @@ export const envConfigs = {
   creem_environment: process.env.CREEM_ENVIRONMENT ?? 'sandbox', // sandbox 或 production
   creem_signing_secret: process.env.CREEM_SIGNING_SECRET ?? '',
   creem_product_ids: process.env.CREEM_PRODUCT_IDS ?? '', // JSON 字符串，映射产品 ID
+
+  // ====== R2 存储配置（支持直接用环境变量配置）======
+  // 非程序员解释：
+  // - 如果你不想每次在 /admin 里点来点去，可以直接在 .env 或部署平台的环境变量里写好
+  // - key 名称与数据库中的配置名保持一致：r2_access_key / r2_secret_key / r2_bucket_name 等
+  r2_access_key: process.env.R2_ACCESS_KEY ?? '',
+  r2_secret_key: process.env.R2_SECRET_KEY ?? '',
+  r2_bucket_name: process.env.R2_BUCKET_NAME ?? '',
+  r2_account_id: process.env.R2_ACCOUNT_ID ?? '',
+  // 可选：自定义 R2 Endpoint，比如 https://<account-id>.r2.cloudflarestorage.com
+  r2_endpoint: process.env.R2_ENDPOINT ?? '',
+  // 可选：对外访问域名，比如 https://cdn.example.com/your-bucket
+  r2_domain: process.env.R2_DOMAIN ?? '',
+
+  // ====== ListenHub Podcast 配置 ======
+  // 非程序员解释：
+  // - ListenHub 是专业的 AI 播客生成平台
+  // - 支持多种播客模式（速听、深度、辩论）
+  // - 支持多种语言和音色选择
+  // - API 文档：https://blog.listenhub.ai/openapi-docs
+  listenhub_enabled: process.env.LISTENHUB_ENABLED ?? 'false', // 是否启用 ListenHub
+  listenhub_api_key: process.env.LISTENHUB_API_KEY ?? '', // ListenHub API Key
+  listenhub_base_url:
+    process.env.LISTENHUB_BASE_URL ?? 'https://api.marswave.ai', // ListenHub API 基础 URL
+
 };

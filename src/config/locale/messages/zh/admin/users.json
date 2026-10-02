@@ -1,55 +1,71 @@
 {
   "fields": {
     "id": "ID",
-    "name": "名称",
-    "avatar": "头像",
-    "email": "邮箱",
-    "email_verified": "邮箱已验证",
-    "remaining_credits": "剩余积分",
-    "created_at": "创建时间",
-    "actions": "操作",
-    "roles": "角色"
+    "name": "\u540d\u79f0",
+    "avatar": "\u5934\u50cf",
+    "email": "\u90ae\u7bb1",
+    "email_verified": "\u90ae\u7bb1\u5df2\u9a8c\u8bc1",
+    "remaining_credits": "\u5269\u4f59\u79ef\u5206",
+    "created_at": "\u521b\u5efa\u65f6\u95f4",
+    "actions": "\u64cd\u4f5c",
+    "roles": "\u89d2\u8272",
+    "delete": "\u5220\u9664"
   },
   "list": {
-    "title": "用户",
+    "title": "\u7528\u6237",
     "crumbs": {
-      "admin": "管理后台",
-      "users": "用户"
+      "admin": "\u7ba1\u7406\u540e\u53f0",
+      "users": "\u7528\u6237"
     },
     "buttons": {
-      "add": "添加用户",
-      "edit": "编辑用户",
-      "view": "查看用户",
-      "delete": "删除用户",
-      "edit_roles": "编辑角色"
+      "add": "\u6dfb\u52a0\u7528\u6237",
+      "edit": "\u7f16\u8f91\u7528\u6237",
+      "view": "\u67e5\u770b\u7528\u6237",
+      "delete": "\u5220\u9664\u7528\u6237",
+      "edit_roles": "\u7f16\u8f91\u89d2\u8272",
+      "credit_details": "\u79ef\u5206\u660e\u7ec6"
     },
     "search": {
       "email": {
-        "title": "邮箱",
-        "placeholder": "邮箱"
+        "title": "\u90ae\u7bb1",
+        "placeholder": "\u90ae\u7bb1"
       }
     }
   },
-  "edit": {
-    "title": "编辑用户",
+  "credit_details": {
+    "title": "\u79ef\u5206\u660e\u7ec6",
+    "description": "\u67e5\u770b {userName}\uff08{email}\uff09\u7684\u79ef\u5206\u589e\u51cf\u660e\u7ec6\u3002\u5f53\u524d\u4f59\u989d\uff1a{credits}",
     "crumbs": {
-      "admin": "管理后台",
-      "users": "用户",
-      "edit": "编辑用户"
+      "admin": "\u7ba1\u7406\u540e\u53f0",
+      "users": "\u7528\u6237",
+      "credit_details": "\u79ef\u5206\u660e\u7ec6"
+    },
+    "empty": "\u7528\u6237\u4e0d\u5b58\u5728",
+    "expired_summary_title": "\u5df2\u8fc7\u671f\u79ef\u5206\u6c47\u603b",
+    "expired_summary_total": "\u5df2\u8fc7\u671f\u4e14\u672a\u4f7f\u7528\u7684\u79ef\u5206\uff1a{credits}",
+    "expired_summary_empty": "\u672a\u53d1\u73b0\u5df2\u8fc7\u671f\u4f46\u672a\u4f7f\u7528\u7684\u79ef\u5206\u3002",
+    "expired_summary_item": "{date} \u8fc7\u671f {credits} \u79ef\u5206\uff0c\u6765\u6e90\uff1a{description}"
+  },
+  "edit": {
+    "title": "\u7f16\u8f91\u7528\u6237",
+    "crumbs": {
+      "admin": "\u7ba1\u7406\u540e\u53f0",
+      "users": "\u7528\u6237",
+      "edit": "\u7f16\u8f91\u7528\u6237"
     },
     "buttons": {
-      "submit": "更新"
+      "submit": "\u66f4\u65b0"
     }
   },
   "edit_roles": {
-    "title": "编辑角色",
+    "title": "\u7f16\u8f91\u89d2\u8272",
     "crumbs": {
-      "admin": "管理后台",
-      "users": "用户",
-      "edit_roles": "编辑角色"
+      "admin": "\u7ba1\u7406\u540e\u53f0",
+      "users": "\u7528\u6237",
+      "edit_roles": "\u7f16\u8f91\u89d2\u8272"
     },
     "buttons": {
-      "submit": "更新"
+      "submit": "\u66f4\u65b0"
     }
   }
 }

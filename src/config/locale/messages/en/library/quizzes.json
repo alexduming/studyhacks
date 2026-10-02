@@ -1,0 +1,22 @@
+{
+  "title": "Quizzes Library",
+  "subtitle": "Review every AI-generated quiz, copy questions, or export them to your assessment tools.",
+  "buttons": {
+    "new": "Continue generating quizzes",
+    "empty": "Generate quiz"
+  },
+  "empty": {
+    "title": "Quizzes Library",
+    "description": "No quiz history yet. Upload any learning material to create your first practice test.",
+    "button": "Create quiz"
+  },
+  "cards": {
+    "groupTitle": "Quiz set · {count} questions",
+    "questionLabel": "Q{index}",
+    "answerLabel": "Answer:",
+    "explanationLabel": "Explanation:",
+    "empty": "This record is empty. Re-run the generator to create questions.",
+    "remaining": "... {count} more questions will be available for export soon."
+  }
+}
+

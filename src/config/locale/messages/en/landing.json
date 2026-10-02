@@ -49,6 +49,12 @@
               "description": "Create infographics from your notes and documents",
               "url": "/infographic",
               "icon": "Image"
+            },
+            {
+              "title": "AI Slides Generator",
+              "description": "Generate professional presentations with AI",
+              "url": "/slides",
+              "icon": "Presentation"
             }
           ]
         },
@@ -64,21 +70,10 @@
       "show_name": true,
       "show_credits": true,
       "show_sign_out": true,
-      "items": [
-        {
-          "title": "Billing",
-          "url": "/settings/billing",
-          "icon": "CreditCard"
-        },
-        {
-          "title": "Activity",
-          "url": "/activity",
-          "icon": "Activity"
-        }
-      ]
+      "items": []
     },
     "show_sign": true,
-    "show_theme": false,
+    "show_theme": true,
     "show_locale": true
   },
   "hero": {
@@ -103,6 +98,49 @@
       "src": "/imgs/features/admin-dark.png",
       "alt": "hero"
     }
+  },
+  "tool_index": {
+    "id": "tool-index",
+    "title": "What do you want to do today?",
+    "description": "Choose a study action and launch it in one click",
+    "items": [
+      {
+        "title": "Generate AI Notes",
+        "description": "Turn files and videos into structured key takeaways",
+        "url": "/ai-note-taker",
+        "icon": "FileText"
+      },
+      {
+        "title": "Generate Flashcards",
+        "description": "Convert concepts into memorization-ready cards",
+        "url": "/flashcards",
+        "icon": "Brain"
+      },
+      {
+        "title": "Generate Quiz",
+        "description": "Create instant tests to measure understanding",
+        "url": "/quiz",
+        "icon": "Target"
+      },
+      {
+        "title": "Generate Podcast",
+        "description": "Transform notes into audio you can learn from anywhere",
+        "url": "/podcast",
+        "icon": "Headphones"
+      },
+      {
+        "title": "Generate Infographic",
+        "description": "Produce visual summaries in a clean, shareable format",
+        "url": "/infographic",
+        "icon": "BarChart3"
+      },
+      {
+        "title": "AI PPT (AI Slides)",
+        "description": "Build presentation-ready decks in minutes",
+        "url": "/slides",
+        "icon": "Presentation"
+      }
+    ]
   },
   "logos": {
     "title": "Trusted by students at leading universities worldwide",
